@@ -1,0 +1,62 @@
+name: Build and Deploy to EC2
+
+on:
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+
+            - name: Login to Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Build and Push Docker Image
+              uses: docker/build-push-action@v5
+              with:
+                  context: .
+                  push: true
+                  tags: ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:latest
+
+    deploy:
+        needs: build
+        runs-on: ubuntu-latest
+        steps:
+            - name: Execute Deployment Commands via SSH
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.EC2_HOST }}
+                  username: ubuntu
+                  key: ${{ secrets.EC2_SSH_KEY }}
+                  script: |
+                      # 1. Login to Docker Hub on EC2 (required if images are private)
+                      echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+                      # 2. Pull the latest image
+                      docker pull ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:latest
+
+                      # 3. Stop and remove the old container
+                      docker stop yt-dlp-api || true
+                      docker rm yt-dlp-api || true
+
+                      # 4. Run the new container
+                      # We mount the .env and cookies file which are manually uploaded to the server
+                      docker run -d \
+                        -p 80:3000 \
+                        --restart always \
+                        -v ~/.env:/api/.env \
+                        -v ~/www.youtube.com_cookies.txt:/api/www.youtube.com_cookies.txt \
+                        -e NODE_ENV=production \
+                        --name yt-dlp-api \
+                        ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:latest
+
+                      # 5. Clean up old images
+                      docker image prune -f
