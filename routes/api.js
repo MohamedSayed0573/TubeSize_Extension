@@ -15,17 +15,36 @@ Router.get("/video-sizes/:videoTag", async (req, res) => {
         throw new InvalidInputError("Invalid YouTube URL provided.");
     }
 
+    let args;
+    if (NODE_ENV === "production") {
+        args = [
+            "-J",
+            "--no-warnings",
+            "--skip-download",
+            "--js-runtimes",
+            "node",
+            "--remote-components",
+            "ejs:github",
+            "--cookies",
+            "/api/www.youtube.com_cookies.txt",
+            videoTag,
+        ];
+    } else {
+        args = [
+            "-J",
+            "--no-warnings",
+            "--skip-download",
+            "--js-runtimes",
+            "node",
+            videoTag,
+        ];
+    }
+
+    // yt-dlp --js-runtimes node --no-download -J --remote-components ejs:github gAkwW2tuIqE 
     try {
         const { stdout } = await execFile(
             "yt-dlp",
-            [
-                "-J",
-                "--no-warnings",
-                "--skip-download",
-                "--js-runtimes",
-                "node",
-                videoTag,
-            ],
+            args,
             {
                 timeout: CONFIG.YTDLP_TIMEOUT_MS,
             },

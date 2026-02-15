@@ -13,7 +13,7 @@ const limiter = rateLimit({
     limit: CONFIG.LIMIT, // Number of requests allowed in the time frame
     handler: (req, res, next, options) => {
         throw new RateLimit("Too many requests, please try again later.");
-    }
+    },
 });
 
 // Apply the rate limiting middleware to all requests.
@@ -34,7 +34,7 @@ app.get("/health", (req, res) => {
 
 app.use((req, res) => {
     res.status(404).json({ error: "Route not found" });
-})
+});
 
 // Error handler
 app.use((err, req, res, next) => {
