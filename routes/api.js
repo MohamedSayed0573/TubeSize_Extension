@@ -16,7 +16,7 @@ Router.get("/video-sizes/:videoTag", async (req, res) => {
     }
 
     let args;
-    if (NODE_ENV === "production") {
+    if (process.env.NODE_ENV === "production") {
         args = [
             "-J",
             "--no-warnings",
@@ -40,15 +40,11 @@ Router.get("/video-sizes/:videoTag", async (req, res) => {
         ];
     }
 
-    // yt-dlp --js-runtimes node --no-download -J --remote-components ejs:github gAkwW2tuIqE 
+    // yt-dlp --js-runtimes node --no-download -J --remote-components ejs:github gAkwW2tuIqE
     try {
-        const { stdout } = await execFile(
-            "yt-dlp",
-            args,
-            {
-                timeout: CONFIG.YTDLP_TIMEOUT_MS,
-            },
-        );
+        const { stdout } = await execFile("yt-dlp", args, {
+            timeout: CONFIG.YTDLP_TIMEOUT_MS,
+        });
 
         const data = JSON.parse(stdout);
 
@@ -61,16 +57,27 @@ Router.get("/video-sizes/:videoTag", async (req, res) => {
             data.duration ?? data.formats?.[0]?.fragments?.[0]?.duration;
         const duration = rawDuration != null ? ms(rawDuration * 1000) : null;
 
-        const rawAudioFormat = data.formats.find((format) => format.format_id === audioFormat);
-        const audioFormatSize = rawAudioFormat ? filesize(rawAudioFormat.filesize ?? rawAudioFormat.filesize_approx) : null;
+        const rawAudioFormat = data.formats.find(
+            (format) => format.format_id === audioFormat,
+        );
+        const audioFormatSize = rawAudioFormat
+            ? filesize(
+                  rawAudioFormat.filesize ?? rawAudioFormat.filesize_approx,
+              )
+            : null;
 
-        const rawVideoFormats = data.formats.filter((format) => videoFormats.includes(format.format_id) && format.height && (format.filesize || format.filesize_approx));
+        const rawVideoFormats = data.formats.filter(
+            (format) =>
+                videoFormats.includes(format.format_id) &&
+                format.height &&
+                (format.filesize || format.filesize_approx),
+        );
         const videoFormatsSize = rawVideoFormats.map((format) => {
             return {
                 format_id: format.format_id,
                 height: format.height,
                 filesize: filesize(format.filesize ?? format.filesize_approx),
-            }
+            };
         });
 
         const parsedData = {
