@@ -1,5 +1,5 @@
 node_modules
 .env
 *.md
-temp.json
+ytdlp_output_example.json
 www.youtube.com_cookies.txt

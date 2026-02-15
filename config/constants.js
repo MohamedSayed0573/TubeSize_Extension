@@ -4,6 +4,7 @@ const CONFIG = Object.freeze({
     YTDLP_TIMEOUT_MS: 20000,
     WINDOW_LIMIT_MS: 15 * 60 * 1000, // 15 minutes / Time frame for which requests are checked/remembered
     LIMIT: 20, // Number of requests allowed in the time frame
+    YOUTUBE_ID_REGEX: /^[a-zA-Z0-9_-]{11}$/,
 });
 
 module.exports = CONFIG;

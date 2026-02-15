@@ -1,7 +1,7 @@
 #!/bin/bash
 # This file contains commands to run when you first launch a new EC2 instance.
 
-# STEP 1
+# STEP 1: Here those commands should run on the new instance
 # 1. System Updates (Non-interactive)
 sudo apt update
 sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade
@@ -54,19 +54,16 @@ git clone https://github.com/MohamedSayed0573/yt-dlp-API.git
 # Navigate to the directory
 cd yt-dlp-API
 
-# STEP 2
-exit
-cd ~/newExtension/api
+# STEP 2: Here those commands should run on your local machine
 # Exit and move the .env and cookies file to the new instance
-scp -i ~/.ssh/ytdlp-api-key.pem .env ubuntu@34.228.156.229:~/yt-dlp-API/
-scp -i ~/.ssh/ytdlp-api-key.pem www.youtube.com_cookies.txt ubuntu@34.228.156.229:~/yt-dlp-API/
+# exit
+# cd ~/newExtension/api
+# scp -i ~/.ssh/ytdlp-api-key.pem .env ubuntu@34.228.156.229:~/yt-dlp-API/
+# scp -i ~/.ssh/ytdlp-api-key.pem www.youtube.com_cookies.txt ubuntu@34.228.156.229:~/yt-dlp-API/
 
-# STEP 3
-# SSH into the new instance
-ssh -i ~/.ssh/ytdlp-api-key.pem ubuntu@34.228.156.229
-cd ~/yt-dlp-API
-
-# Build and run the Docker container
-docker build -t yt-dlp-api .
-docker run -d -p 80:3000 --restart always --name yt-dlp-api yt-dlp-api
-
+# STEP 3: Here those commands should run on the new instance
+# SSH into the new instance and Build and run the Docker container
+# ssh -i ~/.ssh/ytdlp-api-key.pem ubuntu@34.228.156.229
+# cd ~/yt-dlp-API
+# docker build -t yt-dlp-api .
+# docker run -d -p 80:3000 --restart always --name yt-dlp-api yt-dlp-api

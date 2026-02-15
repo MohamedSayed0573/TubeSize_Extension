@@ -1,7 +1,7 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const app = express();
-require("dotenv").config();
 const { AppError, RateLimit } = require("./utils/errors");
 const apiRoutes = require("./routes/api");
 const { rateLimit } = require("express-rate-limit");
@@ -43,6 +43,7 @@ app.use((req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
     logger.error(err);
+    req.log.error(err);
 
     const status = err instanceof AppError ? err.statusCode : 500;
     const message =

@@ -1,6 +1,7 @@
 FROM alpine:latest
 
-RUN apk update && apk add nodejs npm && apk add --no-cache python3 py3-pip && pip install -U yt-dlp --break-system-packages
+RUN apk update && apk add --no-cache nodejs npm python3 py3-pip
+RUN pip install -U yt-dlp --break-system-packages
 
 WORKDIR /api
 
