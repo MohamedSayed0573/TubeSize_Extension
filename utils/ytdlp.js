@@ -1,7 +1,8 @@
 const { promisify } = require("util");
 const execFile = promisify(require("child_process").execFile);
 const CONFIG = require("../config/constants");
-const InvalidInputError = require("../utils/errors");
+const { InvalidInputError } = require("../utils/errors");
+const env = require("../utils/env");
 
 const BASE_ARGS = [
     "-J",
@@ -10,7 +11,7 @@ const BASE_ARGS = [
     "--js-runtimes",
     "node",
 ];
-if (process.env.NODE_ENV === "production") {
+if (env.NODE_ENV === "production") {
     BASE_ARGS.push("--cookies", "/api/www.youtube.com_cookies.txt");
     BASE_ARGS.push("--remote-components", "ejs:github");
 }

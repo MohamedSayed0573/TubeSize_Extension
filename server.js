@@ -1,14 +1,13 @@
-require("dotenv").config();
+const env = require("./utils/env");
 const express = require("express");
 const cors = require("cors");
 const app = express();
 const { AppError, RateLimit } = require("./utils/errors");
 const apiRoutes = require("./routes/api");
 const { rateLimit } = require("express-rate-limit");
-const CONFIG = require("./config/constants");
 const helmet = require("helmet");
-const logger = require('pino')();
-const pinoHttp = require('pino-http')();
+const CONFIG = require("./config/constants");
+const { logger, pinoHttp } = require("./utils/logger");
 
 const limiter = rateLimit({
     windowMs: CONFIG.WINDOW_LIMIT_MS, // Time frame for which requests are checked/remembered
@@ -18,11 +17,11 @@ const limiter = rateLimit({
     },
 });
 
-// Apply the rate limiting middleware to all requests.
-app.use(limiter);
-
 // Apply helmet middleware to all requests.
 app.use(helmet());
+
+// Apply the rate limiting middleware to all requests.
+app.use(limiter);
 
 // Enable CORS for all routes. This is only for development
 app.use(cors());
@@ -42,14 +41,13 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-    logger.error(err);
     req.log.error(err);
 
     const status = err instanceof AppError ? err.statusCode : 500;
     const message =
         err instanceof AppError ? err.message : "Internal Server Error";
 
-    if (process.env.NODE_ENV === "production") {
+    if (env.NODE_ENV === "production") {
         res.status(status).json({
             error: message,
         });
@@ -62,6 +60,6 @@ app.use((err, req, res, next) => {
     }
 });
 
-app.listen(process.env.PORT || 3000, () => {
-    logger.info(`Server is running on port ${process.env.PORT}`);
+app.listen(env.PORT, () => {
+    logger.info(`Server is running on port ${env.PORT}`);
 });

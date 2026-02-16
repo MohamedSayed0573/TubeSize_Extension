@@ -1,6 +1,6 @@
 const CONFIG = require("../config/constants");
 const ms = require("ms");
-const filesize = require("filesize");
+const { filesize } = require("filesize");
 
 function formatResponse(data, executionTime) {
     const videoFormats = CONFIG.VIDEO_FORMAT_IDS;

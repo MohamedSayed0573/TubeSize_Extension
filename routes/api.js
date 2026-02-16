@@ -1,10 +1,10 @@
 const express = require("express");
-const Router = express.Router();
+const router = express.Router();
 const { InvalidInputError } = require("../utils/errors");
-const formatResponse = require("../utils/formatResponse");
+const { formatResponse } = require("../utils/formatResponse");
 const { getVideoInfo, validateVideoTag } = require("../utils/ytdlp");
 
-Router.get("/video-sizes/:videoTag", async (req, res) => {
+router.get("/video-sizes/:videoTag", async (req, res) => {
     const startTime = Date.now();
     const videoTag = req.params.videoTag;
 
@@ -22,4 +22,4 @@ Router.get("/video-sizes/:videoTag", async (req, res) => {
     res.json(formattedData);
 });
 
-module.exports = Router;
+module.exports = router;
