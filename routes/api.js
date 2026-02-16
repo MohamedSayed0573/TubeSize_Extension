@@ -3,6 +3,8 @@ const router = express.Router();
 const { InvalidInputError } = require("../utils/errors");
 const { formatResponse } = require("../utils/formatResponse");
 const { getVideoInfo, validateVideoTag } = require("../utils/ytdlp");
+const ms = require("ms");
+const { checkCache, setCache } = require("../utils/cache");
 
 router.get("/video-sizes/:videoTag", async (req, res) => {
     const startTime = Date.now();
@@ -13,13 +15,25 @@ router.get("/video-sizes/:videoTag", async (req, res) => {
         throw new InvalidInputError("Invalid YouTube URL provided.");
     }
 
-    const data = await getVideoInfo(videoTag);
-    const endTime = Date.now();
+    const cached = await checkCache(videoTag);
 
-    const formattedData = formatResponse(data, endTime - startTime);
+    let formattedData;
 
+    if (cached) {
+        formattedData = JSON.parse(cached);
+    } else {
+        const data = await getVideoInfo(videoTag);
+        formattedData = formatResponse(data);
+        await setCache(videoTag, JSON.stringify(formattedData));
+    }
+
+    const executionTime = ms(Date.now() - startTime);
     req.log.info(formattedData);
-    res.json(formattedData);
+    res.json({
+        success: true,
+        ...formattedData,
+        executionTime,
+    });
 });
 
 module.exports = router;

@@ -2,15 +2,14 @@ require("dotenv").config({
     quiet: true,
 });
 const z = require("zod");
-const logger = require("./logger");
+const { logger } = require("./logger");
 
 const envSchema = z.object({
-    PORT: z
-        .string()
-        .default("3000")
-        .regex(/^[0-9]+$/, "PORT must be a number")
-        .transform(Number),
+    PORT: z.coerce
+        .number()       // Coerces "3000" -> 3000
+        .default(3000), // Default is a number
     NODE_ENV: z.enum(["development", "production"]).default("development"),
+    REDIS_ENABLED: z.coerce.boolean().default(false), // Coerces "true" -> true
 });
 
 const env = envSchema.safeParse(process.env);

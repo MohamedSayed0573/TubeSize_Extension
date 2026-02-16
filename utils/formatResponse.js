@@ -2,7 +2,7 @@ const CONFIG = require("../config/constants");
 const ms = require("ms");
 const { filesize } = require("filesize");
 
-function formatResponse(data, executionTime) {
+function formatResponse(data) {
     const videoFormats = CONFIG.VIDEO_FORMAT_IDS;
     const audioFormat = CONFIG.AUDIO_FORMAT_ID;
 
@@ -37,7 +37,6 @@ function formatResponse(data, executionTime) {
         duration: duration,
         audioFormat: audioFormatSize,
         videoFormats: videoFormatsSize,
-        executionTime: ms(executionTime),
     };
 }
 
