@@ -9,6 +9,7 @@ const helmet = require("helmet");
 const CONFIG = require("./config/constants");
 const { logger, pinoHttp } = require("./utils/logger");
 const { redisClient } = require("./utils/cache");
+const ms = require("ms");
 
 const limiter = rateLimit({
     windowMs: CONFIG.WINDOW_LIMIT_MS, // Time frame for which requests are checked/remembered
@@ -33,7 +34,11 @@ app.use(pinoHttp);
 app.use("/api", apiRoutes);
 
 app.get("/health", (req, res) => {
-    res.json({ status: "ok" });
+    res.json({
+        status: "ok",
+        uptime: ms(Math.round(process.uptime())),
+        timestamp: new Date().toISOString()
+    });
 });
 
 app.use((req, res) => {
