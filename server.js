@@ -12,6 +12,13 @@ const { redisClient } = require("./utils/cache");
 const ms = require("ms");
 const authMiddleware = require("./middleware/auth");
 
+// Enable CORS for all routes. This is only for development
+// My IP is dynamic and I haven't started the extension therefore, I don't have extension ID
+app.use(cors());
+
+// Apply helmet middleware to all requests.
+app.use(helmet({ crossOriginResourcePolicy: false }));
+
 const limiter = rateLimit({
     windowMs: CONFIG.WINDOW_LIMIT_MS, // Time frame for which requests are checked/remembered
     limit: CONFIG.LIMIT, // Number of requests allowed in the time frame
@@ -20,15 +27,8 @@ const limiter = rateLimit({
     },
 });
 
-// Apply helmet middleware to all requests.
-app.use(helmet());
-
 // Apply the rate limiting middleware to all requests.
 app.use(limiter);
-
-// Enable CORS for all routes. This is only for development
-// My IP is dynamic and I haven't started the extension therefore, I don't have extension ID
-app.use(cors());
 
 app.use(pinoHttp);
 
