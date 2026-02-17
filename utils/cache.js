@@ -6,6 +6,8 @@ const redisClient = Redis.createClient({
     url: env.REDIS_URL,
 });
 
+redisClient.on("error", () => {});
+
 async function checkCache(videoTag) {
     try {
         if (!redisClient.isOpen) return;

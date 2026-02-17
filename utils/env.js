@@ -16,7 +16,10 @@ const envSchema = z.object({
         /^[a-zA-Z0-9_\-=+@!#$%^&*();:.,?><'"|{}\[\]]+$/,
         "Invalid characters in API key",
     ),
-    REDIS_ENABLED: z.coerce.boolean().default(false), // Coerces "true" -> true
+    REDIS_ENABLED: z
+        .string()
+        .transform((val) => val.toLowerCase() === "true")
+        .default("false"), // "true" -> true, anything else -> false
     REDIS_URL: z.url("Invalid Redis URL").default("redis://localhost:6379"),
 });
 
