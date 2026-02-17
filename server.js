@@ -86,10 +86,6 @@ const server = app.listen(env.PORT, async () => {
     logger.info(`Server is running on port ${env.PORT}`);
 });
 
-redisClient.on("error", (error) => {
-    logger.error({ error }, "Redis client error");
-});
-
 async function gracefulShutdown(signal) {
     logger.info(`Server is shutting down (${signal})`);
 
