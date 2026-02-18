@@ -110,7 +110,7 @@ function showCachedNote(createdAt) {
     statusEl.prepend(note);
 }
 
-chrome.tabs.query({ active: true }, async (tab) => {
+chrome.tabs.query({ active: true, currentWindow: true }, async (tab) => {
     const url = tab[0].url;
     if (!isYoutubeVideo(url)) {
         showInfo("Not a YouTube video page");
