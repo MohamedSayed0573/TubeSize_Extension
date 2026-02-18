@@ -66,4 +66,4 @@ cd yt-dlp-API
 # ssh -i ~/.ssh/ytdlp-api-key.pem ubuntu@34.228.156.229
 # cd ~/yt-dlp-API
 # docker build -t yt-dlp-api .
-# docker run -d -p 80:3000 --restart always --name yt-dlp-api yt-dlp-api
+# docker run -d -p 3000:3000 --restart always --name yt-dlp-api yt-dlp-api
