@@ -1,4 +1,4 @@
-FROM alpine:3.21
+FROM ubuntu:22.04
 
 RUN apk update && apk add --no-cache nodejs npm python3 py3-pip && \
     pip install -U yt-dlp --break-system-packages
