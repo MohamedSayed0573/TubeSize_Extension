@@ -50,7 +50,7 @@ jobs:
                       # 4. Run the new container
                       # We mount the .env and cookies file which are manually uploaded to the server
                       docker run -d \
-                        -p 80:3000 \
+                        -p 3000:3000 \
                         --restart always \
                         -v ~/.env:/api/.env \
                         -v ~/www.youtube.com_cookies.txt:/api/www.youtube.com_cookies.txt \
