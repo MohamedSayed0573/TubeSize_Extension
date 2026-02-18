@@ -7,7 +7,11 @@
     "permissions": ["activeTab", "tabs", "storage"],
 
     "icons": {
-        "48": "youtube.png"
+        "16": "icons/icon-16.png",
+        "32": "icons/icon-32.png",
+        "48": "icons/icon-48.png",
+        "128": "icons/icon-128.png",
+        "256": "icons/icon-256.png"
     },
 
     "action": {
