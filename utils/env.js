@@ -10,17 +10,20 @@ const envSchema = z.object({
     NODE_ENV: z.enum(["development", "production"]).default("development"),
     // Without nonemptry, Zod would accept "".
     API_KEY: z
-    .string()
-    .min(10, "API_KEY must be at least 10 characters long")
-    .regex(
-        /^[a-zA-Z0-9_\-=+@!#$%^&*();:.,?><'"|{}\[\]]+$/,
-        "Invalid characters in API key",
-    ),
+        .string()
+        .min(10, "API_KEY must be at least 10 characters long")
+        .regex(
+            /^[a-zA-Z0-9_\-=+@!#$%^&*();:.,?><'"|{}\[\]]+$/,
+            "Invalid characters in API key",
+        ),
     REDIS_ENABLED: z
         .string()
         .transform((val) => val.toLowerCase() === "true")
         .default("false"), // "true" -> true, anything else -> false
     REDIS_URL: z.url("Invalid Redis URL").default("redis://localhost:6379"),
+    EXTENSION_ID: z
+        .string()
+        .regex(/^[a-z]{32}$/, "Invalid Extension ID format"),
 });
 
 const env = envSchema.safeParse(process.env);

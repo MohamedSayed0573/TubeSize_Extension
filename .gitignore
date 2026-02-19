@@ -1,4 +1,4 @@
-node_modules
+node_modules/
 .env
 *.md
 ytdlp_output_example.json
