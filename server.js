@@ -21,7 +21,7 @@ app.use(
     }),
 );
 
-app.use('trust proxy', true)
+app.set("trust proxy", true);
 
 // Apply helmet middleware to all requests.
 app.use(helmet({ crossOriginResourcePolicy: false }));
