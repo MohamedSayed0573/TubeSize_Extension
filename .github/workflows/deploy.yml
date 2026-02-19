@@ -42,7 +42,7 @@ jobs:
                       echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
                       # 2. Pull the latest image
-                      docker pull ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:latest
+                      docker pull ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api-development:latest
 
                       # 3. Stop and remove the old container
                       docker stop yt-dlp-api || true
@@ -58,7 +58,7 @@ jobs:
                         -e NODE_ENV=production \
                         --name yt-dlp-api \
                         
-                        ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:latest
+                        ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api-development:latest
 
                       # 5. Clean up old images
                       docker image prune -f

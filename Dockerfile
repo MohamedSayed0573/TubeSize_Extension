@@ -31,7 +31,7 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 ENV NODE_ENV=development
-CMD ["npm", "run", "dev"]
+CMD ["sleep", "infinity"]
 
 # --- Production Stage ---
 FROM ubuntu:22.04 AS prod
