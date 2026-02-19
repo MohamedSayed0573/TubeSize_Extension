@@ -5,6 +5,7 @@ const { InvalidInputError } = require("../utils/errors");
 const env = require("../utils/env");
 
 const BASE_ARGS = [
+    "ignore-config",
     "-J",
     "--no-warnings",
     "--skip-download",

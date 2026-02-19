@@ -8,7 +8,7 @@ const { rateLimit } = require("express-rate-limit");
 const helmet = require("helmet");
 const CONFIG = require("./config/constants");
 const { logger, pinoHttp } = require("./utils/logger");
-const { redisClient } = require("./utils/cache");
+const { redis } = require("./utils/cache");
 const ms = require("ms");
 const authMiddleware = require("./middleware/auth");
 
@@ -47,7 +47,7 @@ app.get("/health", (req, res) => {
         status: "ok",
         uptime: ms(Math.round(process.uptime()) * 1000),
         timestamp: new Date().toISOString(),
-        redisStatus: redisClient.status,
+        redisStatus: redis.status,
         ytdlpVersion: CONFIG.YTDLP_VERSION,
     });
 });
@@ -81,10 +81,7 @@ app.use((err, req, res, next) => {
 
 const server = app.listen(env.PORT, async () => {
     if (env.REDIS_ENABLED) {
-        if (
-            redisClient.status === "ready" ||
-            redisClient.status === "connecting"
-        ) {
+        if (redis.status === "ready" || redis.status === "connecting") {
             logger.info("Redis connection initialized");
         } else {
             logger.warn("Redis is not ready, caching may be disabled");
@@ -99,7 +96,7 @@ async function gracefulShutdown(signal) {
     server.close(async () => {
         try {
             // We wrap this in try/catch because if redis has already quit, it will throw if you try to quit again
-            await redisClient.quit();
+            await redis.quit();
             process.exit(0);
         } catch (_) {}
     });
