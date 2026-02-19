@@ -20,13 +20,29 @@ WORKDIR /api
 
 COPY package*.json ./
 
-RUN npm ci --omit=dev
-
+# --- Development Stage ---
+FROM ubuntu:22.04 AS dev
+WORKDIR /api
+RUN apt-get update && apt-get install -y curl ca-certificates python3 python3-pip && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    pip3 install --no-cache-dir -U yt-dlp
+COPY package*.json ./
+RUN npm install
 COPY . .
+ENV NODE_ENV=development
+CMD ["npm", "run", "dev"]
 
-ENV PORT=3000
+# --- Production Stage ---
+FROM ubuntu:22.04 AS prod
+WORKDIR /api
+RUN apt-get update && apt-get install -y curl ca-certificates python3 python3-pip && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    pip3 install --no-cache-dir -U yt-dlp
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
 ENV NODE_ENV=production
-
-EXPOSE $PORT
-
+EXPOSE 3000
 CMD ["npm", "start"]

@@ -24,7 +24,8 @@ jobs:
               with:
                   context: .
                   push: true
-                  tags: ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:latest
+                  target: dev
+                  tags: ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api-development:latest
 
     deploy:
         needs: build
@@ -56,6 +57,7 @@ jobs:
                         -v ~/www.youtube.com_cookies.txt:/api/www.youtube.com_cookies.txt \
                         -e NODE_ENV=production \
                         --name yt-dlp-api \
+                        
                         ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:latest
 
                       # 5. Clean up old images

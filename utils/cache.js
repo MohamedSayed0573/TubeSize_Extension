@@ -15,18 +15,18 @@ redisClient.on("error", () => {});
 
 async function checkCache(videoTag) {
     try {
-        if (redisClient.status !== "ready") return;
+        if (redisClient.status !== "connect") return;
         return await redisClient.get(videoTag);
-    } catch {
+    } catch (err) {
         // Cache miss on error — request continues without cache
     }
 }
 
 async function setCache(videoTag, data) {
     try {
-        if (redisClient.status !== "ready") return;
+        if (redisClient.status !== "connect") return;
         await redisClient.set(videoTag, data, "PX", CONFIG.CACHE_TTL, "NX");
-    } catch {
+    } catch (err) {
         // Cache write failure — non-critical, request still succeeds
     }
 }
