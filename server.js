@@ -12,8 +12,6 @@ const { redisClient } = require("./utils/cache");
 const ms = require("ms");
 const authMiddleware = require("./middleware/auth");
 
-// Enable CORS for all routes. This is only for development
-// My IP is dynamic and I haven't started the extension therefore, I don't have extension ID
 app.use(
     cors({
         origin: [
@@ -48,6 +46,7 @@ app.get("/health", (req, res) => {
         uptime: ms(Math.round(process.uptime()) * 1000),
         timestamp: new Date().toISOString(),
         redisStatus: redisClient.isOpen ? "Connected" : "Disconnected",
+        ytdlpVersion: CONFIG.YTDLP_VERSION,
     });
 });
 
