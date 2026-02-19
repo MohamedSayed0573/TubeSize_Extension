@@ -38,6 +38,10 @@ jobs:
                   username: ubuntu
                   key: ${{ secrets.EC2_SSH_KEY }}
                   script: |
+                      # 0. Exit immediately if a command exits with a non-zero status. 
+                      # Note: github actions gives an error if only the last command fails.
+                      set -e
+
                       # 1. Login to Docker Hub on EC2 (required if images are private)
                       echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
@@ -57,7 +61,6 @@ jobs:
                         -v ~/www.youtube.com_cookies.txt:/api/www.youtube.com_cookies.txt \
                         -e NODE_ENV=production \
                         --name yt-dlp-api \
-                        
                         ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:latest
 
                       # 5. Clean up old images
