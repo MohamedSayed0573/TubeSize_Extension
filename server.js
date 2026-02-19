@@ -47,8 +47,7 @@ app.get("/health", (req, res) => {
         status: "ok",
         uptime: ms(Math.round(process.uptime()) * 1000),
         timestamp: new Date().toISOString(),
-        redisStatus:
-            redisClient.status === "ready" ? "Connected" : "Disconnected",
+        redisStatus: redisClient.status,
         ytdlpVersion: CONFIG.YTDLP_VERSION,
     });
 });
