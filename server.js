@@ -14,7 +14,9 @@ const authMiddleware = require("./middleware/auth");
 
 // Enable CORS for all routes. This is only for development
 // My IP is dynamic and I haven't started the extension therefore, I don't have extension ID
-app.use(cors());
+app.use(cors({
+    origin: `chrome-extensions://${env.EXTENSION_ID}`
+}));
 
 // Apply helmet middleware to all requests.
 app.use(helmet({ crossOriginResourcePolicy: false }));
