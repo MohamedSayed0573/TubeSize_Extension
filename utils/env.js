@@ -24,7 +24,7 @@ const envSchema = z.object({
     REDIS_PORT: z.coerce.number().default(6379),
     EXTENSION_ID: z
         .string()
-        .regex(/^[a-z]{32}$/, "Invalid Extension ID format"),
+        .regex(/^[a-zA-Z0-9_\-@.]+$/, "Invalid Extension ID format"),
 });
 
 const env = envSchema.safeParse(process.env);
