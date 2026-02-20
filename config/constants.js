@@ -1,8 +1,10 @@
 function getYTDLPVersion() {
     try {
-        const execFileSync = (require("child_process").execFileSync);
+        const execFileSync = require("child_process").execFileSync;
 
-        const stdout = execFileSync("yt-dlp", ["--version"], { encoding: "utf-8" });
+        const stdout = execFileSync("yt-dlp", ["--version"], {
+            encoding: "utf-8",
+        });
         return stdout.trim();
     } catch (error) {
         require("../utils/logger").error(
@@ -17,6 +19,7 @@ const CONFIG = Object.freeze({
     VIDEO_FORMAT_IDS: ["394", "395", "396", "397", "398", "399"],
     FALLBACK_VIDEO_FORMAT_IDS: ["278", "242", "243", "244", "247"],
     AUDIO_FORMAT_ID: "251",
+    FALLBACK_AUDIO_FORMAT_IDS: "251-drc",
     YTDLP_TIMEOUT_MS: 20000,
     WINDOW_LIMIT_MS: 15 * 60 * 1000, // 15 minutes / Time frame for which requests are checked/remembered
     LIMIT: 20, // Number of requests allowed in the time frame

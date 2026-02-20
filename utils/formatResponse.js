@@ -32,14 +32,19 @@ function extractAudioSize(data, audioFormatID) {
 }
 
 function extractDuration(data) {
-    return data.duration ?? data.formats?.[0]?.fragments?.[0]?.rawDuration ?? null;
+    return (
+        data.duration ?? data.formats?.[0]?.fragments?.[0]?.rawDuration ?? null
+    );
 }
 
 function formatResponse(data) {
     const duration = extractDuration(data);
 
-    const audioSize = extractAudioSize(data, CONFIG.AUDIO_FORMAT_ID);
-
+    let audioSize = extractAudioSize(data, CONFIG.AUDIO_FORMAT_ID);
+    if (!audioSize) {
+        audioSize = extractAudioSize(data, CONFIG.FALLBACK_AUDIO_FORMAT_IDS);
+    }
+    
     let videoSizes = extractVideoSizes(data, CONFIG.VIDEO_FORMAT_IDS);
     if (videoSizes.length === 0) {
         videoSizes = extractVideoSizes(data, CONFIG.FALLBACK_VIDEO_FORMAT_IDS);
