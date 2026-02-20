@@ -4,14 +4,7 @@ const CONFIG = require("../config/constants");
 const { InvalidInputError } = require("../utils/errors");
 const env = require("../utils/env");
 
-const BASE_ARGS = [
-    "ignore-config",
-    "-J",
-    "--no-warnings",
-    "--skip-download",
-    "--js-runtimes",
-    "node",
-];
+const BASE_ARGS = ["--ignore-config", "-J", "--no-warnings", "--skip-download"];
 if (env.NODE_ENV === "production") {
     BASE_ARGS.push("--cookies", "/api/www.youtube.com_cookies.txt");
     BASE_ARGS.push("--remote-components", "ejs:github");
