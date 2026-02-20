@@ -21,7 +21,7 @@ app.use(
     }),
 );
 
-app.set("trust proxy", true);
+app.set("trust proxy", 1); // Trust the first proxy hop (e.g. Docker/Nginx/AWS) to prevent rate-limit spoofing
 
 // Apply helmet middleware to all requests.
 app.use(helmet({ crossOriginResourcePolicy: false }));
