@@ -71,20 +71,19 @@ function displayVideoInfo(data) {
 }
 
 function extractTag(url) {
-    if (url.includes("watch?v=")) {
-        const tag = url.split("watch?v=")[1].split("&")[0];
+    const parsedUrl = new URL(url);
+    const videoTag = parsedUrl.searchParams.get("v");
+    if (!videoTag) return null;
 
-        const regex = /^[a-zA-Z0-9_-]{11}$/;
-        if (!regex.test(tag)) {
-            throw new Error("Invalid YouTube video URL");
-        }
-        return tag;
+    const regex = /^[a-zA-Z0-9_-]{11}$/;
+    if (!regex.test(videoTag)) {
+        throw new Error("Invalid YouTube video URL");
     }
-    return null;
+    return videoTag;
 }
 
 function isYoutubeVideo(url) {
-    return url.includes("youtube.com/");
+    return new URL(url).hostname.includes("youtube.com");
 }
 
 function showCachedNote(createdAt) {

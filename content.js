@@ -13,18 +13,17 @@ function init(videoTag) {
 }
 
 function extractTag() {
-    const url = window.location.href;
-    console.log(url);
-    if (url.includes("watch?v=")) {
-        const tag = url.split("watch?v=")[1].split("&")[0];
+    const url = new URL(window.location.href);
+    const videoTag = url.searchParams.get("v");
+    if (!videoTag) return;
 
-        const regex = /^[a-zA-Z0-9_-]{11}$/;
-        if (!regex.test(tag)) {
-            console.log("That is not a youtube video");
-            return;
-        }
-        init(tag);
+    const regex = /^[a-zA-Z0-9_-]{11}$/;
+    if (!regex.test(videoTag)) {
+        console.log("That is not a youtube video");
+        return;
     }
+    init(videoTag);
 }
 
 window.addEventListener("yt-navigate-finish", extractTag);
+extractTag();
