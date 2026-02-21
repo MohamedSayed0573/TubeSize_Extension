@@ -4,7 +4,7 @@ services:
     yt-dlp-api:
         depends_on:
             - redis
-        image: mohammedsayed1/yt-dlp-api:latest
+        image: ${DOCKERHUB_USERNAME}/yt-dlp-api:latest
         container_name: yt-dlp-api
         ports:
             - "3000:3000"

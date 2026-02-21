@@ -55,10 +55,13 @@ jobs:
                       # But that will print your docker password in the logs (insecure)
                       echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
+                      # Export the username so docker-compose can find it
+                      export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
+
                       # Pull the image
                       # -f flag is used to specify the docker-compose file. Default is docker-compose.yml
                       docker compose -f docker-compose.prod.yml pull
-                      
+
                       # Start the container. If the container hasn't changed, it will not be restarted
                       # -d flag is used to run the container in detached mode
                       docker compose -f docker-compose.prod.yml up -d
