@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "Video sizes viewer for YouTube",
+    "name": "Video sizes viewer for YouTube (Dev)",
     "version": "1.0",
     "description": "View real-time file size data for YouTube videos across different quality levels. Lightweight, fast, and privacy-focused.",
 
@@ -22,6 +22,13 @@
     },
     "host_permissions": [
         "https://*.youtube.com/*",
-        "https://mohammedsayed.dev/*"
+        "https://*.mohammedsayed.dev/*"
+    ],
+
+    "content_scripts": [
+        {
+            "matches": ["https://*.youtube.com/*"],
+            "js": ["dist/content.js"]
+        }
     ]
 }

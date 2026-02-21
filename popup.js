@@ -87,17 +87,6 @@ function isYoutubeVideo(url) {
     return url.includes("youtube.com/");
 }
 
-async function saveToStorage(tag, response) {
-    if (!response?.data) return;
-    response.data.createdAt = new Date().toISOString();
-    await chrome.storage.local.set({ [tag]: response?.data });
-}
-
-async function getFromStorage(tag) {
-    const res = await chrome.storage.local.get(tag);
-    return res?.[tag];
-}
-
 function showCachedNote(createdAt) {
     const now = new Date();
     const createdDate = new Date(createdAt);
@@ -129,28 +118,15 @@ chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
         return;
     }
 
-    try {
-        const cached = await getFromStorage(tag);
-        if (cached) {
-            displayVideoInfo(cached);
-
-            // show a small cached note above the formats
-            showCachedNote(cached.createdAt);
-
-            return;
-        }
-    } catch (e) {
-        // Silently ignore storage errors, but log them to console for debugging
-        console.error("[popup] Error reading storage:", e);
-    }
-
     // No Cache path - fetch from background
     chrome.runtime.sendMessage(
         { type: "sendYoutubeUrl", value: tag },
         (response) => {
             if (response?.success) {
                 displayVideoInfo(response.data);
-                saveToStorage(tag, response);
+                if (response.cached) {
+                    showCachedNote(response.data.createdAt);
+                }
             } else {
                 showError(response?.message || "Unknown error - check console");
             }
