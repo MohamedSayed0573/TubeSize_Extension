@@ -2,15 +2,7 @@ const Redis = require("ioredis");
 const CONFIG = require("../config/constants");
 const env = require("./env");
 
-const redis = new Redis.Cluster(
-    [{ host: env.REDIS_HOST, port: env.REDIS_PORT }],
-    {
-        dnsLookup: (address, callback) => callback(null, address),
-        redisOptions: {
-            tls: {},
-        },
-    },
-);
+const redis = new Redis({ host: env.REDIS_HOST, port: env.REDIS_PORT });
 
 redis.on("error", () => {});
 

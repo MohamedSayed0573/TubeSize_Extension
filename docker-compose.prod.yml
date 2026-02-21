@@ -2,6 +2,8 @@ version: "3.8"
 
 services:
     yt-dlp-api:
+        depends_on:
+            - redis
         image: mohammedsayed1/yt-dlp-api:latest
         container_name: yt-dlp-api
         ports:
@@ -12,3 +14,8 @@ services:
         volumes:
             - ~/.env:/api/.env
             - ~/www.youtube.com_cookies.txt:/api/www.youtube.com_cookies.txt
+    redis:
+        image: redis:alpine
+        container_name: redis
+        restart: always
+        # No need to expose the port to the internet. Redis can already talk to the server internally
