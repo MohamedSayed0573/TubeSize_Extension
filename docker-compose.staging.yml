@@ -4,17 +4,17 @@ services:
             - redis
         image: ${DOCKERHUB_USERNAME}/yt-dlp-api:${GITHUB_SHA}
         pull_policy: always
-        container_name: yt-dlp-api-prod
+        container_name: yt-dlp-api-staging
         ports:
-            - "3000:3000"
+            - "3001:3000"
         restart: always
         environment:
-            - NODE_ENV=production
+            - NODE_ENV=staging
         volumes:
-            - ~/.env.prod:/api/.env
+            - ~/.env.staging:/api/.env
             - ~/www.youtube.com_cookies.txt:/api/www.youtube.com_cookies.txt
     redis:
         image: redis:alpine
-        container_name: redis-prod
+        container_name: redis-staging
         restart: always
         # No need to expose the port to the internet. Redis can already talk to the server internally

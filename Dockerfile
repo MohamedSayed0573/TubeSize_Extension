@@ -1,48 +1,33 @@
-FROM ubuntu:22.04
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        curl \
-        ca-certificates \
-        python3 \
-        python3-pip && \
-    # Install Node.js 20 from NodeSource
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    pip3 install --no-cache-dir -U yt-dlp && \
-    # Clean up
-    apt-get purge -y curl && \
-    apt-get autoremove -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
+# --- Base Stage ---
+FROM node:lts-alpine3.22 AS base
 WORKDIR /api
-
+RUN apk add --no-cache curl py3-pip && \
+    pip3 install --no-cache-dir -U yt-dlp
 COPY package*.json ./
 
 # --- Development Stage ---
-FROM ubuntu:22.04 AS dev
-WORKDIR /api
-RUN apt-get update && apt-get install -y curl ca-certificates python3 python3-pip && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    pip3 install --no-cache-dir -U yt-dlp
-COPY package*.json ./
+FROM base AS dev
 RUN npm install
 COPY . .
 ENV NODE_ENV=development
-CMD ["sleep", "infinity"]
+ENV PORT=3000
+EXPOSE 3000
+CMD ["npm", "run", "dev"]
 
 # --- Production Stage ---
-FROM ubuntu:22.04 AS prod
-WORKDIR /api
-RUN apt-get update && apt-get install -y curl ca-certificates python3 python3-pip && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    pip3 install --no-cache-dir -U yt-dlp
-COPY package*.json ./
+FROM base AS prod
 RUN npm ci --omit=dev
 COPY . .
 ENV NODE_ENV=production
+ENV PORT=3000
+EXPOSE 3000
+CMD ["npm", "start"]
+
+# --- Staging Stage ---
+FROM base AS staging
+RUN npm ci --omit=dev
+COPY . .
+ENV NODE_ENV=staging
+ENV PORT=3000
 EXPOSE 3000
 CMD ["npm", "start"]
