@@ -116,12 +116,16 @@
         <div class="header">
             <div class="title-block">
                 <span class="title" id="title-display">YouTube Size</span>
-                <span class="audio" id="audio-display">Audio: --</span>
+                <span class="audio"
+                    >Audio: <span id="audio-display">--</span></span
+                >
             </div>
             <span class="duration" id="duration-display">--:--</span>
         </div>
         <div class="container">
-            <div id="status" class="loading">Fetching video info…</div>
+            <div id="status" class="loading">
+                Fetching video info… (This might take a few seconds)
+            </div>
         </div>
         <script src="dist/popup.js"></script>
     </body>

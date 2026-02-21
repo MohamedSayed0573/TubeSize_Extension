@@ -70,7 +70,7 @@ function displayVideoInfo(data) {
     }
 }
 
-function extractTag(url) {
+function extractVideoTag(url) {
     const parsedUrl = new URL(url);
     const videoTag = parsedUrl.searchParams.get("v");
     if (!videoTag) return null;
@@ -99,8 +99,11 @@ function showCachedNote(createdAt) {
     statusEl.prepend(note);
 }
 
+function 
+
 chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
     const tab = tabs[0];
+
     if (!tab) {
         showInfo("No active tab found");
         return;
@@ -111,15 +114,14 @@ chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
         return;
     }
 
-    const tag = extractTag(url);
+    const tag = extractVideoTag(url);
     if (!tag) {
         showInfo("Open a Youtube video");
         return;
     }
 
-    // No Cache path - fetch from background
     chrome.runtime.sendMessage(
-        { type: "sendYoutubeUrl", value: tag },
+        { type: "sendYoutubeUrl", value: tag, tabId: tab.id },
         (response) => {
             if (response?.success) {
                 displayVideoInfo(response.data);

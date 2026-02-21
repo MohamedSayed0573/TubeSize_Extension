@@ -28,14 +28,38 @@ async function getFromStorage(tag) {
     return item.response;
 }
 
+function addBadge(tabId) {
+    if (!tabId) return;
+    chrome.action.setBadgeText({ tabId: tabId, text: "✓" });
+    chrome.action.setBadgeBackgroundColor({
+        tabId: tabId,
+        color: "#28a745",
+    });
+}
+
+function clearBadge(tabId) {
+    if (!tabId) return;
+    chrome.action.setBadgeText({ tabId: tabId, text: "" });
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "clearBadge") {
+        clearBadge(sender.tab?.id);
+        return;
+    }
+
     if (message.type !== "sendYoutubeUrl") {
         return;
     }
+
     const tag = message.value;
-    console.log("[background] Received tag:", tag);
+    const tabId = sender.tab?.id ?? message.tabId;
+    console.log(
+        `[background] Received tag: ${tag} From ${sender.tab?.id ? "Content.js" : "Popup.js"}`,
+    );
 
     // Clear the badge on each request
+    clearBadge(tabId);
 
     (async () => {
         const cached = await getFromStorage(tag);
@@ -43,6 +67,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             console.log("[background] Using cached data:", cached);
 
             // Set the badge to green checkmark
+            addBadge(tabId);
             sendResponse({ success: true, data: cached, cached: true });
             return;
         }
@@ -64,10 +89,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             .then((data) => {
                 console.log("[background] Got data:", data);
                 saveToStorage(tag, data);
+                addBadge(tabId);
                 sendResponse({ success: true, data, cached: false });
             })
             .catch((err) => {
-                console.error("[background] Fetch error:", err.message);
+                console.error("[background] Fetch error:", err);
+                clearBadge(tabId);
                 sendResponse({
                     success: false,
                     message: err.message,
