@@ -7,7 +7,9 @@ const envSchema = z.object({
     PORT: z.coerce
         .number() // Coerces "3000" -> 3000
         .default(3000), // Default is a number
-    NODE_ENV: z.enum(["development", "production"]).default("development"),
+    NODE_ENV: z
+        .enum(["development", "production", "staging"])
+        .default("development"),
     // Without nonemptry, Zod would accept "".
     API_KEY: z
         .string()
