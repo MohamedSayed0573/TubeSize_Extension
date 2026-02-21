@@ -25,9 +25,9 @@ CMD ["npm", "start"]
 
 # --- Staging Stage ---
 FROM base AS staging
-RUN npm ci --omit=dev
+RUN npm install
 COPY . .
 ENV NODE_ENV=staging
 ENV PORT=3000
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]

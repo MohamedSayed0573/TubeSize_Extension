@@ -1,4 +1,6 @@
 node_modules/
+.env.prod
+.env.staging
 .env
 *.md
 ytdlp_output_example.json
