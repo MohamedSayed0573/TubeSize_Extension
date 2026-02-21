@@ -2,7 +2,7 @@
 FROM node:lts-alpine3.22 AS base
 WORKDIR /api
 RUN apk add --no-cache curl py3-pip && \
-    pip3 install --no-cache-dir -U yt-dlp
+    pip3 install  --break-system-packages --no-cache-dir -U yt-dlp
 COPY package*.json ./
 
 # --- Development Stage ---
