@@ -1,14 +1,31 @@
 console.log("[background] Service worker starting");
+const ttlInSeconds = 60 * 60 * 24 * 7;
 
 async function saveToStorage(tag, response) {
     if (!response) return;
     response.createdAt = new Date().toISOString();
-    await chrome.storage.local.set({ [tag]: response });
+    const expiry = Date.now() + ttlInSeconds * 1000;
+
+    const dataToStore = {
+        response,
+        expiry,
+    };
+
+    await chrome.storage.local.set({ [tag]: dataToStore });
 }
 
 async function getFromStorage(tag) {
-    const res = await chrome.storage.local.get(tag);
-    return res?.[tag];
+    const data = await chrome.storage.local.get(tag);
+    const item = data[tag];
+
+    if (!item) return null;
+
+    if (item.expiry && item.expiry < Date.now()) {
+        await chrome.storage.local.remove(tag);
+        return null;
+    }
+
+    return item.response;
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
