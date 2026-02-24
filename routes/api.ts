@@ -1,17 +1,22 @@
-const express = require("express");
-const router = express.Router();
-const { InvalidInputError } = require("../utils/errors");
-const { formatResponse, humanizeSizes, mergeAudioWithVideoFormats } = require("../utils/formatResponse");
-const {
-    getVideoInfo,
-    validateVideoTag,
-} = require("../utils/ytdlp");
-const ms = require("ms");
-const { checkCache, setCache } = require("../utils/cache");
+import type { Request, Response } from "express";
+import type { Data, HumanizedData } from "../utils/formatResponse";
+import express from "express";
+import { InvalidInputError } from "../utils/errors";
 
-router.get("/video-sizes/:videoTag", async (req, res) => {
+import {
+    formatResponse,
+    humanizeSizes,
+    mergeAudioWithVideoFormats,
+} from "../utils/formatResponse";
+import { getVideoInfo, validateVideoTag } from "../utils/ytdlp";
+import ms from "ms";
+import { checkCache, setCache } from "../utils/cache";
+
+const router = express.Router();
+
+router.get("/video-sizes/:videoTag", async (req: Request, res: Response) => {
     const startTime = Date.now();
-    const videoTag = req.params.videoTag;
+    const videoTag = req.params.videoTag as string;
     const humanReadableSizes = req.query.humanReadableSizes !== "false"; // Enabled by default
     const mergeAudioWithVideo = req.query.mergeAudioWithVideo === "true"; // Disabled by default
 
@@ -22,7 +27,7 @@ router.get("/video-sizes/:videoTag", async (req, res) => {
 
     const cached = await checkCache(videoTag);
 
-    let formattedData;
+    let formattedData: Data | HumanizedData;
 
     if (cached) {
         formattedData = JSON.parse(cached);
@@ -31,15 +36,15 @@ router.get("/video-sizes/:videoTag", async (req, res) => {
         formattedData = formatResponse(data);
         await setCache(videoTag, JSON.stringify(formattedData));
     }
-    
+
     // IMPORTANT: mergeAudioWithVideoFormats must run before humanizeSizes if both are enabled
 
     if (mergeAudioWithVideo) {
-        mergeAudioWithVideoFormats(formattedData);
+        formattedData = mergeAudioWithVideoFormats(formattedData as Data);
     }
 
     if (humanReadableSizes) {
-        humanizeSizes(formattedData);
+        formattedData = humanizeSizes(formattedData as Data);
     }
 
     const executionTime = ms(Date.now() - startTime);
@@ -51,4 +56,4 @@ router.get("/video-sizes/:videoTag", async (req, res) => {
     });
 });
 
-module.exports = router;
+export default router;

@@ -1,16 +1,19 @@
-const env = require("./utils/env");
-const express = require("express");
-const cors = require("cors");
+import type { Request, Response, NextFunction } from "express";
+
+import env from "./utils/env";
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import ms from "ms";
+
+import { AppError, RateLimit } from "./utils/errors";
+import apiRoutes from "./routes/api";
+import { rateLimit } from "express-rate-limit";
+import { logger, pinoHttp } from "./utils/logger";
+import { redis } from "./utils/cache";
+import CONFIG from "./config/constants";
+
 const app = express();
-const { AppError, RateLimit } = require("./utils/errors");
-const apiRoutes = require("./routes/api");
-const { rateLimit } = require("express-rate-limit");
-const helmet = require("helmet");
-const CONFIG = require("./config/constants");
-const { logger, pinoHttp } = require("./utils/logger");
-const { redis } = require("./utils/cache");
-const ms = require("ms");
-const authMiddleware = require("./middleware/auth");
 
 app.use(cors());
 
@@ -22,7 +25,7 @@ app.use(helmet({ crossOriginResourcePolicy: false }));
 const limiter = rateLimit({
     windowMs: CONFIG.WINDOW_LIMIT_MS, // Time frame for which requests are checked/remembered
     limit: CONFIG.LIMIT, // Number of requests allowed in the time frame
-    handler: (req, res, next, options) => {
+    handler: () => {
         throw new RateLimit("Too many requests, please try again later.");
     },
 });
@@ -35,7 +38,7 @@ app.use(pinoHttp);
 // Routes
 app.use("/api", apiRoutes);
 
-app.get("/health", (req, res) => {
+app.get("/health", (req: Request, res: Response) => {
     res.json({
         status: "ok",
         uptime: ms(Math.round(process.uptime()) * 1000),
@@ -45,12 +48,12 @@ app.get("/health", (req, res) => {
     });
 });
 
-app.use((req, res) => {
+app.use((req: Request, res: Response) => {
     res.status(404).json({ error: "Route not found" });
 });
 
 // Error handler
-app.use((err, req, res, next) => {
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     req.log.error(err);
 
     const status = err instanceof AppError ? err.statusCode : 500;
@@ -66,7 +69,7 @@ app.use((err, req, res, next) => {
         res.status(status).json({
             success: false,
             error: message,
-            ERRORS: err.errors,
+            ERRORS: (err as any).errors,
             stack: err.stack,
         });
     }
@@ -83,7 +86,7 @@ const server = app.listen(env.PORT, async () => {
     logger.info(`Server is running on port ${env.PORT}`);
 });
 
-async function gracefulShutdown(signal) {
+async function gracefulShutdown(signal: string) {
     logger.info(`Server is shutting down (${signal})`);
 
     server.close(async () => {
@@ -113,11 +116,11 @@ process.on("SIGTERM", async () => {
 });
 
 // Uncaught Exception
-process.on("uncaughtException", async (err) => {
+process.on("uncaughtException", async () => {
     gracefulShutdown("uncaughtException");
 });
 
 // Unhandled Promise Rejection. When a promise rejects but there is no catch block to handle it.
-process.on("unhandledRejection", async (reason) => {
+process.on("unhandledRejection", async () => {
     gracefulShutdown("unhandledRejection");
 });

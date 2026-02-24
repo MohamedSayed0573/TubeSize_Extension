@@ -1,8 +1,9 @@
-const { promisify } = require("util");
-const execFile = promisify(require("child_process").execFile);
-const CONFIG = require("../config/constants");
-const { InvalidInputError } = require("../utils/errors");
-const env = require("../utils/env");
+import { promisify } from "util";
+import { execFile } from "child_process";
+const execFileAsync = promisify(execFile);
+import CONFIG from "../config/constants";
+import { InvalidInputError } from "../utils/errors";
+import env from "../utils/env";
 
 const BASE_ARGS = ["--ignore-config", "-J", "--skip-download"];
 if (env.NODE_ENV === "production") {
@@ -12,30 +13,28 @@ if (env.NODE_ENV === "production") {
 }
 Object.freeze(BASE_ARGS);
 
-async function getVideoInfo(videoTag) {
+export async function getVideoInfo(videoTag: string) {
     try {
         const args = [...BASE_ARGS, videoTag];
 
-        const { stdout } = await execFile("yt-dlp", args, {
+        const { stdout } = await execFileAsync("yt-dlp", args, {
             timeout: CONFIG.YTDLP_TIMEOUT_MS,
         });
 
         const data = JSON.parse(stdout);
         return data;
     } catch (err) {
-        if (err.message.includes("Incomplete YouTube ID")) {
+        if (
+            err instanceof Error &&
+            err.message.includes("Incomplete YouTube ID")
+        ) {
             throw new InvalidInputError("Invalid YouTube URL provided.");
         }
         throw err;
     }
 }
 
-function validateVideoTag(videoTag) {
+export function validateVideoTag(videoTag: string) {
     const YOUTUBE_ID_REGEX = CONFIG.YOUTUBE_ID_REGEX;
     return YOUTUBE_ID_REGEX.test(videoTag);
 }
-
-module.exports = {
-    getVideoInfo,
-    validateVideoTag,
-};

@@ -1,7 +1,9 @@
-require("dotenv").config({
+import z from "zod";
+import dotenv from "dotenv";
+dotenv.config({
+    path: ".env.prod",
     quiet: true,
 });
-const z = require("zod");
 
 const envSchema = z.object({
     PORT: z.coerce
@@ -20,8 +22,8 @@ const envSchema = z.object({
         ),
     REDIS_ENABLED: z
         .string()
-        .transform((val) => val.toLowerCase() === "true")
-        .default("false"), // "true" -> true, anything else -> false
+        .transform((val: string) => val.toLowerCase() === "true")
+        .default(false), // "true" -> true, anything else -> false
     REDIS_HOST: z.string("Invalid Redis Host").default("localhost"),
     REDIS_PORT: z.coerce.number().default(6379),
     EXTENSION_ID: z
@@ -37,4 +39,4 @@ if (!env.success) {
     process.exit(1);
 }
 
-module.exports = env.data;
+export default env.data;

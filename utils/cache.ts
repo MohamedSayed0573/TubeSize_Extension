@@ -1,12 +1,12 @@
-const Redis = require("ioredis");
-const CONFIG = require("../config/constants");
-const env = require("./env");
+import Redis from "ioredis";
+import CONFIG from "../config/constants";
+import env from "./env";
 
-const redis = new Redis({ host: env.REDIS_HOST, port: env.REDIS_PORT });
+export const redis = new Redis({ host: env.REDIS_HOST, port: env.REDIS_PORT });
 
 redis.on("error", () => {});
 
-async function checkCache(videoTag) {
+export async function checkCache(videoTag: string) {
     try {
         if (redis.status !== "ready") return;
         return await redis.get(videoTag);
@@ -15,7 +15,7 @@ async function checkCache(videoTag) {
     }
 }
 
-async function setCache(videoTag, data) {
+export async function setCache(videoTag: string, data: any) {
     try {
         if (redis.status !== "ready") return;
         await redis.set(videoTag, data, "PX", CONFIG.CACHE_TTL, "NX");
@@ -23,9 +23,3 @@ async function setCache(videoTag, data) {
         // Cache write failure — non-critical, request still succeeds
     }
 }
-
-module.exports = {
-    redis,
-    checkCache,
-    setCache,
-};

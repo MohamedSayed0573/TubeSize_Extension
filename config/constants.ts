@@ -1,19 +1,20 @@
+import { logger } from "../utils/logger";
+import { execFileSync } from "child_process";
 function getYTDLPVersion() {
     try {
-        const execFileSync = require("child_process").execFileSync;
-
         const stdout = execFileSync("yt-dlp", ["--version"], {
             encoding: "utf-8",
         });
         return stdout.trim();
     } catch (error) {
-        const { logger } = require("../utils/logger");
-        logger.error("Error fetching yt-dlp version:", error);
+        if (error instanceof Error) {
+            logger.error(`Error fetching yt-dlp version: ${error}`);
+        }
         return "Unknown";
     }
 }
 
-const CONFIG = Object.freeze({
+export default {
     VIDEO_FORMAT_IDS: ["394", "395", "396", "397", "398", "399"],
     FALLBACK_VIDEO_FORMAT_IDS: ["278", "242", "243", "244", "247"],
     AUDIO_FORMAT_ID: "251",
@@ -25,6 +26,4 @@ const CONFIG = Object.freeze({
     CACHE_TTL: 3 * 60 * 60 * 1000, // 3 hour
     SHUTDOWN_TIMEOUT_MS: 30 * 1000, // 30 seconds
     YTDLP_VERSION: getYTDLPVersion(),
-});
-
-module.exports = CONFIG;
+} as const;

@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "allowJs": true,
+        "checkJs": true,
+        "noEmit": false,
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "outDir": "dist",
+        "target": "es2022",
+        "module": "commonjs",
+        "moduleResolution": "node"
+    },
+    "include": ["./**/*.ts", "./**/*.js"],
+    "exclude": ["node_modules", "dist", "test.js"]
+}

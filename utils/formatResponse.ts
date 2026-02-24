@@ -1,0 +1,119 @@
+import CONFIG from "../config/constants";
+import ms from "ms";
+import { filesize } from "filesize";
+
+function extractVideoSizes(
+    data: RawDataFormat,
+    videoFormatIDs: readonly string[],
+) {
+    const formats = data.formats || [];
+    return formats
+        .filter((format: any) => {
+            return (
+                videoFormatIDs.includes(format.format_id) &&
+                format.height &&
+                (format.filesize || format.filesize_approx)
+            );
+        })
+        .map((format: any) => {
+            return {
+                format_id: format.format_id,
+                height: format.height,
+                filesize: format.filesize ?? format.filesize_approx,
+            };
+        });
+}
+
+function extractAudioSize(data: RawDataFormat, audioFormatID: string) {
+    const formats = data.formats || [];
+    const rawAudioFormat = formats.find(
+        (format: any) => format.format_id === audioFormatID,
+    );
+    return rawAudioFormat
+        ? rawAudioFormat.filesize || rawAudioFormat.filesize_approx
+        : null;
+}
+
+function extractDuration(data: RawDataFormat) {
+    return (
+        data.duration ?? data.formats?.[0]?.fragments?.[0]?.rawDuration ?? null
+    );
+}
+
+type RawDataFormat = {
+    id: string;
+    title: string;
+    duration?: number;
+    formats: Array<{
+        format_id: string;
+        filesize: number;
+        filesize_approx: number;
+        height: number;
+        fragments?: Array<{
+            rawDuration: number;
+        }>;
+    }>;
+};
+
+export type Data = {
+    id: string;
+    title: string;
+    duration: number | null;
+    audioFormat: number | null;
+    videoFormats: {
+        format_id: string;
+        height: number;
+        filesize: number;
+    }[];
+};
+
+export type HumanizedData = {
+    id: string;
+    title: string;
+    duration: string;
+    audioFormat: string;
+    videoFormats: {
+        format_id: string;
+        height: number;
+        filesize: string;
+    }[];
+};
+
+export function formatResponse(data: RawDataFormat): Data {
+    return {
+        id: data.id,
+        title: data.title,
+        duration: extractDuration(data) || null,
+        audioFormat: extractAudioSize(data, CONFIG.AUDIO_FORMAT_ID) || null,
+        videoFormats:
+            extractVideoSizes(data, CONFIG.VIDEO_FORMAT_IDS).length > 0
+                ? extractVideoSizes(data, CONFIG.VIDEO_FORMAT_IDS)
+                : extractVideoSizes(data, CONFIG.FALLBACK_VIDEO_FORMAT_IDS),
+    };
+}
+
+export function humanizeSizes(data: Data): HumanizedData {
+    return {
+        ...data,
+        duration: data.duration ? ms(data.duration * 1000) : "N/A",
+        audioFormat: data.audioFormat ? filesize(data.audioFormat) : "N/A",
+        videoFormats: data.videoFormats.map((format) => {
+            return {
+                ...format,
+                filesize: format.filesize ? filesize(format.filesize) : "N/A",
+            };
+        }),
+    };
+}
+
+export function mergeAudioWithVideoFormats(data: Data): Data {
+    return {
+        ...data,
+        videoFormats: data.videoFormats.map((format) => {
+            return {
+                ...format,
+                filesize: format.filesize + (data.audioFormat || 0),
+            };
+        }),
+    };
+}
