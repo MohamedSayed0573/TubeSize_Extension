@@ -3,8 +3,9 @@ const durationDisplay = document.getElementById("duration-display")!;
 const titleDisplay = document.getElementById("title-display")!;
 const audioDisplay = document.getElementById("audio-display")!;
 
-import type { Data, ApiResponse } from "./types";
+import type { APIData, ApiResponse, HumanizedFormat } from "./types";
 import ms from "ms";
+import { extractVideoTag } from "./utils";
 
 function showError(msg: string) {
     console.error("[popup] Error:", msg);
@@ -18,7 +19,7 @@ function showInfo(msg: string) {
     statusEl.className = "info";
 }
 
-function displayVideoInfo(data: Data) {
+function displayVideoInfo(data: APIData | HumanizedFormat) {
     try {
         if (!data) {
             showError("Missing video data");
@@ -33,7 +34,9 @@ function displayVideoInfo(data: Data) {
         if (data.duration) {
             durationDisplay.textContent = data.duration;
         }
-        if (data.audioFormat) {
+
+        // Note: audioFormat only exists in APIData
+        if ("audioFormat" in data && data.audioFormat) {
             audioDisplay.textContent = data.audioFormat;
         }
 
@@ -55,7 +58,7 @@ function displayVideoInfo(data: Data) {
 
                 const sizeDiv = document.createElement("div");
                 sizeDiv.className = "format-size";
-                sizeDiv.textContent = format.filesize;
+                sizeDiv.textContent = format.size;
 
                 item.append(heightDiv, sizeDiv);
                 section.appendChild(item);
@@ -73,21 +76,7 @@ function displayVideoInfo(data: Data) {
     }
 }
 
-function extractVideoTag(url: string | undefined) {
-    if (!url) return;
-
-    const parsedUrl = new URL(url);
-    const videoTag = parsedUrl.searchParams.get("v");
-    if (!videoTag) return;
-
-    const regex = /^[a-zA-Z0-9_-]{11}$/;
-    if (!regex.test(videoTag)) {
-        throw new Error("Invalid YouTube video URL");
-    }
-    return videoTag;
-}
-
-function isYoutubeVideo(url: string | undefined) {
+function isYoutubeVideo(url: string) {
     if (!url) return false;
     return new URL(url).hostname.includes("youtube.com");
 }
@@ -110,8 +99,9 @@ chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
         showInfo("No active tab found");
         return;
     }
+
     const url = tab.url;
-    if (!isYoutubeVideo(url)) {
+    if (!url || !isYoutubeVideo(url)) {
         showInfo("Not a YouTube video page");
         return;
     }
@@ -123,7 +113,7 @@ chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
     }
 
     chrome.runtime.sendMessage(
-        { type: "sendYoutubeUrl", value: tag, tabId: tab.id },
+        { type: "sendYoutubeUrl", tag, tabId: tab.id },
         (response: ApiResponse) => {
             if (response?.success) {
                 displayVideoInfo(response.data);

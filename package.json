@@ -6,13 +6,14 @@
     "scripts": {
         "build": "esbuild popup.ts background.ts content.ts --bundle --platform=browser --target=chrome90 --format=iife --outdir=dist --define:__API_URL__='\"https://api.mohammedsayed.dev\"'",
         "watch": "esbuild popup.ts background.ts content.ts --bundle --platform=browser --target=chrome90 --format=iife --outdir=dist --watch --define:__API_URL__='\"https://api.mohammedsayed.dev\"'",
-        "pack": "npm run build && zip -r extension.zip manifest.json popup.html background.ts content.ts dist"
+        "pack": "npm run build && zip -r extension.zip manifest.json popup.html dist icons"
     },
     "keywords": [],
     "author": "",
     "license": "ISC",
     "type": "commonjs",
     "dependencies": {
+        "filesize": "^11.0.13",
         "ms": "^2.1.3"
     },
     "devDependencies": {

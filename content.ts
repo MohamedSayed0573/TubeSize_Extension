@@ -1,10 +1,12 @@
+import { extractVideoTag } from "./utils";
+
 function init(videoTag: string) {
     console.log(videoTag);
 
     chrome.runtime.sendMessage(
         {
             type: "sendYoutubeUrl",
-            value: videoTag,
+            tag: videoTag,
         },
         (response) => {
             console.log(response);
@@ -12,22 +14,13 @@ function init(videoTag: string) {
     );
 }
 
-function extractVideoTag() {
-    const url = new URL(window.location.href);
-    const videoTag = url.searchParams.get("v");
-    if (!videoTag) {
+window.addEventListener("yt-navigate-finish", () => {
+    const url = window.location.href;
+    const tag = extractVideoTag(url);
+    if (tag) {
+        chrome.runtime.sendMessage({ type: "setBadge", tag });
+        init(tag);
+    } else {
         chrome.runtime.sendMessage({ type: "clearBadge" });
-        return;
     }
-
-    const regex = /^[a-zA-Z0-9_-]{11}$/;
-    if (!regex.test(videoTag)) {
-        console.log("That is not a youtube video");
-        chrome.runtime.sendMessage({ type: "clearBadge" });
-        return;
-    }
-    init(videoTag);
-}
-
-window.addEventListener("yt-navigate-finish", extractVideoTag);
-extractVideoTag();
+});
