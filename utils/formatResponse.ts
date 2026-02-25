@@ -19,7 +19,7 @@ function extractVideoSizes(
             return {
                 format_id: format.format_id,
                 height: format.height,
-                filesize: format.filesize ?? format.filesize_approx,
+                size: format.filesize ?? format.filesize_approx,
             };
         });
 }
@@ -63,7 +63,7 @@ export type Data = {
     videoFormats: {
         format_id: string;
         height: number;
-        filesize: number;
+        size: number;
     }[];
 };
 
@@ -75,7 +75,7 @@ export type HumanizedData = {
     videoFormats: {
         format_id: string;
         height: number;
-        filesize: string;
+        size: string;
     }[];
 };
 
@@ -100,7 +100,7 @@ export function humanizeSizes(data: Data): HumanizedData {
         videoFormats: data.videoFormats.map((format) => {
             return {
                 ...format,
-                filesize: format.filesize ? filesize(format.filesize) : "N/A",
+                size: format.size ? filesize(format.size) : "N/A",
             };
         }),
     };
@@ -112,7 +112,7 @@ export function mergeAudioWithVideoFormats(data: Data): Data {
         videoFormats: data.videoFormats.map((format) => {
             return {
                 ...format,
-                filesize: format.filesize + (data.audioFormat || 0),
+                size: format.size + (data.audioFormat || 0),
             };
         }),
     };
