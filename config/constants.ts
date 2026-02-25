@@ -15,9 +15,9 @@ function getYTDLPVersion() {
 }
 
 export default {
-    VIDEO_FORMAT_IDS: [394, 395, 396, 397, 398, 399],
-    FALLBACK_VIDEO_FORMAT_IDS: [278, 242, 243, 244, 247],
-    AUDIO_FORMAT_ID: 251,
+    VIDEO_FORMAT_IDS: ["394", "395", "396", "397", "398", "399"],
+    FALLBACK_VIDEO_FORMAT_IDS: ["278", "242", "243", "244", "247"],
+    AUDIO_FORMAT_ID: "251",
     FALLBACK_AUDIO_FORMAT_IDS: "251-drc",
     YTDLP_TIMEOUT_MS: 20000,
     WINDOW_LIMIT_MS: 15 * 60 * 1000, // 15 minutes / Time frame for which requests are checked/remembered
