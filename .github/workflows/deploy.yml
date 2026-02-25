@@ -98,7 +98,7 @@ jobs:
                   host: ${{ secrets.EC2_HOST }}
                   username: ubuntu
                   key: ${{ secrets.EC2_SSH_KEY }} # Make sure the secret name matches what you have in GitHub
-                  source: "docker-compose.prod.yml"
+                  source: "docker-compose.prod.yml,docker-compose.staging.yml"
                   target: "~/" # Copies to /home/ubuntu/
 
             - name: Pull the image & Start the container
@@ -124,10 +124,13 @@ jobs:
                       # Pull the image
                       # -f flag is used to specify the docker-compose file. Default is docker-compose.yml
                       docker compose -p prod -f docker-compose.prod.yml pull
+                      docker compose -p staging -f docker-compose.staging.yml pull
 
                       # Start the container. If the container hasn't changed, it will not be restarted
                       # -d flag is used to run the container in detached mode
                       docker compose -p prod -f docker-compose.prod.yml up -d
+
+                      docker compose -p staging -f docker-compose.staging.yml up -d
 
                       # Clean up old images
                       # -f flag is used to force the prune
