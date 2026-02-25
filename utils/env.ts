@@ -1,14 +1,8 @@
 import z from "zod";
 import dotenv from "dotenv";
-const envFile =
-    process.env.NODE_ENV === "staging"
-        ? ".env.staging"
-        : process.env.NODE_ENV === "production"
-          ? ".env.prod"
-          : ".env";
+
 dotenv.config({
-    path: envFile,
-    quiet: true,
+    path: ".env",
 });
 
 const envSchema = z.object({
