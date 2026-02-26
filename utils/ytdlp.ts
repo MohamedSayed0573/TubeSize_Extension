@@ -6,7 +6,7 @@ import { InvalidInputError } from "../utils/errors";
 import env from "../utils/env";
 
 const BASE_ARGS = ["--ignore-config", "-J", "--skip-download"];
-if (env.NODE_ENV === "production") {
+if (env.NODE_ENV === "production" || env.NODE_ENV === "staging") {
     BASE_ARGS.push("--cookies", "/api/www.youtube.com_cookies.txt");
     BASE_ARGS.push("--remote-components", "ejs:github");
     BASE_ARGS.push("--js-runtimes", "node");
@@ -24,10 +24,7 @@ export async function getVideoInfo(videoTag: string) {
         const data = JSON.parse(stdout);
         return data;
     } catch (err) {
-        if (
-            err instanceof Error &&
-            err.message.includes("Incomplete YouTube ID")
-        ) {
+        if (err instanceof Error && err.message.includes("Incomplete YouTube ID")) {
             throw new InvalidInputError("Invalid YouTube URL provided.");
         }
         throw err;
