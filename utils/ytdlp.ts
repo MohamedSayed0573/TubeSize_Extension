@@ -15,7 +15,7 @@ Object.freeze(BASE_ARGS);
 
 export async function getVideoInfo(videoTag: string) {
     try {
-        const args = [...BASE_ARGS, videoTag];
+        const args = [...BASE_ARGS, "--", videoTag];
 
         const { stdout } = await execFileAsync("yt-dlp", args, {
             timeout: CONFIG.YTDLP_TIMEOUT_MS,
