@@ -66,9 +66,9 @@ chrome.runtime.onMessage.addListener(
                 }
 
                 console.log(
-                    !!message.html
-                        ? "[background]: Used html scraping method"
-                        : "[background]: Used api method",
+                    message.html
+                        ? "[background]: Used html from content script"
+                        : "[background]: Used html from background fetch",
                 );
 
                 const formattedData = await formatVideoResponse(data);
