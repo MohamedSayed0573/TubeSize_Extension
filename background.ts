@@ -53,7 +53,6 @@ chrome.runtime.onMessage.addListener(
 
             // Cache Miss
             try {
-                throw Error("test");
                 const data = await fetchVideoData(tag);
                 const formattedData = await formatVideoResponse(data);
                 saveToStorage(tag, formattedData);
