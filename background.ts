@@ -118,7 +118,7 @@ async function fetchVideoData(videoTag: string) {
 }
 
 function extractYtInitial(html: string) {
-    const match = html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/);
+    const match = html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/s);
     if (!match || !match[1]) throw new Error("No match found");
 
     try {
