@@ -50,4 +50,5 @@ export type ApiResponse = {
     data: APIData | HumanizedFormat;
     cached: boolean;
     message?: string;
+    api?: boolean;
 };
