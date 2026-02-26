@@ -72,11 +72,14 @@ export type HumanizedData = {
 
 export function formatResponse(data: RawDataFormat): Data {
     const primaryFormats = extractVideoSizes(data, CONFIG.VIDEO_FORMAT_IDS);
+    const primaryAudio = extractAudioSize(data, CONFIG.AUDIO_FORMAT_ID);
     return {
         id: data.id,
         title: data.title,
         duration: extractDuration(data) || null,
-        audioFormat: extractAudioSize(data, CONFIG.AUDIO_FORMAT_ID) || null,
+        audioFormat: primaryAudio
+            ? primaryAudio
+            : extractAudioSize(data, CONFIG.FALLBACK_AUDIO_FORMAT_IDS),
         videoFormats:
             primaryFormats.length > 0
                 ? primaryFormats
