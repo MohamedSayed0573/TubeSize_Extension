@@ -3,11 +3,7 @@ import type { Data, HumanizedData } from "../utils/formatResponse";
 import express from "express";
 import { InvalidInputError } from "../utils/errors";
 
-import {
-    formatResponse,
-    humanizeSizes,
-    mergeAudioWithVideoFormats,
-} from "../utils/formatResponse";
+import { formatResponse, humanizeSizes, mergeAudioWithVideoFormats } from "../utils/formatResponse";
 import { getVideoInfo, validateVideoTag } from "../utils/ytdlp";
 import ms from "ms";
 import { checkCache, setCache } from "../utils/cache";
