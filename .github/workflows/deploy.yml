@@ -9,6 +9,9 @@ on:
 jobs:
     build:
         runs-on: ubuntu-latest
+        env:
+            SHORT_SHA: "" # Added to silence IDE linting warnings
+
         steps:
             - name: Checkout
               uses: actions/checkout@v4
