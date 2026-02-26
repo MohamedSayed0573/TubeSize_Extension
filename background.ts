@@ -59,17 +59,15 @@ chrome.runtime.onMessage.addListener(
                     try {
                         data = extractYtInitial(message.html);
                     } catch (err) {
-                        console.error(err);
+                        data = await fetchVideoData(tag);
+                        console.error(
+                            "[background]: Failed to parse html from content script, fetching...",
+                            err,
+                        );
                     }
                 } else {
                     data = await fetchVideoData(tag);
                 }
-
-                console.log(
-                    message.html
-                        ? "[background]: Used html from content script"
-                        : "[background]: Used html from background fetch",
-                );
 
                 const formattedData = await formatVideoResponse(data);
                 saveToStorage(tag, formattedData);
@@ -82,7 +80,7 @@ chrome.runtime.onMessage.addListener(
                 });
             } catch (err) {
                 try {
-                    console.log("[background] Scrape failed, trying API", err);
+                    console.error("[background] Scrape failed, trying API", err);
                     const apiData = await fetchAPI(tag);
                     saveToStorage(tag, apiData);
                     addBadge(tabId);

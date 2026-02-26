@@ -6,13 +6,9 @@ function init(videoTag: string) {
         return script.textContent?.includes("ytInitialPlayerResponse");
     });
 
-    console.log(
-        `[CONTENT.TS] parse ytInitial before sending to background:`,
-        !!ytInitialPlayerResponse?.textContent,
-    );
+    const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    const scriptContent =
-        ytInitialPlayerResponse?.textContent || document.documentElement.outerHTML;
+    console.log(`[CONTENT.TS] parse ytInitial before sending to background:`, !!scriptContent);
 
     chrome.runtime.sendMessage(
         {
