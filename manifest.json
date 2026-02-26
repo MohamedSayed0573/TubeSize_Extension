@@ -1,32 +1,35 @@
 {
-    "manifest_version": 3,
-    "name": "Video sizes viewer for YouTube (Dev)",
-    "version": "1.0",
-    "description": "View real-time file size data for YouTube videos across different quality levels. Lightweight, fast, and privacy-focused.",
+  "manifest_version": 3,
+  "name": "Video sizes viewer for YouTube (Dev)",
+  "version": "1.0",
+  "description": "View real-time file size data for YouTube videos across different quality levels. Lightweight, fast, and privacy-focused.",
 
-    "permissions": ["activeTab", "storage"],
+  "permissions": ["activeTab", "storage"],
 
-    "icons": {
-        "16": "icons/icon-16.png",
-        "32": "icons/icon-32.png",
-        "48": "icons/icon-48.png",
-        "128": "icons/icon-128.png",
-        "256": "icons/icon-256.png"
-    },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png",
+    "256": "icons/icon-256.png"
+  },
 
-    "action": {
-        "default_popup": "popup.html"
-    },
-    "background": {
-        "service_worker": "dist/background.js",
-        "scripts": ["dist/background.js"]
-    },
-    "host_permissions": ["https://*.youtube.com/*", "https://*.mohammedsayed.dev/*"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "dist/background.js",
+    "scripts": ["dist/background.js"]
+  },
+  "host_permissions": [
+    "https://*.youtube.com/*",
+    "https://*.mohammedsayed.dev/*"
+  ],
 
-    "content_scripts": [
-        {
-            "matches": ["https://*.youtube.com/*"],
-            "js": ["dist/content.js"]
-        }
-    ]
+  "content_scripts": [
+    {
+      "matches": ["https://*.youtube.com/*"],
+      "js": ["dist/content.js"]
+    }
+  ]
 }

@@ -1,128 +1,129 @@
 <!doctype html>
 <html>
-    <head>
-        <title>YouTube Size Extension</title>
-        <meta charset="UTF-8" />
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                width: 350px;
-                background: #2a2a2a;
-                padding: 0;
-                color: #fff;
-            }
-            .header {
-                background: #1a1a1a;
-                padding: 15px 20px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border-bottom: 1px solid #3a3a3a;
-            }
-            .title {
-                font-size: 16px;
-                font-weight: 600;
-                max-width: 220px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-            .title-block {
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
-            }
-            .audio {
-                font-size: 12px;
-                color: #aaa;
-            }
-            .duration {
-                font-size: 14px;
-                color: #aaa;
-                margin-left: 12px;
-            }
-            .container {
-                padding: 20px;
-            }
-            #status {
-                padding: 20px;
-                text-align: center;
-                color: #aaa;
-            }
-            .error {
-                color: #ff6b6b;
-                padding: 15px;
-                background: rgba(255, 107, 107, 0.1);
-                border-radius: 8px;
-                border-left: 4px solid #ff6b6b;
-                text-align: left;
-            }
-            .info {
-                color: #4dabf7;
-                padding: 15px;
-                background: rgba(77, 171, 247, 0.1);
-                border-radius: 8px;
-                border-left: 4px solid #4dabf7;
-                text-align: left;
-            }
-            .formats-section {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-            }
-            .format-item {
-                display: flex;
-                justify-content: space-between;
-                padding: 12px;
-                background: rgba(255, 255, 255, 0.05);
-                border-radius: 6px;
-                cursor: pointer;
-                transition: all 0.2s;
-                border: 1px solid transparent;
-                font-size: 14px;
-            }
-            .format-item:hover {
-                background: rgba(255, 255, 255, 0.1);
-                border-color: rgba(255, 255, 255, 0.2);
-            }
-            .format-height {
-                font-weight: 600;
-                color: #fff;
-            }
-            .format-size {
-                color: #aaa;
-                font-size: 14px;
-            }
-            .loading {
-                color: #aaa;
-            }
-            .cached-note {
-                font-size: 12px;
-                color: #888;
-                margin-bottom: 10px;
-                text-align: center;
-                font-style: italic;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <div class="title-block">
-                <span class="title" id="title-display">YouTube Size</span>
-                <span class="audio"><span id="audio-display"></span></span>
-            </div>
-            <span class="duration" id="duration-display">--:--</span>
-        </div>
-        <div class="container">
-            <div id="status" class="loading">
-                Fetching video info… (This might take a few seconds)
-            </div>
-        </div>
-        <script src="dist/popup.js"></script>
-    </body>
+  <head>
+    <title>YouTube Size Extension</title>
+    <meta charset="UTF-8" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        width: 350px;
+        background: #2a2a2a;
+        padding: 0;
+        color: #fff;
+      }
+      .header {
+        background: #1a1a1a;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #3a3a3a;
+      }
+      .title {
+        font-size: 16px;
+        font-weight: 600;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .title-block {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .audio {
+        font-size: 12px;
+        color: #aaa;
+      }
+      .duration {
+        font-size: 14px;
+        color: #aaa;
+        margin-left: 12px;
+      }
+      .container {
+        padding: 20px;
+      }
+      #status {
+        padding: 20px;
+        text-align: center;
+        color: #aaa;
+      }
+      .error {
+        color: #ff6b6b;
+        padding: 15px;
+        background: rgba(255, 107, 107, 0.1);
+        border-radius: 8px;
+        border-left: 4px solid #ff6b6b;
+        text-align: left;
+      }
+      .info {
+        color: #4dabf7;
+        padding: 15px;
+        background: rgba(77, 171, 247, 0.1);
+        border-radius: 8px;
+        border-left: 4px solid #4dabf7;
+        text-align: left;
+      }
+      .formats-section {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .format-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+        font-size: 14px;
+      }
+      .format-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+      .format-height {
+        font-weight: 600;
+        color: #fff;
+      }
+      .format-size {
+        color: #aaa;
+        font-size: 14px;
+      }
+      .loading {
+        color: #aaa;
+      }
+      .cached-note {
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 10px;
+        text-align: center;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="title-block">
+        <span class="title" id="title-display">YouTube Size</span>
+        <span class="audio"><span id="audio-display"></span></span>
+      </div>
+      <span class="duration" id="duration-display">--:--</span>
+    </div>
+    <div class="container">
+      <div id="status" class="loading">
+        Fetching video info… (This might take a few seconds)
+      </div>
+    </div>
+    <script src="dist/popup.js"></script>
+  </body>
 </html>
