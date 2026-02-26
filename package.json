@@ -6,7 +6,9 @@
     "scripts": {
         "build": "esbuild popup.ts background.ts content.ts --bundle --platform=browser --target=chrome90 --format=iife --outdir=dist --define:__API_URL__='\"https://api.mohammedsayed.dev\"'",
         "watch": "esbuild popup.ts background.ts content.ts --bundle --platform=browser --target=chrome90 --format=iife --outdir=dist --watch --define:__API_URL__='\"https://api.mohammedsayed.dev\"'",
-        "pack": "npm run build && zip -r extension.zip manifest.json popup.html dist icons"
+        "pack": "npm run build && zip -r extension.zip manifest.json popup.html dist icons",
+        "prettier:write": "npx prettier . --write",
+        "prepare": "husky"
     },
     "keywords": [],
     "author": "",
@@ -20,6 +22,7 @@
         "@types/chrome": "^0.1.37",
         "@types/ms": "^2.1.0",
         "esbuild": "^0.27.3",
+        "husky": "^9.1.7",
         "typescript": "^5.9.3"
     }
 }
