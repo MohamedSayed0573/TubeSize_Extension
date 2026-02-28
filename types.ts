@@ -15,14 +15,13 @@ export type RawData = {
     videoDetails: {
         videoId: string;
         title: string;
-        author: string;
         lengthSeconds: string;
     };
     streamingData: {
         adaptiveFormats: {
             itag: number;
             height: number;
-            contentLength: string;
+            contentLength?: string;
         }[];
     };
 };
@@ -30,7 +29,6 @@ export type RawData = {
 export type RawFormat = {
     id: string;
     title: string;
-    author: string;
     duration: string;
     formats: {
         formatId: number;
@@ -46,7 +44,6 @@ export type RawFormat = {
 export type HumanizedFormat = {
     id: string;
     title: string;
-    author: string;
     duration: string;
     videoFormats: {
         formatId: number;

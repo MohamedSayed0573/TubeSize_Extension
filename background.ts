@@ -147,7 +147,6 @@ function formatVideoResponse(data: RawData): RawFormat {
     return {
         id: data.videoDetails.videoId,
         title: data.videoDetails.title,
-        author: data.videoDetails.author,
         duration: data.videoDetails.lengthSeconds,
         formats: data.streamingData.adaptiveFormats
             .filter((format) => {
@@ -181,7 +180,6 @@ function humanizeData(formats: RawFormat): HumanizedFormat {
     return {
         id: formats.id,
         title: formats.title,
-        author: formats.author,
         duration: ms(parseInt(formats.duration || "0") * 1000),
         videoFormats: humanizedFormats,
     };
@@ -210,13 +208,13 @@ function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSize: numb
     return videoFormats.map((videoFormat) => {
         return {
             ...videoFormat,
-            size: (videoFormat.size as number) + audioSize,
+            size: videoFormat.size + audioSize,
         };
     });
 }
 
 async function fetchAPI(tag: string) {
-    const apiUrl = `${__API_URL__}/api/video-sizes/${tag}/?humanReadableSizes=true&mergeAudioWithVideo=true`;
+    const apiUrl = `${__API_URL__}/api/video-sizes/${tag}?humanReadableSizes=true&mergeAudioWithVideo=true`;
     console.log("[background] Fetching URL:", apiUrl);
 
     const res = await fetch(apiUrl, {
