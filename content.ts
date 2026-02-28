@@ -18,7 +18,7 @@ function init(videoTag: string) {
         },
         (response) => {
             if (chrome.runtime.lastError) {
-                console.log("[CONTENT]: Error:", chrome.runtime.lastError.message);
+                console.error("[CONTENT]: Error:", chrome.runtime.lastError.message);
                 return;
             }
             console.log(response);
@@ -35,7 +35,7 @@ window.addEventListener("yt-navigate-finish", () => {
     lastTag = tag;
 
     if (tag) {
-        chrome.runtime.sendMessage({ type: "setBadge", tag });
+        chrome.runtime.sendMessage({ type: "setBadge" });
         init(tag);
     } else {
         chrome.runtime.sendMessage({ type: "clearBadge" });

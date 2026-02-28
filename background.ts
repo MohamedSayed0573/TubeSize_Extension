@@ -114,13 +114,13 @@ chrome.runtime.onMessage.addListener(
     },
 );
 
-const VIDEO_ITAGS: Map<number, string> = new Map([
-    [394, "144p"],
-    [395, "240p"],
-    [396, "360p"],
-    [397, "480p"],
-    [398, "720p"],
-    [399, "1080p"],
+const VIDEO_ITAGS: Set<number> = new Set([
+    394, // 144p
+    395, // 240p
+    396, // 360p
+    397, // 480p
+    398, // 720p
+    399, // 1080p
 ]);
 
 const AUDIO_ITAG = 251;

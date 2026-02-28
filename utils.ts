@@ -14,13 +14,13 @@ export function extractVideoTag(url: string): string | undefined {
     }
 }
 
-export const optionIDs = ["p144", "p240", "p360", "p480", "p720", "p1080", "p1440"];
+export const optionIDs = ["p144", "p240", "p360", "p480", "p720", "p1080"];
 
 // Load the options page
 export async function loadOptions() {
     const options = await chrome.storage.sync.get(optionIDs);
     optionIDs.forEach((optionId) => {
-        const checkbox = document.getElementById(optionId) as HTMLInputElement;
+        const checkbox = getElement(optionId, false) as HTMLInputElement;
         checkbox.checked = (options[optionId] as boolean) ?? true;
     });
 }
@@ -28,4 +28,20 @@ export async function loadOptions() {
 // Return the user options
 export async function getOptions() {
     return await chrome.storage.sync.get(optionIDs);
+}
+
+export function getElement(id: string, isFatal: true): HTMLElement;
+export function getElement(id: string, isFatal?: false): HTMLElement | null;
+
+export function getElement(id: string, isFatal: boolean = false): HTMLElement | null {
+    const element = document.getElementById(id);
+    if (!element) {
+        const message = `[HTML] [${isFatal ? "Fatal" : "Not-Fatal"}] Element #${id} not found`;
+        console.error(message);
+
+        if (isFatal) {
+            throw new Error(message);
+        }
+    }
+    return element;
 }

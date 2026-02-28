@@ -1,8 +1,8 @@
-import { loadOptions, optionIDs } from "./utils";
+import { loadOptions, optionIDs, getElement } from "./utils";
 
 // If changes in options, update chrome storage
 optionIDs.forEach((option) => {
-    document.getElementById(option)?.addEventListener("change", (event) => {
+    getElement(option, false)?.addEventListener("change", (event) => {
         chrome.storage.sync.set({ [option]: (event.target as HTMLInputElement).checked });
     });
 });

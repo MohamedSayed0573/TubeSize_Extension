@@ -1,28 +1,12 @@
-function getElement(id: string, isFatal: true): HTMLElement;
-function getElement(id: string, isFatal?: false): HTMLElement | null;
-
-function getElement(id: string, isFatal: boolean = false): HTMLElement | null {
-    const element = document.getElementById(id);
-    if (!element) {
-        const message = `[HTML] [${isFatal ? "Fatal" : "Not-Fatal"}] Element #${id} not found`;
-        console.error(message);
-
-        if (isFatal) {
-            throw new Error(message);
-        }
-    }
-    return element;
-}
+import type { APIData, BackgroundResponse, HumanizedFormat } from "./types";
+import { extractVideoTag, getOptions, optionIDs, getElement } from "./utils";
+import ms from "ms";
 
 const containerEl = getElement("container", true);
 const durationDisplay = getElement("duration-display");
 const titleDisplay = getElement("title-display");
 const audioDisplay = getElement("audio-display");
 const optionsBtn = getElement("optionsBtn", true);
-
-import type { APIData, BackgroundResponse, HumanizedFormat } from "./types";
-import ms from "ms";
-import { extractVideoTag, getOptions, optionIDs } from "./utils";
 
 function showStatus(message: string, type: "info" | "error") {
     if (type === "info") {
