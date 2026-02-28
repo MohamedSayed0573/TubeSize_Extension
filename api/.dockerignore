@@ -1,0 +1,9 @@
+node_modules
+.git
+.env*
+.gitignore
+new_instance.sh
+*.md
+.github
+ytdlp_output_example.json
+www.youtube.com_cookies.txt

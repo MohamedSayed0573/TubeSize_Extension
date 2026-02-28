@@ -1,0 +1,13 @@
+node_modules/
+.env.prod
+.env.staging
+.env
+*.md
+ytdlp_output_example.json
+www.youtube.com_cookies.txt
+new_instance.sh
+dist/
+
+# Testing yt-dlp results
+temp.json
+test.js
