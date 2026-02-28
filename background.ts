@@ -73,7 +73,7 @@ chrome.runtime.onMessage.addListener(
                 const rawFormats = formatVideoResponse(data);
                 const formattedData = humanizeData(rawFormats);
 
-                saveToStorage(tag, formattedData);
+                await saveToStorage(tag, formattedData);
                 addBadge(tabId);
                 sendResponse({
                     success: true,
@@ -85,7 +85,7 @@ chrome.runtime.onMessage.addListener(
                 try {
                     console.error("[background] Scrape failed, trying API", err);
                     const apiData = await fetchAPI(tag);
-                    saveToStorage(tag, apiData);
+                    await saveToStorage(tag, apiData);
                     addBadge(tabId);
                     sendResponse({
                         success: true,
@@ -212,9 +212,7 @@ function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSize: numb
 }
 
 async function fetchAPI(tag: string) {
-    const humanReadableSizes = true;
-    const mergeAudioWithVideo = true;
-    const apiUrl = `${__API_URL__}/api/video-sizes/${tag}/?humanReadableSizes=${humanReadableSizes}&mergeAudioWithVideo=${mergeAudioWithVideo}`;
+    const apiUrl = `${__API_URL__}/api/video-sizes/${tag}/?humanReadableSizes=true&mergeAudioWithVideo=true`;
     console.log("[background] Fetching URL:", apiUrl);
 
     const res = await fetch(apiUrl, {
