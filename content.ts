@@ -22,9 +22,14 @@ function init(videoTag: string) {
     );
 }
 
+let lastTag: string | undefined = undefined;
 window.addEventListener("yt-navigate-finish", () => {
     const url = window.location.href;
     const tag = extractVideoTag(url);
+
+    if (lastTag === tag) return;
+    lastTag = tag;
+
     if (tag) {
         chrome.runtime.sendMessage({ type: "setBadge", tag });
         init(tag);
