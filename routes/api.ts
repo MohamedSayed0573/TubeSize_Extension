@@ -14,7 +14,7 @@ router.get("/video-sizes/:videoTag", async (req: Request, res: Response) => {
     const startTime = Date.now();
     const videoTag = req.params.videoTag as string;
     const humanReadableSizes = req.query.humanReadableSizes !== "false"; // Enabled by default
-    const mergeAudioWithVideo = req.query.mergeAudioWithVideo === "true"; // Disabled by default
+    const mergeAudioWithVideo = req.query.mergeAudioWithVideo !== "false"; // Disabled by default
 
     // Note: yt-dlp should validate the video tag, but just in case
     if (!validateVideoTag(videoTag)) {
