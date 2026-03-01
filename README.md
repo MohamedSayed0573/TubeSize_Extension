@@ -9,7 +9,7 @@
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com)
 [![Firefox Add-ons](https://img.shields.io/badge/Firefox-Add--ons-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org)
 [![Edge Add-ons](https://img.shields.io/badge/Edge-Add--ons-0078D7?logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons)
-[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 
@@ -148,7 +148,6 @@ Click the **Options** button in the popup to open the settings page. You can tog
 | 480p       | ✅ On   |
 | 720p       | ✅ On   |
 | 1080p      | ✅ On   |
-| 1440p      | ✅ On   |
 
 Preferences are saved to `chrome.storage.sync`, so they follow you across devices if you're signed into your browser.
 
@@ -224,7 +223,7 @@ Contributions, issues, and feature requests are welcome! Feel free to open an is
 
 ## 📄 License
 
-This project is licensed under the [ISC License](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
