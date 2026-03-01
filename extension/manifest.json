@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "TubeSize",
-    "version": "1.0",
+    "version": "1.0.0",
     "description": "View file size data for YouTube videos across different quality levels.",
 
     "permissions": ["activeTab", "storage"],
@@ -18,8 +18,7 @@
     },
 
     "background": {
-        "service_worker": "dist/background.js",
-        "scripts": "dist/background.js"
+        "service_worker": "dist/background.js"
     },
 
     "options_page": "options.html",

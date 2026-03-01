@@ -1,28 +1,10 @@
 {
-    "name": "tubesize",
-    "version": "1.0.0",
-    "description": "View file size data for YouTube videos across different quality levels.",
+    "name": "tubesize-workspace",
+    "workspaces": [
+        "extension",
+        "api"
+    ],
     "scripts": {
-        "build": "esbuild popup.ts background.ts content.ts options.ts --bundle --platform=browser --target=chrome90 --format=iife --outdir=dist --minify --define:__API_URL__='\"https://api.mohammedsayed.dev\"'",
-        "watch": "esbuild popup.ts background.ts content.ts options.ts --bundle --platform=browser --target=chrome90 --format=iife --outdir=dist --watch --define:__API_URL__='\"https://api.mohammedsayed.dev\"'",
-        "pack": "npm run build && zip -r extension.zip manifest.json popup.html options.html dist icons",
-        "prettier:write": "npx prettier . --write",
-        "prepare": "husky"
-    },
-    "keywords": [],
-    "author": "Mohamed Sayed",
-    "license": "MIT",
-    "type": "module",
-    "dependencies": {
-        "filesize": "^11.0.13",
-        "ms": "^2.1.3"
-    },
-    "devDependencies": {
-        "@types/chrome": "^0.1.37",
-        "@types/ms": "^2.1.0",
-        "esbuild": "^0.27.3",
-        "husky": "^9.1.7",
-        "prettier": "^3.8.1",
-        "typescript": "^5.9.3"
+        "prettier:write": "npm run prettier:write --workspaces --if-present"
     }
 }
