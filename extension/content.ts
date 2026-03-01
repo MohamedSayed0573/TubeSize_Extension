@@ -36,7 +36,6 @@ window.addEventListener("yt-navigate-finish", () => {
 
     if (tag) {
         init(tag);
-        chrome.runtime.sendMessage({ type: "setBadge" });
     } else {
         chrome.runtime.sendMessage({ type: "clearBadge" });
     }
