@@ -1,0 +1,7 @@
+{
+  "name": "tubesize-workspace",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  }
+}
