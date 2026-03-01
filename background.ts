@@ -195,6 +195,7 @@ function humanizeVideoFormats(formats: RawFormat["formats"]) {
 }
 
 function getAverageAudioSize(audioFormatArray: RawFormat["audioFormats"]) {
+    // Note: ytInitialPlayerResponse usually returns three formats with itag 251, so we take the average of the content size of all three.
     if (audioFormatArray.length === 0) return 0;
     if (audioFormatArray.length === 1) return audioFormatArray[0].size;
     return (

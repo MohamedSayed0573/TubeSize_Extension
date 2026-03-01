@@ -17,9 +17,13 @@
     "action": {
         "default_popup": "popup.html"
     },
+
     "background": {
         "service_worker": "dist/background.js"
     },
+
+    "options_page": "options.html",
+
     "host_permissions": ["https://*.youtube.com/*"],
 
     "content_scripts": [
