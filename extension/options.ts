@@ -9,8 +9,28 @@ optionIDs.forEach((option) => {
 });
 
 // Listen to reset cache button click
-getElement("resetCache", false)?.addEventListener("click", () => {
-    clearStorage();
+const resetBtn = getElement("resetCache", false) as HTMLButtonElement | null;
+resetBtn?.addEventListener("click", async () => {
+    const originalText = resetBtn.textContent;
+
+    const success = await clearStorage();
+
+    if (success) {
+        resetBtn.textContent = "Cache Cleared!";
+        resetBtn.style.color = "#40c057";
+        resetBtn.style.borderColor = "rgba(64, 192, 87, 0.4)";
+        resetBtn.style.background = "rgba(64, 192, 87, 0.08)";
+    } else {
+        resetBtn.textContent = "Failed to clear";
+        resetBtn.style.color = "#ff6b6b";
+    }
+
+    setTimeout(() => {
+        resetBtn.textContent = originalText;
+        resetBtn.style.color = "";
+        resetBtn.style.borderColor = "";
+        resetBtn.style.background = "";
+    }, 2000);
 });
 
 // Listen to choose Cache TTL option
