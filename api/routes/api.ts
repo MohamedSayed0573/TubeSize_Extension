@@ -23,31 +23,21 @@ router.get("/video-sizes/:videoTag", async (req: Request, res: Response) => {
 
     const cached = await checkCache(videoTag);
 
-    let formattedData: Data | HumanizedData;
-
-    if (cached) {
-        formattedData = JSON.parse(cached);
-    } else {
-        const data = await getVideoInfo(videoTag);
-        formattedData = formatResponse(data);
-        await setCache(videoTag, JSON.stringify(formattedData));
-    }
+    const formattedData = cached ? cached : formatResponse(await getVideoInfo(videoTag));
+    if (!cached) await setCache(videoTag, formattedData);
 
     // IMPORTANT: mergeAudioWithVideoFormats must run before humanizeSizes if both are enabled
 
-    if (mergeAudioWithVideo) {
-        formattedData = mergeAudioWithVideoFormats(formattedData as Data);
-    }
-
-    if (humanReadableSizes) {
-        formattedData = humanizeSizes(formattedData as Data);
-    }
+    const mergedData = mergeAudioWithVideo
+        ? mergeAudioWithVideoFormats(formattedData)
+        : formattedData;
+    const humanizedData = humanReadableSizes ? humanizeSizes(mergedData) : mergedData;
 
     const executionTime = ms(Date.now() - startTime);
-    req.log.info(formattedData);
+    req.log.info(humanizedData);
     res.json({
         success: true,
-        ...formattedData,
+        ...humanizedData,
         executionTime,
     });
 });

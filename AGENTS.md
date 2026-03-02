@@ -134,7 +134,7 @@ Do not add test framework dependencies without explicit instruction.
 | -------------------- | ---------------------- | --------------------------- |
 | Variables, functions | `camelCase`            | `formatVideoResponse`       |
 | Types, classes       | `PascalCase`           | `VideoFormat`, `AppError`   |
-| Top-level constants  | `SCREAMING_SNAKE_CASE` | `VIDEO_ITAGS`, `BASE_ARGS`  |
+| Top-level constants  | `SCREAMING_SNAKE_CASE` | `VIDEO_ITAGS`, `ytDlpArgs`  |
 | Boolean variables    | `is`/`has` prefix      | `isYoutubeVideo`, `isFatal` |
 | Log context tags     | `[moduleName]`         | `[background]`, `[popup]`   |
 
