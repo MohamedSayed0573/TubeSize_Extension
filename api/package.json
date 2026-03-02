@@ -2,10 +2,10 @@
     "name": "api",
     "version": "1.0.0",
     "description": "",
-    "main": "server.js",
+    "main": "dist/server.js",
     "scripts": {
         "build": "npx tsc",
-        "start": "pnpm run build && node --inspect=0.0.0.0:9229 dist/server.js",
+        "start": "pnpm run build && node dist/server.js",
         "dev": "nodemon --watch '**/*.ts' --exec 'npx tsc && node --inspect=0.0.0.0:9229 dist/server.js' | pino-pretty",
         "prettier:write": "pnpm prettier . --write"
     },

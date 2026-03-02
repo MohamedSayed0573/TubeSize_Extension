@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import type { Data, HumanizedData } from "../types";
 import express from "express";
 
 import { formatResponse, humanizeSizes, mergeAudioWithVideoFormats } from "../utils/formatResponse";
@@ -14,7 +13,7 @@ router.get("/video-sizes/:videoTag", async (req: Request, res: Response) => {
     const startTime = Date.now();
     const videoTag = req.params.videoTag as string;
     const humanReadableSizes = req.query.humanReadableSizes !== "false"; // Enabled by default
-    const mergeAudioWithVideo = req.query.mergeAudioWithVideo !== "false"; // Disabled by default
+    const mergeAudioWithVideo = req.query.mergeAudioWithVideo !== "false"; // Enabled by default
 
     // Note: yt-dlp should validate the video tag, but just in case
     if (!validateVideoTag(videoTag)) {

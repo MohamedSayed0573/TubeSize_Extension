@@ -67,13 +67,13 @@ The problem? YouTube doesn't tell you how large a video file actually is before 
 2. **Install dependencies**
 
     ```bash
-    npm install
+    cd extension && npm install
     ```
 
 3. **Build the extension**
 
     ```bash
-    npm run build
+    cd extension && npm run build
     ```
 
 4. **Load in Chrome / Edge**
@@ -174,8 +174,6 @@ The extension requests the minimum permissions necessary:
 | `activeTab`                       | Read the URL of the current tab to extract the video ID |
 | `storage`                         | Save cached video data and user preferences locally     |
 | `host_permissions: *.youtube.com` | Inject the content script and fetch video page data     |
-
-**No personal data is collected. No data is sent to any third party.**
 
 ---
 
