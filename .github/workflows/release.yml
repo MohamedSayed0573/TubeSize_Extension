@@ -2,11 +2,13 @@ name: Release
 on:
     push:
         tags:
-            - "v*.*.*"
+            - "ext-v*.*.*"
 
 jobs:
     build:
         runs-on: ubuntu-latest
+        permissions:
+            contents: write
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
@@ -37,4 +39,4 @@ jobs:
             - name: Create Release
               uses: softprops/action-gh-release@v2
               with:
-                  files: extension/extension.zip         
+                  files: extension/extension.zip

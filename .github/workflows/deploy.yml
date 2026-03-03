@@ -4,7 +4,7 @@ on:
         branches:
             - main
         tags:
-            - "v*"
+            - "api-v*.*.*"
         paths:
             - "api/**"
     workflow_dispatch:
@@ -91,7 +91,7 @@ jobs:
                       docker image prune -f
     deploy_prod:
         needs: build
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/api-v')
         runs-on: ubuntu-latest
         steps:
             - name: Checkout Code
