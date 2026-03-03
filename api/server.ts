@@ -72,7 +72,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
         res.status(status).json({
             success: false,
             error: message,
-            ERRORS: (err as any).errors,
+            ERRORS: "errors" in err ? err.errors : undefined,
             stack: err.stack,
         });
     }

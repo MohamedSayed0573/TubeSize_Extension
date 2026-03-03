@@ -1,0 +1,121 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    width: 240px;
+    background: #222;
+    padding: 0;
+    color: #fff;
+}
+.header {
+    background: #1a1a1a;
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+    gap: 6px;
+}
+.title {
+    font-size: 14px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.title-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+.audio {
+    font-size: 11px;
+    color: #aaa;
+}
+.duration {
+    font-size: 12px;
+    color: #aaa;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+#optionsBtn {
+    font-size: 12px;
+    padding: 4px 6px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+#optionsBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+#container {
+    padding: 10px 12px;
+    text-align: center;
+    color: #aaa;
+    font-size: 13px;
+}
+.error {
+    color: #ff6b6b;
+    padding: 8px 10px;
+    background: rgba(255, 107, 107, 0.1);
+    border-radius: 6px;
+    border-left: 3px solid #ff6b6b;
+    text-align: left;
+    font-size: 13px;
+}
+.info {
+    color: #4dabf7;
+    padding: 8px 10px;
+    background: rgba(77, 171, 247, 0.1);
+    border-radius: 6px;
+    border-left: 3px solid #4dabf7;
+    text-align: left;
+    font-size: 13px;
+}
+.formats-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.format-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+.format-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+.format-height {
+    font-weight: 500;
+    color: #fff;
+    font-size: 13px;
+}
+.format-size {
+    color: #bbb;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+.cached-note {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 6px;
+    text-align: center;
+    font-style: italic;
+}

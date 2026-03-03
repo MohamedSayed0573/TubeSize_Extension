@@ -1,9 +1,10 @@
 import type { APIData, HumanizedFormat, StorageData } from "./types";
 
 async function getTTL(): Promise<number> {
-    const { cacheTTL } = (await chrome.storage.sync.get("cacheTTL")) as { cacheTTL: string };
+    const DEFAULT_TTL = 3 * 24 * 60 * 60; // 3 days in seconds
+    const { cacheTTL } = (await chrome.storage.sync.get("cacheTTL")) as { cacheTTL: number };
 
-    return parseInt(cacheTTL) || 3 * 24 * 60 * 60;
+    return cacheTTL || DEFAULT_TTL;
 }
 
 export async function saveToStorage(tag: string, response: APIData | HumanizedFormat | null) {
