@@ -1,6 +1,28 @@
 import { optionIDs, getElement } from "./utils";
 import { clearStorage } from "./cache";
 
+function displayOptions() {
+    const optionsContainer = getElement("options-grid", true);
+    optionIDs.forEach((optionId) => {
+        const label = document.createElement("label");
+        label.className = "option-item";
+
+        const input = document.createElement("input") as HTMLInputElement;
+        input.type = "checkbox";
+        input.id = optionId;
+
+        const span = document.createElement("span");
+        span.className = "option-label";
+        span.textContent = optionId.substring(1) + "p";
+
+        label.appendChild(input);
+        label.appendChild(span);
+
+        optionsContainer.appendChild(label);
+    });
+}
+displayOptions();
+
 // Listen to changes in options and update chrome storage
 optionIDs.forEach((option) => {
     getElement(option, false)?.addEventListener("change", (event) => {

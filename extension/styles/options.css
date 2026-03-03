@@ -50,7 +50,7 @@ body {
     margin-bottom: 12px;
     text-align: center;
 }
-.options-grid {
+#options-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
