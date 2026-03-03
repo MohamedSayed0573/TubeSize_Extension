@@ -18,8 +18,7 @@
     },
 
     "background": {
-        "service_worker": "dist/background.js",
-        "scripts": ["dist/background.js"]
+        "service_worker": "dist/background.js"
     },
 
     "options_page": "options.html",

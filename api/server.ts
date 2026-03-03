@@ -15,8 +15,11 @@ import CONFIG from "./config/constants";
 
 const app = express();
 
-// Extension ID changes everytime I test it. Will add cors when I publish it
-app.use(cors());
+app.use(
+    cors({
+        origin: `chrome-extension://${env.EXTENSION_ID}`,
+    }),
+);
 
 app.set("trust proxy", 1); // Trust the first proxy hop (e.g. Docker/Nginx/AWS) to prevent rate-limit spoofing
 

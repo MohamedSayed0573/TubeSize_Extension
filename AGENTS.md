@@ -97,7 +97,7 @@ Do not add test framework dependencies without explicit instruction.
 ## TypeScript Configuration
 
 - **Strict mode** is enabled in both packages (`"strict": true`).
-- `noUnusedLocals: true` and `noUnusedParameters: true` — unused variables are compile errors.
+- `noUnusedLocals: true` — unused variables are compile errors.
 - Extension: `target: ES2022`, `module: ESNext`, `lib: ["DOM", "ES2022"]`, `noEmit: true`.
 - API: `target: es2022`, `module: commonjs`, emits to `dist/`.
 - Extension is ESM (`"type": "module"`); API is CJS (`"type": "commonjs"`).
