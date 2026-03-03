@@ -27,7 +27,8 @@ function init(videoTag: string) {
 }
 
 let lastTag: string | undefined = undefined;
-window.addEventListener("yt-navigate-finish", () => {
+window.addEventListener("yt-navigate-finish", async () => {
+    await chrome.runtime.sendMessage({ type: "clearBadge" });
     const url = window.location.href;
     const tag = extractVideoTag(url);
 

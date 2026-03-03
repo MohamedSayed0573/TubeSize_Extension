@@ -6,7 +6,7 @@ import { addBadge, clearBadge } from "./badge";
 import {
     extractYtInitial,
     fetchAPI,
-    fetchVideoData,
+    fetchHTMLPage,
     formatVideoResponse,
     humanizeData,
 } from "./youtube";
@@ -67,14 +67,14 @@ chrome.runtime.onMessage.addListener(
                     try {
                         data = extractYtInitial(message.html);
                     } catch (err) {
-                        data = await fetchVideoData(tag);
+                        data = await fetchHTMLPage(tag);
                         console.error(
                             "[background]: Failed to parse html from content script, fetching...",
                             err,
                         );
                     }
                 } else {
-                    data = await fetchVideoData(tag);
+                    data = await fetchHTMLPage(tag);
                 }
 
                 const rawFormats = formatVideoResponse(data);

@@ -73,7 +73,7 @@ async function displayVideoInfo(data: APIData | HumanizedFormat) {
 
                 const heightDiv = document.createElement("div");
                 heightDiv.className = "format-height";
-                heightDiv.textContent = `${format.height}p:`;
+                heightDiv.textContent = `${format.height}p: (${format.formatId})`;
 
                 const sizeDiv = document.createElement("div");
                 sizeDiv.className = "format-size";
@@ -85,7 +85,7 @@ async function displayVideoInfo(data: APIData | HumanizedFormat) {
 
             containerEl.append(section);
         } else {
-            showStatus("No video formats found", "error");
+            showStatus("Error showing video formats", "error");
         }
     } catch (e) {
         if (e instanceof Error) {

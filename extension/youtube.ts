@@ -44,7 +44,7 @@ export function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSiz
     });
 }
 
-export async function fetchVideoData(videoTag: string) {
+export async function fetchHTMLPage(videoTag: string) {
     const res = await fetch(`https://www.youtube.com/watch?v=${videoTag}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const fetchedHtml = await res.text();
