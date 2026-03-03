@@ -184,7 +184,7 @@ The extension requests the minimum permissions necessary:
 npm install
 
 # Build once
-npm run build
+cd extension && npm run build
 
 # Watch mode (rebuilds on file changes)
 npm run watch

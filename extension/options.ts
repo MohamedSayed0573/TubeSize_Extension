@@ -34,13 +34,13 @@ resetBtn?.addEventListener("click", async () => {
 });
 
 // Listen to choose Cache TTL option
+const ttlInSeconds: Map<string, number> = new Map([
+    ["1", 1 * 24 * 60 * 60],
+    ["3", 3 * 24 * 60 * 60],
+    ["7", 7 * 24 * 60 * 60],
+]);
 getElement("cacheTTL", false)?.addEventListener("change", (event) => {
     const value = (event.target as HTMLInputElement).value;
-    const ttlInSeconds: Map<string, number> = new Map([
-        ["1", 1 * 24 * 60 * 60],
-        ["3", 3 * 24 * 60 * 60],
-        ["7", 7 * 24 * 60 * 60],
-    ]);
 
     chrome.storage.sync.set({ cacheTTL: ttlInSeconds.get(value) });
 });
@@ -58,8 +58,8 @@ async function loadOptions() {
     // Cache TTL
     const { cacheTTL = 3 * 24 * 60 * 60 } = await chrome.storage.sync.get("cacheTTL");
     const cacheEl = getElement("cacheTTL", false) as HTMLInputElement | null;
-    if (cacheEl && cacheTTL) {
-        const days = parseInt(cacheTTL as string) / (24 * 60 * 60);
+    if (cacheEl && cacheTTL && typeof cacheTTL === "number") {
+        const days = cacheTTL / (24 * 60 * 60);
         cacheEl.value = String(days);
     }
 }

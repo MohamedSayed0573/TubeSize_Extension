@@ -2,7 +2,7 @@ import { createClient } from "redis";
 import CONFIG from "../config/constants";
 import env from "./env";
 import { logger } from "./logger";
-import { Data } from "../types";
+import type { Data } from "../types";
 
 export const redis = createClient({
     socket: {
@@ -26,7 +26,7 @@ export async function checkCache(videoTag: string): Promise<Data | undefined> {
         if (!cached) return;
         return JSON.parse(cached);
     } catch (err) {
-        console.error("Cache miss on error — request continues without cache", err);
+        logger.error(err, "Cache miss on error — request continues without cache");
     }
 }
 
@@ -38,6 +38,6 @@ export async function setCache(videoTag: string, data: Data) {
             NX: true,
         });
     } catch (err) {
-        console.error("Cache write failure — non-critical, request still succeeds", err);
+        logger.error(err, "Cache write failure — non-critical, request still succeeds");
     }
 }

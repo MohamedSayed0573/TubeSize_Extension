@@ -16,7 +16,7 @@ const envSchema = z.object({
         .default(false), // "true" -> true, anything else -> false
     REDIS_HOST: z.string("Invalid Redis Host").default("localhost"),
     REDIS_PORT: z.coerce.number().default(6379),
-    EXTENSION_ID: z.string().default(""), // Temporarely optional
+    EXTENSION_ID: z.string().default(""), // Temporarily optional
 });
 
 const env = envSchema.safeParse(process.env);

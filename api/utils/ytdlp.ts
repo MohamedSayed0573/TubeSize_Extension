@@ -4,7 +4,7 @@ const execFileAsync = promisify(execFile);
 import CONFIG from "../config/constants";
 import { InvalidInputError } from "../utils/errors";
 import env from "../utils/env";
-import { RawData } from "../types";
+import type { RawData } from "../types";
 
 const BASE_ARGS = ["--ignore-config", "-J", "--skip-download"];
 const PROD_ARGS = [
@@ -18,11 +18,11 @@ const PROD_ARGS = [
 const isProd = env.NODE_ENV === "production";
 const isStaging = env.NODE_ENV === "staging";
 
-const ytDlpArgs = isProd || isStaging ? [...BASE_ARGS, ...PROD_ARGS] : [...BASE_ARGS];
+const YT_DLP_ARGS = isProd || isStaging ? [...BASE_ARGS, ...PROD_ARGS] : [...BASE_ARGS];
 
 export async function getVideoInfo(videoTag: string): Promise<RawData> {
     try {
-        const args = [...ytDlpArgs, "--", videoTag];
+        const args = [...YT_DLP_ARGS, "--", videoTag];
 
         const { stdout } = await execFileAsync("yt-dlp", args, {
             timeout: CONFIG.YTDLP_TIMEOUT_MS,

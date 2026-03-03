@@ -11,7 +11,7 @@ function extractVideoSizes(data: RawData, videoFormatIDs: readonly string[]) {
         })
         .map((format) => {
             return {
-                formatId: parseInt(format.format_id || ""),
+                formatId: parseInt(format.format_id) || 0,
                 height: format.height,
                 size: format.filesize,
             };
