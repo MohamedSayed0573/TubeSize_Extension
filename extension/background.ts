@@ -1,5 +1,3 @@
-console.log("[background] Service worker starting");
-
 import type { BackgroundResponse } from "./types";
 import { getFromStorage, saveToStorage } from "./cache";
 import { addBadge, clearBadge } from "./badge";
@@ -38,18 +36,12 @@ chrome.runtime.onMessage.addListener(
         const tag = message.tag;
         const tabId = sender.tab?.id ?? message.tabId;
 
-        console.log(
-            `[background] Received tag: ${tag} From ${sender.tab?.id ? "Content.js" : "Popup.js"}`,
-        );
-
         clearBadge(tabId);
 
         (async () => {
             const cached = await getFromStorage(tag);
 
             if (cached) {
-                console.log("[background] Using cached data:", cached);
-
                 addBadge(tabId);
                 sendResponse({
                     success: true,
@@ -67,10 +59,6 @@ chrome.runtime.onMessage.addListener(
                         data = extractYtInitial(message.html);
                     } catch (err) {
                         data = await fetchHTMLPage(tag);
-                        console.error(
-                            "[background]: Failed to parse html from content script, fetching...",
-                            err,
-                        );
                     }
                 } else {
                     data = await fetchHTMLPage(tag);
@@ -89,7 +77,6 @@ chrome.runtime.onMessage.addListener(
                 });
             } catch (err) {
                 try {
-                    console.error("[background] Scrape failed, trying API", err);
                     const apiData = await fetchAPI(tag);
                     await saveToStorage(tag, apiData);
                     addBadge(tabId);
@@ -101,7 +88,6 @@ chrome.runtime.onMessage.addListener(
                     });
                 } catch (apiErr) {
                     clearBadge(tabId);
-                    console.error("[background] API failed:", apiErr);
                     sendResponse({
                         success: false,
                         data: null,

@@ -46,7 +46,6 @@ export async function getFromStorage(tag: string): Promise<StorageData | null> {
 export async function clearStorage(): Promise<boolean> {
     try {
         await chrome.storage.local.clear();
-        console.log("Cleared Cache");
         return true;
     } catch (err) {
         console.error("Failed to clear storage", err);

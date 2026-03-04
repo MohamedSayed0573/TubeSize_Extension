@@ -10,7 +10,6 @@ const optionsBtn = getElement("optionsBtn", true);
 
 function showStatus(message: string, type: "info" | "error") {
     if (type === "info") {
-        console.log("[popup] Info:", message);
         containerEl.className = "info";
         containerEl.textContent = message;
     } else {
@@ -113,7 +112,6 @@ function showCachedNote(createdAt: string | undefined) {
         const timeAgo = ms(timeInMS);
         note.textContent = `Cached ${timeAgo} ago`;
     }
-    console.log("[popup] Video info cached", note.textContent);
     containerEl.prepend(note);
 }
 

@@ -8,8 +8,6 @@ function init(videoTag: string) {
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    console.log(`[CONTENT.TS] parse ytInitial before sending to background:`, !!scriptContent);
-
     chrome.runtime.sendMessage(
         {
             type: "sendYoutubeUrl",
@@ -21,7 +19,6 @@ function init(videoTag: string) {
                 console.error("[CONTENT]: Error:", chrome.runtime.lastError.message);
                 return;
             }
-            console.log(response);
         },
     );
 }

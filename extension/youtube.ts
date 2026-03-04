@@ -123,7 +123,6 @@ export function formatVideoResponse(data: RawData): RawFormat {
 
 export async function fetchAPI(tag: string) {
     const apiUrl = `${__API_URL__}/api/video-sizes/${tag}?humanReadableSizes=true&mergeAudioWithVideo=true`;
-    console.log("[background] Fetching URL:", apiUrl);
 
     const res = await fetch(apiUrl, {
         method: "GET",
@@ -131,6 +130,5 @@ export async function fetchAPI(tag: string) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = (await res.json()) as APIData;
-    console.log("[background] Got data:", data);
     return data;
 }
