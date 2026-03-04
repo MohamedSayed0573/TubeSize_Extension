@@ -1,0 +1,6 @@
+{
+    // Prevent youtubePage.html from showing warnings.
+    "files.associations": {
+        "youtubePage.html": "plaintext"
+    }
+}

@@ -16,6 +16,7 @@ describe("extractYtInitial", () => {
     });
 
     test("should return ytInitialPlayerResponse with the correct properties", () => {
+        // Note: youtubePage.html should NOT be formatted using prettier.
         const htmlPage = readFileSync(path.join(__dirname, "assets", "youtubePage.html"), "utf-8");
         const ytInitial = extractYtInitial(htmlPage);
 
