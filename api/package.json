@@ -1,7 +1,7 @@
 {
     "name": "api",
     "version": "1.0.0",
-    "description": "",
+    "description": "Backend API for the TubeSize Chrome extension, providing endpoint to fetch file size data for YouTube videos across different quality levels.",
     "main": "dist/server.js",
     "scripts": {
         "build": "npx tsc",
@@ -10,9 +10,9 @@
         "prettier:write": "pnpm prettier . --write"
     },
     "keywords": [],
-    "author": "",
-    "license": "ISC",
-    "type": "commonjs",
+    "author": "Mohamed Sayed",
+    "license": "MIT",
+    "type": "module",
     "dependencies": {
         "cors": "^2.8.6",
         "dotenv": "^17.2.4",
