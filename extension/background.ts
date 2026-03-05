@@ -8,7 +8,7 @@ import {
     parseDataFromYtInitial,
     humanizeData,
 } from "./youtube";
-import { getAPIFallbackOption } from "./utils";
+import { getAPIFallbackSetting } from "./utils";
 
 chrome.runtime.onMessage.addListener(
     (
@@ -79,7 +79,7 @@ chrome.runtime.onMessage.addListener(
                 });
             } catch (err) {
                 try {
-                    const useAPIFallback = await getAPIFallbackOption();
+                    const useAPIFallback = await getAPIFallbackSetting();
                     if (!useAPIFallback) {
                         throw new Error("Skipped API Fallback");
                     }

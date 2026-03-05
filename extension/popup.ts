@@ -1,5 +1,6 @@
 import type { APIData, BackgroundResponse, HumanizedFormat } from "./types";
-import { extractVideoId, getOptions, optionIDs, getElement, isYoutubePage } from "./utils";
+import { extractVideoId, getOptions, getElement, isYoutubePage } from "./utils";
+import CONFIG from "./constants";
 import ms from "ms";
 
 const containerEl = getElement("container", true);
@@ -52,7 +53,7 @@ async function displayVideoInfo(data: APIData | HumanizedFormat) {
             section.className = "formats-section";
 
             const options = await getOptions();
-            const enabledOptions = optionIDs.filter((optionId) => {
+            const enabledOptions = CONFIG.optionIDs.filter((optionId) => {
                 return options[optionId] ?? true;
             });
             if (enabledOptions.length === 0) {
@@ -101,7 +102,7 @@ function showCachedNote(createdAt: string | undefined) {
     note.className = "cached-note";
 
     const timeInMS = new Date().getTime() - new Date(createdAt).getTime();
-    if (timeInMS < 5000) {
+    if (timeInMS < CONFIG.CACHE_JUST_NOW_THRESHOLD) {
         note.textContent = "Just now";
     } else {
         const timeAgo = ms(timeInMS, { long: true });

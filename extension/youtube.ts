@@ -1,7 +1,8 @@
 import { filesize } from "filesize";
-import { APIData, HumanizedFormat, RawData, RawFormat } from "./types";
+import type { APIData, HumanizedFormat, RawData, RawFormat } from "./types";
 import ms from "ms";
 import { fetchAndRetry } from "./utils";
+import CONFIG from "./constants";
 
 export function humanizeData(formats: RawFormat): HumanizedFormat {
     const audioSize = getAverageAudioSize(formats.audioFormats);
@@ -46,14 +47,17 @@ export function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSiz
 }
 
 export async function fetchHTMLPage(videoTag: string) {
-    const res = await fetch(`https://www.youtube.com/watch?v=${videoTag}`);
+    const res = await fetchAndRetry(`https://www.youtube.com/watch?v=${videoTag}`, {
+        method: "GET",
+        signal: AbortSignal.timeout(CONFIG.FETCH_HTML_TIMEOUT),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const fetchedHtml = await res.text();
     return fetchedHtml;
 }
 
 export function extractYtInitial(html: string): RawData {
-    const match = html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/s);
+    const match = html.match(CONFIG.YT_INITIAL_PLAYER_REGEX);
     if (!match || !match[1]) throw new Error("No match found");
     const data = JSON.parse(match[1]);
     if (!data) throw new Error("No data found");
@@ -63,23 +67,10 @@ export function extractYtInitial(html: string): RawData {
 // Order of each key is important. It's the same order the user sees.
 // Order of itags is important. The first index of each key means higher priority.
 // For example, for 144p, if itag 394 is available, we choose that. If not, we check for itag 330 and so on.
-const VIDEO_ITAGS: Map<number, number[]> = new Map([
-    [144, [394, 330, 278, 160]],
-    [240, [395, 331, 242, 133]],
-    [360, [396, 332, 243, 134]],
-    [480, [397, 333, 244, 135]],
-    [720, [398, 334, 302, 247, 298, 136]],
-    [1080, [399, 335, 303, 248, 299, 137]],
-    [1440, [400, 336, 308, 271, 304, 264]],
-    [2160, [401, 337, 315, 313, 305, 266]],
-    [4320, [402, 571, 272, 138]],
-]);
-export const resolutions = Array.from(VIDEO_ITAGS.entries());
-
 function chooseVideoFormats(data: RawData) {
     const chosenFormats: RawFormat["formats"] = [];
 
-    for (const [resolution, itags] of resolutions) {
+    for (const [resolution, itags] of CONFIG.resolutions) {
         for (const itag of itags) {
             const format = data.streamingData.adaptiveFormats.find((f) => f.itag === itag);
             if (format) {
@@ -98,8 +89,6 @@ function chooseVideoFormats(data: RawData) {
     return chosenFormats;
 }
 
-const AUDIO_ITAG = 251;
-
 export function parseDataFromYtInitial(data: RawData): RawFormat {
     if (!data || !data.videoDetails || !data.streamingData || !data.streamingData.adaptiveFormats)
         throw new Error("No data found");
@@ -111,7 +100,7 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
         formats: chooseVideoFormats(data),
         audioFormats: data.streamingData.adaptiveFormats
             .filter((format) => {
-                return format.itag === AUDIO_ITAG;
+                return format.itag === CONFIG.AUDIO_ITAG;
             })
             .map((format) => {
                 return {
@@ -127,6 +116,7 @@ export async function fetchAPI(tag: string) {
 
     const res = await fetchAndRetry(apiUrl, {
         method: "GET",
+        signal: AbortSignal.timeout(CONFIG.FETCH_API_TIMEOUT),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 

@@ -1,3 +1,5 @@
+import CONFIG from "./constants";
+
 export function isYoutubePage(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
@@ -16,8 +18,7 @@ export function extractVideoId(ytUrl: string): string | undefined {
         const videoTag = parsedUrl.searchParams.get("v");
         if (!videoTag) return;
 
-        const regex = /^[a-zA-Z0-9_-]{11}$/;
-        if (!regex.test(videoTag)) {
+        if (!CONFIG.VIDEO_ID_REGEX.test(videoTag)) {
             return;
         }
         return videoTag;
@@ -26,21 +27,9 @@ export function extractVideoId(ytUrl: string): string | undefined {
     }
 }
 
-export const optionIDs = [
-    "p144",
-    "p240",
-    "p360",
-    "p480",
-    "p720",
-    "p1080",
-    "p1440",
-    "p2160",
-    "p4320",
-];
-
 // Return the user options
 export async function getOptions() {
-    return await chrome.storage.sync.get(optionIDs);
+    return await chrome.storage.sync.get(CONFIG.optionIDs);
 }
 
 export function getElement(id: string, isFatal: true): HTMLElement;
@@ -62,7 +51,7 @@ export function getElement(id: string, isFatal: boolean = false): HTMLElement | 
 export async function fetchAndRetry(
     url: string,
     options: RequestInit = {},
-    maxRetries = 3,
+    maxRetries = CONFIG.DEFAULT_MAX_REPLIES,
 ): Promise<Response> {
     let lastError: unknown;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -93,7 +82,7 @@ export async function fetchAndRetry(
     throw new Error(`Failed after ${maxRetries} tries, last error: ${lastError}`);
 }
 
-export async function getAPIFallbackOption(): Promise<boolean> {
+export async function getAPIFallbackSetting(): Promise<boolean> {
     const { apiFallback = false } = await chrome.storage.sync.get("apiFallback");
     return apiFallback as boolean;
 }

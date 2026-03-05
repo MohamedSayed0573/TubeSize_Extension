@@ -1,9 +1,10 @@
-import { optionIDs, getElement } from "./utils";
+import { getElement } from "./utils";
+import CONFIG from "./constants";
 import { clearLocalStorage } from "./cache";
 
 function displayOptions() {
     const optionsContainer = getElement("options-grid", true);
-    optionIDs.forEach((optionId) => {
+    CONFIG.optionIDs.forEach((optionId) => {
         const label = document.createElement("label");
         label.className = "option-item";
 
@@ -24,7 +25,7 @@ function displayOptions() {
 displayOptions();
 
 // Listen to changes in options and update chrome storage
-optionIDs.forEach((option) => {
+CONFIG.optionIDs.forEach((option) => {
     getElement(option, false)?.addEventListener("change", (event) => {
         chrome.storage.sync.set({ [option]: (event.target as HTMLInputElement).checked });
     });
@@ -56,15 +57,10 @@ resetBtn?.addEventListener("click", async () => {
 });
 
 // Listen to choose Cache TTL option
-const ttlInSeconds: Map<string, number> = new Map([
-    ["1", 1 * 24 * 60 * 60],
-    ["3", 3 * 24 * 60 * 60],
-    ["7", 7 * 24 * 60 * 60],
-]);
 getElement("cacheTTL", false)?.addEventListener("change", (event) => {
     const value = (event.target as HTMLInputElement).value;
 
-    chrome.storage.sync.set({ cacheTTL: ttlInSeconds.get(value) });
+    chrome.storage.sync.set({ cacheTTL: CONFIG.ttlInSecondsOptions.get(value) });
 });
 
 // Listen to choose API fallback checkbox
@@ -76,15 +72,15 @@ getElement("apiFallback", false)?.addEventListener("change", (event) => {
 // Load options from chrome storage when options page is opened
 async function loadOptions() {
     // Quality Options
-    const options = await chrome.storage.sync.get(optionIDs);
-    optionIDs.forEach((optionId) => {
+    const options = await chrome.storage.sync.get(CONFIG.optionIDs);
+    CONFIG.optionIDs.forEach((optionId) => {
         const checkbox = getElement(optionId, false) as HTMLInputElement;
         if (!checkbox) return;
         checkbox.checked = (options[optionId] as boolean) ?? true;
     });
 
     // Cache TTL
-    const { cacheTTL = 3 * 24 * 60 * 60 } = await chrome.storage.sync.get("cacheTTL");
+    const { cacheTTL = CONFIG.DEFAULT_CACHE_TTL } = await chrome.storage.sync.get("cacheTTL");
     const cacheEl = getElement("cacheTTL", false) as HTMLInputElement | null;
     if (cacheEl && cacheTTL && typeof cacheTTL === "number") {
         const days = cacheTTL / (24 * 60 * 60);

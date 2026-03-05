@@ -1,17 +1,18 @@
+import CONFIG from "./constants";
 import type { APIData, HumanizedFormat, StorageData } from "./types";
 
-async function getTTL(): Promise<number> {
-    const DEFAULT_TTL = 3 * 24 * 60 * 60; // 3 days in seconds
+async function getCacheTTLSetting(): Promise<number> {
+    const DEFAULT_CACHE_TTL = CONFIG.DEFAULT_CACHE_TTL; // 3 days in seconds
     const { cacheTTL } = (await chrome.storage.sync.get("cacheTTL")) as { cacheTTL: number };
 
-    return cacheTTL || DEFAULT_TTL;
+    return cacheTTL || DEFAULT_CACHE_TTL;
 }
 
 export async function saveToStorage(tag: string, response: APIData | HumanizedFormat | null) {
     if (!response) return;
 
-    const ttlInSeconds = await getTTL();
-    const expiry = Date.now() + ttlInSeconds * 1000;
+    const ttlInSecondsOptions = await getCacheTTLSetting();
+    const expiry = Date.now() + ttlInSecondsOptions * 1000;
 
     // If any of the formats have null sizes, we don't want to cache the response as it might be incomplete.
     const hasNullSizes = response.videoFormats.some((f) => !f.size || f.size === "0 B");
