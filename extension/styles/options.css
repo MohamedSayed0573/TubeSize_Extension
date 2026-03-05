@@ -168,6 +168,9 @@ input[type="checkbox"]:checked::after {
     text-align: center;
 }
 .author a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     color: #888;
     font-size: 11px;
     text-decoration: none;
