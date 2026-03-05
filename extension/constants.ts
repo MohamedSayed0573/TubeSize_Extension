@@ -27,7 +27,7 @@ const CONFIG = {
     DEFAULT_CACHE_TTL: 3 * 24 * 60 * 60, // 3 Days
     ttlInSecondsOptions,
     optionIDs,
-    DEFAULT_MAX_REPLIES: 3,
+    DEFAULT_MAX_RETRIES: 3,
     VIDEO_ID_REGEX: /^[a-zA-Z0-9_-]{11}$/,
     YT_INITIAL_PLAYER_REGEX: /ytInitialPlayerResponse\s*=\s*(\{.+?\});/s,
     CACHE_JUST_NOW_THRESHOLD: 5000,

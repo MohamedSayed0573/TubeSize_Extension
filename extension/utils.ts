@@ -60,7 +60,7 @@ export function getElement(id: string, isFatal: boolean = false): HTMLElement | 
 export async function fetchAndRetry(
     url: string,
     options: RequestInit = {},
-    maxRetries = CONFIG.DEFAULT_MAX_REPLIES,
+    maxRetries = CONFIG.DEFAULT_MAX_RETRIES,
 ): Promise<Response> {
     let lastError: unknown;
     for (let attempt = 0; attempt < maxRetries; attempt++) {

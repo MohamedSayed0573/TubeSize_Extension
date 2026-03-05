@@ -6,7 +6,7 @@ This file provides guidance for AI coding agents operating in this repository.
 
 - **Do not write code unless explicitly asked.** When investigating an issue, explain why it happens and how to fix it — do not implement the fix unless instructed.
 - **Do NOT ever use git commit or git push.**
-- \*\*We will not support youtube shorts
+- **We will not support YouTube Shorts.**
 
 ## Repository Overview
 

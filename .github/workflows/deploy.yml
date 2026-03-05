@@ -39,6 +39,7 @@ jobs:
 
     deploy_staging:
         needs: build
+        # It should run on any push even if not to main branch.
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         runs-on: ubuntu-latest
         steps:
@@ -88,6 +89,7 @@ jobs:
                       docker image prune -f
     deploy_prod:
         needs: build
+        # It should only run on push to tags that start with "api-v"
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/api-v')
         runs-on: ubuntu-latest
         steps:
