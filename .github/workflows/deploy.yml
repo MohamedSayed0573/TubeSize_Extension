@@ -43,7 +43,7 @@ jobs:
 
     deploy_staging:
         needs: build
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         runs-on: ubuntu-latest
         steps:
             - name: Checkout Code
@@ -82,6 +82,7 @@ jobs:
                       # -f flag is used to specify the docker-compose file. Default is docker-compose.yml
                       docker compose -p staging -f api/docker-compose.staging.yml pull
 
+                      docker compose -p staging -f api/docker-compose.staging.yml down
                       # Start the container. If the container hasn't changed, it will not be restarted
                       # -d flag is used to run the container in detached mode
                       docker compose -p staging -f api/docker-compose.staging.yml up -d
@@ -131,6 +132,7 @@ jobs:
                       docker compose -p prod -f api/docker-compose.prod.yml pull
                       docker compose -p staging -f api/docker-compose.staging.yml pull
 
+                      docker compose -p prod -f api/docker-compose.prod.yml down
                       # Start the container. If the container hasn't changed, it will not be restarted
                       # -d flag is used to run the container in detached mode
                       docker compose -p prod -f api/docker-compose.prod.yml up -d
