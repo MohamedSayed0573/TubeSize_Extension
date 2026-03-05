@@ -1,5 +1,5 @@
 import type { APIData, BackgroundResponse, HumanizedFormat } from "./types";
-import { extractVideoId, getOptions, getElement, isYoutubePage } from "./utils";
+import { extractVideoId, getOptions, getElement, isYoutubePage, isShortsVideo } from "./utils";
 import CONFIG from "./constants";
 import ms from "ms";
 
@@ -125,7 +125,13 @@ chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
         return;
     }
 
+    if (isShortsVideo(tabUrl)) {
+        showStatus("Shorts Videos are not supported", "info");
+        return;
+    }
+
     const tag = extractVideoId(tabUrl);
+
     if (!tag) {
         showStatus("Open a Youtube video", "info");
         return;

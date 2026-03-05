@@ -9,9 +9,20 @@ export function isYoutubePage(url: string): boolean {
     }
 }
 
+export function isShortsVideo(url: string): boolean {
+    try {
+        const parsedUrl = new URL(url);
+        console.log(parsedUrl);
+        return parsedUrl.pathname.startsWith("/shorts");
+    } catch (err) {
+        return false;
+    }
+}
+
 export function extractVideoId(ytUrl: string): string | undefined {
     try {
         const parsedUrl = new URL(ytUrl);
+        console.log(parsedUrl);
 
         if (parsedUrl.pathname !== "/watch") return;
 

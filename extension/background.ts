@@ -18,7 +18,7 @@ chrome.runtime.onMessage.addListener(
             tabId?: number;
             html?: string;
         },
-        sender,
+        sender: chrome.runtime.MessageSender,
         sendResponse: (response: BackgroundResponse) => void,
     ) => {
         if (message.type === "clearBadge") {
