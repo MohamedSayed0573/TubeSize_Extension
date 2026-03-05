@@ -1,4 +1,4 @@
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.js";
 import { execFileSync } from "child_process";
 function getYTDLPVersion() {
     try {

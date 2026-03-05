@@ -1,11 +1,15 @@
 import type { Request, Response } from "express";
 import express from "express";
 
-import { formatResponse, humanizeSizes, mergeAudioWithVideoFormats } from "../utils/formatResponse";
-import { InvalidInputError } from "../utils/errors";
-import { getVideoInfo, validateVideoTag } from "../utils/ytdlp";
+import {
+    formatResponse,
+    humanizeSizes,
+    mergeAudioWithVideoFormats,
+} from "../utils/formatResponse.js";
+import { InvalidInputError } from "../utils/errors.js";
+import { getVideoInfo, validateVideoTag } from "../utils/ytdlp.js";
 import ms from "ms";
-import { checkCache, setCache } from "../utils/cache";
+import { checkCache, setCache } from "../utils/cache.js";
 
 const router = express.Router();
 

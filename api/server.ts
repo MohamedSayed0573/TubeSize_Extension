@@ -1,18 +1,18 @@
 import type { Request, Response, NextFunction } from "express";
 
-import env from "./utils/env";
+import env from "./utils/env.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import ms from "ms";
 import compression from "compression";
 
-import { AppError, RateLimit } from "./utils/errors";
-import apiRoutes from "./routes/api";
+import { AppError, RateLimit } from "./utils/errors.js";
+import apiRoutes from "./routes/api.js";
 import { rateLimit } from "express-rate-limit";
-import { logger, pinoHttp } from "./utils/logger";
-import { redis } from "./utils/cache";
-import CONFIG from "./config/constants";
+import { logger, pinoHttp } from "./utils/logger.js";
+import { redis } from "./utils/cache.js";
+import CONFIG from "./config/constants.js";
 
 const app = express();
 
@@ -25,7 +25,6 @@ app.use(
 app.set("trust proxy", 1); // Trust the first proxy hop (e.g. Docker/Nginx/AWS) to prevent rate-limit spoofing
 
 app.use(compression({ filter: shouldCompress }));
-
 function shouldCompress(req: Request, res: Response) {
     // don't compress responses with this request header
     return req.headers["x-no-compression"] ? false : true;
