@@ -30,10 +30,25 @@
         <div class="section-divider"></div>
         <div class="container">
             <div class="section-title">API Fallback</div>
-            <label class="api-fallback-row">
-                <input type="checkbox" id="apiFallback" />
-                <span class="api-fallback-label">Use API as fallback</span>
-            </label>
+            <div class="api-fallback-row">
+                <label class="api-fallback-toggle" for="apiFallback">
+                    <input type="checkbox" id="apiFallback" />
+                    <span class="api-fallback-label">Use backup server</span>
+                </label>
+                <div class="info-tooltip">
+                    <button
+                        type="button"
+                        class="info-tooltip-trigger"
+                        aria-label="More information about API fallback"
+                    >
+                        i
+                    </button>
+                    <div class="info-tooltip-content" role="tooltip">
+                        Uses our backup server when local extraction fails. It can be slower. See
+                        our privacy policy for more details.
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="section-divider"></div>
         <div class="author">
