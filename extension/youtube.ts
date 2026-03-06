@@ -1,6 +1,8 @@
 import { filesize } from "filesize";
-import { APIData, HumanizedFormat, RawData, RawFormat } from "./types";
+import type { APIData, HumanizedFormat, RawData, RawFormat } from "./types";
 import ms from "ms";
+import { fetchAndRetry } from "./utils";
+import CONFIG from "./constants";
 
 export function humanizeData(formats: RawFormat): HumanizedFormat {
     const audioSize = getAverageAudioSize(formats.audioFormats);
@@ -45,32 +47,49 @@ export function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSiz
 }
 
 export async function fetchHTMLPage(videoTag: string) {
-    const res = await fetch(`https://www.youtube.com/watch?v=${videoTag}`);
+    const res = await fetchAndRetry(`https://www.youtube.com/watch?v=${videoTag}`, {
+        method: "GET",
+        signal: AbortSignal.timeout(CONFIG.FETCH_HTML_TIMEOUT),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const fetchedHtml = await res.text();
-    return extractYtInitial(fetchedHtml);
+    return fetchedHtml;
 }
 
 export function extractYtInitial(html: string): RawData {
-    const match = html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/s);
+    const match = html.match(CONFIG.YT_INITIAL_PLAYER_REGEX);
     if (!match || !match[1]) throw new Error("No match found");
     const data = JSON.parse(match[1]);
     if (!data) throw new Error("No data found");
     return data;
 }
 
-const VIDEO_ITAGS: Set<number> = new Set([
-    394, // 144p
-    395, // 240p
-    396, // 360p
-    397, // 480p
-    398, // 720p
-    399, // 1080p
-]);
+// Order of each key is important. It's the same order the user sees.
+// Order of itags is important. The first index of each key means higher priority.
+// For example, for 144p, if itag 394 is available, we choose that. If not, we check for itag 330 and so on.
+function chooseVideoFormats(data: RawData) {
+    const chosenFormats: RawFormat["formats"] = [];
 
-const AUDIO_ITAG = 251;
+    for (const [resolution, itags] of CONFIG.resolutions) {
+        for (const itag of itags) {
+            const format = data.streamingData.adaptiveFormats.find((f) => f.itag === itag);
+            if (format) {
+                const size = parseInt(format.contentLength || "0");
+                if (size > 0) {
+                    chosenFormats.push({
+                        formatId: format.itag,
+                        height: resolution,
+                        size: size,
+                    });
+                    break;
+                }
+            }
+        }
+    }
+    return chosenFormats;
+}
 
-export function formatVideoResponse(data: RawData): RawFormat {
+export function parseDataFromYtInitial(data: RawData): RawFormat {
     if (!data || !data.videoDetails || !data.streamingData || !data.streamingData.adaptiveFormats)
         throw new Error("No data found");
 
@@ -78,20 +97,10 @@ export function formatVideoResponse(data: RawData): RawFormat {
         id: data.videoDetails.videoId,
         title: data.videoDetails.title,
         duration: data.videoDetails.lengthSeconds,
-        formats: data.streamingData.adaptiveFormats
-            .filter((format) => {
-                return VIDEO_ITAGS.has(format.itag);
-            })
-            .map((format) => {
-                return {
-                    formatId: format.itag,
-                    height: format.height,
-                    size: parseInt(format.contentLength || "0"),
-                };
-            }),
+        formats: chooseVideoFormats(data),
         audioFormats: data.streamingData.adaptiveFormats
             .filter((format) => {
-                return format.itag === AUDIO_ITAG;
+                return format.itag === CONFIG.AUDIO_ITAG;
             })
             .map((format) => {
                 return {
@@ -102,16 +111,15 @@ export function formatVideoResponse(data: RawData): RawFormat {
     };
 }
 
-export async function fetchAPI(tag: string) {
+export async function fetchAPI(tag: string): Promise<APIData> {
     const apiUrl = `${__API_URL__}/api/video-sizes/${tag}?humanReadableSizes=true&mergeAudioWithVideo=true`;
-    console.log("[background] Fetching URL:", apiUrl);
 
-    const res = await fetch(apiUrl, {
+    const res = await fetchAndRetry(apiUrl, {
         method: "GET",
+        signal: AbortSignal.timeout(CONFIG.FETCH_API_TIMEOUT),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = (await res.json()) as APIData;
-    console.log("[background] Got data:", data);
     return data;
 }

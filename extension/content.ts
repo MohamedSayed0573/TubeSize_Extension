@@ -1,4 +1,4 @@
-import { extractVideoTag } from "./utils";
+import { extractVideoId } from "./utils";
 
 function init(videoTag: string) {
     const scriptsArray = Array.from(document.scripts);
@@ -7,8 +7,6 @@ function init(videoTag: string) {
     });
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
-
-    console.log(`[CONTENT.TS] parse ytInitial before sending to background:`, !!scriptContent);
 
     chrome.runtime.sendMessage(
         {
@@ -21,7 +19,6 @@ function init(videoTag: string) {
                 console.error("[CONTENT]: Error:", chrome.runtime.lastError.message);
                 return;
             }
-            console.log(response);
         },
     );
 }
@@ -30,14 +27,10 @@ let lastTag: string | undefined = undefined;
 window.addEventListener("yt-navigate-finish", async () => {
     await chrome.runtime.sendMessage({ type: "clearBadge" });
     const url = window.location.href;
-    const tag = extractVideoTag(url);
+    const tag = extractVideoId(url);
 
     if (lastTag === tag) return;
     lastTag = tag;
 
-    if (tag) {
-        init(tag);
-    } else {
-        chrome.runtime.sendMessage({ type: "clearBadge" });
-    }
+    if (tag) init(tag);
 });

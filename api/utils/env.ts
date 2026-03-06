@@ -2,7 +2,7 @@ import z from "zod";
 import dotenv from "dotenv";
 
 dotenv.config({
-    path: ".env",
+    path: process.env.NODE_ENV === "production" ? ".env.prod" : ".env.staging",
 });
 
 const envSchema = z.object({
@@ -16,10 +16,7 @@ const envSchema = z.object({
         .default(false), // "true" -> true, anything else -> false
     REDIS_HOST: z.string("Invalid Redis Host").default("localhost"),
     REDIS_PORT: z.coerce.number().default(6379),
-    EXTENSION_ID: z
-        .string()
-        .regex(/^[a-z]{32}$/)
-        .default(""),
+    EXTENSION_ID: z.string().regex(/^[a-z]{32}$/),
 });
 
 const env = envSchema.safeParse(process.env);

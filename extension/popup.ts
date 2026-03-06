@@ -1,5 +1,6 @@
 import type { APIData, BackgroundResponse, HumanizedFormat } from "./types";
-import { extractVideoTag, getOptions, optionIDs, getElement } from "./utils";
+import { extractVideoId, getOptions, getElement, isYoutubePage, isShortsVideo } from "./utils";
+import CONFIG from "./constants";
 import ms from "ms";
 
 const containerEl = getElement("container", true);
@@ -10,7 +11,6 @@ const optionsBtn = getElement("optionsBtn", true);
 
 function showStatus(message: string, type: "info" | "error") {
     if (type === "info") {
-        console.log("[popup] Info:", message);
         containerEl.className = "info";
         containerEl.textContent = message;
     } else {
@@ -53,7 +53,7 @@ async function displayVideoInfo(data: APIData | HumanizedFormat) {
             section.className = "formats-section";
 
             const options = await getOptions();
-            const enabledOptions = optionIDs.filter((optionId) => {
+            const enabledOptions = CONFIG.optionIDs.filter((optionId) => {
                 return options[optionId] ?? true;
             });
             if (enabledOptions.length === 0) {
@@ -95,11 +95,6 @@ async function displayVideoInfo(data: APIData | HumanizedFormat) {
     }
 }
 
-function isYoutubeVideo(url: string) {
-    if (!url) return false;
-    return new URL(url).hostname.includes("youtube.com");
-}
-
 function showCachedNote(createdAt: string | undefined) {
     if (!createdAt) return;
 
@@ -107,31 +102,36 @@ function showCachedNote(createdAt: string | undefined) {
     note.className = "cached-note";
 
     const timeInMS = new Date().getTime() - new Date(createdAt).getTime();
-    if (timeInMS < 5000) {
+    if (timeInMS < CONFIG.CACHE_JUST_NOW_THRESHOLD) {
         note.textContent = "Just now";
     } else {
-        const timeAgo = ms(timeInMS);
+        const timeAgo = ms(timeInMS, { long: true });
         note.textContent = `Cached ${timeAgo} ago`;
     }
-    console.log("[popup] Video info cached", note.textContent);
     containerEl.prepend(note);
 }
 
 chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
     const tab = tabs[0];
 
-    if (!tab) {
+    if (!tab?.url) {
         showStatus("No active tab found", "info");
         return;
     }
 
-    const url = tab.url;
-    if (!url || !isYoutubeVideo(url)) {
+    const tabUrl = tab.url;
+    if (!isYoutubePage(tabUrl)) {
         showStatus("Not a YouTube video page", "info");
         return;
     }
 
-    const tag = extractVideoTag(url);
+    if (isShortsVideo(tabUrl)) {
+        showStatus("Shorts Videos are not supported", "info");
+        return;
+    }
+
+    const tag = extractVideoId(tabUrl);
+
     if (!tag) {
         showStatus("Open a Youtube video", "info");
         return;

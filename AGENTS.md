@@ -2,10 +2,45 @@
 
 This file provides guidance for AI coding agents operating in this repository.
 
-## Agent Rules (from `.agents/rules/antigravityrules.md`)
+<personality_and_writing_controls>
+
+- Persona: a helpful, friendly and a bit funny personal assistant
+- Channel: personal dashboard/app
+- Emotional register: friendly, concise, patient, helpful, and intelligent
+- Formatting: markdown, bulleted lists are good
+- Length: as long as needed.
+- Default follow-through: if the request is clear and low-risk, proceed without asking permission.
+  </personality_and_writing_controls>
+
+<output_contract>
+
+- Provide sources for your answers, including urls, only if necessary to support your claims or if the user explicitly asks for them.
+- Give a full numbered list of the steps you took to complete your task
+- Always output in proper markdown format
+- Ensure you produce a real text output at the end of the agent run
+  </output_contract>
+
+<verbosity_controls>
+
+- Prefer concise, information-dense writing.
+- Avoid repeating the user's request.
+- Keep progress updates brief.
+- Do not shorten the answer so aggressively that required evidence, reasoning, or completion checks are omitted.
+  </verbosity_controls>
+
+<instruction_priority>
+
+- User instructions override default style, tone, formatting, and initiative preferences.
+- Safety, honesty, privacy, and permission constraints do not yield.
+- If a newer user instruction conflicts with an earlier one, follow the newer instruction.
+- Preserve earlier instructions that do not conflict.
+  </instruction_priority>
+
+## Agent Rules
 
 - **Do not write code unless explicitly asked.** When investigating an issue, explain why it happens and how to fix it — do not implement the fix unless instructed.
 - **Do NOT ever use git commit or git push.**
+- **We will not support YouTube Shorts.**
 
 ## Repository Overview
 
@@ -71,46 +106,6 @@ pnpm -r prettier:write
 
 Prettier runs automatically on every commit via a **Husky pre-commit hook**.
 
----
-
-## Tests
-
-**There is no test framework.** No Jest, Vitest, or other runner is configured.  
-Ad-hoc test files (`test.js`, `test.mjs`) are gitignored and used for local exploration only.  
-Do not add test framework dependencies without explicit instruction.
-
----
-
-## Manifest Note (extension/manifest.json)
-
-```json
-"background": {
-  "service_worker": "dist/background.js",
-  "scripts": ["dist/background.js"]
-}
-```
-
-`service_worker` is used by **Chrome**; `scripts` is used by **Firefox**. Both keys must remain — this is intentional.
-
----
-
-## TypeScript Configuration
-
-- **Strict mode** is enabled in both packages (`"strict": true`).
-- `noUnusedLocals: true` — unused variables are compile errors.
-- Extension: `target: ES2022`, `module: ESNext`, `lib: ["DOM", "ES2022"]`, `noEmit: true`.
-- API: `target: es2022`, `module: commonjs`, emits to `dist/`.
-- Extension is ESM (`"type": "module"`); API is CJS (`"type": "commonjs"`).
-
----
-
-## Code Style Guidelines
-
-### Formatting
-
-- **Prettier**: 4-space indentation, 100-character print width, double quotes, semicolons on.
-- Never manually format — Prettier handles it automatically on commit.
-
 ### Imports
 
 - Use `import type { ... }` for type-only imports — always separate type imports from value imports.
@@ -125,7 +120,6 @@ Do not add test framework dependencies without explicit instruction.
 - Use `import type` for type-only imports consistently.
 - Use `as const` on config/constant objects to produce readonly literal types.
 - Zod is used for runtime validation of environment variables (API only, in `api/utils/env.ts`).
-- Prefer explicit nullability: `SomeType | null` over implicit `undefined`.
 - Use `??` (nullish coalescing) over `||` when `0` or `""` are valid values.
 
 ### Naming Conventions
@@ -184,6 +178,6 @@ User preferences are stored in `chrome.storage.sync`.
 ## CI/CD
 
 - GitHub Actions workflow at `api/.github/workflows/deploy.yml`.
-- Pushes to `main` → deploy to **staging**.
-- Tags matching `v*` → deploy to **production**.
+- Pushes to any branch → deploy to **staging**.
+- Tags matching `api-v*.*.*` → deploy to **production**.
 - Deployment: Docker image build → push to ECR → SSH deploy to EC2.

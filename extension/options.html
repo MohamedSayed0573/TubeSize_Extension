@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en">
     <head>
         <title>Options</title>
         <meta charset="UTF-8" />
@@ -12,32 +12,7 @@
         </div>
         <div class="container">
             <div class="description">Select which resolutions to display:</div>
-            <div class="options-grid">
-                <label class="option-item">
-                    <input type="checkbox" id="p144" />
-                    <span class="option-label">144p</span>
-                </label>
-                <label class="option-item">
-                    <input type="checkbox" id="p240" />
-                    <span class="option-label">240p</span>
-                </label>
-                <label class="option-item">
-                    <input type="checkbox" id="p360" />
-                    <span class="option-label">360p</span>
-                </label>
-                <label class="option-item">
-                    <input type="checkbox" id="p480" />
-                    <span class="option-label">480p</span>
-                </label>
-                <label class="option-item">
-                    <input type="checkbox" id="p720" />
-                    <span class="option-label">720p</span>
-                </label>
-                <label class="option-item">
-                    <input type="checkbox" id="p1080" />
-                    <span class="option-label">1080p</span>
-                </label>
-            </div>
+            <div id="options-grid"></div>
         </div>
         <div class="section-divider"></div>
         <div class="container">
@@ -51,6 +26,36 @@
                 </select>
             </div>
             <button id="resetCache" class="reset-cache-btn">Clear Cache</button>
+        </div>
+        <div class="section-divider"></div>
+        <div class="container">
+            <div class="section-title">API Fallback</div>
+            <div class="api-fallback-row">
+                <label class="api-fallback-toggle" for="apiFallback">
+                    <input type="checkbox" id="apiFallback" />
+                    <span class="api-fallback-label">Use backup server</span>
+                </label>
+                <div class="info-tooltip">
+                    <button
+                        type="button"
+                        class="info-tooltip-trigger"
+                        aria-label="More information about API fallback"
+                    >
+                        i
+                    </button>
+                    <div class="info-tooltip-content" role="tooltip">
+                        Uses our backup server when local extraction fails. It can be slower. See
+                        our privacy policy for more details.
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="section-divider"></div>
+        <div class="author">
+            <a href="https://github.com/MohamedSayed0573" target="_blank">
+                <img src="icons/github.svg" alt="" width="14" height="14" />
+                @Mohamed Sayed
+            </a>
         </div>
         <script src="dist/options.js"></script>
     </body>

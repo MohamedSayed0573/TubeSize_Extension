@@ -4,7 +4,7 @@ export type APIData = {
     duration: string;
     audioFormat: string;
     videoFormats: {
-        formatId: string;
+        formatId: number;
         height: number;
         size: string;
     }[];

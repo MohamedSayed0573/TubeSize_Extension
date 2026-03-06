@@ -1,0 +1,402 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "TubeSize API",
+        "description": "API for retrieving YouTube video size information for multiple formats and resolutions",
+        "version": "1.0.0",
+        "contact": {
+            "name": "TubeSize",
+            "url": "https://github.com/mohammedsayed/tubesize"
+        },
+        "license": {
+            "name": "MIT"
+        }
+    },
+    "servers": [
+        {
+            "url": "https://api.mohammedsayed.dev",
+            "description": "Production server"
+        },
+        {
+            "url": "http://localhost:3000",
+            "description": "Local development server"
+        }
+    ],
+    "paths": {
+        "/health": {
+            "get": {
+                "summary": "Health Check",
+                "description": "Check the health status of the API server and its dependencies",
+                "operationId": "healthCheck",
+                "tags": ["System"],
+                "responses": {
+                    "200": {
+                        "description": "Server is running and healthy",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "status",
+                                        "uptime",
+                                        "timestamp",
+                                        "redisStatus",
+                                        "ytdlpVersion"
+                                    ],
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok",
+                                            "description": "Server status indicator"
+                                        },
+                                        "uptime": {
+                                            "type": "string",
+                                            "example": "2h 30m",
+                                            "description": "Server uptime formatted as human-readable string"
+                                        },
+                                        "timestamp": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "example": "2026-03-05T10:30:00.000Z",
+                                            "description": "Current server timestamp in ISO 8601 format"
+                                        },
+                                        "redisStatus": {
+                                            "type": "string",
+                                            "enum": ["ready", "connecting", "closed"],
+                                            "example": "ready",
+                                            "description": "Redis cache connection status"
+                                        },
+                                        "ytdlpVersion": {
+                                            "type": "string",
+                                            "example": "2024.12.17",
+                                            "description": "Version of yt-dlp utility being used"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/video-sizes/{videoTag}": {
+            "get": {
+                "summary": "Get Video Size Information",
+                "description": "Retrieve available video formats and file sizes for a YouTube video",
+                "operationId": "getVideoSizes",
+                "tags": ["Video Info"],
+                "parameters": [
+                    {
+                        "name": "videoTag",
+                        "in": "path",
+                        "required": true,
+                        "description": "YouTube video ID or URL",
+                        "schema": {
+                            "type": "string",
+                            "minLength": 11,
+                            "maxLength": 11,
+                            "pattern": "^[a-zA-Z0-9_-]{11}$",
+                            "example": "dQw4w9WgXcQ"
+                        }
+                    },
+                    {
+                        "name": "humanReadableSizes",
+                        "in": "query",
+                        "required": false,
+                        "description": "Format file sizes as human-readable strings (e.g. '25.3 MB') instead of bytes. Enabled by default.",
+                        "schema": {
+                            "type": "boolean",
+                            "default": true,
+                            "example": true
+                        }
+                    },
+                    {
+                        "name": "mergeAudioWithVideo",
+                        "in": "query",
+                        "required": false,
+                        "description": "Merge audio format with video formats to show combined file sizes. Enabled by default.",
+                        "schema": {
+                            "type": "boolean",
+                            "default": true,
+                            "example": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved video size information",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "$ref": "#/components/schemas/VideoSizesResponseHumanized"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/VideoSizesResponseRaw"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input provided",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "error": "Invalid YouTube URL provided."
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded. Too many requests in the time window.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "error": "Too many requests, please try again later."
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "error": "Internal Server Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "VideoFormat": {
+                "type": "object",
+                "required": ["formatId", "height", "size"],
+                "properties": {
+                    "formatId": {
+                        "type": "number",
+                        "example": 22,
+                        "description": "YouTube format ID"
+                    },
+                    "height": {
+                        "type": "number",
+                        "example": 720,
+                        "description": "Video height in pixels"
+                    },
+                    "size": {
+                        "type": "number",
+                        "example": 45678901,
+                        "description": "File size in bytes"
+                    }
+                }
+            },
+            "VideoFormatHumanized": {
+                "type": "object",
+                "required": ["formatId", "height", "size"],
+                "properties": {
+                    "formatId": {
+                        "type": "number",
+                        "example": 22,
+                        "description": "YouTube format ID"
+                    },
+                    "height": {
+                        "type": "number",
+                        "example": 720,
+                        "description": "Video height in pixels"
+                    },
+                    "size": {
+                        "type": "string",
+                        "example": "43.5 MB",
+                        "description": "File size formatted as human-readable string"
+                    }
+                }
+            },
+            "VideoSizesResponseRaw": {
+                "type": "object",
+                "required": [
+                    "success",
+                    "id",
+                    "title",
+                    "duration",
+                    "audioFormat",
+                    "videoFormats",
+                    "executionTime"
+                ],
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "id": {
+                        "type": "string",
+                        "example": "dQw4w9WgXcQ",
+                        "description": "YouTube video ID"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Rick Astley - Never Gonna Give You Up (Official Video)",
+                        "description": "Video title"
+                    },
+                    "duration": {
+                        "type": ["number", "null"],
+                        "example": 212,
+                        "description": "Video duration in seconds, or null if unavailable"
+                    },
+                    "audioFormat": {
+                        "type": ["number", "null"],
+                        "example": 251,
+                        "description": "Best available audio format ID, or null if unavailable"
+                    },
+                    "videoFormats": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/VideoFormat"
+                        },
+                        "example": [
+                            {
+                                "formatId": 22,
+                                "height": 720,
+                                "size": 45678901
+                            },
+                            {
+                                "formatId": 18,
+                                "height": 360,
+                                "size": 15234567
+                            }
+                        ]
+                    },
+                    "executionTime": {
+                        "type": "string",
+                        "example": "1.23s",
+                        "description": "Time taken to process the request"
+                    }
+                }
+            },
+            "VideoSizesResponseHumanized": {
+                "type": "object",
+                "required": [
+                    "success",
+                    "id",
+                    "title",
+                    "duration",
+                    "audioFormat",
+                    "videoFormats",
+                    "executionTime"
+                ],
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "id": {
+                        "type": "string",
+                        "example": "dQw4w9WgXcQ",
+                        "description": "YouTube video ID"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Rick Astley - Never Gonna Give You Up (Official Video)",
+                        "description": "Video title"
+                    },
+                    "duration": {
+                        "type": "string",
+                        "example": "3m 32s",
+                        "description": "Video duration formatted as human-readable string"
+                    },
+                    "audioFormat": {
+                        "type": "string",
+                        "example": "251 (Opus 128kbps)",
+                        "description": "Best available audio format with details"
+                    },
+                    "videoFormats": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/VideoFormatHumanized"
+                        },
+                        "example": [
+                            {
+                                "formatId": 22,
+                                "height": 720,
+                                "size": "43.5 MB"
+                            },
+                            {
+                                "formatId": 18,
+                                "height": 360,
+                                "size": "14.5 MB"
+                            }
+                        ]
+                    },
+                    "executionTime": {
+                        "type": "string",
+                        "example": "1.23s",
+                        "description": "Time taken to process the request"
+                    }
+                }
+            },
+            "ErrorResponse": {
+                "type": "object",
+                "required": ["success", "error"],
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "error": {
+                        "type": "string",
+                        "description": "Error message"
+                    },
+                    "ERRORS": {
+                        "type": "array",
+                        "description": "Detailed validation errors (only in development mode)"
+                    },
+                    "stack": {
+                        "type": "string",
+                        "description": "Stack trace (only in development mode)"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "corsOrigin": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "Origin",
+                "description": "CORS is configured to allow requests from chrome-extension://{EXTENSION_ID}"
+            }
+        }
+    },
+    "security": [
+        {
+            "corsOrigin": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "System",
+            "description": "System health and status endpoints"
+        },
+        {
+            "name": "Video Info",
+            "description": "Endpoints for retrieving video information"
+        }
+    ]
+}

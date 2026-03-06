@@ -2,8 +2,7 @@ services:
     yt-dlp-api:
         depends_on:
             - redis
-        image: ${DOCKERHUB_USERNAME}/yt-dlp-api:${GITHUB_SHA}
-        pull_policy: always
+        image: ${DOCKERHUB_USERNAME}/yt-dlp-api:${IMAGE_TAG}
         container_name: yt-dlp-api-prod
         ports:
             - "3000:3000"

@@ -17,9 +17,3 @@ export class RateLimit extends AppError {
         super(message, 429);
     }
 }
-
-export class UnAuthenticated extends AppError {
-    constructor(message: string) {
-        super(message, 401);
-    }
-}

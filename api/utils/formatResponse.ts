@@ -1,7 +1,7 @@
-import CONFIG from "../config/constants";
+import CONFIG from "../config/constants.js";
 import ms from "ms";
 import { filesize } from "filesize";
-import type { Data, HumanizedData, RawData } from "../types";
+import type { Data, HumanizedData, RawData } from "../types.js";
 
 function extractVideoSizes(data: RawData, videoFormatIDs: readonly string[]) {
     const formats = data.formats || [];

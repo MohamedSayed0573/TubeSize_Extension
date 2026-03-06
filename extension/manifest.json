@@ -30,5 +30,15 @@
             "matches": ["https://*.youtube.com/*"],
             "js": ["dist/content.js"]
         }
-    ]
+    ],
+
+    "commands": {
+        "_execute_action": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+0",
+                "mac": "Command+Shift+0"
+            },
+            "description": "Open the TubeSize popup"
+        }
+    }
 }

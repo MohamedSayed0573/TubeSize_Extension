@@ -2,9 +2,9 @@ name: Build and Deploy to EC2
 on:
     push:
         branches:
-            - main
+            - "**"
         tags:
-            - "api-v*.*.*"
+            - "api-v*"
         paths:
             - "api/**"
     workflow_dispatch:
@@ -12,7 +12,7 @@ jobs:
     build:
         runs-on: ubuntu-latest
         env:
-            SHORT_SHA: "" # Added to silence IDE linting warnings
+            SHORT_SHA: ""
 
         steps:
             - name: Checkout
@@ -27,24 +27,24 @@ jobs:
 
             - name: Set short SHA
               run: |
-                  export GITHUB_SHA=${{github.sha}}
-                  # get the first 7 characters of the SHA
+                  GITHUB_SHA=${{github.sha}}
                   echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
             - name: Build and push Docker image
               uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
               with:
                   context: ./api
-                  target: ${{ startsWith(github.ref, 'refs/tags/') && 'prod' || 'staging'}}
+                  target: ${{ startsWith(github.ref, 'refs/tags/api-v') && 'prod' || 'staging'}}
                   tags: |
-                      ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
-                      ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:${{ env.SHORT_SHA }}
-                  push: true
+                      ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:${{ startsWith(github.ref, 'refs/tags/api-v') && 'prod' || 'staging' }}-${{ env.SHORT_SHA }}
 
-    deploy_staging:
+    deploy:
         needs: build
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/') || startsWith(github.ref, 'refs/tags/api-v')
         runs-on: ubuntu-latest
+        env:
+            DEPLOY_ENV: ${{ startsWith(github.ref, 'refs/tags/api-v') && 'prod' || 'staging' }}
+            COMPOSE_FILE: ${{ startsWith(github.ref, 'refs/tags/api-v') && 'api/docker-compose.prod.yml' || 'api/docker-compose.staging.yml' }}
         steps:
             - name: Checkout Code
               uses: actions/checkout@v4
@@ -54,9 +54,9 @@ jobs:
               with:
                   host: ${{ secrets.EC2_HOST }}
                   username: ubuntu
-                  key: ${{ secrets.EC2_SSH_KEY }} # Make sure the secret name matches what you have in GitHub
-                  source: "api/docker-compose.staging.yml"
-                  target: "~/" # Copies to /home/ubuntu/
+                  key: ${{ secrets.EC2_SSH_KEY }}
+                  source: ${{ env.COMPOSE_FILE }}
+                  target: "~/"
 
             - name: Pull the image & Start the container
               uses: appleboy/ssh-action@v1.0.3
@@ -66,77 +66,12 @@ jobs:
                   key: ${{secrets.EC2_SSH_KEY}}
                   script: |
                       set -e
-
-                      # To be able to pull the image, you have to login to docker first
-                      # You could use docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN}}.
-                      # But that will print your docker password in the logs (insecure)
                       echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-                      # Export the username and short SHA so docker-compose can find them
                       export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
-
                       TEMP_SHA="${{ github.sha }}"
-                      export GITHUB_SHA="${TEMP_SHA::7}"
+                      export IMAGE_TAG="${{ env.DEPLOY_ENV }}-${TEMP_SHA::7}"
 
-                      # Pull the image
-                      # -f flag is used to specify the docker-compose file. Default is docker-compose.yml
-                      docker compose -p staging -f api/docker-compose.staging.yml pull
-
-                      # Start the container. If the container hasn't changed, it will not be restarted
-                      # -d flag is used to run the container in detached mode
-                      docker compose -p staging -f api/docker-compose.staging.yml up -d
-
-                      # Clean up old images
-                      # -f flag is used to force the prune
-                      docker image prune -f
-    deploy_prod:
-        needs: build
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/api-v')
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout Code
-              uses: actions/checkout@v4
-
-            - name: Copy docker-compose file to EC2
-              uses: appleboy/scp-action@v0.1.7
-              with:
-                  host: ${{ secrets.EC2_HOST }}
-                  username: ubuntu
-                  key: ${{ secrets.EC2_SSH_KEY }} # Make sure the secret name matches what you have in GitHub
-                  source: "api/docker-compose.prod.yml,api/docker-compose.staging.yml"
-                  target: "~/" # Copies to /home/ubuntu/
-
-            - name: Pull the image & Start the container
-              uses: appleboy/ssh-action@v1.0.3
-              with:
-                  host: ${{secrets.EC2_HOST}}
-                  username: ubuntu
-                  key: ${{secrets.EC2_SSH_KEY}}
-                  script: |
-                      set -e
-
-                      # To be able to pull the image, you have to login to docker first
-                      # You could use docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN}}.
-                      # But that will print your docker password in the logs (insecure)
-                      echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-
-                      # Export the username and short SHA so docker-compose can find them
-                      export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
-
-                      TEMP_SHA="${{ github.sha }}"
-                      export GITHUB_SHA="${TEMP_SHA::7}"
-
-                      # Pull the image
-                      # -f flag is used to specify the docker-compose file. Default is docker-compose.yml
-                      docker compose -p prod -f api/docker-compose.prod.yml pull
-                      docker compose -p staging -f api/docker-compose.staging.yml pull
-
-                      # Start the container. If the container hasn't changed, it will not be restarted
-                      # -d flag is used to run the container in detached mode
-                      docker compose -p prod -f api/docker-compose.prod.yml up -d
-
-                      docker compose -p staging -f api/docker-compose.staging.yml up -d
-
-                      # Clean up old images
-                      # -f flag is used to force the prune
+                      docker compose -p "${{ env.DEPLOY_ENV }}" -f "${{ env.COMPOSE_FILE }}" pull
+                      docker compose -p "${{ env.DEPLOY_ENV }}" -f "${{ env.COMPOSE_FILE }}" up -d
                       docker image prune -f

@@ -1,15 +1,14 @@
-console.log("[background] Service worker starting");
-
-import type { BackgroundResponse } from "./types";
+import type { BackgroundResponse, RawData } from "./types";
 import { getFromStorage, saveToStorage } from "./cache";
 import { addBadge, clearBadge } from "./badge";
 import {
     extractYtInitial,
     fetchAPI,
     fetchHTMLPage,
-    formatVideoResponse,
+    parseDataFromYtInitial,
     humanizeData,
 } from "./youtube";
+import { getAPIFallbackSetting } from "./utils";
 
 chrome.runtime.onMessage.addListener(
     (
@@ -19,7 +18,7 @@ chrome.runtime.onMessage.addListener(
             tabId?: number;
             html?: string;
         },
-        sender,
+        sender: chrome.runtime.MessageSender,
         sendResponse: (response: BackgroundResponse) => void,
     ) => {
         if (message.type === "clearBadge") {
@@ -38,19 +37,12 @@ chrome.runtime.onMessage.addListener(
         const tag = message.tag;
         const tabId = sender.tab?.id ?? message.tabId;
 
-        console.log(
-            `[background] Received tag: ${tag} From ${sender.tab?.id ? "Content.js" : "Popup.js"}`,
-        );
-
         clearBadge(tabId);
 
         (async () => {
             const cached = await getFromStorage(tag);
 
             if (cached) {
-                console.log("[background] Using cached data:", cached);
-
-                // Set the badge to green checkmark
                 addBadge(tabId);
                 sendResponse({
                     success: true,
@@ -62,37 +54,39 @@ chrome.runtime.onMessage.addListener(
             }
 
             try {
-                let data;
-                if (message.html) {
-                    try {
+                let data: RawData;
+                try {
+                    if (message.html) {
                         data = extractYtInitial(message.html);
-                    } catch (err) {
-                        data = await fetchHTMLPage(tag);
-                        console.error(
-                            "[background]: Failed to parse html from content script, fetching...",
-                            err,
-                        );
+                    } else {
+                        throw new Error("no html");
                     }
-                } else {
-                    data = await fetchHTMLPage(tag);
+                } catch (err) {
+                    const fetchedHtml = await fetchHTMLPage(tag);
+                    data = extractYtInitial(fetchedHtml);
                 }
 
-                const rawFormats = formatVideoResponse(data);
-                const formattedData = humanizeData(rawFormats);
+                const rawFormats = parseDataFromYtInitial(data);
+                const humanizedFormats = humanizeData(rawFormats);
 
-                await saveToStorage(tag, formattedData);
+                await saveToStorage(tag, humanizedFormats);
                 addBadge(tabId);
                 sendResponse({
                     success: true,
-                    data: formattedData,
+                    data: humanizedFormats,
                     cached: false,
                     api: false,
                 });
             } catch (err) {
                 try {
-                    console.error("[background] Scrape failed, trying API", err);
+                    const useAPIFallback = await getAPIFallbackSetting();
+                    if (!useAPIFallback) {
+                        throw new Error("Skipped API Fallback");
+                    }
+
                     const apiData = await fetchAPI(tag);
-                    await saveToStorage(tag, apiData);
+                    // Do not cache API responses, in order to keep the cache consistent.
+                    // Because the API response is different than the data we extract from the html page.
                     addBadge(tabId);
                     sendResponse({
                         success: true,
@@ -102,7 +96,6 @@ chrome.runtime.onMessage.addListener(
                     });
                 } catch (apiErr) {
                     clearBadge(tabId);
-                    console.error("[background] API failed:", apiErr);
                     sendResponse({
                         success: false,
                         data: null,

@@ -1,17 +1,26 @@
 import type { Request, Response, NextFunction } from "express";
 
-import env from "./utils/env";
+import env from "./utils/env.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import ms from "ms";
+import compression from "compression";
 
-import { AppError, RateLimit } from "./utils/errors";
-import apiRoutes from "./routes/api";
+import { AppError, RateLimit } from "./utils/errors.js";
+import apiRoutes from "./routes/api.js";
 import { rateLimit } from "express-rate-limit";
-import { logger, pinoHttp } from "./utils/logger";
-import { redis } from "./utils/cache";
-import CONFIG from "./config/constants";
+import { logger, pinoHttp } from "./utils/logger.js";
+import { redis } from "./utils/cache.js";
+import CONFIG from "./config/constants.js";
+import swaggerUi from "swagger-ui-express";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+// resolve __dirname in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 
@@ -22,6 +31,12 @@ app.use(
 );
 
 app.set("trust proxy", 1); // Trust the first proxy hop (e.g. Docker/Nginx/AWS) to prevent rate-limit spoofing
+
+app.use(compression({ filter: shouldCompress }));
+function shouldCompress(req: Request, res: Response) {
+    // don't compress responses with this request header
+    return req.headers["x-no-compression"] ? false : true;
+}
 
 // Apply helmet middleware to all requests.
 app.use(helmet({ crossOriginResourcePolicy: false }));
@@ -38,6 +53,13 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use(pinoHttp);
+
+// API Documentation
+const openAPIFile = JSON.parse(readFileSync(join(__dirname, "../openapi.json"), "utf-8"));
+app.get("/api-docs/spec.json", (req: Request, res: Response) => {
+    res.json(openAPIFile);
+});
+app.use("/api-docs/swagger", swaggerUi.serve, swaggerUi.setup(openAPIFile));
 
 // Routes
 app.use("/api", apiRoutes);
@@ -95,7 +117,9 @@ async function gracefulShutdown(signal: string) {
     server.close(async () => {
         try {
             // We wrap this in try/catch because if redis has already quit, it will throw if you try to quit again
-            await redis.quit();
+            if (redis.isReady && redis.isOpen) {
+                await redis.quit();
+            }
             process.exit(0);
         } catch (_) {}
     });

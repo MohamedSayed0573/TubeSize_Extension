@@ -36,6 +36,9 @@ jobs:
             - name: Build extension
               run: pnpm --filter tubesize run pack
 
+            - name: Run Tests
+              run: pnpm run test
+
             - name: Create Release
               uses: softprops/action-gh-release@v2
               with:
