@@ -1,6 +1,4 @@
-<div align="center">
-
-<img src="icons/icon-128.png" alt="TubeSize Logo" width="96" />
+<img src="extension/icons/icon-128.png" alt="TubeSize Logo" width="96" />
 
 # TubeSize - YouTube Video Size Viewer
 
@@ -40,9 +38,7 @@ The problem? YouTube doesn't tell you how large a video file actually is before 
 ---
 
 ## 📸 Screenshots
-
-> _Coming soon — screenshots will be added after store publication._
-
+<img width="700" alt="image" src="https://github.com/user-attachments/assets/e0133fc0-cb41-41a5-9ad7-0d2e331248c3" />
 ---
 
 ## 🚀 Installation
