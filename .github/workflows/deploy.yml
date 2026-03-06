@@ -36,7 +36,8 @@ jobs:
                   context: ./api
                   target: ${{ startsWith(github.ref, 'refs/tags/api-v') && 'prod' || 'staging'}}
                   tags: |
-                      ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:${{ startsWith(github.ref, 'refs/tags/api-v') && 'prod' || 'staging' }}-${{ env.SHORT_SHA }}
+                    ${{ secrets.DOCKERHUB_USERNAME }}/yt-dlp-api:${{ startsWith(github.ref, 'refs/tags/api-v') && 'prod' || 'staging' }}-${{ env.SHORT_SHA }}
+                  push: true
 
     deploy:
         needs: build
