@@ -30,13 +30,13 @@
 
 ## 🚀 Installation
 
-### Download from Releases
-
 | Store | Status |
 | --- | --- |
 | Chrome Web Store | Coming soon |
 | Edge Add-ons | Coming soon |
 | Firefox Add-ons | Coming soon |
+
+### Download from Releases
 
 1. Go to the [Releases page](https://github.com/MohamedSayed0573/tubesize/releases).
 2. Download the latest browser package:
