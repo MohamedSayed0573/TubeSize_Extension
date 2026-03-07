@@ -21,7 +21,10 @@ export function humanizeVideoFormats(formats: RawFormat["formats"]) {
     return formats.map((format) => {
         return {
             ...format,
-            size: filesize(format.size),
+            size: format.maxSize
+                ? `${filesize(format.size)} - ${filesize(format.maxSize)}`
+                : filesize(format.size),
+            maxSize: format.maxSize ? filesize(format.maxSize) : undefined,
         };
     });
 }
@@ -42,6 +45,7 @@ export function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSiz
         return {
             ...videoFormat,
             size: videoFormat.size + audioSize,
+            maxSize: videoFormat.maxSize ? videoFormat.maxSize + audioSize : undefined,
         };
     });
 }
@@ -69,23 +73,40 @@ export function extractYtInitial(html: string): RawData {
 // For example, for 144p, if itag 394 is available, we choose that. If not, we check for itag 330 and so on.
 function chooseVideoFormats(data: RawData) {
     const chosenFormats: RawFormat["formats"] = [];
+    const adaptiveFormats = data.streamingData.adaptiveFormats;
 
     for (const [resolution, itags] of CONFIG.resolutions) {
-        for (const itag of itags) {
-            const format = data.streamingData.adaptiveFormats.find((f) => f.itag === itag);
-            if (format) {
-                const size = parseInt(format.contentLength || "0");
-                if (size > 0) {
-                    chosenFormats.push({
-                        formatId: format.itag,
-                        height: resolution,
-                        size: size,
-                    });
-                    break;
-                }
-            }
+        const matchingFormats = itags
+            .map((itag) => {
+                return adaptiveFormats.find((format) => format.itag === itag);
+            })
+            // Remove missing itags and formats without content length.
+            .filter((format): format is RawData["streamingData"]["adaptiveFormats"][number] => {
+                return Boolean(format) && parseInt(format?.contentLength || "0") > 0;
+            });
+
+        if (matchingFormats.length === 0) {
+            continue;
         }
+
+        const sizes = matchingFormats.map((format) => {
+            return parseInt(format.contentLength || "0");
+        });
+        const firstFormat = matchingFormats[0];
+        const shouldShowRange = resolution >= CONFIG.RANGE_RESOLUTION_THRESHOLD;
+        const minSize = Math.min(...sizes);
+        const maxSize = Math.max(...sizes);
+
+        // Keep one entry per resolution. Starting from 1080p, show the smallest size first.
+        chosenFormats.push({
+            formatId: firstFormat.itag,
+            height: resolution,
+            size: shouldShowRange ? minSize : sizes[0],
+            // Only attach a max size when there is an actual range to display.
+            maxSize: shouldShowRange && maxSize > minSize ? maxSize : undefined,
+        });
     }
+
     return chosenFormats;
 }
 

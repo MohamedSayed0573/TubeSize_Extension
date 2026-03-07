@@ -29,17 +29,17 @@ The problem? YouTube doesn't tell you how large a video file actually is before 
 
 - 📊 **Real-time size data** — Displays the file size for each available resolution (144p through 1440p) for any YouTube video
 - 🎵 **Audio included** — Sizes shown are the combined video + audio size, reflecting what YouTube actually downloads
-- ⚡ **Smart caching** — Results are cached locally for 7 days, so repeat visits are instant and use zero extra data
+- ⚡ **Smart caching** — Results are cached locally for 3 days, so repeat visits are instant and use zero extra data
 - 🔔 **Badge indicator** — A green ✓ badge on the extension icon tells you at a glance that data is ready
 - ⚙️ **Customizable display** — Choose exactly which resolutions you want to see via the Options page
-- 🔒 **Privacy-first** — No tracking, no analytics, no accounts. Only `activeTab` and `storage` permissions are requested
+- 🔒 **Privacy-first** — No tracking, no analytics, no accounts. Only `activeTab`, `storage`, and `*.youtube.com` host permissions are requested
 - 🌐 **Cross-browser** — Built on Manifest V3, compatible with Chrome, Edge, and Firefox
 
 ---
 
 ## 📸 Screenshots
-<img width="700" alt="image" src="https://github.com/user-attachments/assets/e0133fc0-cb41-41a5-9ad7-0d2e331248c3" />
----
+
+## <img width="700" alt="image" src="https://github.com/user-attachments/assets/e0133fc0-cb41-41a5-9ad7-0d2e331248c3" />
 
 ## 🚀 Installation
 
@@ -124,7 +124,7 @@ The extension:
 
 ### Caching
 
-Fetched data is stored in `chrome.storage.local` with a **7-day TTL**. On subsequent visits to the same video, the popup loads instantly from cache with a "Cached X ago" note — no network request needed.
+Fetched data is stored in `chrome.storage.local` with a **3-day TTL**. On subsequent visits to the same video, the popup loads instantly from cache with a "Cached X ago" note — no network request needed.
 
 ### Fallback API
 

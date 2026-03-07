@@ -34,6 +34,7 @@ export type RawFormat = {
         formatId: number;
         height: number;
         size: number;
+        maxSize?: number;
     }[];
     audioFormats: {
         formatId: number;
@@ -49,6 +50,7 @@ export type HumanizedFormat = {
         formatId: number;
         height: number;
         size: string;
+        maxSize?: string;
     }[];
 };
 

@@ -28,6 +28,7 @@ const CONFIG = {
     ttlInSecondsOptions,
     optionIDs,
     DEFAULT_MAX_RETRIES: 3,
+    RANGE_RESOLUTION_THRESHOLD: 1080,
     VIDEO_ID_REGEX: /^[a-zA-Z0-9_-]{11}$/,
     YT_INITIAL_PLAYER_REGEX: /ytInitialPlayerResponse\s*=\s*(\{.+?\});/s,
     CACHE_JUST_NOW_THRESHOLD: 5000,
