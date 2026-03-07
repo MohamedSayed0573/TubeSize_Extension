@@ -38,7 +38,7 @@
 
 ### Download from Releases
 
-1. Go to the [Releases page](https://github.com/MohamedSayed0573/tubesize/releases).
+1. Go to the [Releases page](https://github.com/MohamedSayed0573/TubeSize_Extension/releases).
 2. Download the latest browser package:
    - `TubeSize_Extension.zip` for Chrome / Edge
    - `TubeSize_Firefox_Extension.zip` for Firefox
