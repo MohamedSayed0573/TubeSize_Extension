@@ -32,10 +32,16 @@
 
 ### Download from Releases
 
+| Store | Status |
+| --- | --- |
+| Chrome Web Store | Coming soon |
+| Edge Add-ons | Coming soon |
+| Firefox Add-ons | Coming soon |
+
 1. Go to the [Releases page](https://github.com/MohamedSayed0573/tubesize/releases).
 2. Download the latest browser package:
-    - `TubeSize_Extension.zip` for Chrome / Edge
-    - `TubeSize_Firefox_Extension.zip` for Firefox
+   - `TubeSize_Extension.zip` for Chrome / Edge
+   - `TubeSize_Firefox_Extension.zip` for Firefox
 3. Extract the zip file.
 4. Open `chrome://extensions`
 5. Enable **Developer mode**.
