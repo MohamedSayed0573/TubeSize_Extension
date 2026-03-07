@@ -2,7 +2,7 @@ import type { BackgroundResponse, RawData } from "./types";
 import { getFromStorage, saveToStorage } from "./cache";
 import { addBadge, clearBadge } from "./badge";
 import {
-    extractYtInitial,
+    extractYtInitialForVideo,
     fetchAPI,
     fetchHTMLPage,
     parseDataFromYtInitial,
@@ -57,13 +57,13 @@ chrome.runtime.onMessage.addListener(
                 let data: RawData;
                 try {
                     if (message.html) {
-                        data = extractYtInitial(message.html);
+                        data = extractYtInitialForVideo(message.html, tag);
                     } else {
                         throw new Error("no html");
                     }
                 } catch (err) {
                     const fetchedHtml = await fetchHTMLPage(tag);
-                    data = extractYtInitial(fetchedHtml);
+                    data = extractYtInitialForVideo(fetchedHtml, tag);
                 }
 
                 const rawFormats = parseDataFromYtInitial(data);

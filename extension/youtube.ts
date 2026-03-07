@@ -68,6 +68,16 @@ export function extractYtInitial(html: string): RawData {
     return data;
 }
 
+export function extractYtInitialForVideo(html: string, expectedVideoTag: string): RawData {
+    const data = extractYtInitial(html);
+
+    if (data.videoDetails?.videoId !== expectedVideoTag) {
+        throw new Error("Mismatched video data");
+    }
+
+    return data;
+}
+
 // Order of each key is important. It's the same order the user sees.
 // Order of itags is important. The first index of each key means higher priority.
 // For example, for 144p, if itag 394 is available, we choose that. If not, we check for itag 330 and so on.

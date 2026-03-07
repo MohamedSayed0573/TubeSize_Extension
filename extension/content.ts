@@ -1,6 +1,19 @@
 import { extractVideoId } from "./utils";
 
-function init(videoTag: string) {
+async function sendRuntimeMessage(message: { type: string; tag?: string; html?: string }) {
+    try {
+        await chrome.runtime.sendMessage(message);
+    } catch (err) {
+        if (err instanceof Error && err.message.includes("Extension context invalidated")) {
+            console.warn("[content] Extension context invalidated. Reload the page to reconnect.");
+            return;
+        }
+
+        console.error("[content] Failed to send runtime message", err);
+    }
+}
+
+async function init(videoTag: string) {
     const scriptsArray = Array.from(document.scripts);
     const ytInitialPlayerResponse = scriptsArray.find((script) => {
         return script.textContent?.includes("ytInitialPlayerResponse");
@@ -8,24 +21,16 @@ function init(videoTag: string) {
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    chrome.runtime.sendMessage(
-        {
-            type: "sendYoutubeUrl",
-            tag: videoTag,
-            html: scriptContent,
-        },
-        (response) => {
-            if (chrome.runtime.lastError) {
-                console.error("[CONTENT]: Error:", chrome.runtime.lastError.message);
-                return;
-            }
-        },
-    );
+    await sendRuntimeMessage({
+        type: "sendYoutubeUrl",
+        tag: videoTag,
+        html: scriptContent,
+    });
 }
 
 let lastTag: string | undefined = undefined;
 window.addEventListener("yt-navigate-finish", async () => {
-    await chrome.runtime.sendMessage({ type: "clearBadge" });
+    await sendRuntimeMessage({ type: "clearBadge" });
     const url = window.location.href;
     const tag = extractVideoId(url);
 
