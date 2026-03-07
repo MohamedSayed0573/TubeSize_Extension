@@ -82,7 +82,7 @@ TubeSize resolves video sizes locally whenever possible, then formats the result
 - The background service worker checks `chrome.storage.local` first and returns cached data immediately when it exists.
 - On a cache miss, it tries to parse the `ytInitialPlayerResponse` sent from the content script.
 - If that data is missing, it fetches the YouTube watch page directly and extracts the same player response from the HTML.
-- If local extraction still fails and API fallback is enabled, it requests the data from the backup API.
+- If local extraction fails and API fallback option is enabled, it requests the data from the backup API at `https://api.mohammedsayed.dev`.
 
 ### 3. Turn streams into displayed sizes
 
@@ -105,11 +105,12 @@ TubeSize resolves video sizes locally whenever possible, then formats the result
 
 The extension requests the minimum permissions necessary:
 
-| Permission                        | Why it's needed                                         |
-| --------------------------------- | ------------------------------------------------------- |
-| `activeTab`                       | Read the URL of the current tab to extract the video ID |
-| `storage`                         | Save cached video data and user preferences locally     |
-| `host_permissions: *.youtube.com` | Inject the content script and fetch video page data     |
+| Permission                                | Why it's needed                                          |
+| ----------------------------------------- | -------------------------------------------------------- |
+| `activeTab`                               | Read the URL of the current tab to extract the video ID  |
+| `storage`                                 | Save cached video data and user preferences locally      |
+| `host_permissions: *.youtube.com`         | Inject the content script and fetch video page data      |
+| `host_permissions: api.mohammedsayed.dev` | Call the optional backup API when local extraction fails |
 
 ---
 

@@ -23,7 +23,7 @@
 
     "options_page": "options.html",
 
-    "host_permissions": ["https://*.youtube.com/*"],
+    "host_permissions": ["https://*.youtube.com/*", "https://api.mohammedsayed.dev/*"],
 
     "content_scripts": [
         {

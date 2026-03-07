@@ -6,7 +6,7 @@ todo.md
 Notes.md
 .env.prod
 .env.staging
-extension.zip
+*.zip
 session*
 coverage/
 code_review/
