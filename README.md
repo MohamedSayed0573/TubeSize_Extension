@@ -43,8 +43,8 @@
    - `TubeSize_Extension.zip` for Chrome / Edge
    - `TubeSize_Firefox_Extension.zip` for Firefox
 3. Extract the zip file.
-4. Open `chrome://extensions`
-5. Enable **Developer mode**.
+4. Open `chrome://extensions` in your browser
+5. Enable **Developer mode** (Top right of your screen).
 6. Click **Load unpacked** and select the extracted folder.
 
 ### Manual Installation (Developer Mode)
