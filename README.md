@@ -1,6 +1,10 @@
-<img src="extension/icons/icon-128.png" alt="TubeSize Logo" width="96" />
+<div align="center">
 
-# TubeSize - YouTube Video Size Viewer
+<h1>
+  <img src="extension/icons/icon-128.png" alt="TubeSize Logo"/>
+    <br>
+  TubeSize - YouTube Video Size Viewer
+</h1>
 
 **Know exactly how much data a YouTube video will cost you — before you press play.**
 
@@ -15,41 +19,26 @@
 
 ---
 
-## 🌍 The Problem
-
-In many parts of the world, internet data is a limited and expensive resource. In Egypt, for example, the most common internet plan gives you **140 GB per month** — and that quota disappears fast if you're watching YouTube videos carelessly at high resolutions.
-
-The problem? YouTube doesn't tell you how large a video file actually is before you watch it. You might unknowingly stream a 1080p video that costs you 4 GB of your monthly quota, when a 480p version at 800 MB would have looked just fine.
-
-**TubeSize** solves this by showing you the exact file size for every available resolution — right in your browser toolbar — so you can make an informed choice before hitting play.
-
----
-
-## ✨ Features
-
-- 📊 **Real-time size data** — Displays the file size for each available resolution (144p through 1440p) for any YouTube video
-- 🎵 **Audio included** — Sizes shown are the combined video + audio size, reflecting what YouTube actually downloads
-- ⚡ **Smart caching** — Results are cached locally for 3 days, so repeat visits are instant and use zero extra data
-- 🔔 **Badge indicator** — A green ✓ badge on the extension icon tells you at a glance that data is ready
-- ⚙️ **Customizable display** — Choose exactly which resolutions you want to see via the Options page
-- 🔒 **Privacy-first** — No tracking, no analytics, no accounts. Only `activeTab`, `storage`, and `*.youtube.com` host permissions are requested
-- 🌐 **Cross-browser** — Built on Manifest V3, compatible with Chrome, Edge, and Firefox
-
----
-
 ## 📸 Screenshots
 
-## <img width="700" alt="image" src="https://github.com/user-attachments/assets/e0133fc0-cb41-41a5-9ad7-0d2e331248c3" />
+<div align="center">
+    <img width="700" height="723" alt="image" src="https://github.com/user-attachments/assets/1289364f-3cce-4050-a301-cb91e60a36bc" />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    <img width="239" height="348" alt="image" src="https://github.com/user-attachments/assets/546273f0-98ef-4518-a3d4-a923410b7a8f" />
+
+</div>
+
+---
 
 ## 🚀 Installation
 
-### From the Browser Store _(coming soon)_
+### Download from Releases
 
-| Browser | Link                             |
-| ------- | -------------------------------- |
-| Chrome  | Chrome Web Store _(coming soon)_ |
-| Edge    | Edge Add-ons _(coming soon)_     |
-| Firefox | Firefox Add-ons _(coming soon)_  |
+1. Go to the [Releases page](https://github.com/MohamedSayed0573/tubesize/releases).
+2. Download the latest `TubeSize_Extension.zip`.
+3. Extract the zip file.
+4. Open `chrome://extensions`
+5. Enable **Developer mode**.
+6. Click **Load unpacked** and select the extracted folder.
 
 ### Manual Installation (Developer Mode)
 
@@ -63,101 +52,52 @@ The problem? YouTube doesn't tell you how large a video file actually is before 
 2. **Install dependencies**
 
     ```bash
-    cd extension && npm install
+    pnpm install
     ```
 
 3. **Build the extension**
 
     ```bash
-    cd extension && npm run build
+    cd extension && pnpm run build
     ```
 
 4. **Load in Chrome / Edge**
-    - Navigate to `chrome://extensions` (or `edge://extensions`)
+    - Navigate to `chrome://extensions`
     - Enable **Developer mode** (toggle in the top-right corner)
-    - Click **Load unpacked** and select the project root folder
-
-5. **Load in Firefox**
-    - Navigate to `about:debugging#/runtime/this-firefox`
-    - Click **Load Temporary Add-on**
-    - Select the `manifest.json` file from the project root
+    - Click **Load unpacked** and select the `extension` folder
 
 ---
 
 ## 🛠️ How It Works
 
-The extension uses a three-layer data pipeline to retrieve video size information as efficiently as possible:
+TubeSize resolves video sizes locally whenever possible, then formats the result into a simple per-resolution list in the popup.
 
-```
-YouTube Page
-     │
-     ▼
-[1] Content Script
-    Extracts ytInitialPlayerResponse from the page DOM
-     │
-     ▼
-[2] Background Service Worker
-    ┌─────────────────────────────────────────────────┐
-    │  Cache Hit? ──► Return cached data immediately  │
-    │                                                 │
-    │  Cache Miss?                                    │
-    │    ├─► Parse HTML from content script           │
-    │    │     (fastest, no extra network request)    │
-    │    ├─► Fetch YouTube page directly (fallback)   │
-    │    └─► Call backup API (last resort)            │
-    └─────────────────────────────────────────────────┘
-     │
-     ▼
-[3] Popup UI
-    Displays sizes per resolution, respecting user options
-```
+### 1. Detect the current video
 
-### Data Source
+- The content script listens for YouTube's in-page navigation and grabs the script that contains `ytInitialPlayerResponse`.
+- The popup validates the active tab, makes sure it's a normal YouTube watch page, and skips Shorts.
 
-YouTube embeds a `ytInitialPlayerResponse` JSON object in every video page. This object contains `streamingData.adaptiveFormats` — a list of all available video and audio streams with their `contentLength` (file size in bytes) and `itag` (format identifier).
+### 2. Resolve the raw stream data
 
-The extension:
+- The background service worker checks `chrome.storage.local` first and returns cached data immediately when it exists.
+- On a cache miss, it tries to parse the `ytInitialPlayerResponse` sent from the content script.
+- If that data is missing, it fetches the YouTube watch page directly and extracts the same player response from the HTML.
+- If local extraction still fails and API fallback is enabled, it requests the data from the backup API.
 
-1. Filters for the relevant video itags: `394` (144p), `395` (240p), `396` (360p), `397` (480p), `398` (720p), `399` (1080p)
-2. Extracts the audio stream (itag `251`) and adds its size to each video format to give you the **true download size**
-3. Converts raw byte counts to human-readable sizes (e.g., `1.2 GB`, `450 MB`) using the [`filesize`](https://www.npmjs.com/package/filesize) library
+### 3. Turn streams into displayed sizes
 
-### Caching
+- The extension scans YouTube's adaptive formats and matches them against a priority list of itags for each resolution.
+- It estimates the audio portion using the available `itag 251` streams, averages them, and adds that audio size to each video format.
+- For lower resolutions, it shows the preferred format's size.
+- Starting at `1080p`, if multiple valid formats exist, it can show a size range from the smallest to the largest matching stream.
+- Finally, raw byte counts are converted into human-readable values like `850 MB` or `1.2 GB`.
 
-Fetched data is stored in `chrome.storage.local` with a **3-day TTL**. On subsequent visits to the same video, the popup loads instantly from cache with a "Cached X ago" note — no network request needed.
+### 4. Cache and display the result
 
-### Fallback API
-
-If the local HTML parsing fails for any reason, the extension falls back to a private backup API hosted at `api.mohammedsayed.dev`. This ensures you always get results even in edge cases.
-
----
-
-## ⚙️ Options
-
-Click the **Options** button in the popup to open the settings page. You can toggle which resolutions are shown in the popup:
-
-| Resolution | Default |
-| ---------- | ------- |
-| 144p       | ✅ On   |
-| 240p       | ✅ On   |
-| 360p       | ✅ On   |
-| 480p       | ✅ On   |
-| 720p       | ✅ On   |
-| 1080p      | ✅ On   |
-
-Preferences are saved to `chrome.storage.sync`, so they follow you across devices if you're signed into your browser.
-
----
-
-## 🧰 Tech Stack
-
-| Technology                        | Purpose                     |
-| --------------------------------- | --------------------------- |
-| **TypeScript**                    | Type-safe source code       |
-| **esbuild**                       | Ultra-fast bundler/compiler |
-| **Chrome Extensions Manifest V3** | Extension platform          |
-| **Husky**                         | Git hooks for code quality  |
-| **Prettier**                      | Code formatting             |
+- Locally extracted results are cached in `chrome.storage.local` with a configurable TTL (`3 days` by default).
+- Incomplete results such as `0 B` entries are not cached.
+- Cached responses show a `Cached X ago` note in the popup.
+- API fallback responses are returned to the popup, but they are not cached locally so the cache stays consistent.
 
 ---
 
@@ -173,39 +113,6 @@ The extension requests the minimum permissions necessary:
 
 ---
 
-## 🏗️ Development
-
-```bash
-# Install dependencies
-npm install
-
-# Build once
-cd extension && npm run build
-
-# Watch mode (rebuilds on file changes)
-npm run watch
-
-# Format code
-npm run prettier:write
-
-# Build and package into extension.zip
-npm run pack
-```
-
----
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome! Feel free to open an issue or submit a pull request.
-
-1. Fork the repository
-2. Create your feature branch: `git checkout -b feature/my-feature`
-3. Commit your changes: `git commit -m 'Add my feature'`
-4. Push to the branch: `git push origin feature/my-feature`
-5. Open a Pull Request
-
----
-
 ## 👤 Author
 
 **Mohammed Sayed**
@@ -218,11 +125,3 @@ Contributions, issues, and feature requests are welcome! Feel free to open an is
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
-
----
-
-<div align="center">
-
-_Built with ❤️ to make every megabyte count._
-
-</div>
