@@ -34,7 +34,9 @@
 ### Download from Releases
 
 1. Go to the [Releases page](https://github.com/MohamedSayed0573/tubesize/releases).
-2. Download the latest `TubeSize_Extension.zip`.
+2. Download the latest browser package:
+    - `TubeSize_Extension.zip` for Chrome / Edge
+    - `TubeSize_Firefox_Extension.zip` for Firefox
 3. Extract the zip file.
 4. Open `chrome://extensions`
 5. Enable **Developer mode**.
@@ -65,6 +67,13 @@
     - Navigate to `chrome://extensions`
     - Enable **Developer mode** (toggle in the top-right corner)
     - Click **Load unpacked** and select the `extension` folder
+
+### Package for Each Browser
+
+- Chrome / Edge: `cd extension && pnpm run pack`
+- Firefox: `cd extension && pnpm run pack:firefox`
+
+The Firefox package is built from `extension/manifest.firefox.json` and renamed to `manifest.json` inside the final zip, which is what Firefox expects.
 
 ---
 
