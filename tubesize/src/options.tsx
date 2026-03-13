@@ -39,8 +39,11 @@ function Options() {
                     {CONFIG.optionIDs.map((option) => {
                         return (
                             <div className="option-item" key={option}>
-                                {option}
+                                <label className="option-label" htmlFor={option}>
+                                    {option}
+                                </label>
                                 <input
+                                    id={option}
                                     type="checkbox"
                                     checked={optionsState?.[option] ?? true}
                                     onChange={async (event) => {
@@ -106,10 +109,9 @@ function Options() {
             <div className="container">
                 <div className="section-title">API Fallback</div>
                 <div className="api-fallback-row">
-                    <label className="api-fallback-toggle" htmlFor="apiFallback">
+                    <label className="api-fallback-toggle">
                         <input
                             type="checkbox"
-                            id="apiFallback"
                             checked={apiFallback}
                             onChange={async (event) => {
                                 const isChecked = event.target.checked;

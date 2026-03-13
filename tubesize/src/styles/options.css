@@ -96,7 +96,6 @@ input[type="checkbox"]:checked {
     font-size: 13px;
     font-weight: 500;
     color: #fff;
-    flex: 1;
 }
 .section-divider {
     height: 1px;
@@ -196,13 +195,11 @@ input[type="checkbox"]:checked {
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    flex: 1;
 }
 .api-fallback-label {
     font-size: 13px;
     font-weight: 500;
     color: #fff;
-    flex: 1;
 }
 .info-tooltip {
     position: relative;
