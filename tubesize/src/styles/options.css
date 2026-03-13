@@ -58,6 +58,7 @@ body {
 .option-item {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
     background: rgba(255, 255, 255, 0.04);
     padding: 8px 10px;
@@ -145,11 +146,9 @@ input[type="checkbox"]:checked::after {
 .ttl-select:focus {
     border-color: #4dabf7;
 }
+
 .reset-cache-btn {
     width: 100%;
-    background: rgba(255, 59, 59, 0.08);
-    color: #ff6b6b;
-    border: 1px solid rgba(255, 59, 59, 0.2);
     border-radius: 6px;
     padding: 8px 10px;
     font-size: 13px;
@@ -159,6 +158,28 @@ input[type="checkbox"]:checked::after {
     font-family: inherit;
     text-align: center;
 }
+
+/* idle */
+.reset-cache-btn.idle {
+    background: rgba(255, 59, 59, 0.08);
+    color: #ff6b6b;
+    border: 1px solid rgba(255, 59, 59, 0.2);
+}
+
+/* success */
+.reset-cache-btn.success {
+    background: rgba(64, 192, 87, 0.08);
+    color: #40c057;
+    border: 1px solid rgba(64, 192, 87, 0.4);
+}
+
+/* fail */
+.reset-cache-btn.fail {
+    background: rgba(255, 59, 59, 0.08);
+    color: #ff6b6b;
+    border: 1px solid rgba(255, 59, 59, 0.2);
+}
+
 .reset-cache-btn:hover {
     background: rgba(255, 59, 59, 0.18);
     border-color: rgba(255, 59, 59, 0.4);

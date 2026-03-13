@@ -1,6 +1,7 @@
 import "./styles/options.css";
 import CONFIG from "./constants";
 import { useEffect, useState } from "react";
+import { clearLocalStorage } from "./cache";
 
 async function getAllOptions() {
     const allOptions = await chrome.storage.sync.get();
@@ -11,6 +12,7 @@ function Options() {
     const [optionsState, setOptionsState] = useState<{ [key: string]: boolean }>();
     const [cacheState, setCacheState] = useState<string>();
     const [apiFallback, setAPIFallback] = useState(false);
+    const [clearCache, setClearCache] = useState("idle");
 
     useEffect(() => {
         (async () => {
@@ -76,10 +78,20 @@ function Options() {
                 </div>
                 <button
                     id="resetCache"
-                    className="reset-cache-btn"
-                    onChange={async () => await chrome.storage.local.clear()}
+                    className={`reset-cache-btn ${clearCache}`}
+                    onClick={async () => {
+                        const success = await clearLocalStorage();
+                        if (success) {
+                            setClearCache("success");
+                            setTimeout(() => setClearCache("idle"), 2000);
+                        } else {
+                            setClearCache("fail");
+                        }
+                    }}
                 >
-                    Clear Cache
+                    {clearCache === "idle" && "Clear Cache"}
+                    {clearCache === "success" && "Cache Cleared Successfully"}
+                    {clearCache === "fail" && "Failed to Clear Cache"}
                 </button>
             </div>
             <div className="section-divider"></div>
