@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { extractVideoTag, isYoutubePage, isShortsVideo } from "./utils";
+import Options from "./options.tsx";
 import "./styles/popup.css";
 import type { BackgroundResponse } from "./types";
 import CONFIG from "./constants";
@@ -35,10 +36,8 @@ function getCachedAgo(createdAt: string | undefined) {
     }
 }
 
-function optionsBtnOnChange() {
-    return () => {
-        window.location.href = "options.html";
-    };
+async function getOptions() {
+    return await chrome.storage.sync.get(CONFIG.optionIDs);
 }
 
 type Message = {
@@ -53,6 +52,9 @@ function Popup() {
     });
 
     const [videoData, setVideoData] = useState<BackgroundResponse | null>(null);
+
+    const [useOptionsPage, setUseOptionsPage] = useState(false);
+    const [enabledOptions, setEnabledOptions] = useState<string[]>([]);
 
     useEffect(() => {
         (async () => {
@@ -89,6 +91,20 @@ function Popup() {
         })();
     }, []);
 
+    useEffect(() => {
+        (async () => {
+            const allOptions = await getOptions();
+            const enabledOptions = CONFIG.optionIDs.filter((option) => {
+                return allOptions[option] ?? true;
+            });
+            setEnabledOptions(enabledOptions);
+        })();
+    }, []);
+
+    if (useOptionsPage) {
+        return <Options />;
+    }
+
     return (
         <>
             <div className="header">
@@ -98,7 +114,7 @@ function Popup() {
                 <span className="duration" id="duration-display">
                     {videoData?.data?.duration}
                 </span>
-                <button id="optionsBtn" onClick={optionsBtnOnChange()}>
+                <button id="optionsBtn" onClick={() => setUseOptionsPage(true)}>
                     Options
                 </button>
             </div>
@@ -108,11 +124,16 @@ function Popup() {
                 </div>
                 {!videoData ? (
                     <span className={message.type}> {message.message}</span>
+                ) : enabledOptions.length === 0 ? (
+                    <span className="error">All Resolutions Disabled. Enable in options</span>
                 ) : (
                     videoData?.data?.videoFormats
+                        ?.filter((item) => {
+                            return enabledOptions.includes("p" + item.height);
+                        })
                         ?.map((item) => {
                             return (
-                                <div className="format-item">
+                                <div className="format-item" key={item.formatId}>
                                     <div className="format-size">{item.size}</div>
                                     <div className="format-height"> {item.height} </div>
                                 </div>
