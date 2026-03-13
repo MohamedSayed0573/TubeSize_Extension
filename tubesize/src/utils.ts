@@ -18,7 +18,7 @@ export function isShortsVideo(url: string): boolean {
     }
 }
 
-export function extractVideoId(ytUrl: string): string | undefined {
+export function extractVideoTag(ytUrl: string): string | undefined {
     try {
         const parsedUrl = new URL(ytUrl);
 

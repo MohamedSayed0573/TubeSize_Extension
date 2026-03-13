@@ -3,18 +3,9 @@
     <head>
         <title>TubeSize</title>
         <meta charset="UTF-8" />
-        <link rel="stylesheet" href="./src/styles/popup.css" />
     </head>
     <body>
-        <div class="header">
-            <div class="title-block">
-                <span class="title" id="title-display">TubeSize</span>
-                <span class="audio"><span id="audio-display"></span></span>
-            </div>
-            <span class="duration" id="duration-display">--:--</span>
-            <button id="optionsBtn">Options</button>
-        </div>
-        <div id="container">Loading sizes for this video… (This might take a few seconds)</div>
-        <script type="module" src="./src/popup.ts"></script>
+        <div id="root"></div>
+        <script type="module" src="./src/main.tsx"></script>
     </body>
 </html>

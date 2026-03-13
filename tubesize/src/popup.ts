@@ -1,5 +1,5 @@
 import type { APIData, BackgroundResponse, HumanizedFormat } from "./types";
-import { extractVideoId, getOptions, getElement, isYoutubePage, isShortsVideo } from "./utils";
+import { extractVideoTag, getOptions, getElement, isYoutubePage, isShortsVideo } from "./utils";
 import CONFIG from "./constants";
 import ms from "ms";
 
@@ -130,8 +130,7 @@ chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
         return;
     }
 
-    const tag = extractVideoId(tabUrl);
-
+    const tag = extractVideoTag(tabUrl);
     if (!tag) {
         showStatus("Open a Youtube video", "info");
         return;

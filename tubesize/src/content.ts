@@ -1,4 +1,4 @@
-import { extractVideoId } from "./utils";
+import { extractVideoTag } from "./utils";
 
 async function sendRuntimeMessage(message: { type: string; tag?: string; html?: string }) {
     try {
@@ -32,7 +32,7 @@ let lastTag: string | undefined = undefined;
 window.addEventListener("yt-navigate-finish", async () => {
     await sendRuntimeMessage({ type: "clearBadge" });
     const url = window.location.href;
-    const tag = extractVideoId(url);
+    const tag = extractVideoTag(url);
 
     if (lastTag === tag) return;
     lastTag = tag;

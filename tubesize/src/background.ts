@@ -61,7 +61,7 @@ chrome.runtime.onMessage.addListener(
                     } else {
                         throw new Error("no html");
                     }
-                } catch (err) {
+                } catch {
                     const fetchedHtml = await fetchHTMLPage(tag);
                     data = extractYtInitialForVideo(fetchedHtml, tag);
                 }
@@ -77,7 +77,7 @@ chrome.runtime.onMessage.addListener(
                     cached: false,
                     api: false,
                 });
-            } catch (err) {
+            } catch {
                 try {
                     const useAPIFallback = await getAPIFallbackSetting();
                     if (!useAPIFallback) {
