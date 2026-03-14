@@ -28,4 +28,5 @@ export default {
     CACHE_TTL: 3 * 60 * 60 * 1000, // 3 hour
     SHUTDOWN_TIMEOUT_MS: 30 * 1000, // 30 seconds
     YTDLP_VERSION: await getYTDLPVersion(),
+    API_VERSION: "1.1.0",
 } as const;

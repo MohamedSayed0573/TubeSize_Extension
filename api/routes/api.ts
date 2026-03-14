@@ -10,8 +10,16 @@ import ms from "ms";
 import { checkCache, setCache } from "../utils/cache.js";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { videoSizesRouteSchema } from "../schema/videoSizesSchema.js";
+import rateLimiter from "@fastify/rate-limit";
+import CONFIG from "../config/constants.js";
 
 export async function apiRoutes(fastify: FastifyInstance) {
+    // Register rate limiting only for API routes
+    fastify.register(rateLimiter, {
+        timeWindow: CONFIG.WINDOW_LIMIT_MS,
+        max: CONFIG.LIMIT,
+    });
+
     fastify.withTypeProvider<ZodTypeProvider>().get(
         "/video-sizes/:videoTag",
         {

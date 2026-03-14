@@ -7,7 +7,6 @@ import helmet from "@fastify/helmet";
 import compression from "@fastify/compress";
 import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
-import rateLimiter from "@fastify/rate-limit";
 
 import {
     jsonSchemaTransform,
@@ -42,23 +41,13 @@ fastify.register(compression, {
 // Apply helmet middleware to all requests.
 fastify.register(helmet, { crossOriginResourcePolicy: false });
 
-fastify.register(rateLimiter, {
-    timeWindow: CONFIG.WINDOW_LIMIT_MS,
-    max: CONFIG.LIMIT,
-});
-
-fastify.addHook("onSend", async (req, res, payload) => {
-    req.log.info({ res, payload });
-    return payload;
-});
-
 // API Documentation
 fastify.register(swagger, {
     transform: jsonSchemaTransform,
     openapi: {
         info: {
             title: "TubeSize API",
-            version: "1.0.0",
+            version: CONFIG.API_VERSION,
             description:
                 "Backend API for the TubeSize Chrome extension, providing endpoints to fetch file size data for YouTube videos across different quality levels.",
             contact: {
@@ -74,25 +63,7 @@ fastify.get("/api-docs/spec.json", (req: FastifyRequest, res: FastifyReply) => {
 
 fastify.register(swaggerUI, {
     routePrefix: "/api-docs/swagger",
-    uiConfig: {
-        url: "/api-docs/spec.json",
-        docExpansion: "full",
-        deepLinking: false,
-    },
-    uiHooks: {
-        onRequest: function (request, reply, next) {
-            next();
-        },
-        preHandler: function (request, reply, next) {
-            next();
-        },
-    },
-    staticCSP: false,
-    transformStaticCSP: (header) => header,
-    transformSpecification: (swaggerObject, request, reply) => {
-        return swaggerObject;
-    },
-    transformSpecificationClone: true,
+    logLevel: "silent",
 });
 
 // Routes
