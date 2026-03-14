@@ -1,4 +1,4 @@
-import type { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import {
     formatResponse,
     humanizeSizes,
@@ -8,22 +8,21 @@ import { InvalidInputError } from "../utils/errors.js";
 import { getVideoInfo, validateVideoTag } from "../utils/ytdlp.js";
 import ms from "ms";
 import { checkCache, setCache } from "../utils/cache.js";
-
-interface VideoSizesRequest {
-    Params: {
-        videoTag: string;
-    };
-    Querystring: {
-        // Fastify does not parse query params automatically, so these arrive as strings.
-        humanReadableSizes?: string;
-        mergeAudioWithVideo?: string;
-    };
-}
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { videoSizesRouteSchema } from "../schema.js";
 
 export async function apiRoutes(fastify: FastifyInstance) {
-    fastify.get(
+    fastify.withTypeProvider<ZodTypeProvider>().get(
         "/video-sizes/:videoTag",
-        async (req: FastifyRequest<VideoSizesRequest>, res: FastifyReply) => {
+        {
+            schema: {
+                params: videoSizesRouteSchema.params,
+                querystring: videoSizesRouteSchema.querystring,
+                response: videoSizesRouteSchema.responses,
+                summary: "Get available video formats and file sizes for a YouTube video",
+            },
+        },
+        async (req, res) => {
             const startTime = Date.now();
             const videoTag = req.params.videoTag;
             const humanReadableSizes = req.query.humanReadableSizes !== "false"; // Enabled by default
@@ -49,7 +48,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
             const executionTime = ms(Date.now() - startTime);
             res.send({
                 success: true,
-                ...humanizedData,
+                data: humanizedData,
                 executionTime,
             });
         },
