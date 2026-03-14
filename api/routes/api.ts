@@ -1,6 +1,4 @@
-import type { Request, Response } from "express";
-import express from "express";
-
+import type { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
 import {
     formatResponse,
     humanizeSizes,
@@ -11,38 +9,51 @@ import { getVideoInfo, validateVideoTag } from "../utils/ytdlp.js";
 import ms from "ms";
 import { checkCache, setCache } from "../utils/cache.js";
 
-const router = express.Router();
+interface VideoSizesRequest {
+    Params: {
+        videoTag: string;
+    };
+    Querystring: {
+        // Fastify does not parse query params automatically, so these arrive as strings.
+        humanReadableSizes?: string;
+        mergeAudioWithVideo?: string;
+    };
+}
 
-router.get("/video-sizes/:videoTag", async (req: Request, res: Response) => {
-    const startTime = Date.now();
-    const videoTag = req.params.videoTag as string;
-    const humanReadableSizes = req.query.humanReadableSizes !== "false"; // Enabled by default
-    const mergeAudioWithVideo = req.query.mergeAudioWithVideo !== "false"; // Enabled by default
+export async function apiRoutes(fastify: FastifyInstance) {
+    fastify.get(
+        "/video-sizes/:videoTag",
+        async (req: FastifyRequest<VideoSizesRequest>, res: FastifyReply) => {
+            const startTime = Date.now();
+            const videoTag = req.params.videoTag;
+            const humanReadableSizes = req.query.humanReadableSizes !== "false"; // Enabled by default
+            const mergeAudioWithVideo = req.query.mergeAudioWithVideo !== "false"; // Enabled by default
 
-    // Note: yt-dlp should validate the video tag, but just in case
-    if (!validateVideoTag(videoTag)) {
-        throw new InvalidInputError("Invalid YouTube URL provided.");
-    }
+            // Note: yt-dlp should validate the video tag, but just in case
+            if (!validateVideoTag(videoTag)) {
+                throw new InvalidInputError("Invalid YouTube URL provided.");
+            }
 
-    const cached = await checkCache(videoTag);
+            const cached = await checkCache(videoTag);
 
-    const formattedData = cached ? cached : formatResponse(await getVideoInfo(videoTag));
-    if (!cached) await setCache(videoTag, formattedData);
+            const formattedData = cached ? cached : formatResponse(await getVideoInfo(videoTag));
+            if (!cached) await setCache(videoTag, formattedData);
 
-    // IMPORTANT: mergeAudioWithVideoFormats must run before humanizeSizes if both are enabled
+            // IMPORTANT: mergeAudioWithVideoFormats must run before humanizeSizes if both are enabled
 
-    const mergedData = mergeAudioWithVideo
-        ? mergeAudioWithVideoFormats(formattedData)
-        : formattedData;
-    const humanizedData = humanReadableSizes ? humanizeSizes(mergedData) : mergedData;
+            const mergedData = mergeAudioWithVideo
+                ? mergeAudioWithVideoFormats(formattedData)
+                : formattedData;
+            const humanizedData = humanReadableSizes ? humanizeSizes(mergedData) : mergedData;
 
-    const executionTime = ms(Date.now() - startTime);
-    req.log.info(humanizedData);
-    res.json({
-        success: true,
-        ...humanizedData,
-        executionTime,
-    });
-});
+            const executionTime = ms(Date.now() - startTime);
+            res.send({
+                success: true,
+                ...humanizedData,
+                executionTime,
+            });
+        },
+    );
+}
 
-export default router;
+export default apiRoutes;

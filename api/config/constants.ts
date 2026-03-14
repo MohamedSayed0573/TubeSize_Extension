@@ -1,4 +1,4 @@
-import { logger } from "../utils/logger.js";
+import logger from "../utils/logger.js";
 import { execFile } from "child_process";
 import { promisify } from "util";
 const execFileAsync = promisify(execFile);

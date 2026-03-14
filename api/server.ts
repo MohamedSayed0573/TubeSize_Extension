@@ -1,71 +1,83 @@
-import type { Request, Response, NextFunction } from "express";
+import type { FastifyRequest, FastifyReply } from "fastify";
 
 import env from "./utils/env.js";
-import express from "express";
-import cors from "cors";
-import helmet from "helmet";
+import Fastify from "fastify";
+import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
 import ms from "ms";
-import compression from "compression";
+import compression from "@fastify/compress";
+import swagger from "@fastify/swagger";
+import swaggerUI from "@fastify/swagger-ui";
+import rateLimiter from "@fastify/rate-limit";
 
-import { AppError, RateLimit } from "./utils/errors.js";
+import { AppError } from "./utils/errors.js";
 import apiRoutes from "./routes/api.js";
-import { rateLimit } from "express-rate-limit";
-import { logger, pinoHttp } from "./utils/logger.js";
 import { redis } from "./utils/cache.js";
+import logger from "./utils/logger.js";
 import CONFIG from "./config/constants.js";
-import swaggerUi from "swagger-ui-express";
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 
-// resolve __dirname in ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const fastify = Fastify({
+    loggerInstance: logger,
+    trustProxy: 1,
+});
 
-const app = express();
+fastify.register(cors, {
+    origin: `chrome-extension://${env.EXTENSION_ID}`,
+});
 
-app.use(
-    cors({
-        origin: `chrome-extension://${env.EXTENSION_ID}`,
-    }),
-);
-
-app.set("trust proxy", 1); // Trust the first proxy hop (e.g. Docker/Nginx/AWS) to prevent rate-limit spoofing
-
-app.use(compression({ filter: shouldCompress }));
-function shouldCompress(req: Request, res: Response) {
-    // don't compress responses with this request header
-    return req.headers["x-no-compression"] ? false : true;
-}
+fastify.register(compression, {
+    global: true,
+    threshold: 1024, // Only compress if payload is > 1KB
+});
 
 // Apply helmet middleware to all requests.
-app.use(helmet({ crossOriginResourcePolicy: false }));
+fastify.register(helmet, { crossOriginResourcePolicy: false });
 
-const limiter = rateLimit({
-    windowMs: CONFIG.WINDOW_LIMIT_MS, // Time frame for which requests are checked/remembered
-    limit: CONFIG.LIMIT, // Number of requests allowed in the time frame
-    handler: () => {
-        throw new RateLimit("Too many requests, please try again later.");
-    },
+fastify.register(rateLimiter, {
+    timeWindow: CONFIG.WINDOW_LIMIT_MS,
+    max: CONFIG.LIMIT,
 });
 
-// Apply the rate limiting middleware to all requests.
-app.use(limiter);
-
-app.use(pinoHttp);
+fastify.addHook("onSend", async (req, res, payload) => {
+    req.log.info({ res, payload });
+    return payload;
+});
 
 // API Documentation
-const openAPIFile = JSON.parse(readFileSync(join(__dirname, "../openapi.json"), "utf-8"));
-app.get("/api-docs/spec.json", (req: Request, res: Response) => {
-    res.json(openAPIFile);
+fastify.register(swagger);
+
+fastify.get("/api-docs/spec.json", (req: FastifyRequest, res: FastifyReply) => {
+    res.send(fastify.swagger());
 });
-app.use("/api-docs/swagger", swaggerUi.serve, swaggerUi.setup(openAPIFile));
+
+fastify.register(swaggerUI, {
+    routePrefix: "/api-docs/swagger",
+    uiConfig: {
+        url: "/api-docs/spec.json",
+        docExpansion: "full",
+        deepLinking: false,
+    },
+    uiHooks: {
+        onRequest: function (request, reply, next) {
+            next();
+        },
+        preHandler: function (request, reply, next) {
+            next();
+        },
+    },
+    staticCSP: true,
+    transformStaticCSP: (header) => header,
+    transformSpecification: (swaggerObject, request, reply) => {
+        return swaggerObject;
+    },
+    transformSpecificationClone: true,
+});
 
 // Routes
-app.use("/api", apiRoutes);
+fastify.register(apiRoutes, { prefix: "/api" });
 
-app.get("/health", (req: Request, res: Response) => {
-    res.json({
+fastify.get("/health", (req: FastifyRequest, res: FastifyReply) => {
+    res.send({
         status: "ok",
         uptime: ms(Math.round(process.uptime()) * 1000),
         timestamp: new Date().toISOString(),
@@ -74,24 +86,24 @@ app.get("/health", (req: Request, res: Response) => {
     });
 });
 
-app.use((req: Request, res: Response) => {
-    res.status(404).json({ error: "Route not found" });
+fastify.setNotFoundHandler((req: FastifyRequest, res: FastifyReply) => {
+    res.status(404).send({ error: "Route not found" });
 });
 
 // Error handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    req.log.error(err);
+fastify.setErrorHandler((err: Error, req: FastifyRequest, res: FastifyReply) => {
+    req.log.error({ err });
 
     const status = err instanceof AppError ? err.statusCode : 500;
-    const message = err instanceof AppError ? err.message : "Internal Server Error";
+    const message = err instanceof AppError ? err.message : "Internal fastify Error";
 
     if (env.NODE_ENV === "production") {
-        res.status(status).json({
+        res.status(status).send({
             success: false,
             error: message,
         });
     } else {
-        res.status(status).json({
+        res.status(status).send({
             success: false,
             error: message,
             ERRORS: "errors" in err ? err.errors : undefined,
@@ -100,52 +112,48 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     }
 });
 
-const server = app.listen(env.PORT, async () => {
-    if (env.REDIS_ENABLED) {
-        if (redis.isReady || redis.isOpen) {
-            logger.info("Redis connection initialized");
-        } else {
-            logger.warn("Redis is not ready, caching may be disabled");
-        }
+await fastify.listen({ port: env.PORT, host: "0.0.0.0" });
+
+if (env.REDIS_ENABLED) {
+    if (redis.isReady || redis.isOpen) {
+        logger.info("Redis connection initialized");
+    } else {
+        logger.warn("Redis is not ready, caching may be disabled");
     }
-    logger.info(`Server is running on port ${env.PORT}`);
-});
+}
+logger.info(`fastify is running on port ${env.PORT}`);
 
 async function gracefulShutdown(signal: string) {
-    logger.info(`Server is shutting down (${signal})`);
-
-    server.close(async () => {
-        try {
-            // We wrap this in try/catch because if redis has already quit, it will throw if you try to quit again
-            if (redis.isReady && redis.isOpen) {
-                await redis.quit();
-            }
-            process.exit(0);
-        } catch (_) {}
-    });
+    logger.info(`fastify is shutting down (${signal})`);
 
     setTimeout(() => {
         logger.info(`Could not close connections in time, forcefully shutting down`);
         process.exit(1);
     }, CONFIG.SHUTDOWN_TIMEOUT_MS);
+
+    await fastify.close();
+    try {
+        if (redis.isReady && redis.isOpen) await redis.quit();
+    } catch (_) {}
+    process.exit(0);
 }
 
 // SIGINT: Signal Interrupt (Ctrl+C)
 process.on("SIGINT", async () => {
-    gracefulShutdown("SIGINT");
+    await gracefulShutdown("SIGINT");
 });
 
 // SIGNTERM: Signal Termination (Kill)
 process.on("SIGTERM", async () => {
-    gracefulShutdown("SIGTERM");
+    await gracefulShutdown("SIGTERM");
 });
 
 // Uncaught Exception
 process.on("uncaughtException", async () => {
-    gracefulShutdown("uncaughtException");
+    await gracefulShutdown("uncaughtException");
 });
 
 // Unhandled Promise Rejection. When a promise rejects but there is no catch block to handle it.
 process.on("unhandledRejection", async () => {
-    gracefulShutdown("unhandledRejection");
+    await gracefulShutdown("unhandledRejection");
 });

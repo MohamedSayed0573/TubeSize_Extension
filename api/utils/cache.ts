@@ -1,7 +1,7 @@
 import { createClient } from "redis";
 import CONFIG from "../config/constants.js";
 import env from "./env.js";
-import { logger } from "./logger.js";
+import logger from "./logger.js";
 import type { Data } from "../types.js";
 
 export const redis = createClient({

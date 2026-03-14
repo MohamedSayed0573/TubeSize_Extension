@@ -1,11 +1,13 @@
 node_modules/
 dist/
-ytInitialPlayerResponse.json
-test.html
 todo.md
 Notes.md
+
+# environment variables
 .env.prod
 .env.staging
+.env
+
 *.zip
 session*
 coverage/
@@ -14,10 +16,3 @@ code_review/
 
 new_instance.sh
 www.youtube.com_cookies.txt
-
-# Testing yt-dlp results
-temp.json
-test.js
-test.mjs
-ytdlp_output_example.json
-ytdlpResponse.json
