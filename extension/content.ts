@@ -95,5 +95,8 @@ window.addEventListener("yt-navigate-finish", async () => {
     if (lastTag === tag) return;
     lastTag = tag;
 
-    fetchAndDisplaySizes(tag);
+    fetchAndDisplaySizes(tag).catch((err) => {
+        console.error("[content] fetchAndDisplaySizes failed", err);
+        showError("Failed to load sizes");
+    });
 });
