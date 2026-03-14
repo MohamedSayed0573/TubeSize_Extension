@@ -10,6 +10,16 @@ import {
 } from "./youtube";
 import { getAPIFallbackSetting } from "./utils";
 
+function sendProgress(tabId: number | undefined, stage: string, tag: string) {
+    if (tabId == null) return;
+    chrome.tabs.sendMessage(tabId, { type: "tubesize_progress", stage, tag }).catch(() => {});
+}
+
+function sendResult(tabId: number | undefined, result: BackgroundResponse, tag: string) {
+    if (tabId == null) return;
+    chrome.tabs.sendMessage(tabId, { type: "tubesize_result", tag, ...result }).catch(() => {});
+}
+
 chrome.runtime.onMessage.addListener(
     (
         message: {
@@ -40,69 +50,93 @@ chrome.runtime.onMessage.addListener(
         clearBadge(tabId);
 
         (async () => {
-            const cached = await getFromStorage(tag);
-
-            if (cached) {
-                addBadge(tabId);
-                sendResponse({
-                    success: true,
-                    data: cached.response,
-                    cached: true,
-                    createdAt: cached.createdAt,
-                });
-                return;
-            }
-
             try {
-                let data: RawData;
-                try {
-                    if (message.html) {
-                        data = extractYtInitialForVideo(message.html, tag);
-                    } else {
-                        throw new Error("no html");
-                    }
-                } catch (err) {
-                    const fetchedHtml = await fetchHTMLPage(tag);
-                    data = extractYtInitialForVideo(fetchedHtml, tag);
-                }
+                sendProgress(tabId, "checking_cache", tag);
+                const cached = await getFromStorage(tag);
 
-                const rawFormats = parseDataFromYtInitial(data);
-                const humanizedFormats = humanizeData(rawFormats);
-
-                await saveToStorage(tag, humanizedFormats);
-                addBadge(tabId);
-                sendResponse({
-                    success: true,
-                    data: humanizedFormats,
-                    cached: false,
-                    api: false,
-                });
-            } catch (err) {
-                try {
-                    const useAPIFallback = await getAPIFallbackSetting();
-                    if (!useAPIFallback) {
-                        throw new Error("Skipped API Fallback");
-                    }
-
-                    const apiData = await fetchAPI(tag);
-                    // Do not cache API responses, in order to keep the cache consistent.
-                    // Because the API response is different than the data we extract from the html page.
+                if (cached) {
                     addBadge(tabId);
-                    sendResponse({
+                    const result: BackgroundResponse = {
                         success: true,
-                        data: apiData,
-                        cached: false,
-                        api: true,
-                    });
-                } catch (apiErr) {
-                    clearBadge(tabId);
-                    sendResponse({
-                        success: false,
-                        data: null,
-                        cached: false,
-                        message: apiErr instanceof Error ? apiErr.message : "Unknown error",
-                    });
+                        data: cached.response,
+                        cached: true,
+                        createdAt: cached.createdAt,
+                    };
+                    sendResponse(result);
+                    sendResult(tabId, result, tag);
+                    return;
                 }
+
+                try {
+                    let data: RawData;
+                    try {
+                        sendProgress(tabId, "parsing_page", tag);
+                        if (message.html) {
+                            data = extractYtInitialForVideo(message.html, tag);
+                        } else {
+                            throw new Error("no html");
+                        }
+                    } catch (err) {
+                        sendProgress(tabId, "fetching_youtube", tag);
+                        const fetchedHtml = await fetchHTMLPage(tag);
+                        data = extractYtInitialForVideo(fetchedHtml, tag);
+                    }
+
+                    const rawFormats = parseDataFromYtInitial(data);
+                    const humanizedFormats = humanizeData(rawFormats);
+
+                    await saveToStorage(tag, humanizedFormats);
+                    addBadge(tabId);
+                    const result: BackgroundResponse = {
+                        success: true,
+                        data: humanizedFormats,
+                        cached: false,
+                        api: false,
+                    };
+                    sendResponse(result);
+                    sendResult(tabId, result, tag);
+                } catch (err) {
+                    try {
+                        const useAPIFallback = await getAPIFallbackSetting();
+                        if (!useAPIFallback) {
+                            throw new Error("Skipped API Fallback");
+                        }
+
+                        sendProgress(tabId, "using_api", tag);
+                        const apiData = await fetchAPI(tag);
+                        // Do not cache API responses, in order to keep the cache consistent.
+                        // Because the API response is different than the data we extract from the html page.
+                        addBadge(tabId);
+                        const apiResult: BackgroundResponse = {
+                            success: true,
+                            data: apiData,
+                            cached: false,
+                            api: true,
+                        };
+                        sendResponse(apiResult);
+                        sendResult(tabId, apiResult, tag);
+                    } catch (apiErr) {
+                        clearBadge(tabId);
+                        const errResult: BackgroundResponse = {
+                            success: false,
+                            data: null,
+                            cached: false,
+                            message: apiErr instanceof Error ? apiErr.message : "Unknown error",
+                        };
+                        sendResponse(errResult);
+                        sendResult(tabId, errResult, tag);
+                    }
+                }
+            } catch (unexpectedErr) {
+                const unexpResult: BackgroundResponse = {
+                    success: false,
+                    data: null,
+                    cached: false,
+                    message:
+                        unexpectedErr instanceof Error ? unexpectedErr.message : "Unknown error",
+                };
+                sendResponse(unexpResult);
+                sendResult(tabId, unexpResult, tag);
             }
         })();
 

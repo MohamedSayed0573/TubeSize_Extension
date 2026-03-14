@@ -69,6 +69,12 @@ getElement("apiFallback", false)?.addEventListener("change", (event) => {
     chrome.storage.sync.set({ apiFallback: checked });
 });
 
+// Listen to overlay toggle
+getElement("showOverlay", false)?.addEventListener("change", (event) => {
+    const checked = (event.target as HTMLInputElement).checked;
+    chrome.storage.sync.set({ showOverlay: checked });
+});
+
 // Load options from chrome storage when options page is opened
 async function loadOptions() {
     const allOptions = await chrome.storage.sync.get();
@@ -94,6 +100,12 @@ async function loadOptions() {
             apiFallback: boolean;
         };
         apiFallbackBtn.checked = apiFallback;
+    }
+
+    const overlayBtn = getElement("showOverlay", false) as HTMLInputElement | null;
+    if (overlayBtn) {
+        const { showOverlay = true } = allOptions as { showOverlay: boolean };
+        overlayBtn.checked = showOverlay;
     }
 }
 loadOptions();
