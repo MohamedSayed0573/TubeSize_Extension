@@ -11,3 +11,9 @@ export class InvalidInputError extends AppError {
         super(message, 400);
     }
 }
+
+export class RateLimitError extends AppError {
+    constructor(message: string) {
+        super(message, 429);
+    }
+}

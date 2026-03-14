@@ -1,4 +1,4 @@
-import { z } from "zod/v4";
+import { z } from "zod";
 import type { Data, HumanizedData } from "../types";
 
 const dataSchema = z.object({
@@ -36,11 +36,20 @@ const appErrorResponseSchema = z.object({
     stack: z.string().optional(),
 });
 
-const successResponseSchema = z.object({
-    success: z.boolean(),
+const successResponseWithDataSchema = dataSchema.extend({
+    success: z.literal(true),
     executionTime: z.string(),
-    data: z.union([dataSchema, humanizedDataSchema]),
 });
+
+const successResponseWithHumanizedDataSchema = humanizedDataSchema.extend({
+    success: z.literal(true),
+    executionTime: z.string(),
+});
+
+const successResponseSchema = z.union([
+    successResponseWithDataSchema,
+    successResponseWithHumanizedDataSchema,
+]);
 
 export const videoSizesRouteSchema = {
     querystring: z.object({
@@ -54,5 +63,6 @@ export const videoSizesRouteSchema = {
         200: successResponseSchema,
         400: appErrorResponseSchema,
         500: appErrorResponseSchema,
+        429: appErrorResponseSchema,
     },
 };

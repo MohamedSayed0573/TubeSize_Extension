@@ -4,7 +4,7 @@ import {
     humanizeSizes,
     mergeAudioWithVideoFormats,
 } from "../utils/formatResponse.js";
-import { InvalidInputError } from "../utils/errors.js";
+import { InvalidInputError, RateLimitError } from "../utils/errors.js";
 import { getVideoInfo, validateVideoTag } from "../utils/ytdlp.js";
 import ms from "ms";
 import { checkCache, setCache } from "../utils/cache.js";
@@ -18,6 +18,9 @@ export async function apiRoutes(fastify: FastifyInstance) {
     fastify.register(rateLimiter, {
         timeWindow: CONFIG.WINDOW_LIMIT_MS,
         max: CONFIG.LIMIT,
+        errorResponseBuilder: () => {
+            throw new RateLimitError("Rate limit exceeded");
+        },
     });
 
     fastify.withTypeProvider<ZodTypeProvider>().get(
@@ -33,8 +36,15 @@ export async function apiRoutes(fastify: FastifyInstance) {
         async (req, res) => {
             const startTime = Date.now();
             const videoTag = req.params.videoTag;
-            const humanReadableSizes = req.query.humanReadableSizes !== "false"; // Enabled by default
-            const mergeAudioWithVideo = req.query.mergeAudioWithVideo !== "false"; // Enabled by default
+            const humanReadableSizes =
+                req.query.humanReadableSizes === undefined
+                    ? true
+                    : req.query.humanReadableSizes === "true";
+
+            const mergeAudioWithVideo =
+                req.query.mergeAudioWithVideo === undefined
+                    ? true
+                    : req.query.mergeAudioWithVideo === "true";
 
             // Note: yt-dlp should validate the video tag, but just in case
             if (!validateVideoTag(videoTag)) {
@@ -56,7 +66,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
             const executionTime = ms(Date.now() - startTime);
             res.send({
                 success: true,
-                data: humanizedData,
+                ...humanizedData,
                 executionTime,
             });
         },

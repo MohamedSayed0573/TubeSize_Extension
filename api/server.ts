@@ -110,12 +110,13 @@ logger.info(`fastify is running on port ${env.PORT}`);
 async function gracefulShutdown(signal: string) {
     logger.info(`fastify is shutting down (${signal})`);
 
-    setTimeout(() => {
+    const shutdownTimer = setTimeout(() => {
         logger.info(`Could not close connections in time, forcefully shutting down`);
         process.exit(1);
     }, CONFIG.SHUTDOWN_TIMEOUT_MS);
 
     await fastify.close();
+    clearTimeout(shutdownTimer);
     try {
         if (redis.isReady && redis.isOpen) await redis.quit();
     } catch (_) {}
