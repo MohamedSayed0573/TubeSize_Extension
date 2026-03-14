@@ -10,6 +10,12 @@ import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
 import rateLimiter from "@fastify/rate-limit";
 
+import {
+    jsonSchemaTransform,
+    serializerCompiler,
+    validatorCompiler,
+} from "fastify-type-provider-zod";
+
 import { AppError } from "./utils/errors.js";
 import apiRoutes from "./routes/api.js";
 import { redis } from "./utils/cache.js";
@@ -20,6 +26,9 @@ const fastify = Fastify({
     loggerInstance: logger,
     trustProxy: 1,
 });
+
+fastify.setValidatorCompiler(validatorCompiler);
+fastify.setSerializerCompiler(serializerCompiler);
 
 fastify.register(cors, {
     origin: `chrome-extension://${env.EXTENSION_ID}`,
@@ -44,7 +53,20 @@ fastify.addHook("onSend", async (req, res, payload) => {
 });
 
 // API Documentation
-fastify.register(swagger);
+fastify.register(swagger, {
+    transform: jsonSchemaTransform,
+    openapi: {
+        info: {
+            title: "TubeSize API",
+            version: "1.0.0",
+            description:
+                "Backend API for the TubeSize Chrome extension, providing endpoints to fetch file size data for YouTube videos across different quality levels.",
+            contact: {
+                name: "Mohamed Sayed",
+            },
+        },
+    },
+});
 
 fastify.get("/api-docs/spec.json", (req: FastifyRequest, res: FastifyReply) => {
     res.send(fastify.swagger());
@@ -65,7 +87,7 @@ fastify.register(swaggerUI, {
             next();
         },
     },
-    staticCSP: true,
+    staticCSP: false,
     transformStaticCSP: (header) => header,
     transformSpecification: (swaggerObject, request, reply) => {
         return swaggerObject;
@@ -95,7 +117,7 @@ fastify.setErrorHandler((err: Error, req: FastifyRequest, res: FastifyReply) => 
     req.log.error({ err });
 
     const status = err instanceof AppError ? err.statusCode : 500;
-    const message = err instanceof AppError ? err.message : "Internal fastify Error";
+    const message = err instanceof AppError ? err.message : "Internal Server Error";
 
     if (env.NODE_ENV === "production") {
         res.status(status).send({
