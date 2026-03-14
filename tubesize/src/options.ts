@@ -1,6 +1,6 @@
 import { getElement } from "./utils";
 import CONFIG from "./constants";
-import { clearLocalStorage } from "./cache";
+import { clearLocalStorage, getFromSyncCache, setToSyncCache } from "./cache";
 
 function displayOptions() {
     const optionsContainer = getElement("options-grid", true);
@@ -26,8 +26,8 @@ displayOptions();
 
 // Listen to changes in options and update chrome storage
 CONFIG.optionIDs.forEach((option) => {
-    getElement(option, false)?.addEventListener("change", (event) => {
-        chrome.storage.sync.set({ [option]: (event.target as HTMLInputElement).checked });
+    getElement(option, false)?.addEventListener("change", async (event) => {
+        setToSyncCache({ [option]: (event.target as HTMLInputElement).checked });
     });
 });
 
@@ -57,21 +57,20 @@ resetBtn?.addEventListener("click", async () => {
 });
 
 // Listen to choose Cache TTL option
-getElement("cacheTTL", false)?.addEventListener("change", (event) => {
+getElement("cacheTTL", false)?.addEventListener("change", async (event) => {
     const value = (event.target as HTMLInputElement).value;
-
-    chrome.storage.sync.set({ cacheTTL: CONFIG.ttlInSecondsOptions.get(value) });
+    setToSyncCache({ cacheTTL: CONFIG.ttlInSecondsOptions.get(value) });
 });
 
 // Listen to choose API fallback checkbox
-getElement("apiFallback", false)?.addEventListener("change", (event) => {
+getElement("apiFallback", false)?.addEventListener("change", async (event) => {
     const checked = (event.target as HTMLInputElement).checked;
-    chrome.storage.sync.set({ apiFallback: checked });
+    setToSyncCache({ apiFallback: checked });
 });
 
 // Load options from chrome storage when options page is opened
 async function loadOptions() {
-    const allOptions = await chrome.storage.sync.get();
+    const allOptions = await getFromSyncCache();
     // Quality Options
     CONFIG.optionIDs.forEach((optionId) => {
         const checkbox = getElement(optionId, false) as HTMLInputElement;
