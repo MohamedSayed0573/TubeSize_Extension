@@ -3,7 +3,7 @@
     "info": {
         "title": "TubeSize API",
         "description": "API for retrieving YouTube video size information for multiple formats and resolutions",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "contact": {
             "name": "TubeSize",
             "url": "https://github.com/mohammedsayed/tubesize"

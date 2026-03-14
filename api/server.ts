@@ -14,7 +14,7 @@ import {
     validatorCompiler,
 } from "fastify-type-provider-zod";
 
-import { AppError } from "./utils/errors.js";
+import { AppError, NotFoundError } from "./utils/errors.js";
 import apiRoutes from "./routes/api.js";
 import { redis } from "./utils/cache.js";
 import logger from "./utils/logger.js";
@@ -70,14 +70,12 @@ fastify.register(swaggerUI, {
 fastify.register(healthRoutes);
 fastify.register(apiRoutes, { prefix: "/api" });
 
-fastify.setNotFoundHandler((req: FastifyRequest, res: FastifyReply) => {
-    res.status(404).send({ error: "Route not found" });
+fastify.setNotFoundHandler(() => {
+    throw new NotFoundError("Route not found");
 });
 
 // Error handler
 fastify.setErrorHandler((err: Error, req: FastifyRequest, res: FastifyReply) => {
-    req.log.error({ err });
-
     const status = err instanceof AppError ? err.statusCode : 500;
     const message = err instanceof AppError ? err.message : "Internal Server Error";
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Data, HumanizedData } from "../types";
+import type { Data, HumanizedData } from "../types.js";
 
 const dataSchema = z.object({
     id: z.string(),
@@ -57,7 +57,10 @@ export const videoSizesRouteSchema = {
         mergeAudioWithVideo: z.enum(["true", "false"]).default("true"),
     }),
     params: z.object({
-        videoTag: z.string().length(11),
+        videoTag: z
+            .string()
+            .length(11)
+            .regex(/^[a-zA-Z0-9_-]{11}$/),
     }),
     responses: {
         200: successResponseSchema,
