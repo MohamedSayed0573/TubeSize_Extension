@@ -4,6 +4,8 @@ import ms from "ms";
 import { fetchAndRetry } from "./utils";
 import CONFIG from "./constants";
 
+declare const __API_URL__: string;
+
 export function humanizeData(formats: RawFormat): HumanizedFormat {
     const audioSize = getAverageAudioSize(formats.audioFormats);
     const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);
