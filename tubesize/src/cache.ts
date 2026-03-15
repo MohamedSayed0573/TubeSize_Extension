@@ -3,7 +3,7 @@ import type { APIData, HumanizedFormat, StorageData } from "./types/types";
 
 async function getCacheTTLSetting(): Promise<number> {
     const cacheTTL = await getFromSyncCache("cacheTTL");
-    return cacheTTL * 24 * 60 * 60 || CONFIG.DEFAULT_CACHE_TTL;
+    return cacheTTL || CONFIG.DEFAULT_CACHE_TTL;
 }
 
 async function setToCache(storage: "local" | "sync", input: { [key: string | number]: any }) {

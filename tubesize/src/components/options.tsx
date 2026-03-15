@@ -12,6 +12,10 @@ function convertDaysToSeconds(days: number | string) {
     return Number(days) * 24 * 60 * 60;
 }
 
+function convertSecondsToDays(seconds: number | string) {
+    return String(Math.round(Number(seconds) / (24 * 60 * 60)));
+}
+
 function Options() {
     const [optionsState, setOptionsState] = useState<{ [key: string]: boolean }>();
     const [cacheState, setCacheState] = useState<string>();
@@ -24,7 +28,9 @@ function Options() {
             const options = await getAllOptions();
             setOptionsState(options as any);
 
-            setCacheState(options.cacheTTL as string);
+            setCacheState(
+                options.cacheTTL ? convertSecondsToDays(options.cacheTTL as string) : "3",
+            );
             setAPIFallback(!!options.apiFallback);
         })();
     }, []);
