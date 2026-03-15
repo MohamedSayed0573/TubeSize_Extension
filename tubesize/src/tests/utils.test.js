@@ -1,4 +1,4 @@
-import { isYoutubePage, extractVideoId } from "../utils";
+import { isYoutubePage, extractVideoTag } from "../utils";
 
 describe("isYoutubePage", () => {
     test("should return true for a valid YouTube URL", () => {
@@ -22,34 +22,34 @@ describe("isYoutubePage", () => {
     });
 });
 
-describe("extractVideoId", () => {
+describe("extractVideoTag", () => {
     test("should return the video id", () => {
-        expect(extractVideoId("https://www.youtube.com/watch?v=yaodD79Q4iE")).toBe("yaodD79Q4iE");
+        expect(extractVideoTag("https://www.youtube.com/watch?v=yaodD79Q4iE")).toBe("yaodD79Q4iE");
     });
 
     test("should return undefined if the video id is shorter than 11", () => {
-        expect(extractVideoId("https://www.youtube.com/watch?v=yaodD79Q4")).toBeNil();
+        expect(extractVideoTag("https://www.youtube.com/watch?v=yaodD79Q4")).toBeNil();
     });
 
     test("should return undefined if the video id is missing", () => {
-        expect(extractVideoId("https://www.youtube.com/")).toBeNil();
+        expect(extractVideoTag("https://www.youtube.com/")).toBeNil();
     });
 
     test("should return undefined if the video id has wrong characters", () => {
-        expect(extractVideoId("https://www.youtube.com/watch?v=123456789.;")).toBeNil();
+        expect(extractVideoTag("https://www.youtube.com/watch?v=123456789.;")).toBeNil();
     });
 
     test("should return undefined if the params is wrong", () => {
-        expect(extractVideoId("https://www.youtube.com/watch?s=yaodD79Q4iE")).toBeNil();
+        expect(extractVideoTag("https://www.youtube.com/watch?s=yaodD79Q4iE")).toBeNil();
     });
 
     test("should return undefined if the url is wrong", () => {
-        expect(extractVideoId("https://www.youtube.com/example?v=yaodD79Q4iE")).toBeNil();
+        expect(extractVideoTag("https://www.youtube.com/example?v=yaodD79Q4iE")).toBeNil();
     });
 
     test("should return the video id if there are multiple params", () => {
         expect(
-            extractVideoId(
+            extractVideoTag(
                 "https://www.youtube.com/watch?v=FHhZPp08s74&list=RDFHhZPp08s74&start_radio=1",
             ),
         ).toBe("FHhZPp08s74");

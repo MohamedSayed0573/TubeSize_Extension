@@ -14,21 +14,19 @@
     },
 
     "action": {
-        "default_popup": "popup.html"
+        "default_popup": "index.html"
     },
 
     "background": {
-        "service_worker": "dist/background.js"
+        "service_worker": "src/background.ts"
     },
-
-    "options_page": "options.html",
 
     "host_permissions": ["https://*.youtube.com/*", "https://api.mohammedsayed.dev/*"],
 
     "content_scripts": [
         {
             "matches": ["https://*.youtube.com/*"],
-            "js": ["dist/content.js"]
+            "js": ["src/content.ts"]
         }
     ],
 

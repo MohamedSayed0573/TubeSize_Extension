@@ -30,16 +30,15 @@
 
 ## 🚀 Installation
 
-| Store            | URL      |
-| ---------------- | ----------- |
-| Chrome Store     | Coming soon -> For now, download from releases ↓ |
-| Edge Store       | [Click Here](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka) |
-| Firefox Add-ons  | [Click Here](https://addons.mozilla.org/en-US/firefox/addon/tubesize/) |
+| Store           | URL                                                                                                       |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| Chrome Store    | Coming soon -> For now, download from releases ↓                                                          |
+| Edge Store      | [Click Here](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka) |
+| Firefox Add-ons | [Click Here](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)                                    |
 
 ### Download from Releases
 
 **Video Explanation:** [Watch from here](https://github.com/user-attachments/assets/10f4bb06-da77-4a31-8bf5-837fad21ae35)
-
 
 1. Go to the [Releases page](https://github.com/MohamedSayed0573/TubeSize_Extension/releases).
 2. Download the latest browser package:

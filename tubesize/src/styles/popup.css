@@ -5,7 +5,7 @@
 }
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    width: 240px;
+    width: 230px;
     background: #222;
     padding: 0;
     color: #fff;
@@ -25,13 +25,6 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-.title-block {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    flex: 1;
-    min-width: 0;
 }
 .audio {
     font-size: 11px;
@@ -59,7 +52,7 @@ body {
     border-color: rgba(255, 255, 255, 0.2);
 }
 #container {
-    padding: 10px 12px;
+    padding: 6px 12px 10px 12px;
     text-align: center;
     color: #aaa;
     font-size: 13px;
@@ -70,7 +63,7 @@ body {
     background: rgba(255, 107, 107, 0.1);
     border-radius: 6px;
     border-left: 3px solid #ff6b6b;
-    text-align: left;
+    text-align: center;
     font-size: 13px;
 }
 .info {
@@ -79,10 +72,15 @@ body {
     background: rgba(77, 171, 247, 0.1);
     border-radius: 6px;
     border-left: 3px solid #4dabf7;
-    text-align: left;
+    text-align: center;
     font-size: 13px;
 }
 .formats-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+#container {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -95,17 +93,18 @@ body {
     background: rgba(255, 255, 255, 0.04);
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s;
     border: 1px solid transparent;
 }
 .format-item:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.15);
+    border-color: #690b0b;
 }
 .format-height {
     font-weight: 500;
     color: #fff;
     font-size: 13px;
+    padding-right: 10px;
 }
 .format-size {
     color: #bbb;
@@ -115,7 +114,6 @@ body {
 .cached-note {
     font-size: 11px;
     color: #888;
-    margin-bottom: 6px;
     text-align: center;
     font-style: italic;
 }

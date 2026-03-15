@@ -1,0 +1,41 @@
+{
+    "name": "tubesize",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite dev",
+        "build": "vite build",
+        "watch": "vite build --watch --mode development",
+        "prettier:write": "pnpm exec prettier . --write",
+        "lint": "eslint .",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "filesize": "^11.0.13",
+        "ms": "^2.1.3",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "webextension-polyfill": "^0.12.0"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.39.1",
+        "@types/chrome": "^0.1.37",
+        "@types/filesize": "^5.0.2",
+        "@types/ms": "^2.1.0",
+        "@types/node": "^24.10.1",
+        "@types/react": "^19.2.7",
+        "@types/react-dom": "^19.2.3",
+        "@vitejs/plugin-react": "^5.1.1",
+        "babel-plugin-react-compiler": "^1.0.0",
+        "eslint": "^9.39.1",
+        "eslint-plugin-react-hooks": "^7.0.1",
+        "eslint-plugin-react-refresh": "^0.4.24",
+        "globals": "^16.5.0",
+        "prettier": "^3.8.1",
+        "typescript": "~5.9.3",
+        "typescript-eslint": "^8.48.0",
+        "vite": "^7.3.1",
+        "vite-plugin-web-extension": "^4.5.0"
+    }
+}

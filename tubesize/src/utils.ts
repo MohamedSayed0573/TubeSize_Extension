@@ -1,3 +1,4 @@
+import { getFromSyncCache } from "./cache";
 import CONFIG from "./constants";
 
 export function isYoutubePage(url: string): boolean {
@@ -18,7 +19,7 @@ export function isShortsVideo(url: string): boolean {
     }
 }
 
-export function extractVideoId(ytUrl: string): string | undefined {
+export function extractVideoTag(ytUrl: string): string | undefined {
     try {
         const parsedUrl = new URL(ytUrl);
 
@@ -38,7 +39,7 @@ export function extractVideoId(ytUrl: string): string | undefined {
 
 // Return the user options
 export async function getOptions() {
-    return await chrome.storage.sync.get(CONFIG.optionIDs);
+    return await getFromSyncCache(CONFIG.optionIDs);
 }
 
 export function getElement(id: string, isFatal: true): HTMLElement;
@@ -92,6 +93,6 @@ export async function fetchAndRetry(
 }
 
 export async function getAPIFallbackSetting(): Promise<boolean> {
-    const { apiFallback = false } = await chrome.storage.sync.get("apiFallback");
+    const { apiFallback = false } = await getFromSyncCache("apiFallback");
     return apiFallback as boolean;
 }

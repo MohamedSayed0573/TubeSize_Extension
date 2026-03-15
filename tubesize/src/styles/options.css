@@ -58,9 +58,9 @@ body {
 .option-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
     background: rgba(255, 255, 255, 0.04);
-    padding: 8px 10px;
+    padding: 8px 14px 8px 10px;
     border-radius: 6px;
     cursor: pointer;
     border: 1px solid transparent;
@@ -85,24 +85,17 @@ input[type="checkbox"] {
 input[type="checkbox"]:checked {
     background-color: #4dabf7;
     border-color: #4dabf7;
+    background-image: url("../assets/check-mark-ok.svg");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
 }
-input[type="checkbox"]:checked::after {
-    content: "";
-    position: absolute;
-    left: 3px;
-    top: 1px;
-    width: 3px;
-    height: 6px;
-    border: solid white;
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-}
+
 .option-label {
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
     color: #fff;
-    flex: 1;
 }
 .section-divider {
     height: 1px;
@@ -145,11 +138,9 @@ input[type="checkbox"]:checked::after {
 .ttl-select:focus {
     border-color: #4dabf7;
 }
+
 .reset-cache-btn {
     width: 100%;
-    background: rgba(255, 59, 59, 0.08);
-    color: #ff6b6b;
-    border: 1px solid rgba(255, 59, 59, 0.2);
     border-radius: 6px;
     padding: 8px 10px;
     font-size: 13px;
@@ -159,6 +150,32 @@ input[type="checkbox"]:checked::after {
     font-family: inherit;
     text-align: center;
 }
+
+.reset-cache-btn:disabled {
+    cursor: default;
+}
+
+/* idle */
+.reset-cache-btn.idle {
+    background: rgba(255, 59, 59, 0.08);
+    color: #ff6b6b;
+    border: 1px solid rgba(255, 59, 59, 0.2);
+}
+
+/* success */
+.reset-cache-btn.success {
+    background: rgba(64, 192, 87, 0.08);
+    color: #40c057;
+    border: 1px solid rgba(64, 192, 87, 0.4);
+}
+
+/* fail */
+.reset-cache-btn.fail {
+    background: rgba(255, 59, 59, 0.08);
+    color: #ff6b6b;
+    border: 1px solid rgba(255, 59, 59, 0.2);
+}
+
 .reset-cache-btn:hover {
     background: rgba(255, 59, 59, 0.18);
     border-color: rgba(255, 59, 59, 0.4);
@@ -178,13 +195,11 @@ input[type="checkbox"]:checked::after {
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    flex: 1;
 }
 .api-fallback-label {
     font-size: 13px;
     font-weight: 500;
     color: #fff;
-    flex: 1;
 }
 .info-tooltip {
     position: relative;

@@ -7,7 +7,6 @@ Notes.md
 .env.prod
 .env.staging
 .env
-
 *.zip
 session*
 coverage/

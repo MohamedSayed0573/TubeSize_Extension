@@ -1,5 +1,5 @@
 import { filesize } from "filesize";
-import type { APIData, HumanizedFormat, RawData, RawFormat } from "./types";
+import type { APIData, HumanizedFormat, RawData, RawFormat } from "./types/types";
 import ms from "ms";
 import { fetchAndRetry } from "./utils";
 import CONFIG from "./constants";
