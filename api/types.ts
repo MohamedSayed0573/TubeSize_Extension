@@ -9,26 +9,18 @@ export type RawData = {
     }[];
 };
 
-export type Data = {
+export type BaseData<T> = {
     id: string;
     title: string;
-    duration: number | null;
-    audioFormat: number | null;
+    duration: T;
+    audioFormat: T;
     videoFormats: {
         formatId: number;
         height: number;
-        size: number;
+        size: T;
     }[];
 };
 
-export type HumanizedData = {
-    id: string;
-    title: string;
-    duration: string;
-    audioFormat: string;
-    videoFormats: {
-        formatId: number;
-        height: number;
-        size: string;
-    }[];
-};
+export type Data = BaseData<number>;
+
+export type HumanizedData = BaseData<string>;

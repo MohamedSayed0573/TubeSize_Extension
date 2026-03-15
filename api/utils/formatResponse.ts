@@ -21,11 +21,11 @@ function extractVideoSizes(data: RawData, videoFormatIDs: readonly string[]) {
 function extractAudioSize(data: RawData, audioFormatID: string) {
     const formats = data.formats || [];
     const rawAudioFormat = formats.find((format) => format.format_id === audioFormatID);
-    return rawAudioFormat ? rawAudioFormat.filesize : null;
+    return rawAudioFormat ? rawAudioFormat.filesize : 0;
 }
 
 function extractDuration(data: RawData) {
-    return data.duration ?? null;
+    return data.duration ?? 0;
 }
 
 export function formatResponse(data: RawData): Data {
@@ -34,7 +34,7 @@ export function formatResponse(data: RawData): Data {
     return {
         id: data.id,
         title: data.title,
-        duration: extractDuration(data) || null,
+        duration: extractDuration(data),
         audioFormat: primaryAudio
             ? primaryAudio
             : extractAudioSize(data, CONFIG.FALLBACK_AUDIO_FORMAT_IDS),
@@ -65,7 +65,7 @@ export function mergeAudioWithVideoFormats(data: Data): Data {
         videoFormats: data.videoFormats.map((format) => {
             return {
                 ...format,
-                size: format.size + (data.audioFormat || 0),
+                size: format.size + data.audioFormat,
             };
         }),
     };

@@ -1,4 +1,4 @@
-import { logger } from "../utils/logger.js";
+import logger from "../utils/logger.js";
 import { execFile } from "child_process";
 import { promisify } from "util";
 const execFileAsync = promisify(execFile);
@@ -28,4 +28,5 @@ export default {
     CACHE_TTL: 3 * 60 * 60 * 1000, // 3 hour
     SHUTDOWN_TIMEOUT_MS: 30 * 1000, // 30 seconds
     YTDLP_VERSION: await getYTDLPVersion(),
+    API_VERSION: "1.1.0",
 } as const;
