@@ -1,7 +1,7 @@
 <div align="center">
 
 <h1>
-  <img src="extension/icons/icon-128.png" alt="TubeSize Logo"/>
+  <img src="tubesize/public/icons/icon-128.png" alt="TubeSize Logo"/>
     <br>
   TubeSize - YouTube Video Size Viewer
 </h1>

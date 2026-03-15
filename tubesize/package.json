@@ -8,6 +8,7 @@
         "build": "vite build",
         "watch": "vite build --watch --mode development",
         "prettier:write": "pnpm exec prettier . --write",
+        "pack": "pnpm run build && zip -r dist/tubesize.zip dist",
         "lint": "eslint .",
         "preview": "vite preview"
     },

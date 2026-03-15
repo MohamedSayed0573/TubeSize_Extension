@@ -90,7 +90,7 @@ function Popup() {
 
                 const response = await sendMessageToBackground(tab.id!, tag);
                 setVideoData(response);
-                setCache(getCachedAgo(response.createdAt));
+                setCache(getCachedAgo(response.createdAt) || "Cached just now");
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : String(err);
                 console.error("[Popup Error]:", errorMessage);
