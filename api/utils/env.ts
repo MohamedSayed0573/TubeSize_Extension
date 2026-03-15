@@ -2,7 +2,12 @@ import z from "zod";
 import dotenv from "dotenv";
 
 dotenv.config({
-    path: process.env.NODE_ENV === "production" ? ".env.prod" : ".env.staging",
+    path:
+        process.env.NODE_ENV === "production"
+            ? ".env.prod"
+            : process.env.NODE_ENV === "staging"
+              ? ".env.staging"
+              : ".env",
 });
 
 const envSchema = z.object({
