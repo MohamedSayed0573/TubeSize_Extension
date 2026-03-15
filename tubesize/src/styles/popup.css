@@ -56,6 +56,9 @@ body {
     text-align: center;
     color: #aaa;
     font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 .error {
     color: #ff6b6b;
@@ -76,11 +79,6 @@ body {
     font-size: 13px;
 }
 .formats-section {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-#container {
     display: flex;
     flex-direction: column;
     gap: 6px;
