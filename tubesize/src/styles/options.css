@@ -81,7 +81,7 @@ input[type="checkbox"] {
 input[type="checkbox"]:checked {
     background-color: #4dabf7;
     border-color: #4dabf7;
-    background-image: url("../assets/check-mark-ok.svg");
+    background-image: url("@assets/check-mark-ok.svg");
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain;

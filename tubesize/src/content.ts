@@ -1,4 +1,4 @@
-import { extractVideoTag } from "./utils";
+import { extractVideoTag } from "@/utils";
 
 async function sendRuntimeMessage(message: { type: string; tag?: string; html?: string }) {
     try {

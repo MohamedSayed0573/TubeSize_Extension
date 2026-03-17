@@ -1,4 +1,4 @@
-import type { BackgroundResponse } from "../types/types";
+import type { BackgroundResponse } from "@/types/types";
 
 interface Props {
     videoData: BackgroundResponse | null;

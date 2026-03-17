@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getFromSyncCache, setToSyncCache } from "../../cache";
+import { getFromSyncCache, setToSyncCache } from "@/cache";
 
 export default function ApiFallbackSetting() {
     const [apiFallback, setAPIFallback] = useState(false);

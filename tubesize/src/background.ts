@@ -1,14 +1,14 @@
-import type { BackgroundResponse } from "./types/types";
-import { getFromStorage, saveToStorage } from "./cache";
-import { addBadge, clearBadge } from "./badge";
+import type { BackgroundResponse } from "@app-types/types";
+import { getFromStorage, saveToStorage } from "@/cache";
+import { addBadge, clearBadge } from "@/badge";
 import {
     extractYtInitialForVideo,
     fetchAPI,
     fetchHTMLPage,
     parseDataFromYtInitial,
     humanizeData,
-} from "./youtube";
-import { getAPIFallbackSetting } from "./utils";
+} from "@/youtube";
+import { getAPIFallbackSetting } from "@/utils";
 
 type Message = {
     type: "clearBadge" | "setBadge" | "sendYoutubeUrl";

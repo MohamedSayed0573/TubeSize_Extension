@@ -1,4 +1,4 @@
-import { extractYtInitial } from "../youtube";
+import { extractYtInitial } from "@/youtube";
 
 describe("extractYtInitial", () => {
     test("should extract YtInitialPlayerResponse from html page", async () => {

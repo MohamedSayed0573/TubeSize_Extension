@@ -1,4 +1,4 @@
-import { setToSyncCache } from "../../cache";
+import { setToSyncCache } from "@/cache";
 
 export default function OptionItem({
     option,

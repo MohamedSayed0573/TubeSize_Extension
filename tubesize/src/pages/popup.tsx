@@ -1,13 +1,13 @@
-import "../styles/popup.css";
-import type { BackgroundResponse } from "../types/types.ts";
+import "@styles/popup.css";
+import type { BackgroundResponse } from "@app-types/types";
 import { useEffect, useState } from "react";
-import { extractVideoTag, isYoutubePage, isShortsVideo } from "../utils.ts";
-import { getFromSyncCache } from "../cache.ts";
+import { extractVideoTag, isYoutubePage, isShortsVideo } from "@/utils";
+import { getFromSyncCache } from "@/cache";
 import ms from "ms";
-import Options from "./options.tsx";
-import CONFIG from "../constants.ts";
-import Header from "../components/header.tsx";
-import VideoFormat from "../components/videoFormat.tsx";
+import Options from "@/pages/options";
+import CONFIG from "@/constants";
+import Header from "@/components/header";
+import VideoFormat from "@/components/videoFormat";
 
 async function getTab() {
     return await chrome.tabs.query({ active: true, currentWindow: true });

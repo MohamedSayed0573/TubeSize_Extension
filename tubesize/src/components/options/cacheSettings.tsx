@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { clearLocalStorage, setToSyncCache, getFromSyncCache } from "../../cache";
+import { clearLocalStorage, setToSyncCache, getFromSyncCache } from "@/cache";
 
 function convertDaysToSeconds(days: number | string) {
     return Number(days) * 24 * 60 * 60;

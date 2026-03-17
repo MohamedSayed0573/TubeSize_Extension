@@ -1,5 +1,5 @@
-import CONFIG from "./constants";
-import type { APIData, HumanizedFormat, StorageData } from "./types/types";
+import CONFIG from "@/constants";
+import type { APIData, HumanizedFormat, StorageData } from "@app-types/types";
 
 async function getCacheTTLSetting(): Promise<number> {
     const cacheTTL = await getFromSyncCache("cacheTTL");

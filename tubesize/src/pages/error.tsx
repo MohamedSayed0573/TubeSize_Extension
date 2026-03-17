@@ -1,6 +1,6 @@
 import { useState } from "react";
-import Options from "../pages/options";
-import Header from "../components/header";
+import Options from "@/pages/options";
+import Header from "@/components/header";
 
 interface Props {
     errorMessage: string;

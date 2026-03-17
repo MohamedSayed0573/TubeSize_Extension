@@ -1,8 +1,8 @@
 import { filesize } from "filesize";
-import type { APIData, HumanizedFormat, RawData, RawFormat } from "./types/types";
+import type { APIData, HumanizedFormat, RawData, RawFormat } from "@app-types/types";
 import ms from "ms";
-import { fetchAndRetry } from "./utils";
-import CONFIG from "./constants";
+import { fetchAndRetry } from "@/utils";
+import CONFIG from "@/constants";
 
 export function humanizeData(formats: RawFormat): HumanizedFormat {
     const audioSize = getAverageAudioSize(formats.audioFormats);
