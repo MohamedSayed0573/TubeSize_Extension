@@ -2,6 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import webExtension from "vite-plugin-web-extension";
 
+const isDevelopment = process.env.NODE_ENV === "development";
+
 // https://vite.dev/config/
 export default defineConfig({
     plugins: [
@@ -12,7 +14,7 @@ export default defineConfig({
         }),
         [webExtension({ disableAutoLaunch: true })],
     ],
-    define: {
-        __API_URL__: JSON.stringify("https://api.mohammedsayed.dev"),
+    build: {
+        sourcemap: isDevelopment,
     },
 });
