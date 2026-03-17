@@ -88,7 +88,11 @@ export default function Popup() {
                 const response = await sendMessageToBackground(tab.id!, tag);
                 if (!response.success) throw new Error(response.message);
                 setVideoData(response);
-                setCache(getCachedAgo(response.createdAt) || "Cached just now");
+                setCache(
+                    response.cached
+                        ? getCachedAgo(response.createdAt) || "Cached just now"
+                        : undefined,
+                );
             } catch (err: any) {
                 console.error("[Popup Error]:", err);
                 setError(err);

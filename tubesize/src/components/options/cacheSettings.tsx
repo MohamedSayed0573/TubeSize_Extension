@@ -15,11 +15,16 @@ export default function CacheSettings() {
     const [disableClearCache, setDisableClearCache] = useState(false);
 
     useEffect(() => {
-        getFromSyncCache().then((options) => {
-            if (options.cacheTTL) {
-                setCacheState(convertSecondsToDays(options.cacheTTL as string));
+        (async () => {
+            try {
+                const options = await getFromSyncCache();
+                if (options?.cacheTTL) {
+                    setCacheState(convertSecondsToDays(options.cacheTTL as string));
+                }
+            } catch (err) {
+                console.error("Failed to load cache setting from cache:", err);
             }
-        });
+        })();
     }, []);
 
     return (

@@ -8,13 +8,17 @@ import { useState, useEffect } from "react";
 import { getFromSyncCache } from "@/cache";
 
 export default function Options() {
-    const [optionsState, setOptionsState] = useState<Record<any, any>>();
+    const [optionsState, setOptionsState] = useState<Record<any, any>>({});
 
     useEffect(() => {
-        (async () => {
-            const options = await getFromSyncCache();
-            setOptionsState(options);
-        })();
+        try {
+            (async () => {
+                const options = await getFromSyncCache();
+                setOptionsState(options);
+            })();
+        } catch (err) {
+            console.error("Failed to load options from cache:", err);
+        }
     }, []);
 
     return (
