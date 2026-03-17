@@ -106,11 +106,27 @@ body {
 .format-size {
     color: #bbb;
     font-size: 13px;
-    font-variant-numeric: tabular-nums;
 }
 .cached-note {
     font-size: 11px;
     color: #888;
     text-align: center;
     font-style: italic;
+}
+.error-page {
+    padding: 8px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+}
+.error-page-icon {
+    font-size: 24px;
+    color: #ff6b6b;
+}
+.error-page-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
 }

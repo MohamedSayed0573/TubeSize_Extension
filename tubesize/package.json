@@ -11,7 +11,8 @@
         "prettier:write": "pnpm exec prettier . --write",
         "pack": "pnpm run build && zip -r dist/tubesize.zip dist",
         "lint": "eslint .",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "tsc": "tsc --noEmit"
     },
     "dependencies": {
         "filesize": "^11.0.13",

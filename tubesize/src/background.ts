@@ -58,7 +58,6 @@ chrome.runtime.onMessage.addListener(
             }
 
             try {
-                throw new Error("test");
                 const html = message.html ?? (await fetchHTMLPage(tag));
                 const rawData = extractYtInitialForVideo(html, tag);
                 const rawFormats = parseDataFromYtInitial(rawData);
@@ -72,13 +71,13 @@ chrome.runtime.onMessage.addListener(
                     cached: false,
                     api: false,
                 });
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Couldn't use local, " + err);
 
                 try {
                     const useAPIFallback = await getAPIFallbackSetting();
                     if (!useAPIFallback) {
-                        throw new Error("Skipped API Fallback");
+                        throw new Error(err?.message || "An unknown error occurred");
                     }
 
                     const apiData = await fetchAPI(tag);
