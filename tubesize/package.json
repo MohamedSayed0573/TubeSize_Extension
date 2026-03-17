@@ -10,7 +10,7 @@
         "test": "jest",
         "prettier:write": "pnpm exec prettier . --write",
         "pack": "pnpm run build && zip -r dist/tubesize.zip dist",
-        "pack:firefox": "pnpm run build && cd dist && cp * ../dist_firefox && cd ../dist_firefox && mv ../manifest_firefox.json . && zip -r tubesize_firefox.zip .",
+        "pack:firefox": "pnpm run build && sh ./scripts/pack-firefox.sh",
         "lint": "eslint .",
         "preview": "vite preview",
         "tsc": "tsc --noEmit"

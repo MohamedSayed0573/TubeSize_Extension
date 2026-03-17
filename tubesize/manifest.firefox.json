@@ -1,5 +1,4 @@
 {
-    "$schema": "https://json.schemastore.org/chrome-manifest",
     "manifest_version": 3,
     "name": "TubeSize",
     "version": "1.0.0",
@@ -19,7 +18,7 @@
     },
 
     "background": {
-        "service_worker": "src/background.ts"
+        "scripts": ["src/background.js"]
     },
 
     "host_permissions": ["https://*.youtube.com/*", "https://api.mohammedsayed.dev/*"],
@@ -27,7 +26,7 @@
     "content_scripts": [
         {
             "matches": ["https://*.youtube.com/*"],
-            "js": ["src/content.ts"]
+            "js": ["src/content.js"]
         }
     ],
 
@@ -38,6 +37,13 @@
                 "mac": "Command+Shift+0"
             },
             "description": "Open the TubeSize popup"
+        }
+    },
+
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "tubesize@mohammedsayed.dev",
+            "strict_min_version": "109.0"
         }
     }
 }
