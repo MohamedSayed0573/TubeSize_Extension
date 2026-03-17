@@ -3,8 +3,6 @@ import react from "@vitejs/plugin-react";
 import webExtension from "vite-plugin-web-extension";
 import path from "path";
 
-const isDevelopment = process.env.NODE_ENV === "development";
-
 // https://vite.dev/config/
 export default defineConfig({
     resolve: {
@@ -19,6 +17,9 @@ export default defineConfig({
             "@app-types": path.resolve(__dirname, "src/types"),
         },
     },
+    define: {
+        __API_URL__: '"https://api.mohammedsayed.dev"',
+    },
     plugins: [
         react({
             babel: {
@@ -28,6 +29,6 @@ export default defineConfig({
         [webExtension({ disableAutoLaunch: true })],
     ],
     build: {
-        sourcemap: isDevelopment,
+        sourcemap: true,
     },
 });
