@@ -26,7 +26,7 @@ async function getFromCache(
     // If key is a single string/number, return just that value
     // If key is an array, return the object with all requested keys
     if (!Array.isArray(key)) {
-        return data[key] as any;
+        return data?.[key];
     }
 
     return data as any;

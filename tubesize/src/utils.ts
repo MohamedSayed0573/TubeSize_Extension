@@ -93,6 +93,6 @@ export async function fetchAndRetry(
 }
 
 export async function getAPIFallbackSetting(): Promise<boolean> {
-    const { apiFallback = false } = await getFromSyncCache("apiFallback");
+    const { apiFallback = false } = (await getFromSyncCache("apiFallback")) ?? {};
     return apiFallback as boolean;
 }
