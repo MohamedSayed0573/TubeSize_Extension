@@ -4,8 +4,6 @@ import ms from "ms";
 import { fetchAndRetry } from "./utils";
 import CONFIG from "./constants";
 
-declare const __API_URL__: string;
-
 export function humanizeData(formats: RawFormat): HumanizedFormat {
     const audioSize = getAverageAudioSize(formats.audioFormats);
     const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);
@@ -145,7 +143,7 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
 }
 
 export async function fetchAPI(tag: string): Promise<APIData> {
-    const apiUrl = `${__API_URL__}/api/video-sizes/${tag}?humanReadableSizes=true&mergeAudioWithVideo=true`;
+    const apiUrl = `${process.env.API_URL}/api/video-sizes/${tag}?humanReadableSizes=true&mergeAudioWithVideo=true`;
 
     const res = await fetchAndRetry(apiUrl, {
         method: "GET",

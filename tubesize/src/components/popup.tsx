@@ -60,6 +60,7 @@ function Popup() {
     const [cache, setCache] = useState<string | undefined>(undefined);
     const [useOptionsPage, setUseOptionsPage] = useState(false);
     const [enabledOptions, setEnabledOptions] = useState<string[]>([]);
+    const [error, setError] = useState();
 
     useEffect(() => {
         (async () => {
@@ -89,27 +90,34 @@ function Popup() {
                 }
 
                 const response = await sendMessageToBackground(tab.id!, tag);
+                if (!response.success) throw new Error(response.message);
                 setVideoData(response);
                 setCache(getCachedAgo(response.createdAt) || "Cached just now");
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                console.error("[Popup Error]:", errorMessage);
-                setMessage({ type: "error", message: errorMessage });
-                setVideoData(null);
-                setCache(undefined);
+            } catch (err: any) {
+                console.error("[Popup Error]:", err);
+                setError(err);
             }
         })();
     }, []);
 
     useEffect(() => {
         (async () => {
-            const allOptions = await getOptions();
-            const enabledOptions = CONFIG.optionIDs.filter((option) => {
-                return allOptions[option] ?? true;
-            });
-            setEnabledOptions(enabledOptions);
+            try {
+                const allOptions = await getOptions();
+                const enabledOptions = CONFIG.optionIDs.filter((option) => {
+                    return allOptions[option] ?? true;
+                });
+                setEnabledOptions(enabledOptions);
+            } catch (err: any) {
+                console.error(err);
+                setError(err);
+            }
         })();
     }, []);
+
+    if (error) {
+        throw new Error(error);
+    }
 
     if (useOptionsPage) {
         return <Options />;
