@@ -10,6 +10,7 @@
         "test": "jest",
         "prettier:write": "pnpm exec prettier . --write",
         "pack": "pnpm run build && zip -r dist/tubesize.zip dist",
+        "pack:firefox": "pnpm run build && cd dist && cp * ../dist_firefox && cd ../dist_firefox && mv ../manifest_firefox.json . && zip -r tubesize_firefox.zip .",
         "lint": "eslint .",
         "preview": "vite preview",
         "tsc": "tsc --noEmit"
@@ -19,6 +20,7 @@
         "ms": "^2.1.3",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
+        "ts-node": "^10.9.2",
         "webextension-polyfill": "^0.12.0"
     },
     "devDependencies": {
