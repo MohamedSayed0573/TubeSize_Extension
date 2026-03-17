@@ -6,8 +6,13 @@ export default function ApiFallbackSetting() {
 
     useEffect(() => {
         (async () => {
-            const options = await getFromSyncCache();
-            setAPIFallback(!!options.apiFallback);
+            try {
+                const options = await getFromSyncCache();
+                setAPIFallback(!!options?.apiFallback);
+            } catch (err) {
+                console.error("Failed to load API fallback setting from cache:", err);
+                setAPIFallback(false);
+            }
         })();
     }, []);
     return (
