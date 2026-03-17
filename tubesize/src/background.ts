@@ -1,4 +1,4 @@
-import type { BackgroundResponse, RawData } from "./types/types";
+import type { BackgroundResponse } from "./types/types";
 import { getFromStorage, saveToStorage } from "./cache";
 import { addBadge, clearBadge } from "./badge";
 import {
@@ -10,23 +10,27 @@ import {
 } from "./youtube";
 import { getAPIFallbackSetting } from "./utils";
 
+type Message = {
+    type: "clearBadge" | "setBadge" | "sendYoutubeUrl";
+    tag: string;
+    tabId?: number;
+    html?: string;
+};
+
 chrome.runtime.onMessage.addListener(
     (
-        message: {
-            type: string;
-            tag: string;
-            tabId?: number;
-            html?: string;
-        },
+        message: Message,
         sender: chrome.runtime.MessageSender,
         sendResponse: (response: BackgroundResponse) => void,
     ) => {
         if (message.type === "clearBadge") {
             clearBadge(sender.tab?.id);
+            sendResponse({ success: true, data: null, cached: false });
             return;
         }
         if (message.type === "setBadge") {
             addBadge(sender.tab?.id);
+            sendResponse({ success: true, data: null, cached: false });
             return;
         }
 
@@ -54,19 +58,10 @@ chrome.runtime.onMessage.addListener(
             }
 
             try {
-                let data: RawData;
-                try {
-                    if (message.html) {
-                        data = extractYtInitialForVideo(message.html, tag);
-                    } else {
-                        throw new Error("no html");
-                    }
-                } catch {
-                    const fetchedHtml = await fetchHTMLPage(tag);
-                    data = extractYtInitialForVideo(fetchedHtml, tag);
-                }
-
-                const rawFormats = parseDataFromYtInitial(data);
+                throw new Error("test");
+                const html = message.html ?? (await fetchHTMLPage(tag));
+                const rawData = extractYtInitialForVideo(html, tag);
+                const rawFormats = parseDataFromYtInitial(rawData);
                 const humanizedFormats = humanizeData(rawFormats);
 
                 await saveToStorage(tag, humanizedFormats);
@@ -77,7 +72,9 @@ chrome.runtime.onMessage.addListener(
                     cached: false,
                     api: false,
                 });
-            } catch {
+            } catch (err) {
+                console.error("Couldn't use local, " + err);
+
                 try {
                     const useAPIFallback = await getAPIFallbackSetting();
                     if (!useAPIFallback) {
@@ -95,6 +92,7 @@ chrome.runtime.onMessage.addListener(
                         api: true,
                     });
                 } catch (apiErr) {
+                    console.error(apiErr);
                     clearBadge(tabId);
                     sendResponse({
                         success: false,
