@@ -70,8 +70,16 @@ async function handleMain(
     }
 
     try {
-        const pageHtml = html ?? (await fetchHTMLPage(tag));
-        const rawData = extractYtInitialForVideo(pageHtml, tag);
+        let rawData;
+        try {
+            if (!html) throw new Error("No HTML");
+            rawData = extractYtInitialForVideo(html, tag);
+        } catch (e) {
+            if (html) console.warn("Local HTML extraction failed, falling back to fetchHTMLPage");
+            const pageHtml = await fetchHTMLPage(tag);
+            rawData = extractYtInitialForVideo(pageHtml, tag);
+        }
+
         const rawFormats = parseDataFromYtInitial(rawData);
         const humanizedFormats = humanizeData(rawFormats);
 
