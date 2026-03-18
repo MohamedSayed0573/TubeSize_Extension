@@ -79,6 +79,11 @@ fastify.setErrorHandler((err: Error, req: FastifyRequest, res: FastifyReply) => 
     const status = err instanceof AppError ? err.statusCode : 500;
     const message = err instanceof AppError ? err.message : "Internal Server Error";
 
+    // Always log unexpected errors (non-AppError) for debugging
+    if (!(err instanceof AppError)) {
+        req.log.error({ err }, "Unhandled error");
+    }
+
     if (env.NODE_ENV === "production") {
         res.status(status).send({
             success: false,

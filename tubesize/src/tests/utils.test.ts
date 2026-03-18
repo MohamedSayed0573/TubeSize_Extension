@@ -1,4 +1,4 @@
-import { isYoutubePage, extractVideoTag } from "../utils";
+import { isYoutubePage, extractVideoTag } from "@/utils.js";
 
 describe("isYoutubePage", () => {
     test("should return true for a valid YouTube URL", () => {

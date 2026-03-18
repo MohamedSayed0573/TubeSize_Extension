@@ -1,9 +1,9 @@
-import CONFIG from "./constants";
-import type { APIData, HumanizedFormat, StorageData } from "./types/types";
+import CONFIG from "@/constants";
+import type { APIData, HumanizedFormat, StorageData } from "@app-types/types";
 
 async function getCacheTTLSetting(): Promise<number> {
     const cacheTTL = await getFromSyncCache("cacheTTL");
-    return cacheTTL * 24 * 60 * 60 || CONFIG.DEFAULT_CACHE_TTL;
+    return cacheTTL || CONFIG.DEFAULT_CACHE_TTL;
 }
 
 async function setToCache(storage: "local" | "sync", input: { [key: string | number]: any }) {
@@ -26,7 +26,7 @@ async function getFromCache(
     // If key is a single string/number, return just that value
     // If key is an array, return the object with all requested keys
     if (!Array.isArray(key)) {
-        return data[key] as any;
+        return data?.[key];
     }
 
     return data as any;

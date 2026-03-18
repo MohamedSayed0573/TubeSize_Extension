@@ -26,6 +26,7 @@ export async function getVideoInfo(videoTag: string): Promise<RawData> {
 
         const { stdout } = await execFileAsync("yt-dlp", args, {
             timeout: CONFIG.YTDLP_TIMEOUT_MS,
+            maxBuffer: 50 * 1024 * 1024, // 50MB — yt-dlp JSON output can be large
         });
 
         const data = JSON.parse(stdout);

@@ -74,5 +74,9 @@ jobs:
                       export IMAGE_TAG="${{ env.DEPLOY_ENV }}-${TEMP_SHA::7}"
 
                       docker compose -p "${{ env.DEPLOY_ENV }}" -f "${{ env.COMPOSE_FILE }}" pull
+
+                      # Force remove containers with the same name to prevent project conflicts
+                      docker rm -f yt-dlp-api-${{ env.DEPLOY_ENV }} redis-${{ env.DEPLOY_ENV }}
+
                       docker compose -p "${{ env.DEPLOY_ENV }}" -f "${{ env.COMPOSE_FILE }}" up -d
                       docker image prune -f

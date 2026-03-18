@@ -1,11 +1,13 @@
+import "@styles/popup.css";
+import type { BackgroundResponse } from "@app-types/types";
 import { useEffect, useState } from "react";
-import { extractVideoTag, isYoutubePage, isShortsVideo } from "../utils";
-import Options from "./options.tsx";
-import "../styles/popup.css";
-import type { BackgroundResponse } from "../types/types.ts";
-import CONFIG from "../constants";
+import { extractVideoTag, isYoutubePage, isShortsVideo } from "@/utils";
+import { getFromSyncCache } from "@/cache";
 import ms from "ms";
-import { getFromSyncCache } from "../cache.ts";
+import Options from "@/pages/options";
+import CONFIG from "@/constants";
+import Header from "@/components/header";
+import VideoFormat from "@/components/videoFormat";
 
 async function getTab() {
     return await chrome.tabs.query({ active: true, currentWindow: true });
@@ -45,21 +47,16 @@ async function getOptions() {
     return await getFromSyncCache(CONFIG.optionIDs);
 }
 
-type Message = {
-    type: "info" | "error";
-    message: string;
-};
-
-function Popup() {
-    const [message, setMessage] = useState<Message>({
-        type: "info",
-        message: "Loading sizes for this video… (This might take a few seconds)",
-    });
+export default function Popup() {
+    const [message, setMessage] = useState<string>(
+        "Loading sizes for this video… (This might take a few seconds)",
+    );
 
     const [videoData, setVideoData] = useState<BackgroundResponse | null>(null);
     const [cache, setCache] = useState<string | undefined>(undefined);
     const [useOptionsPage, setUseOptionsPage] = useState(false);
     const [enabledOptions, setEnabledOptions] = useState<string[]>([]);
+    const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
         (async () => {
@@ -68,48 +65,59 @@ function Popup() {
                 const url = tab?.url;
 
                 if (!url) {
-                    setMessage({ type: "info", message: "No Active Tab found" });
+                    setMessage("No Active Tab found");
                     return;
                 }
 
                 if (!isYoutubePage(url)) {
-                    setMessage({ type: "info", message: "Not a YouTube video page" });
+                    setMessage("Not a YouTube video page");
                     return;
                 }
 
                 if (isShortsVideo(url)) {
-                    setMessage({ type: "info", message: "Shorts Videos are not supported" });
+                    setMessage("Shorts Videos are not supported");
                     return;
                 }
 
                 const tag = extractVideoTag(url);
                 if (!tag) {
-                    setMessage({ type: "info", message: "Open a Youtube video" });
+                    setMessage("Open a Youtube video");
                     return;
                 }
 
                 const response = await sendMessageToBackground(tab.id!, tag);
+                if (!response.success) throw new Error(response.message);
                 setVideoData(response);
-                setCache(getCachedAgo(response.createdAt));
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                console.error("[Popup Error]:", errorMessage);
-                setMessage({ type: "error", message: errorMessage });
-                setVideoData(null);
-                setCache(undefined);
+                setCache(
+                    response.cached
+                        ? getCachedAgo(response.createdAt) || "Cached just now"
+                        : undefined,
+                );
+            } catch (err: any) {
+                console.error("[Popup Error]:", err);
+                setError(err);
             }
         })();
     }, []);
 
     useEffect(() => {
         (async () => {
-            const allOptions = await getOptions();
-            const enabledOptions = CONFIG.optionIDs.filter((option) => {
-                return allOptions[option] ?? true;
-            });
-            setEnabledOptions(enabledOptions);
+            try {
+                const allOptions = await getOptions();
+                const enabledOptions = CONFIG.optionIDs.filter((option) => {
+                    return allOptions[option] ?? true;
+                });
+                setEnabledOptions(enabledOptions);
+            } catch (err: any) {
+                console.error(err);
+                setError(err);
+            }
         })();
     }, []);
+
+    if (error) {
+        throw error;
+    }
 
     if (useOptionsPage) {
         return <Options />;
@@ -117,21 +125,11 @@ function Popup() {
 
     return (
         <>
-            <div className="header">
-                <div className="title" title={videoData?.data?.title}>
-                    {videoData?.data?.title ?? "TubeSize"}
-                </div>
-                <span className="duration" id="duration-display">
-                    {videoData?.data?.duration}
-                </span>
-                <button id="optionsBtn" onClick={() => setUseOptionsPage(true)}>
-                    Options
-                </button>
-            </div>
+            <Header videoData={videoData} setUseOptionsPage={setUseOptionsPage} />
             <div id="container">
                 {cache && <div className="cached-note">{cache}</div>}
                 {!videoData ? (
-                    <span className={message.type}> {message.message}</span>
+                    <span className="info">{message}</span>
                 ) : enabledOptions.length === 0 ? (
                     <span className="error">All Resolutions Disabled. Enable in options</span>
                 ) : (
@@ -140,12 +138,7 @@ function Popup() {
                             return enabledOptions.includes("p" + item.height);
                         })
                         ?.map((item) => {
-                            return (
-                                <div className="format-item" key={item.formatId}>
-                                    <div className="format-height"> {item.height} </div>
-                                    <div className="format-size">{item.size}</div>
-                                </div>
-                            );
+                            return <VideoFormat key={item.formatId} item={item} />;
                         })
                         .reverse()
                 )}
@@ -153,5 +146,3 @@ function Popup() {
         </>
     );
 }
-
-export default Popup;

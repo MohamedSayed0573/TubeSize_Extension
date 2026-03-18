@@ -1,16 +1,46 @@
 export default {
     preset: "ts-jest/presets/default-esm",
     testEnvironment: "node",
+    extensionsToTreatAsEsm: [".ts", ".tsx"],
     setupFilesAfterEnv: ["jest-extended/all"],
     transform: {
-        "^.+\\.tsx?$": [
+        "^.+\\.(ts|tsx|js)$": [
             "ts-jest",
             {
                 useESM: true,
+                tsconfig: {
+                    target: "ES2022",
+                    module: "ESNext",
+                    moduleResolution: "bundler",
+                    allowImportingTsExtensions: true,
+                    esModuleInterop: true,
+                    verbatimModuleSyntax: false,
+                    types: ["jest", "jest-extended", "node", "vite/client", "chrome"],
+                    baseUrl: ".",
+                    paths: {
+                        "@/*": ["src/*"],
+                        "@components/*": ["src/components/*"],
+                        "@styles/*": ["src/styles/*"],
+                        "@pages/*": ["src/pages/*"],
+                        "@options/*": ["src/options/*"],
+                        "@tests/*": ["src/tests/*"],
+                        "@assets/*": ["src/assets/*"],
+                        "@app-types/*": ["src/types/*"],
+                    },
+                },
             },
         ],
     },
     moduleNameMapper: {
         "^(\\.{1,2}/.*)\\.js$": "$1",
+        "^@/(.*)\\.js$": "<rootDir>/src/$1",
+        "^@/(.*)$": "<rootDir>/src/$1",
+        "^@components/(.*)$": "<rootDir>/src/components/$1",
+        "^@styles/(.*)$": "<rootDir>/src/styles/$1",
+        "^@pages/(.*)$": "<rootDir>/src/pages/$1",
+        "^@options/(.*)$": "<rootDir>/src/options/$1",
+        "^@tests/(.*)$": "<rootDir>/src/tests/$1",
+        "^@assets/(.*)$": "<rootDir>/src/assets/$1",
+        "^@app-types/(.*)$": "<rootDir>/src/types/$1",
     },
 };

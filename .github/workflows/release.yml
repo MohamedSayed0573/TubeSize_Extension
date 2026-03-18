@@ -2,7 +2,7 @@ name: Release
 on:
     push:
         tags:
-            - "ext-v*.*.*"
+            - "extension-v*.*.*"
 
 jobs:
     build:
@@ -12,17 +12,11 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
-              with:
-                  sparse-checkout: |
-                      extension
-                      pnpm-workspace.yaml
-                      package.json
-                      pnpm-lock.yaml
 
             - name: Install pnpm
               uses: pnpm/action-setup@v2
               with:
-                  version: 8
+                  version: 10.30.3
 
             - name: Set up Node.js
               uses: actions/setup-node@v3
@@ -35,8 +29,8 @@ jobs:
 
             - name: Build release packages
               run: |
-                  pnpm --filter tubesize run pack
                   pnpm --filter tubesize run pack:firefox
+                  pnpm --filter tubesize run pack
 
             - name: Run Tests
               run: pnpm --filter tubesize run test
@@ -45,5 +39,5 @@ jobs:
               uses: softprops/action-gh-release@v2
               with:
                   files: |
-                      extension/TubeSize_Extension.zip
-                      extension/TubeSize_Firefox_Extension.zip
+                      tubesize/dist/tubesize.zip
+                      tubesize/dist_firefox/tubesize_firefox.zip

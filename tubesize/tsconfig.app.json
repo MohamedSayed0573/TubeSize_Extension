@@ -5,7 +5,7 @@
         "useDefineForClassFields": true,
         "lib": ["ES2022", "DOM", "DOM.Iterable"],
         "module": "ESNext",
-        "types": ["vite/client", "chrome"],
+        "types": ["vite/client", "chrome", "jest", "jest-extended", "node", "@types/jest"],
         "skipLibCheck": true,
 
         /* Bundler mode */
@@ -22,7 +22,18 @@
         "noUnusedParameters": true,
         "erasableSyntaxOnly": true,
         "noFallthroughCasesInSwitch": true,
-        "noUncheckedSideEffectImports": true
+        "noUncheckedSideEffectImports": true,
+        "baseUrl": ".",
+        "paths": {
+            "@/*": ["src/*"],
+            "@components/*": ["src/components/*"],
+            "@styles/*": ["src/styles/*"],
+            "@pages/*": ["src/pages/*"],
+            "@options/*": ["src/options/*"],
+            "@tests/*": ["src/tests/*"],
+            "@assets/*": ["src/assets/*"],
+            "@app-types/*": ["src/types/*"]
+        }
     },
     "include": ["src", "src/types"]
 }
