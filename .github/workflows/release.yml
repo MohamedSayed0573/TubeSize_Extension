@@ -29,8 +29,8 @@ jobs:
 
             - name: Build release packages
               run: |
-                  pnpm --filter tubesize run pack
                   pnpm --filter tubesize run pack:firefox
+                  pnpm --filter tubesize run pack
 
             - name: Run Tests
               run: pnpm --filter tubesize run test
