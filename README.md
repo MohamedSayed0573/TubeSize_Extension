@@ -32,7 +32,7 @@
 
 | Store           | URL                                                                                                       |
 | --------------- | --------------------------------------------------------------------------------------------------------- |
-| Chrome Store    | Coming soon -> For now, download from releases ↓                                                          |
+| Chrome Store    | Download from releases. Read below ↓                                                                      |
 | Edge Store      | [Click Here](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka) |
 | Firefox Add-ons | [Click Here](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)                                    |
 
