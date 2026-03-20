@@ -1,153 +1,234 @@
 <div align="center">
 
-<h1>
-  <img src="tubesize/public/icons/icon-128.png" alt="TubeSize Logo"/>
-    <br>
-  TubeSize - YouTube Video Size Viewer
-</h1>
+<img src="tubesize/public/icons/icon-128.png" alt="TubeSize Logo" width="96" />
+
+# TubeSize
 
 **Know exactly how much data a YouTube video will cost you — before you press play.**
 
-[![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com)
-[![Firefox Add-ons](https://img.shields.io/badge/Firefox-Add--ons-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)
-[![Edge Add-ons](https://img.shields.io/badge/Edge-Add--ons-0078D7?logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome-Install-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com)
+[![Firefox Add-ons](https://img.shields.io/badge/Firefox-Install-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)
+[![Edge Add-ons](https://img.shields.io/badge/Edge-Install-0078D7?logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)](https://developer.chrome.com/docs/extensions/mv3/intro/)
+[![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)](https://developer.chrome.com/docs/extensions/mv3/)
 
 </div>
 
 ---
 
-## 📸 Screenshots
+TubeSize is a browser extension that shows you the estimated file size of any YouTube video — across every available quality — directly in a popup, without leaving the page. No trackers, no sign-in, no third-party analytics. It works locally first, and only ever reaches out to a self-hosted backup API when the client-side extraction has exhausted every option.
+
+## Screenshots
 
 <div align="center">
-    <img alt="image" src="https://github.com/user-attachments/assets/1289364f-3cce-4050-a301-cb91e60a36bc" />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
+  <img alt="TubeSize popup showing video file sizes per quality level" src="https://github.com/user-attachments/assets/1289364f-3cce-4050-a301-cb91e60a36bc" />
 </div>
 
 ---
 
-## 🚀 Installation
+## Features
 
-| Store           | URL                                                                                                       |
-| --------------- | --------------------------------------------------------------------------------------------------------- |
-| Chrome Store    | Download from releases. Read below ↓                                                                      |
-| Edge Store      | [Click Here](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka) |
-| Firefox Add-ons | [Click Here](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)                                    |
-
-### Download from Releases
-
-**Video Explanation:** [Watch from here](https://github.com/user-attachments/assets/10f4bb06-da77-4a31-8bf5-837fad21ae35)
-
-1. Go to the [Releases page](https://github.com/MohamedSayed0573/TubeSize_Extension/releases).
-2. Download the latest browser package:
-    - `TubeSize_Extension.zip` for Chrome / Edge
-    - `TubeSize_Firefox_Extension.zip` for Firefox
-3. Extract the zip file.
-4. Open `chrome://extensions` in your browser
-5. Enable **Developer mode** (Top right of your screen).
-6. Click **Load unpacked** and select the extracted folder.
-
-### Manual Installation (Developer Mode)
-
-### Build Requirements
-
-The extension source submitted for review can be reproduced with the following environment:
-
-- Operating systems: Linux, macOS, or Windows
-- Node.js: `20.19.4`
-- pnpm: `10.30.3`
-
-### Build Instructions
-
-1. **Clone the repository**
-
-    ```bash
-    git clone https://github.com/MohamedSayed0573/tubesize.git
-    cd tubesize
-    ```
-
-2. **Install dependencies**
-
-    ```bash
-    pnpm install
-    ```
-
-3. **Build the extension**
-
-    ```bash
-    cd extension && pnpm run build
-
-    ```
-
-4. **Generated files**
-    - The build outputs bundled files into `extension/dist/`
-    - The Firefox package uses `extension/manifest.firefox.json`
-
-### Package for Each Browser
-
-- Chrome / Edge: `cd extension && pnpm run pack`
-- Firefox: `cd extension && pnpm run pack:firefox`
-
-The Firefox package is built from `extension/manifest.firefox.json` and renamed to `manifest.json` inside the final zip, which is what Firefox expects.
+- **Per-resolution file sizes** — 144p through 8K (4320p), with audio already merged in
+- **Size ranges at 1080p+** — when multiple encoding formats exist for a resolution (e.g. AV1, VP9, H.264), the popup shows the smallest–largest range so you can compare
+- **Client-first, privacy-respecting** — metadata is extracted directly from the YouTube page; no data is sent anywhere unless local extraction fails
+- **Local cache** — results are stored in `chrome.storage.local` with a configurable TTL (default: 3 days) so repeat views are instant
+- **Self-hosted fallback API** — if client-side extraction fails, an optional backup API powered by `yt-dlp` and deployed on AWS EC2 takes over silently
+- **Cross-browser** — Chrome, Firefox, and Edge are all supported from the same codebase (Manifest V3 for Chromium, adapted manifest for Firefox)
+- **Keyboard shortcut** — open the popup at any time with `Ctrl+Shift+0` (`Cmd+Shift+0` on Mac)
 
 ---
 
-## 🛠️ How It Works
+## Installation
 
-TubeSize resolves video sizes locally whenever possible, then formats the result into a simple per-resolution list in the popup.
+| Store            | Link                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------ |
+| Chrome Web Store | Install Manually (Read below)                                                                          |
+| Firefox Add-ons  | [Install](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)                                    |
+| Edge Add-ons     | [Install](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka) |
 
-### 1. Detect the current video
+### How to Install manually
 
-- The content script listens for YouTube's in-page navigation and grabs the script that contains `ytInitialPlayerResponse`.
-- The popup validates the active tab, makes sure it's a normal YouTube watch page, and skips Shorts.
+> **Video walkthrough:** [Watch here](https://github.com/user-attachments/assets/10f4bb06-da77-4a31-8bf5-837fad21ae35)
 
-### 2. Resolve the raw stream data
-
-- The background service worker checks `chrome.storage.local` first and returns cached data immediately when it exists.
-- On a cache miss, it tries to parse the `ytInitialPlayerResponse` sent from the content script.
-- If that data is missing, it fetches the YouTube watch page directly and extracts the same player response from the HTML.
-- If local extraction fails and API fallback option is enabled, it requests the data from the backup API at `https://api.mohammedsayed.dev`.
-
-### 3. Turn streams into displayed sizes
-
-- The extension scans YouTube's adaptive formats and matches them against a priority list of itags for each resolution.
-- It estimates the audio portion using the available `itag 251` streams, averages them, and adds that audio size to each video format.
-- For lower resolutions, it shows the preferred format's size.
-- Starting at `1080p`, if multiple valid formats exist, it can show a size range from the smallest to the largest matching stream.
-- Finally, raw byte counts are converted into human-readable values like `850 MB` or `1.2 GB`.
-
-### 4. Cache and display the result
-
-- Locally extracted results are cached in `chrome.storage.local` with a configurable TTL (`3 days` by default).
-- Incomplete results such as `0 B` entries are not cached.
-- Cached responses show a `Cached X ago` note in the popup.
-- API fallback responses are returned to the popup, but they are not cached locally so the cache stays consistent.
+1. Go to the [Releases page](https://github.com/MohamedSayed0573/TubeSize_Extension/releases)
+2. Download the latest `TubeSize_Extension.zip` (Chrome/Edge) or `TubeSize_Firefox_Extension.zip` (Firefox)
+3. Extract the zip
+4. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select the extracted folder
 
 ---
 
-## 🔒 Permissions
+## How It Works
 
-The extension requests the minimum permissions necessary:
+TubeSize uses a **client-first resolution strategy**: it only contacts the backend when the extension has exhausted every local option. Here is the full request path:
 
-| Permission                                | Why it's needed                                          |
-| ----------------------------------------- | -------------------------------------------------------- |
-| `activeTab`                               | Read the URL of the current tab to extract the video ID  |
-| `storage`                                 | Save cached video data and user preferences locally      |
-| `host_permissions: *.youtube.com`         | Inject the content script and fetch video page data      |
-| `host_permissions: api.mohammedsayed.dev` | Call the optional backup API when local extraction fails |
+```
+User opens YouTube watch page
+       │
+       ▼
+Content script fires on `yt-navigate-finish` event
+  → Scans <script> tags for `ytInitialPlayerResponse`
+  → Sends extracted script content + video ID to background service worker
+       │
+       ▼
+Background service worker
+  1. Cache hit?  → Return immediately (chrome.storage.local, TTL-checked)
+  2. Parse HTML from content script
+  3. Fetch YouTube page directly (if content script data is stale/missing)
+  4. Call fallback API at api.mohammedsayed.dev (if local fails and user opted in)
+       │
+       ▼
+Size calculation
+  → Select an itag per resolution (144p → 8K) using a priority list
+  → Average audio track sizes (itag 251), merge audio into every video format
+  → Show size range (min–max) for 1080p and above when multiple codecs exist
+  → Convert raw bytes to human-readable sizes (e.g. 1.2 GB)
+       │
+       ▼
+Result cached in chrome.storage.local
+Popup displays per-resolution size table instantly
+```
+
+### Resolution & Codec Support
+
+TubeSize resolves all standard YouTube adaptive-streaming itags:
+
+| Resolution | Itags checked (priority order) |
+| ---------- | ------------------------------ |
+| 144p       | 394, 330, 278, 160             |
+| 240p       | 395, 331, 242, 133             |
+| 360p       | 396, 332, 243, 134             |
+| 480p       | 397, 333, 244, 135             |
+| 720p       | 398, 334, 302, 247, 298, 136   |
+| 1080p      | 399, 335, 303, 248, 299, 137   |
+| 1440p      | 400, 336, 308, 271, 304, 264   |
+| 2160p (4K) | 401, 337, 315, 313, 305, 266   |
+| 4320p (8K) | 402, 571, 272, 138             |
+
+Audio size is determined by averaging all available `itag 251` (Opus 160kbps) streams returned by YouTube and is added to every video format.
+
+### Caching Behaviour
+
+- Results are stored per video ID in `chrome.storage.local`
+- Default TTL: **3 days** (configurable in extension options: 1 / 3 / 7 days)
+- Entries with any `0 B` size are considered incomplete and are **not** cached
+- API fallback responses are **not** cached to keep the local cache consistent
+- The popup shows a `Cached X ago` note when serving from cache
 
 ---
 
-## 👤 Author
+## Backend API
+
+The fallback API is a standalone **Fastify + TypeScript** server that runs on **AWS EC2** inside a Docker container. It is called only when the extension cannot extract video data locally.
+
+### Stack
+
+| Layer            | Technology                                        |
+| ---------------- | ------------------------------------------------- |
+| Runtime          | Node.js + TypeScript                              |
+| Framework        | Fastify                                           |
+| Video metadata   | `yt-dlp` (spawned as a subprocess)                |
+| Caching (Server) | Redis                                             |
+| Security         | `@fastify/helmet`, `@fastify/cors`, rate limiting |
+| Containerisation | Docker (multi-stage: dev / staging / prod)        |
+| Hosting          | AWS EC2                                           |
+| CI/CD            | GitHub Actions                                    |
+| API Docs         | OpenAPI 3 / Swagger UI (`/api-docs/swagger`)      |
+
+### Endpoint
+
+```
+GET /api/video-sizes/:videoTag
+    ?humanReadableSizes=true   # default true
+    ?mergeAudioWithVideo=true  # default true
+```
+
+The server validates the video ID format, checks Redis for a cached result, otherwise spawns `yt-dlp --skip-download -J` to fetch stream metadata, formats the response, writes to Redis (TTL-controlled), and returns it.
+
+### CI/CD Pipeline
+
+Two GitHub Actions workflows handle the full release lifecycle:
+
+**`deploy.yml` — API deployment**
+
+- Triggered on every push to any branch (→ staging) or on `api-v*` tags (→ production)
+- Builds a Docker image, pushes it to Docker Hub, then SSH-deploys it to EC2 via `docker compose up -d`
+- Production and staging share the same image; the target stage (`prod` / `staging`) is resolved at build time from the git ref
+
+**`release.yml` — Extension packaging**
+
+- Triggered on `extension-v*.*.*` tags
+- Installs dependencies, runs the Jest test suite, builds Chrome and Firefox packages, and publishes them as a GitHub Release
+
+---
+
+## Permissions
+
+The extension requests the minimum permissions required:
+
+| Permission                                | Why                                                                                   |
+| ----------------------------------------- | ------------------------------------------------------------------------------------- |
+| `activeTab`                               | Read the current tab's URL to extract the video ID                                    |
+| `storage`                                 | Cache video data and user preferences locally                                         |
+| `host_permissions: *.youtube.com`         | Inject the content script; fetch the YouTube page from the service worker when needed |
+| `host_permissions: api.mohammedsayed.dev` | Call the optional self-hosted fallback API                                            |
+
+---
+
+## Local Development
+
+### Prerequisites
+
+- Node.js `20.x`
+- pnpm `10.x`
+- For the API: Docker, Redis, `yt-dlp`
+
+### Extension
+
+```bash
+git clone https://github.com/MohamedSayed0573/TubeSize_Extension.git
+cd TubeSize_Extension
+pnpm install
+
+# Development build with watch
+cd tubesize && pnpm run dev
+
+# Production build
+pnpm run build
+
+# Run tests
+pnpm run test
+```
+
+Load the `tubesize/dist/` folder as an unpacked extension in your browser.
+
+### API
+
+```bash
+docker compose -f api/docker-compose.dev.yml up
+```
+
+### Package for Release
+
+```bash
+# Chrome / Edge
+cd tubesize && pnpm run pack
+
+# Firefox
+cd tubesize && pnpm run pack:firefox
+```
+
+---
+
+## Author
 
 **Mohammed Sayed**
 
+- GitHub: [@MohamedSayed0573](https://github.com/MohamedSayed0573)
 - LinkedIn: [mohamed-sayed3](https://www.linkedin.com/in/mohamed-sayed3/)
 
 ---
 
-## 📄 License
+## License
 
-This project is licensed under the [MIT License](LICENSE).
+[MIT](LICENSE)
