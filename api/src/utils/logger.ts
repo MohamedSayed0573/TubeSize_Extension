@@ -1,5 +1,5 @@
 import pino from "pino";
-import env from "#utils/env";
+import env from "@utils/env";
 
 const logger = pino({
     redact: ["req.headers[x-api-key]"],
