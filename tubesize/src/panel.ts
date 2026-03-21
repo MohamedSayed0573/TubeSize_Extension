@@ -21,8 +21,8 @@ async function waitForElement(selector: string, timeoutMs = 10000): Promise<Elem
     });
 }
 
-export default async function renderMenu(response: BackgroundResponse | undefined) {
-    document.querySelector("#tubesize-extension-menu")?.remove();
+export default async function renderPanel(response: BackgroundResponse | undefined) {
+    document.querySelector("#tubesize-extension-panel")?.remove();
     const options = (await getFromSyncCache()) as Record<string, string | boolean>;
     if (options?.showPanel === false) {
         return;
@@ -34,13 +34,13 @@ export default async function renderMenu(response: BackgroundResponse | undefine
 
     const parent = await waitForElement("#middle-row");
     if (!parent) {
-        console.warn("[content] Couldn't find #middle-row to render TubeSize menu.");
+        console.warn("[content] Couldn't find #middle-row to render TubeSize panel.");
         return;
     }
 
-    const menuContainer = document.createElement("div");
-    menuContainer.id = "tubesize-extension-menu";
-    menuContainer.style.cssText = `
+    const panelContainer = document.createElement("div");
+    panelContainer.id = "tubesize-extension-panel";
+    panelContainer.style.cssText = `
         position: relative;
         display: flex;
         gap: 10px;
@@ -58,7 +58,7 @@ export default async function renderMenu(response: BackgroundResponse | undefine
 
     const closeButton = document.createElement("button");
     closeButton.type = "button";
-    closeButton.setAttribute("aria-label", "Close menu");
+    closeButton.setAttribute("aria-label", "Close panel");
     closeButton.title = "Close";
     closeButton.innerHTML = `
         <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
@@ -87,9 +87,9 @@ export default async function renderMenu(response: BackgroundResponse | undefine
         cursor: pointer;
     `;
     closeButton.addEventListener("click", () => {
-        menuContainer.remove();
+        panelContainer.remove();
     });
-    menuContainer.append(closeButton);
+    panelContainer.append(closeButton);
 
     let count = 0;
     response.data.videoFormats.forEach((format) => {
@@ -99,15 +99,15 @@ export default async function renderMenu(response: BackgroundResponse | undefine
         }
         const formatDiv = document.createElement("div");
         formatDiv.textContent = `${format.height}: ${format.size}`;
-        menuContainer.append(formatDiv);
+        panelContainer.append(formatDiv);
         count++;
     });
 
     if (count === 0) {
-        menuContainer.textContent =
+        panelContainer.textContent =
             "No formats to display. Please enable some resolutions in the extension options, or disable the panel if you don't want to use it.";
-        menuContainer.style.fontSize = "14px";
-        menuContainer.append(closeButton);
+        panelContainer.style.fontSize = "14px";
+        panelContainer.append(closeButton);
     }
-    parent.insertAdjacentElement("afterend", menuContainer);
+    parent.insertAdjacentElement("afterend", panelContainer);
 }

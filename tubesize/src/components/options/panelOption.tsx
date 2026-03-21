@@ -1,7 +1,7 @@
 import { getFromSyncCache, setToSyncCache } from "@/cache";
 import { useEffect, useState } from "react";
 
-export default function MenuSettings() {
+export default function PanelSettings() {
     const [showPanel, setShowPanel] = useState(true);
 
     useEffect(() => {
@@ -16,7 +16,7 @@ export default function MenuSettings() {
         })();
     }, []);
     return (
-        <div className="menu-settings">
+        <div className="panel-settings">
             <div className="container">
                 <div className="section-title">Panel</div>
                 <div className="api-fallback-row">

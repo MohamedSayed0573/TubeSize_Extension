@@ -6,7 +6,7 @@ import CacheSettings from "@/components/options/cacheSettings";
 import ApiFallbackSetting from "@/components/options/apiFallbackSetting";
 import { useState, useEffect } from "react";
 import { getFromSyncCache } from "@/cache";
-import MenuSettings from "@/components/options/panelOption";
+import PanelSettings from "@/components/options/panelOption";
 
 export default function Options() {
     const [optionsState, setOptionsState] = useState<Record<any, any>>({});
@@ -48,7 +48,7 @@ export default function Options() {
             <ApiFallbackSetting />
 
             <div className="section-divider"></div>
-            <MenuSettings />
+            <PanelSettings />
 
             <div className="section-divider"></div>
             <div className="author">

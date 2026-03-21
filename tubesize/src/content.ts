@@ -1,5 +1,5 @@
 import { extractVideoTag } from "@/utils";
-import renderMenu from "./panel";
+import renderPanel from "./panel";
 
 async function sendRuntimeMessage(message: { type: string; tag?: string; html?: string }) {
     try {
@@ -29,7 +29,7 @@ async function init(videoTag: string) {
         html: scriptContent,
     });
 
-    await renderMenu(response);
+    await renderPanel(response);
 }
 
 let lastTag: string | undefined = undefined;
