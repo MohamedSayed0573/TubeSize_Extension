@@ -12,6 +12,7 @@ session*
 coverage/
 code_review/
 .release/
+.jest-cache
 
 new_instance.sh
 www.youtube.com_cookies.txt

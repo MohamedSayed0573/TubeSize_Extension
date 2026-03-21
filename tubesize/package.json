@@ -8,6 +8,7 @@
         "build": "vite build",
         "watch": "vite build --watch --mode development",
         "test": "jest",
+        "test:coverage": "jest --coverage",
         "prettier:write": "pnpm exec prettier . --write",
         "pack": "pnpm run build && zip -r dist/tubesize.zip dist",
         "pack:firefox": "pnpm run build && sh ./scripts/pack-firefox.sh",

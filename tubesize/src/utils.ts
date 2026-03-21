@@ -1,4 +1,3 @@
-import { getFromSyncCache } from "@/cache";
 import CONFIG from "@/constants";
 
 export function isYoutubePage(url: string): boolean {
@@ -10,13 +9,14 @@ export function isYoutubePage(url: string): boolean {
     }
 }
 
+export function isValidTag(tag: string): boolean {
+    return CONFIG.VIDEO_ID_REGEX.test(tag);
+}
+
 export function isShortsVideo(url: string): boolean {
-    try {
-        const parsedUrl = new URL(url);
-        return parsedUrl.pathname.startsWith("/shorts");
-    } catch (err) {
-        return false;
-    }
+    if (!isYoutubePage(url)) return false;
+    const parsedUrl = new URL(url);
+    return parsedUrl.pathname.startsWith("/shorts");
 }
 
 export function extractVideoTag(ytUrl: string): string | undefined {
@@ -26,22 +26,13 @@ export function extractVideoTag(ytUrl: string): string | undefined {
         if (parsedUrl.pathname !== "/watch") return;
 
         const videoTag = parsedUrl.searchParams.get("v");
-        if (!videoTag) return;
+        if (!videoTag || !isValidTag(videoTag)) return;
 
-        if (!CONFIG.VIDEO_ID_REGEX.test(videoTag)) {
-            return;
-        }
         return videoTag;
-    } catch (err) {
-        console.error(err);
+    } catch {
+        return undefined;
     }
 }
-
-// Return the user options
-export async function getOptions() {
-    return await getFromSyncCache(CONFIG.optionIDs);
-}
-
 export function getElement(id: string, isFatal: true): HTMLElement;
 export function getElement(id: string, isFatal?: false): HTMLElement | null;
 
@@ -61,10 +52,10 @@ export function getElement(id: string, isFatal: boolean = false): HTMLElement | 
 export async function fetchAndRetry(
     url: string,
     options: RequestInit = {},
-    maxRetries = CONFIG.DEFAULT_MAX_RETRIES,
+    maxRetries: number = CONFIG.DEFAULT_MAX_RETRIES,
 ): Promise<Response> {
     let lastError: unknown;
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
             const response = await fetch(url, options);
             if (response.ok) return response;
@@ -90,9 +81,4 @@ export async function fetchAndRetry(
         }
     }
     throw new Error(`Failed after ${maxRetries} tries, last error: ${lastError}`);
-}
-
-export async function getAPIFallbackSetting() {
-    const apiFallback = (await getFromSyncCache("apiFallback")) ?? false;
-    return apiFallback;
 }

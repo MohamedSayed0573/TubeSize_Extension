@@ -1,14 +1,13 @@
 import type { BackgroundResponse } from "@app-types/types";
-import { getFromStorage, saveToStorage } from "@/cache";
+import { getFromStorage, getFromSyncCache, saveToStorage } from "@/cache";
 import { addBadge, clearBadge } from "@/badge";
 import {
-    extractYtInitialForVideo,
     fetchAPI,
     fetchHTMLPage,
     parseDataFromYtInitial,
     humanizeData,
+    extractYtInitial,
 } from "@/youtube";
-import { getAPIFallbackSetting } from "@/utils";
 
 type Message = {
     type: "clearBadge" | "setBadge" | "sendYoutubeUrl";
@@ -73,11 +72,11 @@ async function handleMain(
         let rawData;
         try {
             if (!html) throw new Error("No HTML");
-            rawData = extractYtInitialForVideo(html, tag);
+            rawData = extractYtInitial(html);
         } catch (e) {
             if (html) console.warn("Local HTML extraction failed, falling back to fetchHTMLPage");
             const pageHtml = await fetchHTMLPage(tag);
-            rawData = extractYtInitialForVideo(pageHtml, tag);
+            rawData = extractYtInitial(pageHtml);
         }
 
         const rawFormats = parseDataFromYtInitial(rawData);
@@ -123,4 +122,9 @@ async function handleMain(
             });
         }
     }
+}
+
+async function getAPIFallbackSetting() {
+    const apiFallback = (await getFromSyncCache("apiFallback")) ?? false;
+    return apiFallback;
 }

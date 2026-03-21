@@ -1,6 +1,7 @@
 export default {
     preset: "ts-jest/presets/default-esm",
     testEnvironment: "node",
+    cacheDirectory: "<rootDir>/.jest-cache",
     extensionsToTreatAsEsm: [".ts", ".tsx"],
     setupFilesAfterEnv: ["jest-extended/all"],
     transform: {

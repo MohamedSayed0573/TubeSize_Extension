@@ -1,7 +1,7 @@
 import { filesize } from "filesize";
 import type { APIData, HumanizedFormat, RawData, RawFormat } from "@app-types/types";
 import ms from "ms";
-import { fetchAndRetry } from "@/utils";
+import { fetchAndRetry, isValidTag } from "@/utils";
 import CONFIG from "@/constants";
 declare const __API_URL__: string;
 
@@ -52,6 +52,8 @@ export function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSiz
 }
 
 export async function fetchHTMLPage(videoTag: string) {
+    if (!isValidTag(videoTag)) throw new Error("Invalid video tag");
+
     const res = await fetchAndRetry(`https://www.youtube.com/watch?v=${videoTag}`, {
         method: "GET",
         signal: AbortSignal.timeout(CONFIG.FETCH_HTML_TIMEOUT),
@@ -66,16 +68,6 @@ export function extractYtInitial(html: string): RawData {
     if (!match || !match[1]) throw new Error("No match found");
     const data = JSON.parse(match[1]);
     if (!data) throw new Error("No data found");
-    return data;
-}
-
-export function extractYtInitialForVideo(html: string, expectedVideoTag: string): RawData {
-    const data = extractYtInitial(html);
-
-    if (data.videoDetails?.videoId !== expectedVideoTag) {
-        throw new Error("Mismatched video data");
-    }
-
     return data;
 }
 
