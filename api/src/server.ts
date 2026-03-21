@@ -1,25 +1,24 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 
-import env from "./utils/env.js";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import compression from "@fastify/compress";
 import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
+import CONFIG from "@config/constants";
+import apiRoutes from "@routes/api";
+import { healthRoutes } from "@routes/health";
+import { redis } from "@utils/cache";
+import env from "@utils/env";
+import { AppError, NotFoundError } from "@utils/errors";
+import logger from "@utils/logger";
 
 import {
     jsonSchemaTransform,
     serializerCompiler,
     validatorCompiler,
 } from "fastify-type-provider-zod";
-
-import { AppError, NotFoundError } from "./utils/errors.js";
-import apiRoutes from "./routes/api.js";
-import { redis } from "./utils/cache.js";
-import logger from "./utils/logger.js";
-import CONFIG from "./config/constants.js";
-import { healthRoutes } from "./routes/health.js";
 
 const fastify = Fastify({
     loggerInstance: logger,

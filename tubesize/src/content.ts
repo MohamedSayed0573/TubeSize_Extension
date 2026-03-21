@@ -1,15 +1,17 @@
 import { extractVideoTag } from "@/utils";
+import renderPanel from "./panel";
 
 async function sendRuntimeMessage(message: { type: string; tag?: string; html?: string }) {
     try {
-        await chrome.runtime.sendMessage(message);
+        return await chrome.runtime.sendMessage(message);
     } catch (err) {
         if (err instanceof Error && err.message.includes("Extension context invalidated")) {
             console.warn("[content] Extension context invalidated. Reload the page to reconnect.");
-            return;
+            return undefined;
         }
 
         console.error("[content] Failed to send runtime message", err);
+        return undefined;
     }
 }
 
@@ -21,15 +23,17 @@ async function init(videoTag: string) {
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    await sendRuntimeMessage({
+    const response = await sendRuntimeMessage({
         type: "sendYoutubeUrl",
         tag: videoTag,
         html: scriptContent,
     });
+
+    await renderPanel(response);
 }
 
 let lastTag: string | undefined = undefined;
-window.addEventListener("yt-navigate-finish", async () => {
+async function handlePageNavigation() {
     await sendRuntimeMessage({ type: "clearBadge" });
     const url = window.location.href;
     const tag = extractVideoTag(url);
@@ -37,5 +41,11 @@ window.addEventListener("yt-navigate-finish", async () => {
     if (lastTag === tag) return;
     lastTag = tag;
 
-    if (tag) init(tag);
+    if (tag) await init(tag);
+}
+
+window.addEventListener("yt-navigate-finish", () => {
+    void handlePageNavigation();
 });
+
+void handlePageNavigation();

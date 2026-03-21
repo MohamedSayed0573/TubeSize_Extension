@@ -10,7 +10,7 @@ export default function ApiFallbackSetting() {
                 const options = await getFromSyncCache();
                 setAPIFallback(!!options?.apiFallback);
             } catch (err) {
-                console.error("Failed to load API fallback setting from cache:", err);
+                console.error("Failed to load API fallback setting from sync storage:", err);
                 setAPIFallback(false);
             }
         })();

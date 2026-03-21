@@ -1,10 +1,11 @@
 import { promisify } from "util";
 import { execFile } from "child_process";
+import CONFIG from "@config/constants";
+import type { RawData } from "@app-types/types";
+import env from "@utils/env";
+import { InvalidInputError } from "@utils/errors";
+
 const execFileAsync = promisify(execFile);
-import CONFIG from "../config/constants.js";
-import { InvalidInputError } from "../utils/errors.js";
-import env from "../utils/env.js";
-import type { RawData } from "../types.js";
 
 const BASE_ARGS = ["--ignore-config", "-J", "--skip-download"];
 const PROD_ARGS = [

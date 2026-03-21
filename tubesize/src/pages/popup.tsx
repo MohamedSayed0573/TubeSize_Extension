@@ -13,11 +13,14 @@ async function getTab() {
     return await chrome.tabs.query({ active: true, currentWindow: true });
 }
 
-async function sendMessageToBackground(tabId: number, videoTag: string) {
-    return new Promise<BackgroundResponse>((resolve, reject) => {
+async function sendMessageToBackground(
+    tabId: number,
+    videoTag: string,
+): Promise<BackgroundResponse> {
+    return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
             { type: "sendYoutubeUrl", tag: videoTag, tabId: tabId },
-            (response) => {
+            (response: BackgroundResponse) => {
                 if (chrome.runtime.lastError) {
                     reject(new Error(chrome.runtime.lastError.message));
                     return;

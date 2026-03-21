@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Data, HumanizedData } from "../types.js";
+import type { Data, HumanizedData } from "@app-types/types";
 
 const dataSchema = z.object({
     id: z.string(),

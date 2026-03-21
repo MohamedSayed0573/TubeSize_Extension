@@ -1,7 +1,9 @@
-import logger from "../utils/logger.js";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import logger from "@utils/logger";
+
 const execFileAsync = promisify(execFile);
+
 async function getYTDLPVersion() {
     try {
         const { stdout } = await execFileAsync("yt-dlp", ["--version"], {

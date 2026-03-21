@@ -1,17 +1,13 @@
 import type { FastifyInstance } from "fastify";
-import {
-    formatResponse,
-    humanizeSizes,
-    mergeAudioWithVideoFormats,
-} from "../utils/formatResponse.js";
-import { InvalidInputError, RateLimitError } from "../utils/errors.js";
-import { getVideoInfo, validateVideoTag } from "../utils/ytdlp.js";
-import ms from "ms";
-import { checkCache, setCache } from "../utils/cache.js";
-import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { videoSizesRouteSchema } from "../schema/videoSizesSchema.js";
 import rateLimiter from "@fastify/rate-limit";
-import CONFIG from "../config/constants.js";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import ms from "ms";
+import CONFIG from "@config/constants";
+import { videoSizesRouteSchema } from "@schema/videoSizesSchema";
+import { formatResponse, humanizeSizes, mergeAudioWithVideoFormats } from "@utils/formatResponse";
+import { checkCache, setCache } from "@utils/cache";
+import { InvalidInputError, RateLimitError } from "@utils/errors";
+import { getVideoInfo, validateVideoTag } from "@utils/ytdlp";
 
 export async function apiRoutes(fastify: FastifyInstance) {
     // Register rate limiting only for API routes
