@@ -58,35 +58,40 @@ TubeSize is a browser extension that shows you the estimated file size of any Yo
 
 ---
 
+## Stack
+
+TubeSize is built as a browser extension with a self-hosted fallback API.
+
+| Layer            | Technology                                                |
+| ---------------- | --------------------------------------------------------- |
+| Extension        | React, TypeScript, Vite, Jest                             |
+| API Runtime      | Node.js + TypeScript                                      |
+| API Framework    | Fastify                                                   |
+| Validation       | Zod                                                       |
+| Video Metadata   | `yt-dlp` (spawned as a subprocess on the server)          |
+| Caching          | `chrome.storage.local` on the extension, Redis on the API |
+| Security         | `@fastify/helmet`, `@fastify/cors`, rate limiting         |
+| Containerisation | Docker (multi-stage: dev / staging / prod)                |
+| Hosting          | AWS EC2                                                   |
+| CI/CD            | GitHub Actions                                            |
+| API Docs         | OpenAPI 3 / Swagger UI (`/api-docs/swagger`)              |
+
 ## How It Works
 
-TubeSize uses a **client-first resolution strategy**: it only contacts the backend when the extension has exhausted every local option. Here is the full request path:
+TubeSize uses a **client-first resolution strategy**: local first, API only as a fallback.
 
-```
-User opens YouTube watch page
-       │
-       ▼
-Content script fires on `yt-navigate-finish` event
-  → Scans <script> tags for `ytInitialPlayerResponse`
-  → Sends extracted script content + video ID to background service worker
-       │
-       ▼
-Background service worker
-  1. Cache hit?  → Return immediately (chrome.storage.local, TTL-checked)
-  2. Parse HTML from content script
-  3. Fetch YouTube page directly (if content script data is stale/missing)
-  4. Call fallback API at api.mohammedsayed.dev (if local fails and user opted in)
-       │
-       ▼
-Size calculation
-  → Select an itag per resolution (144p → 8K) using a priority list
-  → Average audio track sizes (itag 251), merge audio into every video format
-  → Show size range (min–max) for 1080p and above when multiple codecs exist
-  → Convert raw bytes to human-readable sizes (e.g. 1.2 GB)
-       │
-       ▼
-Result cached in chrome.storage.local
-Popup displays per-resolution size table instantly
+```mermaid
+flowchart LR
+    A[Open YouTube video] --> B{Local cache?}
+    B -->|Yes| C[Return sizes]
+    B -->|No| D[Extract data locally]
+    D --> E{Local success?}
+    E -->|Yes| F[Cache and return]
+    E -->|No| G[Check fallback API]
+    G --> H{API cache?}
+    H -->|Yes| I[Return API result]
+    H -->|No| J[Run yt-dlp]
+    J --> K[Return API result]
 ```
 
 ### Resolution & Codec Support
@@ -107,33 +112,9 @@ TubeSize resolves all standard YouTube adaptive-streaming itags:
 
 Audio size is determined by averaging all available `itag 251` (Opus 160kbps) streams returned by YouTube and is added to every video format.
 
-### Caching Behaviour
-
-- Results are stored per video ID in `chrome.storage.local`
-- Default TTL: **3 days** (configurable in extension options: 1 / 3 / 7 days)
-- Entries with any `0 B` size are considered incomplete and are **not** cached
-- API fallback responses are **not** cached to keep the local cache consistent
-- The popup shows a `Cached X ago` note when serving from cache
-
----
-
 ## Backend API
 
 The fallback API is a standalone **Fastify + TypeScript** server that runs on **AWS EC2** inside a Docker container. It is called only when the extension cannot extract video data locally.
-
-### Stack
-
-| Layer            | Technology                                        |
-| ---------------- | ------------------------------------------------- |
-| Runtime          | Node.js + TypeScript                              |
-| Framework        | Fastify                                           |
-| Video metadata   | `yt-dlp` (spawned as a subprocess)                |
-| Caching (Server) | Redis                                             |
-| Security         | `@fastify/helmet`, `@fastify/cors`, rate limiting |
-| Containerisation | Docker (multi-stage: dev / staging / prod)        |
-| Hosting          | AWS EC2                                           |
-| CI/CD            | GitHub Actions                                    |
-| API Docs         | OpenAPI 3 / Swagger UI (`/api-docs/swagger`)      |
 
 ### Endpoint
 
