@@ -10,6 +10,16 @@ import {
 } from "@/youtube";
 import { getAPIFallbackSetting } from "@/utils";
 
+function sendProgress(tabId: number | undefined, stage: string, tag: string) {
+    if (tabId == null) return;
+    chrome.tabs.sendMessage(tabId, { type: "tubesize_progress", stage, tag }).catch(() => {});
+}
+
+function sendResult(tabId: number | undefined, result: BackgroundResponse, tag: string) {
+    if (tabId == null) return;
+    chrome.tabs.sendMessage(tabId, { type: "tubesize_result", tag, ...result }).catch(() => {});
+}
+
 type Message = {
     type: "clearBadge" | "setBadge" | "sendYoutubeUrl";
     tag: string;
@@ -58,23 +68,29 @@ async function handleMain(
     const { tag, html } = message;
     clearBadge(tabId);
 
+    sendProgress(tabId, "checking_cache", tag);
     const cached = await getFromStorage(tag);
     if (cached) {
         addBadge(tabId);
-        return sendResponse({
+        const result: BackgroundResponse = {
             success: true,
             data: cached.response,
             cached: true,
             createdAt: cached.createdAt,
-        });
+        };
+        sendResponse(result);
+        sendResult(tabId, result, tag);
+        return;
     }
 
     try {
         let rawData;
         try {
+            sendProgress(tabId, "parsing_page", tag);
             if (!html) throw new Error("No HTML");
             rawData = extractYtInitialForVideo(html, tag);
         } catch (e) {
+            sendProgress(tabId, "fetching_youtube", tag);
             if (html) console.warn("Local HTML extraction failed, falling back to fetchHTMLPage");
             const pageHtml = await fetchHTMLPage(tag);
             rawData = extractYtInitialForVideo(pageHtml, tag);
@@ -85,12 +101,14 @@ async function handleMain(
 
         await saveToStorage(tag, humanizedFormats);
         addBadge(tabId);
-        return sendResponse({
+        const result: BackgroundResponse = {
             success: true,
             data: humanizedFormats,
             cached: false,
             api: false,
-        });
+        };
+        sendResponse(result);
+        sendResult(tabId, result, tag);
     } catch (err) {
         console.error("Couldn't use local, " + err);
 
@@ -102,25 +120,30 @@ async function handleMain(
                 throw new Error(errorMessage);
             }
 
+            sendProgress(tabId, "using_api", tag);
             const apiData = await fetchAPI(tag);
             // Do not cache API responses, in order to keep the cache consistent.
             // Because the API response is different than the data we extract from the html page.
             addBadge(tabId);
-            return sendResponse({
+            const apiResult: BackgroundResponse = {
                 success: true,
                 data: apiData,
                 cached: false,
                 api: true,
-            });
+            };
+            sendResponse(apiResult);
+            sendResult(tabId, apiResult, tag);
         } catch (apiErr) {
             console.error(apiErr);
             clearBadge(tabId);
-            return sendResponse({
+            const errResult: BackgroundResponse = {
                 success: false,
                 data: null,
                 cached: false,
                 message: apiErr instanceof Error ? apiErr.message : "Unknown error",
-            });
+            };
+            sendResponse(errResult);
+            sendResult(tabId, errResult, tag);
         }
     }
 }
