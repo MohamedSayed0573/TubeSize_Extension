@@ -101,7 +101,7 @@ function getStyles(): string {
         }
 
         .ts-chip.copied {
-            background: rgba(40, 167, 69, 0.2);
+            background: var(--yt-spec-10-percent-layer, rgba(255, 255, 255, 0.1));
         }
 
         .ts-chip:focus-visible {
@@ -158,7 +158,7 @@ function getStyles(): string {
 
         .ts-error-text {
             font-size: 12px;
-            color: #ff6b6b;
+            color: var(--yt-spec-text-secondary, #aaa);
         }
 
         .ts-retry-btn {
@@ -289,11 +289,13 @@ function toggleCollapse() {
 
     const content = shadowRoot.querySelector(".ts-content");
     const arrow = shadowRoot.querySelector(".ts-arrow");
+    const label = shadowRoot.querySelector(".ts-label");
     const refreshBtn = shadowRoot.querySelector(".ts-refresh");
     if (!content || !arrow) return;
 
     const isCollapsed = content.classList.toggle("collapsed");
     arrow.classList.toggle("collapsed", isCollapsed);
+    if (label) label.setAttribute("aria-expanded", String(!isCollapsed));
     if (refreshBtn) (refreshBtn as HTMLElement).style.display = isCollapsed ? "none" : "";
 
     chrome.storage.local.set({ [COLLAPSE_STORAGE_KEY]: isCollapsed });
@@ -344,6 +346,7 @@ export async function initOverlay(tag: string, onRefresh: () => void) {
     label.setAttribute("role", "button");
     label.setAttribute("tabindex", "0");
     label.setAttribute("aria-label", "Toggle TubeSize overlay");
+    label.setAttribute("aria-expanded", "false");
     label.addEventListener("click", toggleCollapse);
     label.addEventListener("keydown", (e: KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -358,7 +361,9 @@ export async function initOverlay(tag: string, onRefresh: () => void) {
     label.append(arrow);
 
     const content = document.createElement("div");
+    content.id = "tubesize-content";
     content.className = "ts-content";
+    label.setAttribute("aria-controls", "tubesize-content");
 
     const refreshBtn = document.createElement("button");
     refreshBtn.type = "button";
@@ -379,6 +384,7 @@ export async function initOverlay(tag: string, onRefresh: () => void) {
     if (result[COLLAPSE_STORAGE_KEY]) {
         content.classList.add("collapsed");
         arrow.classList.add("collapsed");
+        label.setAttribute("aria-expanded", "false");
         refreshBtn.style.display = "none";
     }
 
