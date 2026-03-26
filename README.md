@@ -3,10 +3,10 @@
 <img src="tubesize/public/icons/icon-128.png" alt="TubeSize Logo" width="96" />
 
 # TubeSize
+![GitHub stars](https://img.shields.io/github/stars/MohamedSayed0573/Tubesize_Extension)
 
 **Know exactly how much data a YouTube video will cost you — before you press play.**
 
-[![Chrome Web Store](https://img.shields.io/badge/Chrome-Install-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com)
 [![Firefox Add-ons](https://img.shields.io/badge/Firefox-Install-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)
 [![Edge Add-ons](https://img.shields.io/badge/Edge-Install-0078D7?logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
