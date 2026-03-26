@@ -11,7 +11,7 @@ export default function PanelSettings() {
                 if (options?.showPanel === false) setShowPanel(false);
             } catch (err) {
                 console.error("Failed to load show panel setting from sync storage:", err);
-                setShowPanel(false);
+                // Keep the default (true = show panel) on error; do not hide it
             }
         })();
     }, []);
@@ -33,7 +33,7 @@ export default function PanelSettings() {
                             }}
                         />
                         <span className="api-fallback-label">
-                            Show TubeSize Panel on YouTube videos
+                            Show sizes inline on YouTube video pages
                         </span>
                     </label>
                 </div>
