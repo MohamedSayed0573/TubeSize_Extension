@@ -3,6 +3,14 @@
     "version": "1.1.0",
     "description": "Backend API for the TubeSize Chrome extension, providing endpoint to fetch file size data for YouTube videos across different quality levels.",
     "main": "dist/server.js",
+    "imports": {
+        "#app-types/*": "./dist/types/*.js",
+        "#config/*": "./dist/config/*.js",
+        "#middlewares/*": "./dist/middlewares/*.js",
+        "#routes/*": "./dist/routes/*.js",
+        "#schema/*": "./dist/schema/*.js",
+        "#utils/*": "./dist/utils/*.js"
+    },
     "scripts": {
         "build": "npx tsc",
         "start": "pnpm run build && node dist/server.js",

@@ -2,6 +2,7 @@ node_modules/
 dist*/
 todo.md
 Notes.md
+devTest/
 
 # environment variables
 .env.prod

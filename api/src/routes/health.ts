@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import ms from "ms";
-import CONFIG from "@config/constants";
-import healthSchema from "@schema/healthSchema";
-import { redis } from "@utils/cache";
+import CONFIG from "#config/constants";
+import healthSchema from "#schema/healthSchema";
+import { redis } from "#utils/cache";
 
 export async function healthRoutes(fastify: FastifyInstance) {
     fastify.get(

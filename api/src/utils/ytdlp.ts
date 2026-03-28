@@ -1,9 +1,9 @@
 import { promisify } from "util";
 import { execFile } from "child_process";
-import CONFIG from "@config/constants";
-import type { RawData } from "@app-types/types";
-import env from "@utils/env";
-import { InvalidInputError } from "@utils/errors";
+import CONFIG from "#config/constants";
+import type { RawData } from "#app-types/types";
+import env from "#utils/env";
+import { InvalidInputError } from "#utils/errors";
 
 const execFileAsync = promisify(execFile);
 

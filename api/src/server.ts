@@ -6,13 +6,13 @@ import helmet from "@fastify/helmet";
 import compression from "@fastify/compress";
 import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
-import CONFIG from "@config/constants";
-import apiRoutes from "@routes/api";
-import { healthRoutes } from "@routes/health";
-import { redis } from "@utils/cache";
-import env from "@utils/env";
-import { AppError, NotFoundError } from "@utils/errors";
-import logger from "@utils/logger";
+import CONFIG from "#config/constants";
+import apiRoutes from "#routes/api";
+import { healthRoutes } from "#routes/health";
+import { redis } from "#utils/cache";
+import env from "#utils/env";
+import { AppError, NotFoundError } from "#utils/errors";
+import logger from "#utils/logger";
 
 import {
     jsonSchemaTransform,

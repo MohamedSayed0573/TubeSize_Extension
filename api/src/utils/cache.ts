@@ -1,8 +1,8 @@
 import { createClient } from "redis";
-import CONFIG from "@config/constants";
-import type { Data } from "@app-types/types";
-import env from "@utils/env";
-import logger from "@utils/logger";
+import CONFIG from "#config/constants";
+import type { Data } from "#app-types/types";
+import env from "#utils/env";
+import logger from "#utils/logger";
 
 export const redis = createClient({
     socket: {
