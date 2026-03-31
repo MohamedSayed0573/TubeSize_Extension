@@ -40,52 +40,23 @@ export default async function renderPanel(response: BackgroundResponse | undefin
 
     const panelContainer = document.createElement("div");
     panelContainer.id = "tubesize-extension-panel";
-    panelContainer.style.cssText = `
-        position: relative;
-        display: flex;
-        gap: 10px;
-        font-size: 14px;
-        margin-top: 10px;
-        padding: 6px 20px 6px 6px;
-        font-weight: bold;
-        justify-content: center;
-        flex-wrap: wrap;
-        align-items: center;
-        background-color: #0d3b3a;
-        border: solid 1px;
-        border-radius: 5px;
-    `;
+    panelContainer.style.cssText = panelStyle;
 
     const closeButton = document.createElement("button");
     closeButton.type = "button";
     closeButton.setAttribute("aria-label", "Close panel");
     closeButton.title = "Close";
     closeButton.innerHTML = `
-        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-            <path
-                d="M2 2l8 8M10 2 2 10"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-            />
-        </svg>
-    `;
-    closeButton.style.cssText = `
-        position: absolute;
-        top: 10%;
-        right: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 22px;
-        height: 22px;
-        padding: 0;
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.08);
-        color: white;
-        cursor: pointer;
-    `;
+    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+        <path
+            d="M2 2l8 8M10 2 2 10"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+        />
+    </svg>
+`;
+    closeButton.style.cssText = closeButtonStyle;
     closeButton.addEventListener("click", () => {
         panelContainer.remove();
     });
@@ -98,6 +69,7 @@ export default async function renderPanel(response: BackgroundResponse | undefin
             return;
         }
         const formatDiv = document.createElement("div");
+        formatDiv.style.cssText = formatStyle;
         formatDiv.textContent = `${format.height}: ${format.size}`;
         panelContainer.append(formatDiv);
         count++;
@@ -111,3 +83,43 @@ export default async function renderPanel(response: BackgroundResponse | undefin
     }
     parent.insertAdjacentElement("afterend", panelContainer);
 }
+
+const closeButtonStyle = `
+position: absolute;
+top: 4px;
+right: 4px;
+
+height: 22px;
+width: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 999px;
+    background: #0d3b3a;
+    color: white;
+    cursor: pointer;
+`;
+
+const panelStyle = `
+    position: relative;
+    display: flex;
+    gap: 10px;
+    font-size: 12px;
+    margin-top: 10px;
+    padding: 10px 30px 6px 6px;
+    font-weight: bold;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-items: center;
+`;
+
+const formatStyle = `
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.08);
+`;
