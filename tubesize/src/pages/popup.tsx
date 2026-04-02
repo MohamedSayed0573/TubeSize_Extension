@@ -1,13 +1,13 @@
 import "@styles/popup.css";
 import type { BackgroundResponse } from "@app-types/types";
 import { useEffect, useState } from "react";
-import { extractVideoTag, isYoutubePage, isShortsVideo } from "@/utils";
-import { getFromSyncCache } from "@/cache";
+import { extractVideoTag, isYoutubePage, isShortsVideo } from "@lib/utils";
+import { getFromSyncCache } from "@lib/cache";
 import ms from "ms";
-import Options from "@/pages/options";
-import CONFIG from "@/constants";
-import Header from "@/components/header";
-import VideoFormat from "@/components/videoFormat";
+import Options from "@pages/options";
+import CONFIG from "@lib/constants";
+import Header from "@components/header";
+import VideoFormat from "@components/videoFormat";
 
 async function getTab() {
     return await chrome.tabs.query({ active: true, currentWindow: true });
@@ -57,6 +57,7 @@ export default function Popup() {
 
     const [videoData, setVideoData] = useState<BackgroundResponse | null>(null);
     const [cache, setCache] = useState<string | undefined>(undefined);
+    const [note, setNote] = useState<string | null>(null);
     const [useOptionsPage, setUseOptionsPage] = useState(false);
     const [enabledOptions, setEnabledOptions] = useState<string[]>([]);
     const [error, setError] = useState<Error | null>(null);
@@ -90,6 +91,8 @@ export default function Popup() {
 
                 const response = await sendMessageToBackground(tab.id!, tag);
                 if (!response.success) throw new Error(response.message);
+                if (response.isLive) throw new Error("Live videos are not supported");
+                if (response.api) setNote("Used API. Execution time: " + response.executionTime);
                 setVideoData(response);
                 setCache(
                     response.cached
@@ -131,6 +134,7 @@ export default function Popup() {
             <Header videoData={videoData} setUseOptionsPage={setUseOptionsPage} />
             <div id="container">
                 {cache && <div className="cached-note">{cache}</div>}
+                {note && <div className="cached-note">{note}</div>}
                 {!videoData ? (
                     <span className="info">{message}</span>
                 ) : enabledOptions.length === 0 ? (

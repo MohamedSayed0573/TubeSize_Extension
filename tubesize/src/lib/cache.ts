@@ -1,4 +1,4 @@
-import CONFIG from "@/constants";
+import CONFIG from "@lib/constants";
 import type { APIData, HumanizedFormat, StorageData } from "@app-types/types";
 
 async function getCacheTTLSetting(): Promise<number> {

@@ -1,4 +1,4 @@
-import { extractVideoTag } from "@/utils";
+import { extractVideoTag } from "@lib/utils";
 import renderPanel from "./panel";
 
 async function sendRuntimeMessage(message: { type: string; tag?: string; html?: string }) {

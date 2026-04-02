@@ -1,4 +1,4 @@
-import "@/styles/options.css";
+import "@styles/options.css";
 
 export default function HeaderOptions() {
     return (

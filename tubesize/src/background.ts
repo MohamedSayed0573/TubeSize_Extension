@@ -1,5 +1,5 @@
 import type { BackgroundResponse } from "@app-types/types";
-import { getFromStorage, saveToStorage } from "@/cache";
+import { getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
 import {
     extractYtInitialForVideo,
@@ -7,8 +7,8 @@ import {
     fetchHTMLPage,
     parseDataFromYtInitial,
     humanizeData,
-} from "@/youtube";
-import { getAPIFallbackSetting } from "@/utils";
+} from "@lib/youtube";
+import { getAPIFallbackSetting } from "@lib/utils";
 
 type Message = {
     type: "clearBadge" | "setBadge" | "sendYoutubeUrl";
@@ -90,6 +90,7 @@ async function handleMain(
             data: humanizedFormats,
             cached: false,
             api: false,
+            isLive: rawData.videoDetails.isLive,
         });
     } catch (err) {
         console.error("Couldn't use local, " + err);
@@ -111,6 +112,7 @@ async function handleMain(
                 data: apiData,
                 cached: false,
                 api: true,
+                executionTime: apiData.executionTime,
             });
         } catch (apiErr) {
             console.error(apiErr);

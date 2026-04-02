@@ -1,8 +1,8 @@
 import { filesize } from "filesize";
 import type { APIData, HumanizedFormat, RawData, RawFormat } from "@app-types/types";
 import ms from "ms";
-import { fetchAndRetry } from "@/utils";
-import CONFIG from "@/constants";
+import { fetchAndRetry } from "@lib/utils";
+import CONFIG from "@lib/constants";
 declare const __API_URL__: string;
 
 export function humanizeData(formats: RawFormat): HumanizedFormat {

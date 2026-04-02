@@ -1,4 +1,4 @@
-import type { BackgroundResponse } from "@/types/types";
+import type { BackgroundResponse } from "@app-types/types";
 
 interface Props {
     item: Exclude<BackgroundResponse["data"], null>["videoFormats"][number];
