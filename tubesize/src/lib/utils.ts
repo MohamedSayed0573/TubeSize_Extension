@@ -1,5 +1,5 @@
-import { getFromSyncCache } from "@/cache";
-import CONFIG from "@/constants";
+import { getFromSyncCache } from "@lib/cache";
+import CONFIG from "@lib/constants";
 
 export function isYoutubePage(url: string): boolean {
     try {

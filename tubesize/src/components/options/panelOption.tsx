@@ -1,4 +1,4 @@
-import { getFromSyncCache, setToSyncCache } from "@/cache";
+import { getFromSyncCache, setToSyncCache } from "@lib/cache";
 import { useEffect, useState } from "react";
 
 export default function PanelSettings() {

@@ -28,7 +28,7 @@
             "@components/*": ["./src/components/*"],
             "@styles/*": ["./src/styles/*"],
             "@pages/*": ["./src/pages/*"],
-            "@options/*": ["./src/options/*"],
+            "@lib/*": ["./src/lib/*"],
             "@tests/*": ["./src/tests/*"],
             "@assets/*": ["./src/assets/*"],
             "@app-types/*": ["./src/types/*"]

@@ -1,11 +1,11 @@
 import "@styles/popup.css";
 import type { BackgroundResponse } from "@app-types/types";
 import { useEffect, useState } from "react";
-import { extractVideoTag, isYoutubePage, isShortsVideo } from "@/utils";
-import { getFromSyncCache } from "@/cache";
+import { extractVideoTag, isYoutubePage, isShortsVideo } from "@lib/utils";
+import { getFromSyncCache } from "@lib/cache";
 import ms from "ms";
 import Options from "@pages/options";
-import CONFIG from "@/constants";
+import CONFIG from "@lib/constants";
 import Header from "@components/header";
 import VideoFormat from "@components/videoFormat";
 

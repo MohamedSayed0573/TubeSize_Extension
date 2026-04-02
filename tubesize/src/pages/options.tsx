@@ -1,11 +1,11 @@
 import "@styles/options.css";
-import CONFIG from "@/constants";
+import CONFIG from "@lib/constants";
 import HeaderOptions from "@components/options/headerOptions";
 import OptionItem from "@components/options/optionItem";
 import CacheSettings from "@components/options/cacheSettings";
 import ApiFallbackSetting from "@components/options/apiFallbackSetting";
 import { useState, useEffect } from "react";
-import { getFromSyncCache } from "@/cache";
+import { getFromSyncCache } from "@lib/cache";
 import PanelSettings from "@components/options/panelOption";
 
 export default function Options() {

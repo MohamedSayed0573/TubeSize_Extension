@@ -1,5 +1,5 @@
 import type { BackgroundResponse } from "@app-types/types";
-import { getFromSyncCache } from "./cache";
+import { getFromSyncCache } from "./lib/cache";
 
 async function waitForElement(selector: string, timeoutMs = 10000): Promise<Element | null> {
     return new Promise((resolve) => {
