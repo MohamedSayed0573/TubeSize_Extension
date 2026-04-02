@@ -90,6 +90,7 @@ async function handleMain(
             data: humanizedFormats,
             cached: false,
             api: false,
+            isLive: rawData.videoDetails.isLive,
         });
     } catch (err) {
         console.error("Couldn't use local, " + err);
@@ -106,11 +107,13 @@ async function handleMain(
             // Do not cache API responses, in order to keep the cache consistent.
             // Because the API response is different than the data we extract from the html page.
             addBadge(tabId);
+            saveToStorage(tag, apiData);
             return sendResponse({
                 success: true,
                 data: apiData,
                 cached: false,
                 api: true,
+                executionTime: apiData.executionTime,
             });
         } catch (apiErr) {
             console.error(apiErr);

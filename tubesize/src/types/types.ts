@@ -1,4 +1,5 @@
 export type APIData = {
+    success: boolean;
     id: string;
     title: string;
     duration: string;
@@ -9,6 +10,7 @@ export type APIData = {
         size: string;
     }[];
     createdAt?: string;
+    executionTime: string;
 };
 
 export type RawData = {
@@ -16,6 +18,7 @@ export type RawData = {
         videoId: string;
         title: string;
         lengthSeconds: string;
+        isLive: boolean;
     };
     streamingData: {
         adaptiveFormats: {
@@ -64,7 +67,9 @@ export type BackgroundResponse = {
     success: boolean;
     data: APIData | HumanizedFormat | null;
     cached: boolean;
+    isLive?: boolean;
     createdAt?: string; // Only when we use cached
     message?: string;
     api?: boolean; // Only when we use the server API
+    executionTime?: string; // Only when we use the server API
 };
