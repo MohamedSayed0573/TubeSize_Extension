@@ -4,9 +4,8 @@
     "version": "1.1.0",
     "type": "module",
     "scripts": {
-        "dev": "vite dev",
+        "dev": "vite build --watch --mode development",
         "build": "vite build",
-        "watch": "vite build --watch --mode development",
         "test": "jest",
         "prettier:write": "pnpm exec prettier . --write",
         "pack": "pnpm run build && zip -r dist/tubesize.zip dist",
