@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { extractVideoTag, isYoutubePage, isShortsVideo } from "@/utils";
 import { getFromSyncCache } from "@/cache";
 import ms from "ms";
-import Options from "@/pages/options";
+import Options from "@pages/options";
 import CONFIG from "@/constants";
-import Header from "@/components/header";
-import VideoFormat from "@/components/videoFormat";
+import Header from "@components/header";
+import VideoFormat from "@components/videoFormat";
 
 async function getTab() {
     return await chrome.tabs.query({ active: true, currentWindow: true });
