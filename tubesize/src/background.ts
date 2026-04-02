@@ -107,7 +107,6 @@ async function handleMain(
             // Do not cache API responses, in order to keep the cache consistent.
             // Because the API response is different than the data we extract from the html page.
             addBadge(tabId);
-            saveToStorage(tag, apiData);
             return sendResponse({
                 success: true,
                 data: apiData,
