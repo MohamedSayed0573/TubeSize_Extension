@@ -11,7 +11,7 @@ services:
         environment:
             - NODE_ENV=staging
         volumes:
-            - ~/.env.staging:/api/.env
+            - ~/.env.staging:/api/.env.staging
             - ~/www.youtube.com_cookies.txt:/api/www.youtube.com_cookies.txt
     redis:
         image: redis:alpine

@@ -10,7 +10,7 @@ services:
         environment:
             - NODE_ENV=production
         volumes:
-            - ~/.env.prod:/api/.env
+            - ~/.env.prod:/api/.env.prod
             - ~/www.youtube.com_cookies.txt:/api/www.youtube.com_cookies.txt
     redis:
         image: redis:alpine
