@@ -1,5 +1,7 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-
+import { fastifyTRPCPlugin, FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
+import { appRouter, type AppRouter } from "#routes/api";
+import { createContext } from "./context.js";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -7,12 +9,11 @@ import compression from "@fastify/compress";
 import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
 import CONFIG from "#config/constants";
-import apiRoutes from "#routes/api";
-import { healthRoutes } from "#routes/health";
 import { redis } from "#utils/cache";
 import env from "#utils/env";
-import { AppError, NotFoundError } from "#utils/errors";
+import { AppError, NotFoundError, RateLimitError } from "#utils/errors";
 import logger from "#utils/logger";
+import { fastifyRateLimit } from "@fastify/rate-limit";
 
 import {
     jsonSchemaTransform,
@@ -23,6 +24,25 @@ import {
 const fastify = Fastify({
     loggerInstance: logger,
     trustProxy: 1,
+});
+
+fastify.register(fastifyRateLimit, {
+    timeWindow: CONFIG.WINDOW_LIMIT_MS,
+    max: CONFIG.LIMIT,
+    errorResponseBuilder: () => {
+        throw new RateLimitError("Rate limit exceeded");
+    },
+});
+
+fastify.register(fastifyTRPCPlugin, {
+    prefix: "/trpc",
+    trpcOptions: {
+        router: appRouter,
+        createContext,
+        onError({ path, error }) {
+            console.error(`Error in tRPC handler on path '${path}':`, error);
+        },
+    } satisfies FastifyTRPCPluginOptions<AppRouter>["trpcOptions"],
 });
 
 fastify.setValidatorCompiler(validatorCompiler);
@@ -64,10 +84,6 @@ fastify.register(swaggerUI, {
     routePrefix: "/api-docs/swagger",
     logLevel: "silent",
 });
-
-// Routes
-fastify.register(healthRoutes);
-fastify.register(apiRoutes, { prefix: "/api" });
 
 fastify.setNotFoundHandler(() => {
     throw new NotFoundError("Route not found");

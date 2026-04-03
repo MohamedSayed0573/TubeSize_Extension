@@ -15,6 +15,7 @@
         "build": "npx tsc",
         "start": "pnpm run build && node dist/server.js",
         "dev": "nodemon --watch '**/*.ts' --exec 'npx tsc && node --inspect=0.0.0.0:9229 dist/server.js' | pino-pretty",
+        "tsc": "tsc --noEmit",
         "prettier:write": "pnpm prettier . --write"
     },
     "keywords": [],
@@ -28,6 +29,7 @@
         "@fastify/rate-limit": "^10.3.0",
         "@fastify/swagger": "^9.7.0",
         "@fastify/swagger-ui": "^5.2.5",
+        "@trpc/server": "^11.16.0",
         "dotenv": "^17.2.4",
         "fastify": "^5.8.2",
         "fastify-type-provider-zod": "^6.1.0",

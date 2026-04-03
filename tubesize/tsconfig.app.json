@@ -31,7 +31,13 @@
             "@lib/*": ["./src/lib/*"],
             "@tests/*": ["./src/tests/*"],
             "@assets/*": ["./src/assets/*"],
-            "@app-types/*": ["./src/types/*"]
+            "@app-types/*": ["./src/types/*"],
+            "#app-types/*": ["../api/src/types/*"],
+            "#utils/*": ["../api/src/utils/*"],
+            "#middlewares/*": ["../api/src/middlewares/*"],
+            "#config/*": ["../api/src/config/*"],
+            "#routes/*": ["../api/src/routes/*"],
+            "#schema/*": ["../api/src/schema/*"]
         }
     },
     "include": ["./src", "./src/types"]

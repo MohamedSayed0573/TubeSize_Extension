@@ -1,18 +1,3 @@
-export type APIData = {
-    success: boolean;
-    id: string;
-    title: string;
-    duration: string;
-    audioFormat: string;
-    videoFormats: {
-        formatId: number;
-        height: number;
-        size: string;
-    }[];
-    createdAt?: string;
-    executionTime: string;
-};
-
 export type RawData = {
     videoDetails: {
         videoId: string;
@@ -49,6 +34,7 @@ export type HumanizedFormat = {
     id: string;
     title: string;
     duration: string;
+    audioFormat: string;
     videoFormats: {
         formatId: number;
         height: number;
@@ -73,3 +59,6 @@ export type BackgroundResponse = {
     api?: boolean; // Only when we use the server API
     executionTime?: string; // Only when we use the server API
 };
+
+import type { RouterOutputs } from "#routes/api";
+export type APIData = RouterOutputs["videoSizes"]["getHumanizedVideoSizes"];
