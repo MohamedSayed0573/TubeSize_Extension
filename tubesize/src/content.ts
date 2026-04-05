@@ -1,9 +1,18 @@
 import { extractVideoTag } from "@lib/utils";
+import type { BackgroundResponse } from "@app-types/types";
 import renderPanel from "./panel";
+import renderPlayerMenu from "./playerMenu";
 
-async function sendRuntimeMessage(message: { type: string; tag?: string; html?: string }) {
+let latestVideoResponse: BackgroundResponse | undefined;
+let lastTag: string | undefined = undefined;
+
+async function sendRuntimeMessage<TResponse = unknown>(message: {
+    type: string;
+    tag?: string;
+    html?: string;
+}): Promise<TResponse | undefined> {
     try {
-        return await chrome.runtime.sendMessage(message);
+        return (await chrome.runtime.sendMessage(message)) as TResponse;
     } catch (err) {
         if (err instanceof Error && err.message.includes("Extension context invalidated")) {
             console.warn("[content] Extension context invalidated. Reload the page to reconnect.");
@@ -23,16 +32,16 @@ async function init(videoTag: string) {
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    const response = await sendRuntimeMessage({
+    const response = await sendRuntimeMessage<BackgroundResponse>({
         type: "sendYoutubeUrl",
         tag: videoTag,
         html: scriptContent,
     });
-
+    latestVideoResponse = response;
+    await renderPlayerMenu(response);
     await renderPanel(response);
 }
 
-let lastTag: string | undefined = undefined;
 async function handlePageNavigation() {
     await sendRuntimeMessage({ type: "clearBadge" });
     const url = window.location.href;
@@ -41,11 +50,25 @@ async function handlePageNavigation() {
     if (lastTag === tag) return;
     lastTag = tag;
 
-    if (tag) await init(tag);
+    if (!tag) {
+        latestVideoResponse = undefined;
+        await renderPlayerMenu(undefined, false);
+        return;
+    }
+
+    await init(tag);
 }
 
 window.addEventListener("yt-navigate-finish", () => {
     void handlePageNavigation();
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "sync" || !("showQualitySizesInPlayerMenu" in changes)) return;
+    void renderPlayerMenu(
+        latestVideoResponse,
+        changes.showQualitySizesInPlayerMenu.newValue !== false,
+    );
 });
 
 void handlePageNavigation();
