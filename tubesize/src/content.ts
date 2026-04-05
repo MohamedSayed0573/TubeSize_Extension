@@ -4,9 +4,16 @@ import { getFromSyncCache } from "@lib/cache";
 import renderPanel from "./panel";
 
 const QUALITY_SIZE_CLASS = "tubesize-quality-size";
-const QUALITY_MENU_SELECTOR = ".ytp-quality-menu, .ytp-settings-menu";
+const SETTINGS_MENU_SELECTOR = ".ytp-settings-menu";
+const SETTINGS_BUTTON_SELECTOR = ".ytp-settings-button";
 let qualityMenuObserver: MutationObserver | null = null;
-let latestVideoResponse: Awaited<ReturnType<typeof sendRuntimeMessage>>;
+let observedSettingsMenu: HTMLElement | null = null;
+let qualityMenuEventAbortController: AbortController | null = null;
+let qualityMenuApplyFrameId: number | null = null;
+let qualityMenuRefreshFrameId: number | null = null;
+let qualityMenuSyncGeneration = 0;
+let latestVideoResponse: BackgroundResponse | undefined;
+let lastTag: string | undefined = undefined;
 
 type VideoFormats = Exclude<BackgroundResponse["data"], null>["videoFormats"];
 
@@ -22,21 +29,49 @@ function clearInjectedQualitySizes() {
     });
 }
 
-function isQualityMenuMutation(mutations: MutationRecord[]) {
-    return mutations.some((mutation) => {
-        if (mutation.target instanceof Element && mutation.target.closest(QUALITY_MENU_SELECTOR)) {
-            return true;
-        }
+function cancelQualityMenuFrames() {
+    if (qualityMenuApplyFrameId !== null) {
+        cancelAnimationFrame(qualityMenuApplyFrameId);
+        qualityMenuApplyFrameId = null;
+    }
 
-        for (const node of Array.from(mutation.addedNodes)) {
-            if (!(node instanceof Element)) continue;
-            if (node.matches(QUALITY_MENU_SELECTOR) || node.querySelector(QUALITY_MENU_SELECTOR)) {
-                return true;
-            }
-        }
+    if (qualityMenuRefreshFrameId !== null) {
+        cancelAnimationFrame(qualityMenuRefreshFrameId);
+        qualityMenuRefreshFrameId = null;
+    }
+}
 
+function disconnectQualityMenuObserver() {
+    if (!qualityMenuObserver) {
+        observedSettingsMenu = null;
+        return;
+    }
+
+    qualityMenuObserver.disconnect();
+    qualityMenuObserver = null;
+    observedSettingsMenu = null;
+}
+
+function removeQualityMenuListeners() {
+    if (!qualityMenuEventAbortController) return;
+    qualityMenuEventAbortController.abort();
+    qualityMenuEventAbortController = null;
+}
+
+function resetQualityMenuSyncState() {
+    cancelQualityMenuFrames();
+    disconnectQualityMenuObserver();
+    removeQualityMenuListeners();
+    clearInjectedQualitySizes();
+}
+
+function isSettingsMenuOpen(menu: HTMLElement) {
+    const computedStyle = window.getComputedStyle(menu);
+    if (computedStyle.display === "none" || computedStyle.visibility === "hidden") {
         return false;
-    });
+    }
+
+    return menu.getAttribute("aria-hidden") !== "true";
 }
 
 function applyQualitySizes(videoFormats: VideoFormats = []) {
@@ -84,16 +119,10 @@ function applyQualitySizes(videoFormats: VideoFormats = []) {
     });
 }
 
-function setupQualityMenuSizeSync(
-    response: Awaited<ReturnType<typeof sendRuntimeMessage>>,
-    enabled: boolean,
-) {
-    if (qualityMenuObserver) {
-        qualityMenuObserver.disconnect();
-        qualityMenuObserver = null;
-    }
-
-    clearInjectedQualitySizes();
+function setupQualityMenuSizeSync(response: BackgroundResponse | undefined, enabled: boolean) {
+    qualityMenuSyncGeneration += 1;
+    const setupGeneration = qualityMenuSyncGeneration;
+    resetQualityMenuSyncState();
 
     if (!enabled) {
         return;
@@ -107,18 +136,91 @@ function setupQualityMenuSizeSync(
     const scheduleApply = () => {
         if (scheduled) return;
         scheduled = true;
-        requestAnimationFrame(() => {
+        qualityMenuApplyFrameId = requestAnimationFrame(() => {
+            qualityMenuApplyFrameId = null;
             scheduled = false;
+
+            if (setupGeneration !== qualityMenuSyncGeneration) {
+                return;
+            }
+
             applyQualitySizes(response.data?.videoFormats || []);
         });
     };
 
-    scheduleApply();
-    qualityMenuObserver = new MutationObserver((mutations) => {
-        if (!isQualityMenuMutation(mutations)) return;
+    const refreshMenuObserver = () => {
+        const settingsMenu = document.querySelector<HTMLElement>(SETTINGS_MENU_SELECTOR);
+        const shouldObserveMenu = settingsMenu && isSettingsMenuOpen(settingsMenu);
+
+        if (!shouldObserveMenu) {
+            disconnectQualityMenuObserver();
+            return;
+        }
+
+        if (qualityMenuObserver && observedSettingsMenu === settingsMenu) {
+            return;
+        }
+
+        if (qualityMenuObserver) {
+            qualityMenuObserver.disconnect();
+        }
+
+        qualityMenuObserver = new MutationObserver(() => {
+            scheduleApply();
+        });
+        qualityMenuObserver.observe(settingsMenu, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+        });
+        observedSettingsMenu = settingsMenu;
         scheduleApply();
-    });
-    qualityMenuObserver.observe(document.body, { childList: true, subtree: true });
+    };
+
+    const scheduleRefresh = () => {
+        if (qualityMenuRefreshFrameId !== null) return;
+
+        qualityMenuRefreshFrameId = requestAnimationFrame(() => {
+            qualityMenuRefreshFrameId = null;
+
+            if (setupGeneration !== qualityMenuSyncGeneration) {
+                return;
+            }
+
+            refreshMenuObserver();
+        });
+    };
+
+    scheduleApply();
+    refreshMenuObserver();
+
+    qualityMenuEventAbortController = new AbortController();
+    const { signal } = qualityMenuEventAbortController;
+    document.addEventListener(
+        "click",
+        (event) => {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+
+            if (
+                observedSettingsMenu ||
+                target.closest(SETTINGS_BUTTON_SELECTOR) ||
+                target.closest(SETTINGS_MENU_SELECTOR)
+            ) {
+                scheduleRefresh();
+            }
+        },
+        { capture: true, signal },
+    );
+    document.addEventListener(
+        "keydown",
+        (event) => {
+            if (event.key === "Escape" && observedSettingsMenu) {
+                scheduleRefresh();
+            }
+        },
+        { signal },
+    );
 }
 
 async function syncQualityMenuSetting(showQualitySizesInPlayerMenu?: boolean) {
@@ -128,9 +230,13 @@ async function syncQualityMenuSetting(showQualitySizesInPlayerMenu?: boolean) {
     setupQualityMenuSizeSync(latestVideoResponse, shouldShowQualitySizes);
 }
 
-async function sendRuntimeMessage(message: { type: string; tag?: string; html?: string }) {
+async function sendRuntimeMessage<TResponse = unknown>(message: {
+    type: string;
+    tag?: string;
+    html?: string;
+}): Promise<TResponse | undefined> {
     try {
-        return await chrome.runtime.sendMessage(message);
+        return (await chrome.runtime.sendMessage(message)) as TResponse;
     } catch (err) {
         if (err instanceof Error && err.message.includes("Extension context invalidated")) {
             console.warn("[content] Extension context invalidated. Reload the page to reconnect.");
@@ -150,7 +256,7 @@ async function init(videoTag: string) {
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    const response = await sendRuntimeMessage({
+    const response = await sendRuntimeMessage<BackgroundResponse>({
         type: "sendYoutubeUrl",
         tag: videoTag,
         html: scriptContent,
@@ -160,7 +266,6 @@ async function init(videoTag: string) {
     await renderPanel(response);
 }
 
-let lastTag: string | undefined = undefined;
 async function handlePageNavigation() {
     await sendRuntimeMessage({ type: "clearBadge" });
     const url = window.location.href;
@@ -169,7 +274,13 @@ async function handlePageNavigation() {
     if (lastTag === tag) return;
     lastTag = tag;
 
-    if (tag) await init(tag);
+    if (!tag) {
+        latestVideoResponse = undefined;
+        setupQualityMenuSizeSync(undefined, false);
+        return;
+    }
+
+    await init(tag);
 }
 
 window.addEventListener("yt-navigate-finish", () => {
