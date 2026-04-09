@@ -1,5 +1,5 @@
 import { extractVideoTag } from "@lib/utils";
-import renderPanel from "./panel";
+import renderPanel, { showLoadingPanel } from "./panel";
 
 async function sendRuntimeMessage(message: { type: string; tag?: string; html?: string }) {
     try {
@@ -22,6 +22,8 @@ async function init(videoTag: string) {
     });
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
+
+    void showLoadingPanel();
 
     const response = await sendRuntimeMessage({
         type: "sendYoutubeUrl",

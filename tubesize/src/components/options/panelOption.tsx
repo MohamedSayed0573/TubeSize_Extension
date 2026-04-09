@@ -11,7 +11,6 @@ export default function PanelSettings() {
                 if (options?.showPanel === false) setShowPanel(false);
             } catch (err) {
                 console.error("Failed to load show panel setting from sync storage:", err);
-                setShowPanel(false);
             }
         })();
     }, []);
