@@ -54,4 +54,16 @@ describe("extractVideoTag", () => {
             ),
         ).toBe("FHhZPp08s74");
     });
+
+    test("should return the video id for youtube shorts", () => {
+        expect(extractVideoTag("https://www.youtube.com/shorts/muzkvikbNA0")).toBe("muzkvikbNA0");
+    });
+
+    test("should return undefined for invalid youtube short video", () => {
+        expect(extractVideoTag("https://www.youtube.com/shorts/example/muzkvikbNA0")).toBeNil();
+    });
+
+    test("should return undefined for youtube short video with invalid itag", () => {
+        expect(extractVideoTag("https://www.youtube.com/shorts/muzkbNA0")).toBeNil();
+    });
 });
