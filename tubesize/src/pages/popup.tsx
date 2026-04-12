@@ -78,11 +78,6 @@ export default function Popup() {
                     return;
                 }
 
-                if (isShortsVideo(url)) {
-                    setMessage("Shorts Videos are not supported");
-                    return;
-                }
-
                 const tag = extractVideoTag(url);
                 if (!tag) {
                     setMessage("Open a Youtube video");
@@ -92,6 +87,7 @@ export default function Popup() {
                 const response = await sendMessageToBackground(tab.id!, tag);
                 if (!response.success) throw new Error(response.message);
                 if (response.api) setNote("Used API. Execution time: " + response.executionTime);
+                if (isShortsVideo(url)) response.isShorts = true;
                 setVideoData(response);
                 setCache(
                     response.cached
@@ -149,6 +145,7 @@ export default function Popup() {
                                     key={item.formatId}
                                     item={item}
                                     isLive={videoData.isLive}
+                                    isShorts={videoData.isShorts}
                                 />
                             );
                         })

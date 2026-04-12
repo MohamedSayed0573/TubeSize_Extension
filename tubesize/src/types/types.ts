@@ -73,6 +73,7 @@ export type BackgroundResponse = {
     data: APIData | HumanizedFormat | null;
     cached: boolean;
     isLive?: boolean;
+    isShorts?: boolean;
     createdAt?: string; // Only when we use cached
     message?: string;
     api?: boolean; // Only when we use the server API

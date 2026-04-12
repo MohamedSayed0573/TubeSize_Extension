@@ -23,14 +23,15 @@ export function extractVideoTag(ytUrl: string): string | undefined {
     try {
         const parsedUrl = new URL(ytUrl);
 
-        if (parsedUrl.pathname !== "/watch") return;
+        const videoTag =
+            parsedUrl.pathname === "/watch"
+                ? parsedUrl.searchParams.get("v")
+                : parsedUrl.pathname.split("/")[2];
 
-        const videoTag = parsedUrl.searchParams.get("v");
-        if (!videoTag) return;
-
-        if (!CONFIG.VIDEO_ID_REGEX.test(videoTag)) {
+        if (!videoTag || !CONFIG.VIDEO_ID_REGEX.test(videoTag)) {
             return;
         }
+
         return videoTag;
     } catch (err) {
         console.error(err);

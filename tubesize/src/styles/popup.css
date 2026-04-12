@@ -105,6 +105,7 @@ body {
 }
 .format-size {
     display: flex;
+    justify-content: right;
     flex-direction: column;
     color: #bbb;
     font-weight: 500;
