@@ -10,14 +10,13 @@
         "module": "nodenext",
         "moduleResolution": "nodenext",
         "noUnusedLocals": true,
-        "baseUrl": ".",
         "paths": {
-            "#app-types/*": ["src/types/*"],
-            "#utils/*": ["src/utils/*"],
-            "#middlewares/*": ["src/middlewares/*"],
-            "#config/*": ["src/config/*"],
-            "#routes/*": ["src/routes/*"],
-            "#schema/*": ["src/schema/*"]
+            "#app-types/*": ["./src/types/*"],
+            "#utils/*": ["./src/utils/*"],
+            "#middlewares/*": ["./src/middlewares/*"],
+            "#config/*": ["./src/config/*"],
+            "#routes/*": ["./src/routes/*"],
+            "#schema/*": ["./src/schema/*"]
         }
     },
     "include": ["src/**/*.ts"],
