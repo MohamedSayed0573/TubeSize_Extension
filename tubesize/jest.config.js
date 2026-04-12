@@ -22,6 +22,7 @@ export default {
                         "@components/*": ["src/components/*"],
                         "@styles/*": ["src/styles/*"],
                         "@pages/*": ["src/pages/*"],
+                        "@lib/*": ["src/lib/*"],
                         "@options/*": ["src/options/*"],
                         "@tests/*": ["src/tests/*"],
                         "@assets/*": ["src/assets/*"],
@@ -41,6 +42,7 @@ export default {
         "^@options/(.*)$": "<rootDir>/src/options/$1",
         "^@tests/(.*)$": "<rootDir>/src/tests/$1",
         "^@assets/(.*)$": "<rootDir>/src/assets/$1",
+        "^@lib/(.*)$": "<rootDir>/src/lib/$1",
         "^@app-types/(.*)$": "<rootDir>/src/types/$1",
     },
 };
