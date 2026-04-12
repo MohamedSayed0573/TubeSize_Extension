@@ -26,6 +26,7 @@ export type RawData = {
             itag: number;
             height: number;
             contentLength?: string;
+            bitrate?: number;
         }[];
     };
 };
@@ -39,6 +40,7 @@ export type RawFormat = {
         height: number;
         size: number;
         maxSize?: number;
+        bitrate?: number;
     }[];
     audioFormats: {
         formatId: number;
@@ -61,6 +63,7 @@ export type HumanizedFormat = {
 
 export type StorageData = {
     response: APIData | HumanizedFormat;
+    isLive: boolean;
     expiry?: number;
     createdAt?: string;
 };

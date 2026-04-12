@@ -91,7 +91,6 @@ export default function Popup() {
 
                 const response = await sendMessageToBackground(tab.id!, tag);
                 if (!response.success) throw new Error(response.message);
-                if (response.isLive) throw new Error("Live videos are not supported");
                 if (response.api) setNote("Used API. Execution time: " + response.executionTime);
                 setVideoData(response);
                 setCache(
@@ -145,7 +144,13 @@ export default function Popup() {
                             return enabledOptions.includes("p" + item.height);
                         })
                         ?.map((item) => {
-                            return <VideoFormat key={item.formatId} item={item} />;
+                            return (
+                                <VideoFormat
+                                    key={item.formatId}
+                                    item={item}
+                                    isLive={videoData.isLive}
+                                />
+                            );
                         })
                         .reverse()
                 )}

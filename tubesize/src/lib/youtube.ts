@@ -79,9 +79,20 @@ export function extractYtInitial(html: string): RawData {
 // Order of each key is important. It's the same order the user sees.
 // Order of itags is important. The first index of each key means higher priority.
 // For example, for 144p, if itag 394 is available, we choose that. If not, we check for itag 330 and so on.
-function chooseVideoFormats(data: RawData) {
+function chooseVideoFormats(data: RawData): RawFormat["formats"] {
     const chosenFormats: RawFormat["formats"] = [];
     const adaptiveFormats = data.streamingData.adaptiveFormats;
+
+    if (data.videoDetails.isLive) {
+        return CONFIG.liveResolutions.map((itag) => {
+            const format = adaptiveFormats.find((format) => format.itag === itag)!;
+            return {
+                formatId: format.itag,
+                height: format.height,
+                size: format.bitrate ? (format.bitrate * 3600) / 8 : 0,
+            };
+        });
+    }
 
     for (const [resolution, itags] of CONFIG.resolutions) {
         const matchingFormats = itags
@@ -118,6 +129,31 @@ function chooseVideoFormats(data: RawData) {
     return chosenFormats;
 }
 
+function chooseAudioFormats(data: RawData) {
+    if (data.videoDetails.isLive) {
+        const audioFormat = data.streamingData.adaptiveFormats.find(
+            (format) => format.itag === 140,
+        );
+        if (!audioFormat) return [];
+        return [
+            {
+                formatId: audioFormat?.itag,
+                size: audioFormat?.bitrate ? (audioFormat?.bitrate * 3600) / 8 : 0,
+            },
+        ];
+    }
+    return data.streamingData.adaptiveFormats
+        .filter((format) => {
+            return format.itag === CONFIG.AUDIO_ITAG;
+        })
+        .map((format) => {
+            return {
+                formatId: format.itag,
+                size: parseInt(format.contentLength || "0"),
+            };
+        });
+}
+
 export function parseDataFromYtInitial(data: RawData): RawFormat {
     if (!data || !data.videoDetails || !data.streamingData || !data.streamingData.adaptiveFormats)
         throw new Error("No data found");
@@ -127,16 +163,7 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
         title: data.videoDetails.title,
         duration: data.videoDetails.lengthSeconds,
         formats: chooseVideoFormats(data),
-        audioFormats: data.streamingData.adaptiveFormats
-            .filter((format) => {
-                return format.itag === CONFIG.AUDIO_ITAG;
-            })
-            .map((format) => {
-                return {
-                    formatId: format.itag,
-                    size: parseInt(format.contentLength || "0"),
-                };
-            }),
+        audioFormats: chooseAudioFormats(data),
     };
 }
 

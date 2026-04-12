@@ -66,6 +66,7 @@ async function handleMain(
             data: cached.response,
             cached: true,
             createdAt: cached.createdAt,
+            isLive: cached.isLive,
         });
     }
 
@@ -83,7 +84,8 @@ async function handleMain(
         const rawFormats = parseDataFromYtInitial(rawData);
         const humanizedFormats = humanizeData(rawFormats);
 
-        await saveToStorage(tag, humanizedFormats);
+        const isLive = rawData.videoDetails.isLive;
+        await saveToStorage(tag, humanizedFormats, isLive);
         addBadge(tabId);
         return sendResponse({
             success: true,

@@ -23,6 +23,7 @@ const CONFIG = {
     FETCH_API_TIMEOUT: 15000,
     VIDEO_ITAGS,
     resolutions: Array.from(VIDEO_ITAGS.entries()),
+    liveResolutions: [248, 247, 244, 243, 242, 278],
     AUDIO_ITAG: 251,
     DEFAULT_CACHE_TTL: 3 * 24 * 60 * 60, // 3 Days
     ttlInSecondsOptions,
