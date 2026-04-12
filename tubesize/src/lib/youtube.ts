@@ -5,10 +5,16 @@ import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
 declare const __API_URL__: string;
 
+function sizePerMinute(sizeInBytes: number, durationInSeconds: string): number {
+    const durationInMinutes = Number(durationInSeconds) / 60;
+    const sizeInMB = sizeInBytes / 1_000_000;
+    return Number((sizeInMB / durationInMinutes).toFixed(2));
+}
+
 export function humanizeData(formats: RawFormat): HumanizedFormat {
     const audioSize = getAverageAudioSize(formats.audioFormats);
     const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);
-    const humanizedFormats = humanizeVideoFormats(mergedFormats);
+    const humanizedFormats = humanizeVideoFormats(mergedFormats, formats.duration);
 
     return {
         id: formats.id,
@@ -18,7 +24,7 @@ export function humanizeData(formats: RawFormat): HumanizedFormat {
     };
 }
 
-export function humanizeVideoFormats(formats: RawFormat["formats"]) {
+export function humanizeVideoFormats(formats: RawFormat["formats"], durationInSeconds: string) {
     return formats.map((format) => {
         return {
             ...format,
@@ -26,6 +32,7 @@ export function humanizeVideoFormats(formats: RawFormat["formats"]) {
                 ? `${filesize(format.size)} - ${filesize(format.maxSize)}`
                 : filesize(format.size),
             maxSize: format.maxSize ? filesize(format.maxSize) : undefined,
+            sizePerMinute: sizePerMinute(format.size, durationInSeconds),
         };
     });
 }

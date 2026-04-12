@@ -8,6 +8,7 @@ export type APIData = {
         formatId: number;
         height: number;
         size: string;
+        sizePerMinute: number;
     }[];
     createdAt?: string;
     executionTime: string;
@@ -53,6 +54,7 @@ export type HumanizedFormat = {
         formatId: number;
         height: number;
         size: string;
+        sizePerMinute: number;
         maxSize?: string;
     }[];
 };
