@@ -22,6 +22,28 @@ describe("isYoutubePage", () => {
     });
 });
 
+describe("isShortsVideo", () => {
+    test("should return true for a valid YouTube URL", () => {
+        expect(isYoutubePage("https://www.youtube.com/shorts/dQw4w9WgXcQ")).toBe(true);
+    });
+
+    test("should return true if video tag isn't present", () => {
+        expect(isYoutubePage("https://youtube.com")).toBe(true);
+    });
+
+    test("should return false for a non-YouTube URL", () => {
+        expect(isYoutubePage("https://www.example.com")).toBe(false);
+    });
+
+    test("should return false for an empty string", () => {
+        expect(isYoutubePage("")).toBe(false);
+    });
+
+    test("should return false for a wrong hostname", () => {
+        expect(isYoutubePage("https://www.youtubex.com/shorts/dQw4w9WgXcQ")).toBe(false);
+    });
+});
+
 describe("extractVideoTag", () => {
     test("should return the video id", () => {
         expect(extractVideoTag("https://www.youtube.com/watch?v=yaodD79Q4iE")).toBe("yaodD79Q4iE");
