@@ -1,4 +1,4 @@
-import { isYoutubePage, extractVideoTag } from "@lib/utils";
+import { isYoutubePage, extractVideoTag, fetchAndRetry } from "@lib/utils";
 
 describe("isYoutubePage", () => {
     test("should return true for a valid YouTube URL", () => {
@@ -87,5 +87,60 @@ describe("extractVideoTag", () => {
 
     test("should return undefined for youtube short video with invalid itag", () => {
         expect(extractVideoTag("https://www.youtube.com/shorts/muzkbNA0")).toBeNil();
+    });
+});
+
+describe("fetchAndRetry", () => {
+    test("should fail after 4 retries", async () => {
+        global.fetch = jest.fn().mockRejectedValue(new Error("failed"));
+        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4")).rejects.toThrow(
+            "failed",
+        );
+        expect(global.fetch).toHaveBeenCalledTimes(4);
+    });
+
+    test("should succeed after 3 fails", async () => {
+        global.fetch = jest
+            .fn()
+            .mockRejectedValueOnce(new Error("failed 1"))
+            .mockRejectedValueOnce(new Error("failed 2"))
+            .mockRejectedValueOnce(new Error("failed 3"))
+            .mockResolvedValueOnce({ ok: true });
+
+        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4")).resolves.toEqual({
+            ok: true,
+        });
+        expect(global.fetch).toHaveBeenCalledTimes(4);
+    });
+
+    test("should not retry on client errors 4xx", async () => {
+        global.fetch = jest.fn().mockResolvedValue({
+            status: 400,
+            ok: false,
+        });
+
+        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4")).rejects.toThrow(
+            "Client Error: 400, won't retry",
+        );
+
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    test("should retry on server errors 5xx", async () => {
+        global.fetch = jest
+            .fn()
+            .mockResolvedValueOnce({
+                status: 500,
+                ok: false,
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                ok: true,
+            });
+
+        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4")).resolves.toEqual({
+            status: 200,
+            ok: true,
+        });
     });
 });

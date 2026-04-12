@@ -5,7 +5,8 @@ import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
 declare const __API_URL__: string;
 
-function sizePerMinute(sizeInBytes: number, durationInSeconds: string): number {
+export function sizePerMinute(sizeInBytes: number, durationInSeconds: string): number {
+    if (durationInSeconds === "0") return 0;
     const durationInMinutes = Number(durationInSeconds) / 60;
     const sizeInMB = sizeInBytes / 1_000_000;
     return Number((sizeInMB / durationInMinutes).toFixed(2));
@@ -40,11 +41,11 @@ export function humanizeVideoFormats(formats: RawFormat["formats"], durationInSe
 export function getAverageAudioSize(audioFormatArray: RawFormat["audioFormats"]) {
     // Note: ytInitialPlayerResponse usually returns three formats with itag 251, so we take the average of the content size of all three.
     if (audioFormatArray.length === 0) return 0;
-    if (audioFormatArray.length === 1) return audioFormatArray[0].size;
-    return (
+    if (audioFormatArray.length === 1) return Math.round(audioFormatArray[0].size);
+    return Math.round(
         audioFormatArray.reduce((acc, format) => {
             return acc + format.size;
-        }, 0) / audioFormatArray.length
+        }, 0) / audioFormatArray.length,
     );
 }
 

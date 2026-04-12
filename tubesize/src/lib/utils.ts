@@ -65,7 +65,7 @@ export async function fetchAndRetry(
     maxRetries = CONFIG.DEFAULT_MAX_RETRIES,
 ): Promise<Response> {
     let lastError: unknown;
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
             const response = await fetch(url, options);
             if (response.ok) return response;
