@@ -84,14 +84,17 @@ function chooseVideoFormats(data: RawData): RawFormat["formats"] {
     const adaptiveFormats = data.streamingData.adaptiveFormats;
 
     if (data.videoDetails.isLive) {
-        return CONFIG.liveResolutions.map((itag) => {
-            const format = adaptiveFormats.find((format) => format.itag === itag)!;
-            return {
-                formatId: format.itag,
-                height: format.height,
-                size: format.bitrate ? (format.bitrate * 3600) / 8 : 0,
-            };
-        });
+        return CONFIG.liveResolutions
+            .map((itag) => {
+                const format = adaptiveFormats.find((format) => format.itag === itag);
+                if (!format) return;
+                return {
+                    formatId: format.itag,
+                    height: format.height,
+                    size: format.bitrate ? (format.bitrate * 3600) / 8 : 0,
+                };
+            })
+            .filter((format) => !!format);
     }
 
     for (const [resolution, itags] of CONFIG.resolutions) {
