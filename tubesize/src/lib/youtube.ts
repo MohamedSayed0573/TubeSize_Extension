@@ -83,28 +83,16 @@ function chooseVideoFormats(data: RawData): RawFormat["formats"] {
     const chosenFormats: RawFormat["formats"] = [];
     const adaptiveFormats = data.streamingData.adaptiveFormats;
 
-    if (data.videoDetails.isLive) {
-        return CONFIG.liveResolutions
-            .map((itag) => {
-                const format = adaptiveFormats.find((format) => format.itag === itag);
-                if (!format) return;
-                return {
-                    formatId: format.itag,
-                    height: format.height,
-                    size: format.bitrate ? (format.bitrate * 3600) / 8 : 0,
-                };
-            })
-            .filter((format) => !!format);
-    }
-
     for (const [resolution, itags] of CONFIG.resolutions) {
         const matchingFormats = itags
             .map((itag) => {
                 return adaptiveFormats.find((format) => format.itag === itag);
             })
-            // Remove missing itags and formats without content length.
+            // Remove missing itags and keep only formats we can size.
             .filter((format): format is RawData["streamingData"]["adaptiveFormats"][number] => {
-                return Boolean(format) && parseInt(format?.contentLength || "0") > 0;
+                if (!format) return false;
+                if (data.videoDetails.isLive) return Boolean(format.bitrate);
+                return parseInt(format.contentLength || "0") > 0;
             });
 
         if (matchingFormats.length === 0) {
@@ -112,6 +100,9 @@ function chooseVideoFormats(data: RawData): RawFormat["formats"] {
         }
 
         const sizes = matchingFormats.map((format) => {
+            if (data.videoDetails.isLive) {
+                return format.bitrate ? (format.bitrate * 3600) / 8 : 0;
+            }
             return parseInt(format.contentLength || "0");
         });
         const firstFormat = matchingFormats[0];
