@@ -6,8 +6,9 @@ export default function TwitchFormat({ item }: { item: NonNullable<TwitchData>[n
         <div className="format-item">
             <div className="format-height"> {item.resolution} </div>
             <div className="format-size">
+                <span>{"~" + filesize((item.bandwidth / 8) * 60 * 60) + "/hour"}</span>
                 <span className="format-size-per-minute">
-                    {filesize((item.bandwidth / 8) * 60) + "/min"}
+                    {"~" + filesize((item.bandwidth / 8) * 60) + "/min"}
                 </span>
             </div>
         </div>
