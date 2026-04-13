@@ -58,7 +58,7 @@ export async function saveToStorage(
     const expiry = Date.now() + ttlInSecondsOptions * 1000;
 
     // If any of the formats have null sizes, we don't want to cache the response as it might be incomplete.
-    const hasNullSizes = response.videoFormats.some((f) => !f.size || f.size === "0 B");
+    const hasNullSizes = response.videoFormats.some((f) => !f.sizeMB || f.sizeMB === "0 B");
     if (hasNullSizes) return;
 
     const dataToStore = {

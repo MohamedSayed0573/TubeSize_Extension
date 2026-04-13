@@ -5,9 +5,9 @@ import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
 declare const __API_URL__: string;
 
-export function sizePerMinute(sizeInBytes: number, durationInSeconds: string): number {
-    if (durationInSeconds === "0") return 0;
-    const durationInMinutes = Number(durationInSeconds) / 60;
+export function sizePerMinute(sizeInBytes: number, durationInSeconds: number): number {
+    if (durationInSeconds === 0) return 0;
+    const durationInMinutes = durationInSeconds / 60;
     const sizeInMB = sizeInBytes / 1_000_000;
     return Number((sizeInMB / durationInMinutes).toFixed(2));
 }
@@ -37,7 +37,7 @@ export function humanizeVideoFormats(
                 ? `${filesize(format.sizeBytes)} - ${filesize(format.maxSizeBytes)}`
                 : filesize(format.sizeBytes),
             maxSizeMB: format.maxSizeBytes ? filesize(format.maxSizeBytes) : undefined,
-            sizePerMinuteMB: sizePerMinute(format.sizeBytes, durationInSeconds),
+            sizePerMinuteMB: sizePerMinute(format.sizeBytes, parseInt(durationInSeconds)),
         };
     });
 }

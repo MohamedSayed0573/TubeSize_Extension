@@ -1,4 +1,4 @@
-import type { BackgroundResponse } from "@app-types/types";
+import type { BackgroundResponse, TwitchBackgroundResponse } from "@app-types/types";
 import { getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
 import {
@@ -54,7 +54,10 @@ async function handleMessage(
     }
 }
 
-async function handleTwitch(message: any, sendResponse: (response: any) => void) {
+async function handleTwitch(
+    message: any,
+    sendResponse: (response: TwitchBackgroundResponse) => void,
+) {
     try {
         const channelName = message.tag;
         const authToken = await getAuthToken();
@@ -62,7 +65,6 @@ async function handleTwitch(message: any, sendResponse: (response: any) => void)
         if (!authToken?.value) {
             return sendResponse({
                 success: false,
-                twitchData: null,
                 message:
                     "Failed to retrieve Twitch auth token. Please make sure you're logged in to Twitch",
             });
@@ -72,7 +74,6 @@ async function handleTwitch(message: any, sendResponse: (response: any) => void)
         if (!twitchToken) {
             return sendResponse({
                 success: false,
-                twitchData: null,
                 message: "Failed to retrieve Twitch token",
             });
         }
@@ -86,7 +87,6 @@ async function handleTwitch(message: any, sendResponse: (response: any) => void)
     } catch (err) {
         return sendResponse({
             success: false,
-            twitchData: null,
             message: err instanceof Error ? err.message : "Unknown error",
         });
     }
