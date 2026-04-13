@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "description": "View file size data for YouTube videos across different quality levels.",
 
-    "permissions": ["activeTab", "storage"],
+    "permissions": ["activeTab", "storage", "cookies"],
 
     "icons": {
         "16": "icons/icon-16.png",
@@ -22,7 +22,13 @@
         "service_worker": "src/background.ts"
     },
 
-    "host_permissions": ["https://*.youtube.com/*", "https://api.mohammedsayed.dev/*"],
+    "host_permissions": [
+        "https://*.youtube.com/*",
+        "https://api.mohammedsayed.dev/*",
+        "https://*.twitch.tv/*",
+        "https://usher.ttvnw.net/api/v2/channel/hls/*",
+        "https://gql.twitch.tv/gql/*"
+    ],
 
     "content_scripts": [
         {

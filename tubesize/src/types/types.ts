@@ -2,13 +2,13 @@ export type APIData = {
     success: boolean;
     id: string;
     title: string;
-    duration: string;
+    durationMinutes: string;
     audioFormat: string;
     videoFormats: {
         formatId: number;
         height: number;
-        size: string;
-        sizePerMinute: number;
+        sizeMB: string;
+        sizePerMinuteMB: number;
     }[];
     createdAt?: string;
     executionTime: string;
@@ -68,10 +68,18 @@ export type StorageData = {
     createdAt?: string;
 };
 
+export type TwitchData =
+    | {
+          bandwidth: number;
+          resolution: number;
+          codec: string;
+      }[]
+    | undefined;
+
 export type BackgroundResponse = {
     success: boolean;
-    data: APIData | HumanizedFormat | null;
-    cached: boolean;
+    data?: APIData | HumanizedFormat | null;
+    cached?: boolean;
     isLive?: boolean;
     isShorts?: boolean;
     createdAt?: string; // Only when we use cached

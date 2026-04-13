@@ -1,25 +1,33 @@
 import "@styles/popup.css";
-import type { BackgroundResponse } from "@app-types/types";
+import type { BackgroundResponse, TwitchData } from "@app-types/types";
 import { useEffect, useState } from "react";
-import { extractVideoTag, isYoutubePage, isShortsVideo } from "@lib/utils";
+import {
+    extractVideoTag,
+    isYoutubePage,
+    isShortsVideo,
+    isTwitchPage,
+    extractTwitchChannelName,
+} from "@lib/utils";
 import { getFromSyncCache } from "@lib/cache";
 import ms from "ms";
 import Options from "@pages/options";
 import CONFIG from "@lib/constants";
 import Header from "@components/header";
 import VideoFormat from "@components/videoFormat";
+import TwitchFormat from "@/components/twitchFormat";
 
 async function getTab() {
     return await chrome.tabs.query({ active: true, currentWindow: true });
 }
 
 async function sendMessageToBackground(
+    type: string,
     tabId: number,
     videoTag: string,
 ): Promise<BackgroundResponse> {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
-            { type: "sendYoutubeUrl", tag: videoTag, tabId: tabId },
+            { type, tag: videoTag, tabId: tabId },
             (response: BackgroundResponse) => {
                 if (chrome.runtime.lastError) {
                     reject(new Error(chrome.runtime.lastError.message));
@@ -55,7 +63,11 @@ export default function Popup() {
         "Loading sizes for this video… (This might take a few seconds)",
     );
 
-    const [videoData, setVideoData] = useState<BackgroundResponse | null>(null);
+    const [youtubeData, setYoutubeData] = useState<BackgroundResponse | null>(null);
+    const [twitchData, setTwitchData] = useState<{ success: boolean; twitchData: TwitchData }>({
+        success: false,
+        twitchData: undefined,
+    });
     const [cache, setCache] = useState<string | undefined>(undefined);
     const [note, setNote] = useState<string | null>(null);
     const [useOptionsPage, setUseOptionsPage] = useState(false);
@@ -73,27 +85,43 @@ export default function Popup() {
                     return;
                 }
 
-                if (!isYoutubePage(url)) {
-                    setMessage("Not a YouTube video page");
-                    return;
-                }
+                if (isYoutubePage(url)) {
+                    const tag = extractVideoTag(url);
+                    if (!tag) {
+                        setMessage("Open a Youtube video");
+                        return;
+                    }
 
-                const tag = extractVideoTag(url);
-                if (!tag) {
-                    setMessage("Open a Youtube video");
-                    return;
-                }
+                    const response = await sendMessageToBackground("sendYoutubeUrl", tab.id!, tag);
+                    if (!response.success) throw new Error(response.message);
+                    if (response.api)
+                        setNote("Used API. Execution time: " + response.executionTime);
+                    if (isShortsVideo(url)) response.isShorts = true;
+                    setYoutubeData(response);
+                    setCache(
+                        response.cached
+                            ? getCachedAgo(response.createdAt) || "Cached just now"
+                            : undefined,
+                    );
+                } else if (isTwitchPage(url)) {
+                    const channelName = extractTwitchChannelName(url);
+                    if (!channelName) {
+                        setMessage("Open a Twitch video");
+                        return;
+                    }
 
-                const response = await sendMessageToBackground(tab.id!, tag);
-                if (!response.success) throw new Error(response.message);
-                if (response.api) setNote("Used API. Execution time: " + response.executionTime);
-                if (isShortsVideo(url)) response.isShorts = true;
-                setVideoData(response);
-                setCache(
-                    response.cached
-                        ? getCachedAgo(response.createdAt) || "Cached just now"
-                        : undefined,
-                );
+                    console.log("Channel Name: ", channelName);
+
+                    const response = (await sendMessageToBackground(
+                        "sendTwitchUrl",
+                        tab.id!,
+                        channelName,
+                    )) as any;
+                    if (!response.success) throw new Error(response.message);
+                    setTwitchData(response);
+                } else {
+                    setMessage("Open Youtube.com or Twitch.tv");
+                }
             } catch (err: any) {
                 console.error("[Popup Error]:", err);
                 setError(err);
@@ -126,16 +154,16 @@ export default function Popup() {
 
     return (
         <>
-            <Header videoData={videoData} setUseOptionsPage={setUseOptionsPage} />
+            <Header youtubeData={youtubeData} setUseOptionsPage={setUseOptionsPage} />
             <div id="container">
                 {cache && <div className="cached-note">{cache}</div>}
                 {note && <div className="cached-note">{note}</div>}
-                {!videoData ? (
-                    <span className="info">{message}</span>
-                ) : enabledOptions.length === 0 ? (
+                {!youtubeData && !twitchData && <span className="info">{message}</span>}
+                {enabledOptions.length === 0 && (
                     <span className="error">All Resolutions Disabled. Enable in options</span>
-                ) : (
-                    videoData?.data?.videoFormats
+                )}
+                {youtubeData &&
+                    youtubeData?.data?.videoFormats
                         ?.filter((item) => {
                             return enabledOptions.includes("p" + item.height);
                         })
@@ -144,13 +172,18 @@ export default function Popup() {
                                 <VideoFormat
                                     key={item.formatId}
                                     item={item}
-                                    isLive={videoData.isLive}
-                                    isShorts={videoData.isShorts}
+                                    isLive={youtubeData.isLive}
+                                    isShorts={youtubeData.isShorts}
                                 />
                             );
                         })
-                        .reverse()
-                )}
+                        .reverse()}
+                {twitchData?.twitchData &&
+                    twitchData?.twitchData
+                        .map((item: any) => {
+                            return <TwitchFormat key={item.resolution} item={item} />;
+                        })
+                        .sort((a, b) => b.props.item.bandwidth - a.props.item.bandwidth)}
             </div>
         </>
     );

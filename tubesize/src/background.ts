@@ -9,12 +9,14 @@ import {
     humanizeData,
 } from "@lib/youtube";
 import { getAPIFallbackSetting } from "@lib/utils";
+import { filterM3U8Data, getTwitchData, getTwitchToken } from "./lib/twitch";
 
 type Message = {
-    type: "clearBadge" | "setBadge" | "sendYoutubeUrl";
+    type: "clearBadge" | "setBadge" | "sendYoutubeUrl" | "sendTwitchUrl";
     tag: string;
     tabId?: number;
     html?: string;
+    channelName?: string;
 };
 
 chrome.runtime.onMessage.addListener(
@@ -39,18 +41,58 @@ async function handleMessage(
     switch (message.type) {
         case "clearBadge":
             clearBadge(tabId);
-            return sendResponse({ success: true, data: null, cached: false });
+            return sendResponse({ success: true });
         case "setBadge":
             addBadge(tabId);
-            return sendResponse({ success: true, data: null, cached: false });
+            return sendResponse({ success: true });
         case "sendYoutubeUrl":
-            return await handleMain(message, tabId, sendResponse);
+            return await handleYoutube(message, tabId, sendResponse);
+        case "sendTwitchUrl":
+            return await handleTwitch(message, sendResponse);
         default:
             return;
     }
 }
 
-async function handleMain(
+async function handleTwitch(message: any, sendResponse: (response: any) => void) {
+    try {
+        const channelName = message.tag;
+        const authToken = await getAuthToken();
+
+        if (!authToken?.value) {
+            return sendResponse({
+                success: false,
+                twitchData: null,
+                message:
+                    "Failed to retrieve Twitch auth token. Please make sure you're logged in to Twitch",
+            });
+        }
+
+        const twitchToken = await getTwitchToken(channelName, authToken?.value);
+        if (!twitchToken) {
+            return sendResponse({
+                success: false,
+                twitchData: null,
+                message: "Failed to retrieve Twitch token",
+            });
+        }
+        const m3u8Data = await getTwitchData(twitchToken, channelName);
+        const filteredM3U8Data = filterM3U8Data(m3u8Data);
+
+        return sendResponse({
+            success: true,
+            twitchData: filteredM3U8Data,
+        });
+    } catch (err) {
+        return sendResponse({
+            success: false,
+            twitchData: null,
+            message: err instanceof Error ? err.message : "Unknown error",
+        });
+    }
+}
+
+async function handleYoutube(
     message: Message,
     tabId: number | undefined,
     sendResponse: (response: BackgroundResponse) => void,
@@ -127,4 +169,12 @@ async function handleMain(
             });
         }
     }
+}
+
+async function getAuthToken() {
+    const token = await chrome.cookies.get({
+        url: "https://www.twitch.tv",
+        name: "auth-token",
+    });
+    return token;
 }

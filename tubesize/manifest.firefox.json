@@ -21,7 +21,11 @@
         "scripts": ["src/background.js"]
     },
 
-    "host_permissions": ["https://*.youtube.com/*", "https://api.mohammedsayed.dev/*"],
+    "host_permissions": [
+        "https://*.youtube.com/*",
+        "https://usher.ttvnw.net/*",
+        "https://api.mohammedsayed.dev/*"
+    ],
 
     "content_scripts": [
         {

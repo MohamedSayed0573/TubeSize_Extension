@@ -19,6 +19,25 @@ export function isShortsVideo(url: string): boolean {
     }
 }
 
+export function isTwitchPage(url: string): boolean {
+    try {
+        const parsedUrl = new URL(url);
+        return parsedUrl.hostname === "www.twitch.tv" || parsedUrl.hostname === "twitch.tv";
+    } catch (err) {
+        return false;
+    }
+}
+
+export function extractTwitchChannelName(url: string): string | undefined {
+    try {
+        const parsedUrl = new URL(url);
+        return parsedUrl.pathname.split("/")[1] || undefined;
+    } catch (err) {
+        console.error(err);
+        return;
+    }
+}
+
 export function extractVideoTag(ytUrl: string): string | undefined {
     try {
         const parsedUrl = new URL(ytUrl);
