@@ -9,34 +9,33 @@ import {
     humanizeData,
 } from "@lib/youtube";
 import { getAPIFallbackSetting } from "@lib/utils";
-import { filterM3U8Data, getTwitchData, getTwitchToken } from "./lib/twitch";
+import { filterM3U8Data, getM3U8Data, getTwitchToken } from "./lib/twitch";
 
+type MessageTypes = "clearBadge" | "setBadge" | "sendYoutubeUrl" | "sendTwitchUrl";
 type Message = {
-    type: "clearBadge" | "setBadge" | "sendYoutubeUrl" | "sendTwitchUrl";
+    type: MessageTypes;
     tag: string;
     tabId?: number;
     html?: string;
     channelName?: string;
 };
 
-chrome.runtime.onMessage.addListener(
-    (
-        message: Message,
-        sender: chrome.runtime.MessageSender,
-        sendResponse: (response: BackgroundResponse) => void,
-    ) => {
-        handleMessage(message, sender, sendResponse);
-        // Synchronously return true to indicate that sendResponse will be called asynchronously
-        return true;
-    },
-);
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    handleMessage(message, sender, sendResponse);
+    // Synchronously return true to indicate that sendResponse will be called asynchronously
+    return true;
+});
 
 async function handleMessage(
     message: Message,
     sender: chrome.runtime.MessageSender,
-    sendResponse: (response: BackgroundResponse) => void,
-) {
+    sendResponse: ({}) => void,
+): Promise<void> {
+    // If the message is sent from the content script, use sender.tab.id, otherwise use message.tabId (sent from popup)
     const tabId = sender.tab?.id ?? message.tabId;
+    if (!tabId) {
+        return sendResponse({ success: false, message: "Invalid tab ID" });
+    }
 
     switch (message.type) {
         case "clearBadge":
@@ -55,13 +54,19 @@ async function handleMessage(
 }
 
 async function handleTwitch(
-    message: any,
+    message: Message,
     sendResponse: (response: TwitchBackgroundResponse) => void,
 ) {
     try {
         const channelName = message.tag;
-        const authToken = await getAuthToken();
+        if (!channelName) {
+            return sendResponse({
+                success: false,
+                message: "No channel name provided",
+            });
+        }
 
+        const authToken = await getAuthToken();
         if (!authToken?.value) {
             return sendResponse({
                 success: false,
@@ -77,7 +82,7 @@ async function handleTwitch(
                 message: "Failed to retrieve Twitch token",
             });
         }
-        const m3u8Data = await getTwitchData(twitchToken, channelName);
+        const m3u8Data = await getM3U8Data(twitchToken, channelName);
         const filteredM3U8Data = filterM3U8Data(m3u8Data);
 
         return sendResponse({
@@ -94,7 +99,7 @@ async function handleTwitch(
 
 async function handleYoutube(
     message: Message,
-    tabId: number | undefined,
+    tabId: number,
     sendResponse: (response: BackgroundResponse) => void,
 ) {
     const { tag, html } = message;
@@ -108,7 +113,6 @@ async function handleYoutube(
             data: cached.response,
             cached: true,
             createdAt: cached.createdAt,
-            isLive: cached.isLive,
         });
     }
 
@@ -126,15 +130,15 @@ async function handleYoutube(
         const rawFormats = parseDataFromYtInitial(rawData);
         const humanizedFormats = humanizeData(rawFormats);
 
-        const isLive = rawData.videoDetails.isLive;
-        await saveToStorage(tag, humanizedFormats, isLive);
+        // Don't cache live video data, as it might change frequenntly.
+        if (!humanizedFormats.isLive) {
+            await saveToStorage(tag, humanizedFormats);
+        }
+
         addBadge(tabId);
         return sendResponse({
             success: true,
             data: humanizedFormats,
-            cached: false,
-            api: false,
-            isLive: rawData.videoDetails.isLive,
         });
     } catch (err) {
         console.error("Couldn't use local, " + err);

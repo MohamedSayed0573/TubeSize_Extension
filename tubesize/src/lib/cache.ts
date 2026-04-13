@@ -47,11 +47,7 @@ async function removeFromCache(storage: "local" | "sync", key?: string | number)
 export const removeFromLocalCache = removeFromCache.bind(null, "local");
 export const removeFromSyncCache = removeFromCache.bind(null, "sync");
 
-export async function saveToStorage(
-    tag: string,
-    response: APIData | HumanizedFormat | null,
-    isLive: boolean,
-) {
+export async function saveToStorage(tag: string, response: APIData | HumanizedFormat | null) {
     if (!response) return;
 
     const ttlInSecondsOptions = await getCacheTTLSetting();
@@ -63,7 +59,6 @@ export async function saveToStorage(
 
     const dataToStore = {
         response,
-        isLive,
         expiry,
         createdAt: new Date().toISOString(),
     };

@@ -22,6 +22,7 @@ export function humanizeData(formats: RawFormat): HumanizedFormat {
         title: formats.title,
         durationMinutes: ms(parseInt(formats.durationSeconds || "0") * 1000),
         videoFormats: humanizedVideoFormats,
+        isLive: formats.isLive,
     };
 }
 
@@ -166,6 +167,7 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
         durationSeconds: data.videoDetails.lengthSeconds,
         formats: chooseVideoFormats(data),
         audioFormats: chooseAudioFormats(data),
+        isLive: data.videoDetails.isLive,
     };
 }
 

@@ -1,4 +1,4 @@
-import type { TwitchData } from "@/types/types";
+import type { TwitchData, TwitchTokenData } from "@/types/types";
 import { Parser } from "m3u8-parser";
 
 export async function getClientId(channelName: string): Promise<string> {
@@ -19,7 +19,10 @@ export async function getClientId(channelName: string): Promise<string> {
     return clientId?.[1];
 }
 
-export async function getTwitchToken(channelName: string, authToken: string) {
+export async function getTwitchToken(
+    channelName: string,
+    authToken: string,
+): Promise<TwitchTokenData> {
     try {
         const clientId = await getClientId(channelName);
         const headers = {
@@ -56,7 +59,7 @@ export async function getTwitchToken(channelName: string, authToken: string) {
     }
 }
 
-export async function getTwitchData(tokenData: any, channelName: string) {
+export async function getM3U8Data(tokenData: TwitchTokenData, channelName: string) {
     const url = new URL(`https://usher.ttvnw.net/api/v2/channel/hls/${channelName}.m3u8`);
 
     url.searchParams.set("token", tokenData.data.streamPlaybackAccessToken.value);

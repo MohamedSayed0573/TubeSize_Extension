@@ -35,6 +35,7 @@ export type RawFormat = {
     id: string;
     title: string;
     durationSeconds: string;
+    isLive: boolean;
     formats: {
         formatId: number;
         height: number;
@@ -51,6 +52,7 @@ export type RawFormat = {
 export type HumanizedFormat = {
     id: string;
     title: string;
+    isLive: boolean;
     durationMinutes: string;
     videoFormats: {
         formatId: number;
@@ -68,14 +70,6 @@ export type StorageData = {
     createdAt?: string;
 };
 
-export type TwitchData =
-    | {
-          bandwidth: number;
-          resolution: number;
-          codec: string;
-      }[]
-    | undefined;
-
 export type BackgroundResponse = {
     success: boolean;
     data?: APIData | HumanizedFormat | null;
@@ -87,6 +81,23 @@ export type BackgroundResponse = {
     api?: boolean; // Only when we use the server API
     executionTime?: string; // Only when we use the server API
 };
+
+export type TwitchTokenData = {
+    data: {
+        streamPlaybackAccessToken: {
+            value: string;
+            signature: string;
+        };
+    };
+};
+
+export type TwitchData =
+    | {
+          bandwidth: number;
+          resolution: number;
+          codec: string;
+      }[]
+    | undefined;
 
 export type TwitchBackgroundResponse = {
     success: boolean;
