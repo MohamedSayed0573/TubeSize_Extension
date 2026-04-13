@@ -2,7 +2,7 @@ import type { BackgroundResponse } from "@app-types/types";
 import { getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
 import {
-    extractYtInitialForVideo,
+    extractYtInitial,
     fetchAPI,
     fetchHTMLPage,
     parseDataFromYtInitial,
@@ -66,6 +66,7 @@ async function handleMain(
             data: cached.response,
             cached: true,
             createdAt: cached.createdAt,
+            isLive: cached.isLive,
         });
     }
 
@@ -73,17 +74,18 @@ async function handleMain(
         let rawData;
         try {
             if (!html) throw new Error("No HTML");
-            rawData = extractYtInitialForVideo(html, tag);
+            rawData = extractYtInitial(html);
         } catch (e) {
             if (html) console.warn("Local HTML extraction failed, falling back to fetchHTMLPage");
             const pageHtml = await fetchHTMLPage(tag);
-            rawData = extractYtInitialForVideo(pageHtml, tag);
+            rawData = extractYtInitial(pageHtml);
         }
 
         const rawFormats = parseDataFromYtInitial(rawData);
         const humanizedFormats = humanizeData(rawFormats);
 
-        await saveToStorage(tag, humanizedFormats);
+        const isLive = rawData.videoDetails.isLive;
+        await saveToStorage(tag, humanizedFormats, isLive);
         addBadge(tabId);
         return sendResponse({
             success: true,

@@ -23,14 +23,15 @@ export function extractVideoTag(ytUrl: string): string | undefined {
     try {
         const parsedUrl = new URL(ytUrl);
 
-        if (parsedUrl.pathname !== "/watch") return;
+        const videoTag =
+            parsedUrl.pathname === "/watch"
+                ? parsedUrl.searchParams.get("v")
+                : parsedUrl.pathname.split("/")[2];
 
-        const videoTag = parsedUrl.searchParams.get("v");
-        if (!videoTag) return;
-
-        if (!CONFIG.VIDEO_ID_REGEX.test(videoTag)) {
+        if (!videoTag || !CONFIG.VIDEO_ID_REGEX.test(videoTag)) {
             return;
         }
+
         return videoTag;
     } catch (err) {
         console.error(err);
@@ -64,7 +65,7 @@ export async function fetchAndRetry(
     maxRetries = CONFIG.DEFAULT_MAX_RETRIES,
 ): Promise<Response> {
     let lastError: unknown;
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
             const response = await fetch(url, options);
             if (response.ok) return response;
@@ -83,7 +84,7 @@ export async function fetchAndRetry(
             if (err instanceof Error && err.message.includes("Client Error")) throw err;
 
             // Skip the timeout if the last attempt
-            if (attempt < maxRetries - 1) {
+            if (attempt < maxRetries) {
                 // Exponential backoff before retry
                 await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
             }

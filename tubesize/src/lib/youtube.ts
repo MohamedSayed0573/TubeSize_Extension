@@ -5,27 +5,39 @@ import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
 declare const __API_URL__: string;
 
+export function sizePerMinute(sizeInBytes: number, durationInSeconds: string): number {
+    if (durationInSeconds === "0") return 0;
+    const durationInMinutes = Number(durationInSeconds) / 60;
+    const sizeInMB = sizeInBytes / 1_000_000;
+    return Number((sizeInMB / durationInMinutes).toFixed(2));
+}
+
 export function humanizeData(formats: RawFormat): HumanizedFormat {
     const audioSize = getAverageAudioSize(formats.audioFormats);
     const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);
-    const humanizedFormats = humanizeVideoFormats(mergedFormats);
+    const humanizedVideoFormats = humanizeVideoFormats(mergedFormats, formats.durationSeconds);
 
     return {
         id: formats.id,
         title: formats.title,
-        duration: ms(parseInt(formats.duration || "0") * 1000),
-        videoFormats: humanizedFormats,
+        durationMinutes: ms(parseInt(formats.durationSeconds || "0") * 1000),
+        videoFormats: humanizedVideoFormats,
     };
 }
 
-export function humanizeVideoFormats(formats: RawFormat["formats"]) {
-    return formats.map((format) => {
+export function humanizeVideoFormats(
+    videoFormats: RawFormat["formats"],
+    durationInSeconds: string,
+) {
+    return videoFormats.map((format) => {
         return {
-            ...format,
-            size: format.maxSize
-                ? `${filesize(format.size)} - ${filesize(format.maxSize)}`
-                : filesize(format.size),
-            maxSize: format.maxSize ? filesize(format.maxSize) : undefined,
+            formatId: format.formatId,
+            height: format.height,
+            sizeMB: format.maxSizeBytes
+                ? `${filesize(format.sizeBytes)} - ${filesize(format.maxSizeBytes)}`
+                : filesize(format.sizeBytes),
+            maxSizeMB: format.maxSizeBytes ? filesize(format.maxSizeBytes) : undefined,
+            sizePerMinuteMB: sizePerMinute(format.sizeBytes, durationInSeconds),
         };
     });
 }
@@ -33,11 +45,11 @@ export function humanizeVideoFormats(formats: RawFormat["formats"]) {
 export function getAverageAudioSize(audioFormatArray: RawFormat["audioFormats"]) {
     // Note: ytInitialPlayerResponse usually returns three formats with itag 251, so we take the average of the content size of all three.
     if (audioFormatArray.length === 0) return 0;
-    if (audioFormatArray.length === 1) return audioFormatArray[0].size;
-    return (
+    if (audioFormatArray.length === 1) return Math.round(audioFormatArray[0].sizeBytes);
+    return Math.round(
         audioFormatArray.reduce((acc, format) => {
-            return acc + format.size;
-        }, 0) / audioFormatArray.length
+            return acc + format.sizeBytes;
+        }, 0) / audioFormatArray.length,
     );
 }
 
@@ -45,8 +57,10 @@ export function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSiz
     return videoFormats.map((videoFormat) => {
         return {
             ...videoFormat,
-            size: videoFormat.size + audioSize,
-            maxSize: videoFormat.maxSize ? videoFormat.maxSize + audioSize : undefined,
+            sizeBytes: videoFormat.sizeBytes + audioSize,
+            maxSizeBytes: videoFormat.maxSizeBytes
+                ? videoFormat.maxSizeBytes + audioSize
+                : undefined,
         };
     });
 }
@@ -69,20 +83,10 @@ export function extractYtInitial(html: string): RawData {
     return data;
 }
 
-export function extractYtInitialForVideo(html: string, expectedVideoTag: string): RawData {
-    const data = extractYtInitial(html);
-
-    if (data.videoDetails?.videoId !== expectedVideoTag) {
-        throw new Error("Mismatched video data");
-    }
-
-    return data;
-}
-
 // Order of each key is important. It's the same order the user sees.
 // Order of itags is important. The first index of each key means higher priority.
 // For example, for 144p, if itag 394 is available, we choose that. If not, we check for itag 330 and so on.
-function chooseVideoFormats(data: RawData) {
+function chooseVideoFormats(data: RawData): RawFormat["formats"] {
     const chosenFormats: RawFormat["formats"] = [];
     const adaptiveFormats = data.streamingData.adaptiveFormats;
 
@@ -91,9 +95,11 @@ function chooseVideoFormats(data: RawData) {
             .map((itag) => {
                 return adaptiveFormats.find((format) => format.itag === itag);
             })
-            // Remove missing itags and formats without content length.
+            // Remove missing itags and keep only formats we can size.
             .filter((format): format is RawData["streamingData"]["adaptiveFormats"][number] => {
-                return Boolean(format) && parseInt(format?.contentLength || "0") > 0;
+                if (!format) return false;
+                if (data.videoDetails.isLive) return Boolean(format.bitrate);
+                return parseInt(format.contentLength || "0") > 0;
             });
 
         if (matchingFormats.length === 0) {
@@ -101,6 +107,9 @@ function chooseVideoFormats(data: RawData) {
         }
 
         const sizes = matchingFormats.map((format) => {
+            if (data.videoDetails.isLive) {
+                return format.bitrate ? (format.bitrate * 3600) / 8 : 0;
+            }
             return parseInt(format.contentLength || "0");
         });
         const firstFormat = matchingFormats[0];
@@ -112,13 +121,39 @@ function chooseVideoFormats(data: RawData) {
         chosenFormats.push({
             formatId: firstFormat.itag,
             height: resolution,
-            size: shouldShowRange ? minSize : sizes[0],
+            sizeBytes: shouldShowRange ? minSize : sizes[0],
             // Only attach a max size when there is an actual range to display.
-            maxSize: shouldShowRange && maxSize > minSize ? maxSize : undefined,
+            maxSizeBytes: shouldShowRange && maxSize > minSize ? maxSize : undefined,
         });
     }
 
     return chosenFormats;
+}
+
+function chooseAudioFormats(data: RawData) {
+    if (data.videoDetails.isLive) {
+        const audioFormat = data.streamingData.adaptiveFormats.find(
+            (format) => format.itag === CONFIG.LIVE_AUDIO_ITAG,
+        );
+        if (!audioFormat) return [];
+        return [
+            {
+                formatId: audioFormat?.itag,
+                sizeBytes: audioFormat?.bitrate ? (audioFormat?.bitrate * 3600) / 8 : 0,
+            },
+        ];
+    }
+
+    return data.streamingData.adaptiveFormats
+        .filter((format) => {
+            return format.itag === CONFIG.AUDIO_ITAG;
+        })
+        .map((format) => {
+            return {
+                formatId: format.itag,
+                sizeBytes: parseInt(format.contentLength || "0"),
+            };
+        });
 }
 
 export function parseDataFromYtInitial(data: RawData): RawFormat {
@@ -128,18 +163,9 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
     return {
         id: data.videoDetails.videoId,
         title: data.videoDetails.title,
-        duration: data.videoDetails.lengthSeconds,
+        durationSeconds: data.videoDetails.lengthSeconds,
         formats: chooseVideoFormats(data),
-        audioFormats: data.streamingData.adaptiveFormats
-            .filter((format) => {
-                return format.itag === CONFIG.AUDIO_ITAG;
-            })
-            .map((format) => {
-                return {
-                    formatId: format.itag,
-                    size: parseInt(format.contentLength || "0"),
-                };
-            }),
+        audioFormats: chooseAudioFormats(data),
     };
 }
 

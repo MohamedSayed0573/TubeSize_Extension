@@ -12,7 +12,7 @@ export default function Header({ videoData, setUseOptionsPage }: Props) {
                 {videoData?.data?.title ?? "TubeSize"}
             </div>
             <span className="duration" id="duration-display">
-                {videoData?.data?.duration}
+                {videoData?.isLive ? null : videoData?.data?.duration}
             </span>
             <button id="optionsBtn" onClick={() => setUseOptionsPage(true)}>
                 Options

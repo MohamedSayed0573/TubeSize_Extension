@@ -104,9 +104,16 @@ body {
     padding-right: 10px;
 }
 .format-size {
+    display: flex;
+    justify-content: right;
+    flex-direction: column;
     color: #bbb;
     font-weight: 500;
     font-size: 13px;
+}
+.format-size-per-minute {
+    font-size: 11px;
+    color: #888;
 }
 .cached-note {
     font-size: 11px;

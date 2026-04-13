@@ -10,6 +10,7 @@ const dataSchema = z.object({
         z.object({
             formatId: z.number(),
             height: z.number(),
+            sizePerMinute: z.number(),
             size: z.number(),
         }),
     ),
@@ -24,6 +25,7 @@ const humanizedDataSchema = z.object({
         z.object({
             formatId: z.number(),
             height: z.number(),
+            sizePerMinute: z.number(),
             size: z.string(),
         }),
     ),

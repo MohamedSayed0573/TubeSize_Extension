@@ -14,6 +14,7 @@ function extractVideoSizes(data: RawData, videoFormatIDs: readonly string[]) {
                 formatId: parseInt(format.format_id) || 0,
                 height: format.height,
                 size: format.filesize,
+                sizePerMinute: sizePerMinute(format.filesize, data.duration ?? 0),
             };
         });
 }
@@ -24,17 +25,18 @@ function extractAudioSize(data: RawData, audioFormatID: string) {
     return rawAudioFormat ? rawAudioFormat.filesize : 0;
 }
 
-function extractDuration(data: RawData) {
-    return data.duration ?? 0;
+function sizePerMinute(sizeInBytes: number, durationInSeconds: number): number {
+    const durationInMinutes = durationInSeconds / 60;
+    const sizeInMB = sizeInBytes / 1_000_000;
+    return Number((sizeInMB / durationInMinutes).toFixed(2));
 }
-
 export function formatResponse(data: RawData): Data {
     const primaryFormats = extractVideoSizes(data, CONFIG.VIDEO_FORMAT_IDS);
     const primaryAudio = extractAudioSize(data, CONFIG.AUDIO_FORMAT_ID);
     return {
         id: data.id,
         title: data.title,
-        duration: extractDuration(data),
+        duration: data.duration ?? 0,
         audioFormat: primaryAudio
             ? primaryAudio
             : extractAudioSize(data, CONFIG.FALLBACK_AUDIO_FORMAT_IDS),
@@ -63,9 +65,11 @@ export function mergeAudioWithVideoFormats(data: Data): Data {
     return {
         ...data,
         videoFormats: data.videoFormats.map((format) => {
+            const mergedSize = format.size + data.audioFormat;
             return {
                 ...format,
-                size: format.size + data.audioFormat,
+                size: mergedSize,
+                sizePerMinute: sizePerMinute(mergedSize, data.duration),
             };
         }),
     };

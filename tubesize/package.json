@@ -7,6 +7,8 @@
         "dev": "vite build --watch --mode development",
         "build": "vite build",
         "test": "jest",
+        "test:coverage": "jest --coverage",
+        "test:preview": "wslview ./coverage/lcov-report/index.html",
         "prettier:write": "pnpm exec prettier . --write",
         "pack": "pnpm run build && zip -r dist/tubesize.zip dist",
         "pack:firefox": "pnpm run build && sh ./scripts/pack-firefox.sh",

@@ -17,6 +17,7 @@ export type BaseData<T> = {
     videoFormats: {
         formatId: number;
         height: number;
+        sizePerMinute: number;
         size: T;
     }[];
 };
