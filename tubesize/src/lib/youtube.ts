@@ -31,7 +31,8 @@ export function humanizeVideoFormats(
 ) {
     return videoFormats.map((format) => {
         return {
-            ...format,
+            formatId: format.formatId,
+            height: format.height,
             sizeMB: format.maxSizeBytes
                 ? `${filesize(format.sizeBytes)} - ${filesize(format.maxSizeBytes)}`
                 : filesize(format.sizeBytes),
