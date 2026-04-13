@@ -84,7 +84,7 @@ export async function fetchAndRetry(
             if (err instanceof Error && err.message.includes("Client Error")) throw err;
 
             // Skip the timeout if the last attempt
-            if (attempt < maxRetries - 1) {
+            if (attempt < maxRetries) {
                 // Exponential backoff before retry
                 await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
             }

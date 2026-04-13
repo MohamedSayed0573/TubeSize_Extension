@@ -65,9 +65,11 @@ export function mergeAudioWithVideoFormats(data: Data): Data {
     return {
         ...data,
         videoFormats: data.videoFormats.map((format) => {
+            const mergedSize = format.size + data.audioFormat;
             return {
                 ...format,
-                size: format.size + data.audioFormat,
+                size: mergedSize,
+                sizePerMinute: sizePerMinute(mergedSize, data.duration),
             };
         }),
     };
