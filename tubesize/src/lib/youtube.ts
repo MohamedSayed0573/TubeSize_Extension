@@ -127,7 +127,7 @@ function chooseVideoFormats(data: RawData): RawFormat["formats"] {
 function chooseAudioFormats(data: RawData) {
     if (data.videoDetails.isLive) {
         const audioFormat = data.streamingData.adaptiveFormats.find(
-            (format) => format.itag === 140,
+            (format) => format.itag === CONFIG.LIVE_AUDIO_ITAG,
         );
         if (!audioFormat) return [];
         return [
@@ -137,6 +137,7 @@ function chooseAudioFormats(data: RawData) {
             },
         ];
     }
+
     return data.streamingData.adaptiveFormats
         .filter((format) => {
             return format.itag === CONFIG.AUDIO_ITAG;
@@ -157,6 +158,7 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
         id: data.videoDetails.videoId,
         title: data.videoDetails.title,
         duration: data.videoDetails.lengthSeconds,
+        isLive: data.videoDetails.isLive,
         formats: chooseVideoFormats(data),
         audioFormats: chooseAudioFormats(data),
     };

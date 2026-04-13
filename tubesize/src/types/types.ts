@@ -35,6 +35,7 @@ export type RawFormat = {
     id: string;
     title: string;
     duration: string;
+    isLive: boolean;
     formats: {
         formatId: number;
         height: number;

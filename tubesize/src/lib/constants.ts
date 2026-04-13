@@ -25,6 +25,7 @@ const CONFIG = {
     resolutions: Array.from(VIDEO_ITAGS.entries()),
     liveResolutions: [248, 247, 244, 243, 242, 278],
     AUDIO_ITAG: 251,
+    LIVE_AUDIO_ITAG: 140,
     DEFAULT_CACHE_TTL: 3 * 24 * 60 * 60, // 3 Days
     ttlInSecondsOptions,
     optionIDs,
