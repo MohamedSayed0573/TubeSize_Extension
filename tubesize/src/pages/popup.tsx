@@ -1,5 +1,5 @@
 import "@styles/popup.css";
-import type { BackgroundResponse, TwitchData } from "@app-types/types";
+import type { BackgroundResponse, TwitchBackgroundResponse } from "@app-types/types";
 import { useEffect, useState } from "react";
 import {
     extractVideoTag,
@@ -21,14 +21,25 @@ async function getTab() {
 }
 
 async function sendMessageToBackground(
-    type: string,
-    tabId: number,
+    type: "sendYoutubeUrl",
     videoTag: string,
-): Promise<BackgroundResponse> {
+    tabId: number,
+): Promise<BackgroundResponse>;
+async function sendMessageToBackground(
+    type: "sendTwitchUrl",
+    videoTag: string,
+    tabId?: number,
+): Promise<TwitchBackgroundResponse>;
+
+async function sendMessageToBackground(
+    type: "sendYoutubeUrl" | "sendTwitchUrl",
+    videoTag: string,
+    tabId?: number,
+) {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
             { type, tag: videoTag, tabId: tabId },
-            (response: BackgroundResponse) => {
+            (response: BackgroundResponse | TwitchBackgroundResponse) => {
                 if (chrome.runtime.lastError) {
                     reject(new Error(chrome.runtime.lastError.message));
                     return;
@@ -37,7 +48,8 @@ async function sendMessageToBackground(
                     reject(new Error(response?.message || "Failed to fetch video data"));
                     return;
                 }
-                resolve(response);
+                if (type === "sendTwitchUrl") resolve(response as TwitchBackgroundResponse);
+                else resolve(response as BackgroundResponse);
             },
         );
     });
@@ -64,10 +76,7 @@ export default function Popup() {
     );
 
     const [youtubeData, setYoutubeData] = useState<BackgroundResponse | null>(null);
-    const [twitchData, setTwitchData] = useState<{ success: boolean; twitchData: TwitchData }>({
-        success: false,
-        twitchData: undefined,
-    });
+    const [twitchData, setTwitchData] = useState<TwitchBackgroundResponse | null>(null);
     const [cache, setCache] = useState<string | undefined>(undefined);
     const [note, setNote] = useState<string | null>(null);
     const [useOptionsPage, setUseOptionsPage] = useState(false);
@@ -92,7 +101,7 @@ export default function Popup() {
                         return;
                     }
 
-                    const response = await sendMessageToBackground("sendYoutubeUrl", tab.id!, tag);
+                    const response = await sendMessageToBackground("sendYoutubeUrl", tag, tab.id!);
                     if (!response.success) throw new Error(response.message);
                     if (response.api)
                         setNote("Used API. Execution time: " + response.executionTime);
@@ -106,21 +115,15 @@ export default function Popup() {
                 } else if (isTwitchPage(url)) {
                     const channelName = extractTwitchChannelName(url);
                     if (!channelName) {
-                        setMessage("Open a Twitch video");
+                        setMessage("Open a Twitch stream");
                         return;
                     }
 
-                    console.log("Channel Name: ", channelName);
-
-                    const response = (await sendMessageToBackground(
-                        "sendTwitchUrl",
-                        tab.id!,
-                        channelName,
-                    )) as any;
+                    const response = await sendMessageToBackground("sendTwitchUrl", channelName);
                     if (!response.success) throw new Error(response.message);
                     setTwitchData(response);
                 } else {
-                    setMessage("Open Youtube.com or Twitch.tv");
+                    setMessage("Open a YouTube video or Twitch stream to view sizes");
                 }
             } catch (err: any) {
                 console.error("[Popup Error]:", err);

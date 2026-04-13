@@ -87,3 +87,9 @@ export type BackgroundResponse = {
     api?: boolean; // Only when we use the server API
     executionTime?: string; // Only when we use the server API
 };
+
+export type TwitchBackgroundResponse = {
+    success: boolean;
+    twitchData?: TwitchData;
+    message?: string;
+};
