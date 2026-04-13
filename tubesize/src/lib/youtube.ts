@@ -15,25 +15,28 @@ export function sizePerMinute(sizeInBytes: number, durationInSeconds: string): n
 export function humanizeData(formats: RawFormat): HumanizedFormat {
     const audioSize = getAverageAudioSize(formats.audioFormats);
     const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);
-    const humanizedFormats = humanizeVideoFormats(mergedFormats, formats.duration);
+    const humanizedVideoFormats = humanizeVideoFormats(mergedFormats, formats.durationSeconds);
 
     return {
         id: formats.id,
         title: formats.title,
-        duration: ms(parseInt(formats.duration || "0") * 1000),
-        videoFormats: humanizedFormats,
+        durationMinutes: ms(parseInt(formats.durationSeconds || "0") * 1000),
+        videoFormats: humanizedVideoFormats,
     };
 }
 
-export function humanizeVideoFormats(formats: RawFormat["formats"], durationInSeconds: string) {
-    return formats.map((format) => {
+export function humanizeVideoFormats(
+    videoFormats: RawFormat["formats"],
+    durationInSeconds: string,
+) {
+    return videoFormats.map((format) => {
         return {
             ...format,
-            size: format.maxSize
-                ? `${filesize(format.size)} - ${filesize(format.maxSize)}`
-                : filesize(format.size),
-            maxSize: format.maxSize ? filesize(format.maxSize) : undefined,
-            sizePerMinute: sizePerMinute(format.size, durationInSeconds),
+            sizeMB: format.maxSizeBytes
+                ? `${filesize(format.sizeBytes)} - ${filesize(format.maxSizeBytes)}`
+                : filesize(format.sizeBytes),
+            maxSizeMB: format.maxSizeBytes ? filesize(format.maxSizeBytes) : undefined,
+            sizePerMinuteMB: sizePerMinute(format.sizeBytes, durationInSeconds),
         };
     });
 }
@@ -41,10 +44,10 @@ export function humanizeVideoFormats(formats: RawFormat["formats"], durationInSe
 export function getAverageAudioSize(audioFormatArray: RawFormat["audioFormats"]) {
     // Note: ytInitialPlayerResponse usually returns three formats with itag 251, so we take the average of the content size of all three.
     if (audioFormatArray.length === 0) return 0;
-    if (audioFormatArray.length === 1) return Math.round(audioFormatArray[0].size);
+    if (audioFormatArray.length === 1) return Math.round(audioFormatArray[0].sizeBytes);
     return Math.round(
         audioFormatArray.reduce((acc, format) => {
-            return acc + format.size;
+            return acc + format.sizeBytes;
         }, 0) / audioFormatArray.length,
     );
 }
@@ -53,8 +56,10 @@ export function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSiz
     return videoFormats.map((videoFormat) => {
         return {
             ...videoFormat,
-            size: videoFormat.size + audioSize,
-            maxSize: videoFormat.maxSize ? videoFormat.maxSize + audioSize : undefined,
+            sizeBytes: videoFormat.sizeBytes + audioSize,
+            maxSizeBytes: videoFormat.maxSizeBytes
+                ? videoFormat.maxSizeBytes + audioSize
+                : undefined,
         };
     });
 }
@@ -115,9 +120,9 @@ function chooseVideoFormats(data: RawData): RawFormat["formats"] {
         chosenFormats.push({
             formatId: firstFormat.itag,
             height: resolution,
-            size: shouldShowRange ? minSize : sizes[0],
+            sizeBytes: shouldShowRange ? minSize : sizes[0],
             // Only attach a max size when there is an actual range to display.
-            maxSize: shouldShowRange && maxSize > minSize ? maxSize : undefined,
+            maxSizeBytes: shouldShowRange && maxSize > minSize ? maxSize : undefined,
         });
     }
 
@@ -133,7 +138,7 @@ function chooseAudioFormats(data: RawData) {
         return [
             {
                 formatId: audioFormat?.itag,
-                size: audioFormat?.bitrate ? (audioFormat?.bitrate * 3600) / 8 : 0,
+                sizeBytes: audioFormat?.bitrate ? (audioFormat?.bitrate * 3600) / 8 : 0,
             },
         ];
     }
@@ -145,7 +150,7 @@ function chooseAudioFormats(data: RawData) {
         .map((format) => {
             return {
                 formatId: format.itag,
-                size: parseInt(format.contentLength || "0"),
+                sizeBytes: parseInt(format.contentLength || "0"),
             };
         });
 }
@@ -157,8 +162,7 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
     return {
         id: data.videoDetails.videoId,
         title: data.videoDetails.title,
-        duration: data.videoDetails.lengthSeconds,
-        isLive: data.videoDetails.isLive,
+        durationSeconds: data.videoDetails.lengthSeconds,
         formats: chooseVideoFormats(data),
         audioFormats: chooseAudioFormats(data),
     };

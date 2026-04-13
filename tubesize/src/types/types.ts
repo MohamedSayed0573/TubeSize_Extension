@@ -34,31 +34,30 @@ export type RawData = {
 export type RawFormat = {
     id: string;
     title: string;
-    duration: string;
-    isLive: boolean;
+    durationSeconds: string;
     formats: {
         formatId: number;
         height: number;
-        size: number;
-        maxSize?: number;
-        bitrate?: number;
+        sizeBytes: number;
+        maxSizeBytes?: number;
+        bitrateBitsPerSecond?: number;
     }[];
     audioFormats: {
         formatId: number;
-        size: number;
+        sizeBytes: number;
     }[];
 };
 
 export type HumanizedFormat = {
     id: string;
     title: string;
-    duration: string;
+    durationMinutes: string;
     videoFormats: {
         formatId: number;
         height: number;
-        size: string;
-        sizePerMinute: number;
-        maxSize?: string;
+        sizeMB: string;
+        sizePerMinuteMB: number;
+        maxSizeMB?: string;
     }[];
 };
 
