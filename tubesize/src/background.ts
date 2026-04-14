@@ -63,16 +63,16 @@ async function handleTwitch(
             });
         }
 
-        const authToken = await getAuthToken();
-        if (!authToken?.value) {
-            return sendResponse({
-                success: false,
-                message:
-                    "Failed to retrieve Twitch auth token. Please make sure you're logged in to Twitch",
-            });
-        }
+        // const authToken = await getAuthToken();
+        // if (!authToken?.value) {
+        //     return sendResponse({
+        //         success: false,
+        //         message:
+        //             "Failed to retrieve Twitch auth token. Please make sure you're logged in to Twitch",
+        //     });
+        // }
 
-        const twitchToken = await getTwitchToken(channelName, authToken?.value);
+        const twitchToken = await getTwitchToken(channelName);
         if (!twitchToken) {
             return sendResponse({
                 success: false,
@@ -176,12 +176,4 @@ async function handleYoutube(
             });
         }
     }
-}
-
-async function getAuthToken() {
-    const token = await chrome.cookies.get({
-        url: "https://www.twitch.tv",
-        name: "auth-token",
-    });
-    return token;
 }

@@ -4,7 +4,7 @@
     "version": "1.0.0",
     "description": "View file size data for YouTube videos across different quality levels.",
 
-    "permissions": ["activeTab", "storage", "cookies"],
+    "permissions": ["activeTab", "storage"],
 
     "icons": {
         "16": "icons/icon-16.png",

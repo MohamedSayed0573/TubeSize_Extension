@@ -19,15 +19,11 @@ export async function getClientId(channelName: string): Promise<string> {
     return clientId?.[1];
 }
 
-export async function getTwitchToken(
-    channelName: string,
-    authToken: string,
-): Promise<TwitchTokenData> {
+export async function getTwitchToken(channelName: string): Promise<TwitchTokenData> {
     try {
         const clientId = await getClientId(channelName);
         const headers = {
             "Client-Id": clientId,
-            Authorization: "OAUTH " + authToken,
             "Content-Type": "application/json",
         };
         const body = {
