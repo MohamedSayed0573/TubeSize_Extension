@@ -1,19 +1,43 @@
-import type { BackgroundResponse } from "@app-types/types";
+import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
 
 interface Props {
-    youtubeData?: BackgroundResponse | null;
+    pageType?: "youtube" | "twitch" | "default";
+    youtubeData?: YoutubeBackgroundResponse | null;
+    twitchData?: TwitchBackgroundResponse | null;
     setUseOptionsPage: (useOptionsPage: boolean) => void;
 }
 
-export default function Header({ youtubeData, setUseOptionsPage }: Props) {
+export default function Header({
+    pageType = "default",
+    youtubeData,
+    twitchData,
+    setUseOptionsPage,
+}: Props) {
+    const title =
+        pageType === "youtube"
+            ? (youtubeData?.data?.title ?? "TubeSize")
+            : pageType === "twitch"
+              ? twitchData?.twitchData?.channelName || "Twitch Stream"
+              : "TubeSize";
+
+    const duration =
+        pageType === "youtube" && !youtubeData?.data?.isLive
+            ? youtubeData?.data?.durationMinutes
+            : undefined;
+
     return (
         <div className="header">
-            <div className="title" title={youtubeData?.data?.title}>
-                {youtubeData?.data?.title ?? "TubeSize"}
+            <div
+                className="title"
+                title={pageType === "youtube" ? youtubeData?.data?.title : title}
+            >
+                {title}
             </div>
-            <span className="duration" id="duration-display">
-                {youtubeData?.data?.isLive ? null : youtubeData?.data?.durationMinutes}
-            </span>
+            {pageType === "youtube" && (
+                <span className="duration" id="duration-display">
+                    {duration}
+                </span>
+            )}
             <button id="optionsBtn" onClick={() => setUseOptionsPage(true)}>
                 Options
             </button>

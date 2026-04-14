@@ -1,7 +1,7 @@
 import type { TwitchData } from "@/types/types";
 import { filesize } from "filesize";
 
-export default function TwitchFormat({ item }: { item: NonNullable<TwitchData>[number] }) {
+export default function TwitchFormat({ item }: { item: NonNullable<TwitchData["data"]>[number] }) {
     return (
         <div className="format-item">
             <div className="format-height"> {item.resolution} </div>

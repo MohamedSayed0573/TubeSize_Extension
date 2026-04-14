@@ -7,10 +7,7 @@ export async function getClientId(channelName: string): Promise<string> {
         throw new Error("Failed to fetch Twitch page");
     }
     const data = await res.text();
-    console.log("Get Client ID", data);
-
     const clientId = data.match(/clientId\s*=\s*"(.*?)"/);
-    console.log("client id", clientId);
 
     if (!clientId?.[1]) {
         console.error("Failed to extract client ID from Twitch page");
@@ -44,7 +41,6 @@ export async function getTwitchToken(channelName: string): Promise<TwitchTokenDa
             body: JSON.stringify(body),
         });
         const data = await res.json();
-        console.log(data);
         if (!data?.data?.streamPlaybackAccessToken) {
             throw new Error("Failed to get stream playback access token");
         }
@@ -66,16 +62,19 @@ export async function getM3U8Data(tokenData: TwitchTokenData, channelName: strin
         throw new Error("Failed to fetch Twitch m3u8 data");
     }
     const data = await res.text();
-    return data;
+    return {
+        channelName,
+        data,
+    };
 }
 
-export function filterM3U8Data(m3u8Data: string): TwitchData {
+export function filterM3U8Data(m3u8Data: string): TwitchData["data"] {
     const parser = new Parser();
     parser.push(m3u8Data);
     parser.end();
 
     const parsed = parser.manifest.playlists;
-    return parsed
+    const result = parsed
         ?.filter(
             (item) =>
                 item.attributes.RESOLUTION?.height &&
@@ -89,4 +88,6 @@ export function filterM3U8Data(m3u8Data: string): TwitchData {
                 codec: item.attributes.CODECS!,
             };
         });
+
+    return result || [];
 }

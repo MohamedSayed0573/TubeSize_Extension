@@ -1,12 +1,15 @@
-import type { BackgroundResponse, APIData } from "@app-types/types";
+import type { YoutubeBackgroundResponse, APIData } from "@app-types/types";
 
 interface Props {
-    item: Exclude<BackgroundResponse["data"], APIData | null | undefined>["videoFormats"][number];
+    item: Exclude<
+        YoutubeBackgroundResponse["data"],
+        APIData | null | undefined
+    >["videoFormats"][number];
     isLive: boolean | undefined;
     isShorts: boolean | undefined;
 }
 
-export default function VideoFormat({ item, isLive = false, isShorts = false }: Props) {
+export default function YoutubeFormat({ item, isLive = false, isShorts = false }: Props) {
     return (
         <div className="format-item">
             <div className="format-height"> {item.height} </div>

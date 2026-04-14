@@ -66,12 +66,11 @@ export type HumanizedFormat = {
 
 export type StorageData = {
     response: APIData | HumanizedFormat;
-    isLive: boolean;
     expiry?: number;
     createdAt?: string;
 };
 
-export type BackgroundResponse = {
+export type YoutubeBackgroundResponse = {
     success: boolean;
     data?: APIData | HumanizedFormat | null;
     cached?: boolean;
@@ -91,13 +90,22 @@ export type TwitchTokenData = {
     };
 };
 
-export type TwitchData =
-    | {
-          bandwidth: number;
-          resolution: number;
-          codec: string;
-      }[]
-    | undefined;
+// export type TwitchData =
+//     | {
+//           bandwidth: number;
+//           resolution: number;
+//           codec: string;
+//       }[]
+//     | undefined;
+
+export type TwitchData = {
+    data: {
+        bandwidth: number;
+        resolution: number;
+        codec: string;
+    }[];
+    channelName: string;
+};
 
 export type TwitchBackgroundResponse = {
     success: boolean;

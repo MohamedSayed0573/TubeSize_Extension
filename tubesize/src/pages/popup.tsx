@@ -1,5 +1,5 @@
 import "@styles/popup.css";
-import type { BackgroundResponse, TwitchBackgroundResponse } from "@app-types/types";
+import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
 import { useEffect, useState } from "react";
 import {
     extractVideoTag,
@@ -13,7 +13,7 @@ import ms from "ms";
 import Options from "@pages/options";
 import CONFIG from "@lib/constants";
 import Header from "@components/header";
-import VideoFormat from "@components/videoFormat";
+import YoutubeFormat from "@/components/youtubeFormat";
 import TwitchFormat from "@/components/twitchFormat";
 
 async function getTab() {
@@ -24,7 +24,7 @@ async function sendMessageToBackground(
     type: "sendYoutubeUrl",
     videoTag: string,
     tabId: number,
-): Promise<BackgroundResponse>;
+): Promise<YoutubeBackgroundResponse>;
 async function sendMessageToBackground(
     type: "sendTwitchUrl",
     videoTag: string,
@@ -39,7 +39,7 @@ async function sendMessageToBackground(
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
             { type, tag: videoTag, tabId: tabId },
-            (response: BackgroundResponse | TwitchBackgroundResponse) => {
+            (response: YoutubeBackgroundResponse | TwitchBackgroundResponse) => {
                 if (chrome.runtime.lastError) {
                     reject(new Error(chrome.runtime.lastError.message));
                     return;
@@ -49,7 +49,7 @@ async function sendMessageToBackground(
                     return;
                 }
                 if (type === "sendTwitchUrl") resolve(response as TwitchBackgroundResponse);
-                else resolve(response as BackgroundResponse);
+                else resolve(response as YoutubeBackgroundResponse);
             },
         );
     });
@@ -75,7 +75,8 @@ export default function Popup() {
         "Loading sizes for this video… (This might take a few seconds)",
     );
 
-    const [youtubeData, setYoutubeData] = useState<BackgroundResponse | null>(null);
+    const [pageType, setPageType] = useState<"youtube" | "twitch" | "default">("default");
+    const [youtubeData, setYoutubeData] = useState<YoutubeBackgroundResponse | null>(null);
     const [twitchData, setTwitchData] = useState<TwitchBackgroundResponse | null>(null);
     const [cache, setCache] = useState<string | undefined>(undefined);
     const [note, setNote] = useState<string | null>(null);
@@ -95,6 +96,7 @@ export default function Popup() {
                 }
 
                 if (isYoutubePage(url)) {
+                    setPageType("youtube");
                     const tag = extractVideoTag(url);
                     if (!tag) {
                         setMessage("Open a Youtube video");
@@ -113,6 +115,7 @@ export default function Popup() {
                             : undefined,
                     );
                 } else if (isTwitchPage(url)) {
+                    setPageType("twitch");
                     const channelName = extractTwitchChannelName(url);
                     if (!channelName) {
                         setMessage("Open a Twitch stream");
@@ -157,7 +160,12 @@ export default function Popup() {
 
     return (
         <>
-            <Header youtubeData={youtubeData} setUseOptionsPage={setUseOptionsPage} />
+            <Header
+                pageType={pageType}
+                youtubeData={youtubeData}
+                twitchData={twitchData}
+                setUseOptionsPage={setUseOptionsPage}
+            />
             <div id="container">
                 {cache && <div className="cached-note">{cache}</div>}
                 {note && <div className="cached-note">{note}</div>}
@@ -172,7 +180,7 @@ export default function Popup() {
                         })
                         ?.map((item) => {
                             return (
-                                <VideoFormat
+                                <YoutubeFormat
                                     key={item.formatId}
                                     item={item}
                                     isLive={youtubeData.data?.isLive}
@@ -181,8 +189,8 @@ export default function Popup() {
                             );
                         })
                         .reverse()}
-                {twitchData?.twitchData &&
-                    twitchData?.twitchData
+                {twitchData?.twitchData?.data &&
+                    twitchData?.twitchData?.data
                         .map((item: any) => {
                             return <TwitchFormat key={item.resolution} item={item} />;
                         })

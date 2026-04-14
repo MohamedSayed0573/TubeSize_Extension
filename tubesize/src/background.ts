@@ -1,4 +1,4 @@
-import type { BackgroundResponse, TwitchBackgroundResponse } from "@app-types/types";
+import type { YoutubeBackgroundResponse, TwitchBackgroundResponse } from "@app-types/types";
 import { getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
 import {
@@ -80,11 +80,11 @@ async function handleTwitch(
             });
         }
         const m3u8Data = await getM3U8Data(twitchToken, channelName);
-        const filteredM3U8Data = filterM3U8Data(m3u8Data);
+        const filteredM3U8Data = filterM3U8Data(m3u8Data.data);
 
         return sendResponse({
             success: true,
-            twitchData: filteredM3U8Data,
+            twitchData: { data: filteredM3U8Data, channelName },
         });
     } catch (err) {
         return sendResponse({
@@ -97,7 +97,7 @@ async function handleTwitch(
 async function handleYoutube(
     message: Message,
     tabId: number | undefined,
-    sendResponse: (response: BackgroundResponse) => void,
+    sendResponse: (response: YoutubeBackgroundResponse) => void,
 ) {
     const { tag, html } = message;
     if (!tabId) {
