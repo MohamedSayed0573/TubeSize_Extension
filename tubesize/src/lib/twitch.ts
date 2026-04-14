@@ -79,11 +79,18 @@ export function filterM3U8Data(m3u8Data: string): TwitchData {
     parser.end();
 
     const parsed = parser.manifest.playlists;
-    return parsed?.map((item: any) => {
-        return {
-            bandwidth: item.attributes.BANDWIDTH,
-            resolution: item.attributes.RESOLUTION.height,
-            codec: item.attributes.CODECS,
-        };
-    });
+    return parsed
+        ?.filter(
+            (item) =>
+                item.attributes.RESOLUTION?.height &&
+                item.attributes.BANDWIDTH &&
+                item.attributes.CODECS,
+        )
+        .map((item) => {
+            return {
+                bandwidth: item.attributes.BANDWIDTH!,
+                resolution: item.attributes.RESOLUTION!.height,
+                codec: item.attributes.CODECS!,
+            };
+        });
 }
