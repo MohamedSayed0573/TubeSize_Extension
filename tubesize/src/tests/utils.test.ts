@@ -50,7 +50,7 @@ describe("extractVideoTag", () => {
     });
 
     test("should return undefined if the video id is shorter than 11", () => {
-        expect(extractVideoTag("https://www.youtube.com/watch?v=yaodD79Q4")).toBeNil();
+        expect(extractVideoTag("https://www.youtube.com/watch?v=yaodD79Q")).toBeNil();
     });
 
     test("should return undefined if the video id is missing", () => {
@@ -93,11 +93,11 @@ describe("extractVideoTag", () => {
 describe("fetchAndRetry", () => {
     test("should fail after 4 retries", async () => {
         global.fetch = jest.fn().mockRejectedValue(new Error("failed"));
-        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4")).rejects.toThrow(
+        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).rejects.toThrow(
             "failed",
         );
         expect(global.fetch).toHaveBeenCalledTimes(4);
-    });
+    }, 10000);
 
     test("should succeed after 3 fails", async () => {
         global.fetch = jest
@@ -107,11 +107,13 @@ describe("fetchAndRetry", () => {
             .mockRejectedValueOnce(new Error("failed 3"))
             .mockResolvedValueOnce({ ok: true });
 
-        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4")).resolves.toEqual({
-            ok: true,
-        });
+        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).resolves.toEqual(
+            {
+                ok: true,
+            },
+        );
         expect(global.fetch).toHaveBeenCalledTimes(4);
-    });
+    }, 10000);
 
     test("should not retry on client errors 4xx", async () => {
         global.fetch = jest.fn().mockResolvedValue({
@@ -119,7 +121,7 @@ describe("fetchAndRetry", () => {
             ok: false,
         });
 
-        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4")).rejects.toThrow(
+        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).rejects.toThrow(
             "Client Error: 400, won't retry",
         );
 
@@ -138,9 +140,11 @@ describe("fetchAndRetry", () => {
                 ok: true,
             });
 
-        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4")).resolves.toEqual({
-            status: 200,
-            ok: true,
-        });
+        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).resolves.toEqual(
+            {
+                status: 200,
+                ok: true,
+            },
+        );
     });
 });

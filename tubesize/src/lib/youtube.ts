@@ -20,7 +20,7 @@ export function humanizeData(formats: RawFormat): HumanizedFormat {
     return {
         id: formats.id,
         title: formats.title,
-        durationMinutes: ms(parseInt(formats.durationSeconds || "0") * 1000),
+        durationMinutes: ms(formats.durationSeconds * 1000),
         videoFormats: humanizedVideoFormats,
         isLive: formats.isLive,
     };
@@ -28,7 +28,7 @@ export function humanizeData(formats: RawFormat): HumanizedFormat {
 
 export function humanizeVideoFormats(
     videoFormats: RawFormat["formats"],
-    durationInSeconds: string,
+    durationInSeconds: number,
 ) {
     return videoFormats.map((format) => {
         return {
@@ -38,7 +38,7 @@ export function humanizeVideoFormats(
                 ? `${filesize(format.sizeBytes)} - ${filesize(format.maxSizeBytes)}`
                 : filesize(format.sizeBytes),
             maxSizeMB: format.maxSizeBytes ? filesize(format.maxSizeBytes) : undefined,
-            sizePerMinuteMB: sizePerMinute(format.sizeBytes, parseInt(durationInSeconds)),
+            sizePerMinuteMB: sizePerMinute(format.sizeBytes, durationInSeconds),
         };
     });
 }
@@ -164,10 +164,10 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
     return {
         id: data.videoDetails.videoId,
         title: data.videoDetails.title,
-        durationSeconds: data.videoDetails.lengthSeconds,
+        durationSeconds: parseInt(data.videoDetails.lengthSeconds || "0"),
         formats: chooseVideoFormats(data),
         audioFormats: chooseAudioFormats(data),
-        isLive: data.videoDetails.isLive,
+        isLive: data.videoDetails.isLive ?? false,
     };
 }
 

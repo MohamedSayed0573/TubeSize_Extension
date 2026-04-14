@@ -14,7 +14,7 @@
         "pack:firefox": "pnpm run build && sh ./scripts/pack-firefox.sh",
         "lint": "eslint .",
         "preview": "vite preview",
-        "tsc": "tsc --noEmit"
+        "tsc": "tsc --noEmit -p tsconfig.app.json"
     },
     "dependencies": {
         "filesize": "^11.0.13",

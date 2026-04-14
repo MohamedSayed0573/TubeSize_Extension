@@ -10,6 +10,7 @@ export type APIData = {
         sizeMB: string;
         sizePerMinuteMB: number;
     }[];
+    isLive: boolean;
     createdAt?: string;
     executionTime: string;
 };
@@ -34,7 +35,7 @@ export type RawData = {
 export type RawFormat = {
     id: string;
     title: string;
-    durationSeconds: string;
+    durationSeconds: number;
     isLive: boolean;
     formats: {
         formatId: number;
@@ -74,7 +75,6 @@ export type BackgroundResponse = {
     success: boolean;
     data?: APIData | HumanizedFormat | null;
     cached?: boolean;
-    isLive?: boolean;
     isShorts?: boolean;
     createdAt?: string; // Only when we use cached
     message?: string;

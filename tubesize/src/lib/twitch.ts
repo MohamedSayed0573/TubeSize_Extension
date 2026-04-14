@@ -9,7 +9,7 @@ export async function getClientId(channelName: string): Promise<string> {
     const data = await res.text();
     console.log("Get Client ID", data);
 
-    const clientId = data.match(/clientId="(.*?)"/);
+    const clientId = data.match(/clientId\s*=\s*"(.*?)"/);
     console.log("client id", clientId);
 
     if (!clientId?.[1]) {

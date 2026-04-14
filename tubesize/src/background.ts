@@ -33,9 +33,6 @@ async function handleMessage(
 ): Promise<void> {
     // If the message is sent from the content script, use sender.tab.id, otherwise use message.tabId (sent from popup)
     const tabId = sender.tab?.id ?? message.tabId;
-    if (!tabId) {
-        return sendResponse({ success: false, message: "Invalid tab ID" });
-    }
 
     switch (message.type) {
         case "clearBadge":
@@ -99,10 +96,16 @@ async function handleTwitch(
 
 async function handleYoutube(
     message: Message,
-    tabId: number,
+    tabId: number | undefined,
     sendResponse: (response: BackgroundResponse) => void,
 ) {
     const { tag, html } = message;
+    if (!tabId) {
+        return sendResponse({
+            success: false,
+            message: "No tab ID provided",
+        });
+    }
     clearBadge(tabId);
 
     const cached = await getFromStorage(tag);

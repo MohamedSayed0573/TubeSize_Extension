@@ -1,7 +1,7 @@
 import type { BackgroundResponse } from "@app-types/types";
 
 interface Props {
-    youtubeData: BackgroundResponse | null;
+    youtubeData?: BackgroundResponse | null;
     setUseOptionsPage: (useOptionsPage: boolean) => void;
 }
 
@@ -12,7 +12,7 @@ export default function Header({ youtubeData, setUseOptionsPage }: Props) {
                 {youtubeData?.data?.title ?? "TubeSize"}
             </div>
             <span className="duration" id="duration-display">
-                {youtubeData?.isLive ? null : youtubeData?.data?.durationMinutes}
+                {youtubeData?.data?.isLive ? null : youtubeData?.data?.durationMinutes}
             </span>
             <button id="optionsBtn" onClick={() => setUseOptionsPage(true)}>
                 Options

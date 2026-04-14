@@ -70,7 +70,7 @@ export default async function renderPanel(response: BackgroundResponse | undefin
         }
         const formatDiv = document.createElement("div");
         formatDiv.style.cssText = formatStyle;
-        formatDiv.textContent = `${format.height}: ${format.size}`;
+        formatDiv.textContent = `${format.height}: ${format.sizeMB}`;
         panelContainer.append(formatDiv);
         count++;
     });

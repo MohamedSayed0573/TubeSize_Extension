@@ -175,7 +175,7 @@ export default function Popup() {
                                 <VideoFormat
                                     key={item.formatId}
                                     item={item}
-                                    isLive={youtubeData.isLive}
+                                    isLive={youtubeData.data?.isLive}
                                     isShorts={youtubeData.isShorts}
                                 />
                             );
