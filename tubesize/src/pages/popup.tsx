@@ -26,26 +26,14 @@ async function getTab() {
     return await chrome.tabs.query({ active: true, currentWindow: true });
 }
 
-async function sendMessageToBackground(
-    type: "sendYoutubeUrl",
-    message: Message,
-    tabId: number,
-): Promise<YoutubeBackgroundResponse>;
+async function sendMessageToBackground(message: Message): Promise<YoutubeBackgroundResponse>;
 
-async function sendMessageToBackground(
-    type: "sendTwitchUrl",
-    message: Message,
-    tabId?: number,
-): Promise<TwitchBackgroundResponse>;
+async function sendMessageToBackground(message: Message): Promise<TwitchBackgroundResponse>;
 
-async function sendMessageToBackground(
-    type: "sendYoutubeUrl" | "sendTwitchUrl",
-    message: Message,
-    tabId?: number,
-) {
+async function sendMessageToBackground(message: Message) {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
-            { ...message, type, tabId },
+            { ...message },
             (response: YoutubeBackgroundResponse | TwitchBackgroundResponse) => {
                 if (chrome.runtime.lastError) {
                     reject(new Error(chrome.runtime.lastError.message));
@@ -55,7 +43,7 @@ async function sendMessageToBackground(
                     reject(new Error(response?.message || "Failed to fetch video data"));
                     return;
                 }
-                if (type === "sendTwitchUrl") resolve(response as TwitchBackgroundResponse);
+                if (message.type === "sendTwitchUrl") resolve(response as TwitchBackgroundResponse);
                 else resolve(response as YoutubeBackgroundResponse);
             },
         );
@@ -110,11 +98,11 @@ export default function Popup() {
                         return;
                     }
 
-                    const response = await sendMessageToBackground(
-                        "sendYoutubeUrl",
-                        { type: "sendYoutubeUrl", videoTag, tabId: tab.id! },
-                        tab.id!,
-                    );
+                    const response = await sendMessageToBackground({
+                        type: "sendYoutubeUrl",
+                        videoTag,
+                        tabId: tab.id!,
+                    });
                     if (!response.success) throw new Error(response.message);
                     if (response.api)
                         setNote("Used API. Execution time: " + response.executionTime);
@@ -134,7 +122,7 @@ export default function Popup() {
                             return;
                         }
 
-                        const response = await sendMessageToBackground("sendTwitchUrl", {
+                        const response = await sendMessageToBackground({
                             type: "sendTwitchUrl",
                             twitchVodId: vodId,
                             tabId: tab.id!,
@@ -149,7 +137,7 @@ export default function Popup() {
                         return;
                     }
 
-                    const response = await sendMessageToBackground("sendTwitchUrl", {
+                    const response = await sendMessageToBackground({
                         type: "sendTwitchUrl",
                         channelName,
                         tabId: tab.id!,
