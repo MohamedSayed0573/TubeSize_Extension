@@ -1,5 +1,4 @@
 import { extractVideoTag } from "@lib/utils";
-import renderPanel from "./panel";
 import type { Message } from "./types/types";
 
 async function sendRuntimeMessage(message: Message) {
@@ -24,13 +23,11 @@ async function init(videoTag: string) {
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    const response = await sendRuntimeMessage({
+    await sendRuntimeMessage({
         type: "sendYoutubeUrl",
         videoTag: videoTag,
         html: scriptContent,
     });
-
-    await renderPanel(response);
 }
 
 let lastTag: string | undefined = undefined;
