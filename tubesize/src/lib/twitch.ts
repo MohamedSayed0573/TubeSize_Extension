@@ -1,7 +1,7 @@
 import type { TwitchData, TwitchTokenData } from "@/types/types";
 import { Parser } from "m3u8-parser";
 
-type target =
+type Target =
     | {
           type: "live";
           channelName: string;
@@ -11,7 +11,7 @@ type target =
           vodId: string;
       };
 
-export async function getClientId(target: target): Promise<string> {
+export async function getClientId(target: Target): Promise<string> {
     const url =
         target.type === "vod"
             ? `https://www.twitch.tv/videos/${target.vodId}`
@@ -30,7 +30,7 @@ export async function getClientId(target: target): Promise<string> {
     return clientId?.[1];
 }
 
-export async function getTwitchToken(target: target): Promise<TwitchTokenData> {
+export async function getTwitchToken(target: Target): Promise<TwitchTokenData> {
     try {
         const clientId = await getClientId(target);
         const headers = {
@@ -77,7 +77,7 @@ export async function getTwitchToken(target: target): Promise<TwitchTokenData> {
     }
 }
 
-export async function getM3U8Data(tokenData: TwitchTokenData, target: target) {
+export async function getM3U8Data(tokenData: TwitchTokenData, target: Target) {
     const url =
         target.type === "live"
             ? new URL(`https://usher.ttvnw.net/api/v2/channel/hls/${target.channelName}.m3u8`)
