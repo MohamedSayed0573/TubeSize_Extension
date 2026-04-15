@@ -11,7 +11,7 @@ function ErrorPage({ errorMessage }: Props) {
     if (useOptionsPage) return <Options />;
     return (
         <>
-            <Header videoData={null} setUseOptionsPage={setUseOptionsPage} />
+            <Header setUseOptionsPage={setUseOptionsPage} />
             <div className="error-page">
                 <div className="error-page-icon">⚠</div>
                 <div className="error-page-title">Something went wrong</div>

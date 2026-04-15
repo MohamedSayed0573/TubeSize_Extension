@@ -1,4 +1,4 @@
-import type { BackgroundResponse } from "@app-types/types";
+import type { YoutubeBackgroundResponse } from "@app-types/types";
 import { getFromSyncCache } from "./lib/cache";
 
 async function waitForElement(selector: string, timeoutMs = 10000): Promise<Element | null> {
@@ -21,7 +21,7 @@ async function waitForElement(selector: string, timeoutMs = 10000): Promise<Elem
     });
 }
 
-export default async function renderPanel(response: BackgroundResponse | undefined) {
+export default async function renderPanel(response: YoutubeBackgroundResponse | undefined) {
     document.querySelector("#tubesize-extension-panel")?.remove();
     const options = (await getFromSyncCache()) as Record<string, string | boolean>;
     if (options?.showPanel === false) {
@@ -70,7 +70,7 @@ export default async function renderPanel(response: BackgroundResponse | undefin
         }
         const formatDiv = document.createElement("div");
         formatDiv.style.cssText = formatStyle;
-        formatDiv.textContent = `${format.height}: ${format.size}`;
+        formatDiv.textContent = `${format.height}: ${format.sizeMB}`;
         panelContainer.append(formatDiv);
         count++;
     });

@@ -1,4 +1,8 @@
-import type { BackgroundResponse } from "@app-types/types";
+import type {
+    YoutubeBackgroundResponse,
+    TwitchBackgroundResponse,
+    Message,
+} from "@app-types/types";
 import { getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
 import {
@@ -9,56 +13,102 @@ import {
     humanizeData,
 } from "@lib/youtube";
 import { getAPIFallbackSetting } from "@lib/utils";
+import { filterM3U8Data, getM3U8Data, getTwitchToken } from "./lib/twitch";
 
-type Message = {
-    type: "clearBadge" | "setBadge" | "sendYoutubeUrl";
-    tag: string;
-    tabId?: number;
-    html?: string;
-};
-
-chrome.runtime.onMessage.addListener(
-    (
-        message: Message,
-        sender: chrome.runtime.MessageSender,
-        sendResponse: (response: BackgroundResponse) => void,
-    ) => {
-        handleMessage(message, sender, sendResponse);
-        // Synchronously return true to indicate that sendResponse will be called asynchronously
-        return true;
-    },
-);
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    handleMessage(message, sender, sendResponse);
+    // Synchronously return true to indicate that sendResponse will be called asynchronously
+    return true;
+});
 
 async function handleMessage(
     message: Message,
     sender: chrome.runtime.MessageSender,
-    sendResponse: (response: BackgroundResponse) => void,
-) {
+    sendResponse: (response: YoutubeBackgroundResponse | TwitchBackgroundResponse) => void,
+): Promise<void> {
+    // If the message is sent from the content script, use sender.tab.id, otherwise use message.tabId (sent from popup)
     const tabId = sender.tab?.id ?? message.tabId;
 
     switch (message.type) {
         case "clearBadge":
             clearBadge(tabId);
-            return sendResponse({ success: true, data: null, cached: false });
+            return sendResponse({ success: true });
         case "setBadge":
             addBadge(tabId);
-            return sendResponse({ success: true, data: null, cached: false });
+            return sendResponse({ success: true });
         case "sendYoutubeUrl":
-            return await handleMain(message, tabId, sendResponse);
+            return await handleYoutube(message, tabId, sendResponse);
+        case "sendTwitchUrl":
+            return await handleTwitch(message, sendResponse);
         default:
             return;
     }
 }
 
-async function handleMain(
+async function handleTwitch(
+    message: Message,
+    sendResponse: (response: TwitchBackgroundResponse) => void,
+) {
+    try {
+        const channelName = message.channelName;
+        const vodId = message.twitchVodId;
+
+        if (channelName) {
+            const twitchToken = await getTwitchToken({ type: "live", channelName });
+            if (!twitchToken) {
+                throw new Error("Failed to retrieve Twitch token");
+            }
+            const m3u8Data = await getM3U8Data(twitchToken, { type: "live", channelName });
+            const filteredM3U8Data = filterM3U8Data(m3u8Data);
+
+            return sendResponse({
+                success: true,
+                twitchData: { data: filteredM3U8Data, channelName },
+            });
+        } else if (vodId) {
+            const twitchToken = await getTwitchToken({ type: "vod", vodId });
+            if (!twitchToken) {
+                throw new Error("Failed to retrieve Twitch token");
+            }
+            const m3u8Data = await getM3U8Data(twitchToken, { type: "vod", vodId });
+            const filteredM3U8Data = filterM3U8Data(m3u8Data);
+
+            return sendResponse({
+                success: true,
+                twitchData: { data: filteredM3U8Data, vodId },
+            });
+        } else {
+            throw new Error("No channel name or VOD ID provided");
+        }
+    } catch (err) {
+        return sendResponse({
+            success: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        });
+    }
+}
+
+async function handleYoutube(
     message: Message,
     tabId: number | undefined,
-    sendResponse: (response: BackgroundResponse) => void,
+    sendResponse: (response: YoutubeBackgroundResponse) => void,
 ) {
-    const { tag, html } = message;
+    const { videoTag, html } = message;
+    if (!tabId) {
+        return sendResponse({
+            success: false,
+            message: "No tab ID provided",
+        });
+    }
+    if (!videoTag) {
+        return sendResponse({
+            success: false,
+            message: "No video tag provided",
+        });
+    }
     clearBadge(tabId);
 
-    const cached = await getFromStorage(tag);
+    const cached = await getFromStorage(videoTag);
     if (cached) {
         addBadge(tabId);
         return sendResponse({
@@ -66,7 +116,6 @@ async function handleMain(
             data: cached.response,
             cached: true,
             createdAt: cached.createdAt,
-            isLive: cached.isLive,
         });
     }
 
@@ -77,22 +126,22 @@ async function handleMain(
             rawData = extractYtInitial(html);
         } catch (e) {
             if (html) console.warn("Local HTML extraction failed, falling back to fetchHTMLPage");
-            const pageHtml = await fetchHTMLPage(tag);
+            const pageHtml = await fetchHTMLPage(videoTag);
             rawData = extractYtInitial(pageHtml);
         }
 
         const rawFormats = parseDataFromYtInitial(rawData);
         const humanizedFormats = humanizeData(rawFormats);
 
-        const isLive = rawData.videoDetails.isLive;
-        await saveToStorage(tag, humanizedFormats, isLive);
+        // Don't cache live video data, as it might change frequently.
+        if (!humanizedFormats.isLive) {
+            await saveToStorage(videoTag, humanizedFormats);
+        }
+
         addBadge(tabId);
         return sendResponse({
             success: true,
             data: humanizedFormats,
-            cached: false,
-            api: false,
-            isLive: rawData.videoDetails.isLive,
         });
     } catch (err) {
         console.error("Couldn't use local, " + err);
@@ -105,7 +154,7 @@ async function handleMain(
                 throw new Error(errorMessage);
             }
 
-            const apiData = await fetchAPI(tag);
+            const apiData = await fetchAPI(videoTag);
             // Do not cache API responses, in order to keep the cache consistent.
             // Because the API response is different than the data we extract from the html page.
             addBadge(tabId);

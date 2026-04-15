@@ -5,9 +5,9 @@ import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
 declare const __API_URL__: string;
 
-export function sizePerMinute(sizeInBytes: number, durationInSeconds: string): number {
-    if (durationInSeconds === "0") return 0;
-    const durationInMinutes = Number(durationInSeconds) / 60;
+export function sizePerMinute(sizeInBytes: number, durationInSeconds: number): number {
+    if (durationInSeconds === 0) return 0;
+    const durationInMinutes = durationInSeconds / 60;
     const sizeInMB = sizeInBytes / 1_000_000;
     return Number((sizeInMB / durationInMinutes).toFixed(2));
 }
@@ -20,14 +20,15 @@ export function humanizeData(formats: RawFormat): HumanizedFormat {
     return {
         id: formats.id,
         title: formats.title,
-        durationMinutes: ms(parseInt(formats.durationSeconds || "0") * 1000),
+        durationMinutes: ms(formats.durationSeconds * 1000),
         videoFormats: humanizedVideoFormats,
+        isLive: formats.isLive,
     };
 }
 
 export function humanizeVideoFormats(
     videoFormats: RawFormat["formats"],
-    durationInSeconds: string,
+    durationInSeconds: number,
 ) {
     return videoFormats.map((format) => {
         return {
@@ -163,9 +164,10 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
     return {
         id: data.videoDetails.videoId,
         title: data.videoDetails.title,
-        durationSeconds: data.videoDetails.lengthSeconds,
+        durationSeconds: parseInt(data.videoDetails.lengthSeconds || "0"),
         formats: chooseVideoFormats(data),
         audioFormats: chooseAudioFormats(data),
+        isLive: data.videoDetails.isLive ?? false,
     };
 }
 

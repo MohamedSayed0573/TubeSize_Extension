@@ -26,13 +26,13 @@ describe("extractYtInitial", () => {
 
 describe("sizePerMinute", () => {
     test("returns the size per minute for a 10 minute video", () => {
-        expect(sizePerMinute(60_000_000, "600")).toBe(6);
+        expect(sizePerMinute(60_000_000, 600)).toBe(6);
     });
     test("rounds to 2 decimal places", () => {
-        expect(sizePerMinute(50_000_000, "420")).toBe(7.14);
+        expect(sizePerMinute(50_000_000, 420)).toBe(7.14);
     });
     test("returns 0 when duration is 0", () => {
-        expect(sizePerMinute(10_000_000, "0")).toBe(0);
+        expect(sizePerMinute(10_000_000, 0)).toBe(0);
     });
 });
 
@@ -50,7 +50,7 @@ describe("humanizeVideoFormats", () => {
                 sizePerMinuteMB: 6,
             },
         ];
-        expect(humanizeVideoFormats(formats, "600")).toEqual(expected);
+        expect(humanizeVideoFormats(formats, 600)).toEqual(expected);
     });
 
     test("humanizes a format size range and keeps the max size separately", () => {
@@ -66,7 +66,7 @@ describe("humanizeVideoFormats", () => {
                 sizePerMinuteMB: 12,
             },
         ];
-        expect(humanizeVideoFormats(formats, "600")).toEqual(expected);
+        expect(humanizeVideoFormats(formats, 600)).toEqual(expected);
     });
 });
 
@@ -151,7 +151,8 @@ describe("parseDataFromYtInitial", () => {
         const expected: RawFormat = {
             id: "I82j7AzMU80",
             title: "How does Claude Code *actually* work?",
-            durationSeconds: "2363",
+            durationSeconds: 2363,
+            isLive: false,
             audioFormats: [
                 { formatId: 251, sizeBytes: 39775547 },
                 { formatId: 251, sizeBytes: 40016418 },
@@ -182,7 +183,8 @@ describe("parseDataFromYtInitial", () => {
         const expected: RawFormat = {
             id: "feSFplc7tMY",
             title: "🔴LIVE Manchester Airport Plane Spotting 🛫",
-            durationSeconds: "0",
+            durationSeconds: 0,
+            isLive: true,
             audioFormats: [{ formatId: 140, sizeBytes: 64800000 }],
             formats: [
                 { formatId: 278, height: 144, sizeBytes: 49950000, maxSizeBytes: undefined },

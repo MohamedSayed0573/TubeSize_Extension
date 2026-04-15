@@ -2,14 +2,15 @@ export type APIData = {
     success: boolean;
     id: string;
     title: string;
-    duration: string;
+    durationMinutes: string;
     audioFormat: string;
     videoFormats: {
         formatId: number;
         height: number;
-        size: string;
-        sizePerMinute: number;
+        sizeMB: string;
+        sizePerMinuteMB: number;
     }[];
+    isLive: boolean;
     createdAt?: string;
     executionTime: string;
 };
@@ -34,7 +35,8 @@ export type RawData = {
 export type RawFormat = {
     id: string;
     title: string;
-    durationSeconds: string;
+    durationSeconds: number;
+    isLive: boolean;
     formats: {
         formatId: number;
         height: number;
@@ -51,6 +53,7 @@ export type RawFormat = {
 export type HumanizedFormat = {
     id: string;
     title: string;
+    isLive: boolean;
     durationMinutes: string;
     videoFormats: {
         formatId: number;
@@ -63,19 +66,49 @@ export type HumanizedFormat = {
 
 export type StorageData = {
     response: APIData | HumanizedFormat;
-    isLive: boolean;
     expiry?: number;
     createdAt?: string;
 };
 
-export type BackgroundResponse = {
+export type YoutubeBackgroundResponse = {
     success: boolean;
-    data: APIData | HumanizedFormat | null;
-    cached: boolean;
-    isLive?: boolean;
+    data?: APIData | HumanizedFormat | null;
+    cached?: boolean;
     isShorts?: boolean;
     createdAt?: string; // Only when we use cached
     message?: string;
     api?: boolean; // Only when we use the server API
     executionTime?: string; // Only when we use the server API
 };
+
+export type TwitchTokenData = {
+    value: string;
+    signature: string;
+};
+
+export type TwitchData = {
+    data: {
+        bandwidth: number;
+        resolution: number;
+        codec: string;
+    }[];
+    channelName?: string;
+    vodId?: string;
+};
+
+export type TwitchBackgroundResponse = {
+    success: boolean;
+    twitchData?: TwitchData;
+    message?: string;
+};
+
+export type Message = {
+    type: MessageTypes;
+    channelName?: string;
+    videoTag?: string;
+    twitchVodId?: string;
+    html?: string;
+    tabId?: number;
+};
+
+export type MessageTypes = "clearBadge" | "setBadge" | "sendYoutubeUrl" | "sendTwitchUrl";
