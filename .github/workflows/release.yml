@@ -3,6 +3,7 @@ on:
     push:
         tags:
             - "extension-v*.*.*"
+    workflow_dispatch:
 
 jobs:
     build:
@@ -27,13 +28,13 @@ jobs:
             - name: Install dependencies
               run: pnpm install --filter tubesize
 
+            - name: Run Tests
+              run: pnpm --filter tubesize run test
+
             - name: Build release packages
               run: |
                   pnpm --filter tubesize run pack:firefox
                   pnpm --filter tubesize run pack
-
-            - name: Run Tests
-              run: pnpm --filter tubesize run test
 
             - name: Create Release
               uses: softprops/action-gh-release@v2
@@ -41,3 +42,4 @@ jobs:
                   files: |
                       tubesize/dist/tubesize.zip
                       tubesize/dist_firefox/tubesize_firefox.zip
+                  generate_release_notes: true
