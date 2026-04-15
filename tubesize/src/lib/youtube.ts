@@ -5,17 +5,28 @@ import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
 declare const __API_URL__: string;
 
-export function sizePerMinute(sizeInBytes: number, durationInSeconds: number): number {
-    if (durationInSeconds === 0) return 0;
+export function sizePerMinute(
+    sizeInBytes: number,
+    durationInSeconds: number,
+    isLive = false,
+): number {
     const durationInMinutes = durationInSeconds / 60;
     const sizeInMB = sizeInBytes / 1_000_000;
+
+    if (isLive) return Number((sizeInMB / 60).toFixed(2));
+    if (durationInSeconds === 0) return 0;
+
     return Number((sizeInMB / durationInMinutes).toFixed(2));
 }
 
 export function humanizeData(formats: RawFormat): HumanizedFormat {
     const audioSize = getAverageAudioSize(formats.audioFormats);
     const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);
-    const humanizedVideoFormats = humanizeVideoFormats(mergedFormats, formats.durationSeconds);
+    const humanizedVideoFormats = humanizeVideoFormats(
+        mergedFormats,
+        formats.durationSeconds,
+        formats.isLive,
+    );
 
     return {
         id: formats.id,
@@ -29,6 +40,7 @@ export function humanizeData(formats: RawFormat): HumanizedFormat {
 export function humanizeVideoFormats(
     videoFormats: RawFormat["formats"],
     durationInSeconds: number,
+    isLive = false,
 ) {
     return videoFormats.map((format) => {
         return {
@@ -38,7 +50,7 @@ export function humanizeVideoFormats(
                 ? `${filesize(format.sizeBytes)} - ${filesize(format.maxSizeBytes)}`
                 : filesize(format.sizeBytes),
             maxSizeMB: format.maxSizeBytes ? filesize(format.maxSizeBytes) : undefined,
-            sizePerMinuteMB: sizePerMinute(format.sizeBytes, durationInSeconds),
+            sizePerMinuteMB: sizePerMinute(format.sizeBytes, durationInSeconds, isLive),
         };
     });
 }

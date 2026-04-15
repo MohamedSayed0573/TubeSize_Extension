@@ -34,6 +34,9 @@ describe("sizePerMinute", () => {
     test("returns 0 when duration is 0", () => {
         expect(sizePerMinute(10_000_000, 0)).toBe(0);
     });
+    test("returns the size per minute for live streams from the hourly estimate", () => {
+        expect(sizePerMinute(60_000_000, 0, true)).toBe(1);
+    });
 });
 
 describe("humanizeVideoFormats", () => {
@@ -67,6 +70,23 @@ describe("humanizeVideoFormats", () => {
             },
         ];
         expect(humanizeVideoFormats(formats, 600)).toEqual(expected);
+    });
+
+    test("humanizes live formats using the hourly estimate for size per minute", () => {
+        const formats: RawFormat["formats"] = [
+            { formatId: 18, height: 360, sizeBytes: 60_000_000 },
+        ];
+        const expected: HumanizedFormat["videoFormats"] = [
+            {
+                formatId: 18,
+                height: 360,
+                sizeMB: "60 MB",
+                maxSizeMB: undefined,
+                sizePerMinuteMB: 1,
+            },
+        ];
+
+        expect(humanizeVideoFormats(formats, 0, true)).toEqual(expected);
     });
 });
 
