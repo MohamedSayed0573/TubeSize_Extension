@@ -40,6 +40,11 @@ export async function getTwitchToken(channelName: string): Promise<TwitchTokenDa
             headers,
             body: JSON.stringify(body),
         });
+        if (!res.ok) {
+            throw new Error(
+                `Failed to fetch Twitch token from GQL: ${res.status}, ${res.statusText}`,
+            );
+        }
         const data = await res.json();
         if (!data?.data?.streamPlaybackAccessToken) {
             throw new Error("Failed to get stream playback access token");

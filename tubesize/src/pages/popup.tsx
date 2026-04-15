@@ -170,7 +170,7 @@ export default function Popup() {
                 {cache && <div className="cached-note">{cache}</div>}
                 {note && <div className="cached-note">{note}</div>}
                 {!youtubeData && !twitchData && <span className="info">{message}</span>}
-                {enabledOptions.length === 0 && (
+                {youtubeData && enabledOptions.length === 0 && (
                     <span className="error">All Resolutions Disabled. Enable in options</span>
                 )}
                 {youtubeData &&
