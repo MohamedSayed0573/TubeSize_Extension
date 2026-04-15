@@ -22,7 +22,13 @@ export function isShortsVideo(url: string): boolean {
 export function isTwitchPage(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
-        return parsedUrl.hostname === "www.twitch.tv" || parsedUrl.hostname === "twitch.tv";
+        return (
+            (parsedUrl.hostname === "www.twitch.tv" ||
+                parsedUrl.hostname === "twitch.tv" ||
+                parsedUrl.hostname === "www.twitch.com" ||
+                parsedUrl.hostname === "twitch.com") &&
+            parsedUrl.pathname.split("/").length === 2
+        );
     } catch (err) {
         return false;
     }

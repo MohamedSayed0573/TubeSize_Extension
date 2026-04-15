@@ -1,4 +1,10 @@
-import { isYoutubePage, extractVideoTag, fetchAndRetry } from "@lib/utils";
+import {
+    isYoutubePage,
+    extractVideoTag,
+    fetchAndRetry,
+    isTwitchPage,
+    extractTwitchChannelName,
+} from "@lib/utils";
 
 describe("isYoutubePage", () => {
     test("should return true for a valid YouTube URL", () => {
@@ -41,6 +47,50 @@ describe("isShortsVideo", () => {
 
     test("should return false for a wrong hostname", () => {
         expect(isYoutubePage("https://www.youtubex.com/shorts/dQw4w9WgXcQ")).toBe(false);
+    });
+});
+
+describe("isTwitchPage", () => {
+    test("should return true for a valid Twitch URL", () => {
+        expect(isTwitchPage("https://www.twitch.tv/somechannel")).toBe(true);
+    });
+    test("should return false for an invalid Twitch URL", () => {
+        expect(isTwitchPage("https://www.twitc.tv/somechannel")).toBe(false);
+    });
+    test("should return false for an empty string", () => {
+        expect(isTwitchPage("")).toBe(false);
+    });
+    test("should return true for twitch.com", () => {
+        expect(isTwitchPage("https://www.twitch.com/somechannel")).toBe(true);
+    });
+    test("should return true for twitch.com", () => {
+        expect(isTwitchPage("https://www.twitch.com/somechannel")).toBe(true);
+    });
+    test("should return false for a URL with no protocol", () => {
+        expect(isTwitchPage("www.twitch.tv/somechannel")).toBe(false);
+    });
+    test("should return false for a URL with a different path", () => {
+        expect(isTwitchPage("https://www.twitch.tv/live/somechannel")).toBe(false);
+    });
+});
+
+describe("extractTwitchChannelName", () => {
+    test("should return the channel name from a valid Twitch URL", () => {
+        expect(extractTwitchChannelName("https://www.twitch.tv/somechannel")).toBe("somechannel");
+    });
+
+    test("should return the channel name when URL has trailing slash", () => {
+        expect(extractTwitchChannelName("https://www.twitch.tv/somechannel/")).toBe("somechannel");
+    });
+
+    test("should return undefined for root Twitch URL", () => {
+        expect(extractTwitchChannelName("https://www.twitch.tv/")).toBeUndefined();
+    });
+
+    test("should return first path segment when there are additional path segments", () => {
+        expect(extractTwitchChannelName("https://www.twitch.tv/somechannel/videos")).toBe(
+            "somechannel",
+        );
     });
 });
 

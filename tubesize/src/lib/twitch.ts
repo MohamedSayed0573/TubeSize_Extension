@@ -51,7 +51,7 @@ export async function getTwitchToken(channelName: string): Promise<TwitchTokenDa
         }
         return data;
     } catch (error) {
-        console.error("Failed to get client ID", error);
+        console.error("Failed to get Twitch token:", error);
         throw error;
     }
 }

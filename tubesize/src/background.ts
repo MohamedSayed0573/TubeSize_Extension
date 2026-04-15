@@ -29,7 +29,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function handleMessage(
     message: Message,
     sender: chrome.runtime.MessageSender,
-    sendResponse: ({}) => void,
+    sendResponse: (response: YoutubeBackgroundResponse | TwitchBackgroundResponse) => void,
 ): Promise<void> {
     // If the message is sent from the content script, use sender.tab.id, otherwise use message.tabId (sent from popup)
     const tabId = sender.tab?.id ?? message.tabId;
@@ -62,15 +62,6 @@ async function handleTwitch(
                 message: "No channel name provided",
             });
         }
-
-        // const authToken = await getAuthToken();
-        // if (!authToken?.value) {
-        //     return sendResponse({
-        //         success: false,
-        //         message:
-        //             "Failed to retrieve Twitch auth token. Please make sure you're logged in to Twitch",
-        //     });
-        // }
 
         const twitchToken = await getTwitchToken(channelName);
         if (!twitchToken) {
@@ -133,7 +124,7 @@ async function handleYoutube(
         const rawFormats = parseDataFromYtInitial(rawData);
         const humanizedFormats = humanizeData(rawFormats);
 
-        // Don't cache live video data, as it might change frequenntly.
+        // Don't cache live video data, as it might change frequently.
         if (!humanizedFormats.isLive) {
             await saveToStorage(tag, humanizedFormats);
         }

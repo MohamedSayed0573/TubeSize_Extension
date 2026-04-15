@@ -90,14 +90,6 @@ export type TwitchTokenData = {
     };
 };
 
-// export type TwitchData =
-//     | {
-//           bandwidth: number;
-//           resolution: number;
-//           codec: string;
-//       }[]
-//     | undefined;
-
 export type TwitchData = {
     data: {
         bandwidth: number;
