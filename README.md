@@ -8,6 +8,7 @@
 
 **Know exactly how much data a YouTube video will cost you — before you press play.**
 
+[![Chrome Web Store](https://img.shields.io/badge/Chrome-Install-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/tubesize/bdpkcpbkonollfbgcnkknkjdbfpacnoi)
 [![Firefox Add-ons](https://img.shields.io/badge/Firefox-Install-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)
 [![Edge Add-ons](https://img.shields.io/badge/Edge-Install-0078D7?logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -46,18 +47,9 @@ TubeSize is a browser extension that shows you the estimated file size of any Yo
 
 | Store            | Link                                                                                                   |
 | ---------------- | ------------------------------------------------------------------------------------------------------ |
-| Chrome Web Store | Install Manually (Read below)                                                                          |
+| Chrome Web Store | [Install](https://chromewebstore.google.com/detail/tubesize/bdpkcpbkonollfbgcnkknkjdbfpacnoi)          |
 | Firefox Add-ons  | [Install](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)                                    |
 | Edge Add-ons     | [Install](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka) |
-
-### How to Install manually
-
-> **Video walkthrough:** [Watch here](https://github.com/user-attachments/assets/10f4bb06-da77-4a31-8bf5-837fad21ae35)
-
-1. Go to the [Releases page](https://github.com/MohamedSayed0573/TubeSize_Extension/releases)
-2. Download the latest `TubeSize_Extension.zip` (Chrome/Edge) or `TubeSize_Firefox_Extension.zip` (Firefox)
-3. Extract the zip
-4. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select the extracted folder
 
 ---
 
