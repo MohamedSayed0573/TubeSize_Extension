@@ -68,8 +68,8 @@ describe("isTwitchPage", () => {
     test("should return true for twitch.com", () => {
         expect(isTwitchPage("https://www.twitch.com/somechannel")).toBe(true);
     });
-    test("should return true for twitch.com", () => {
-        expect(isTwitchPage("https://www.twitch.com/somechannel")).toBe(true);
+    test("should return false for twitch.com/videos", () => {
+        expect(isTwitchPage("https://www.twitch.com/videos")).toBe(false);
     });
     test("should return false for a URL with no protocol", () => {
         expect(isTwitchPage("www.twitch.tv/somechannel")).toBe(false);

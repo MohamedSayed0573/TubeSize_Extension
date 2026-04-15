@@ -39,6 +39,8 @@ export function isTwitchPage(url: string): boolean {
         // Check for VOD URL (e.g., twitch.tv/videos/vodId)
         if (pathSegments.length === 2 && pathSegments[0] === "videos") return true;
 
+        if (pathSegments.length === 1 && pathSegments[0] === "videos") return false;
+
         return false;
     } catch (err) {
         return false;
