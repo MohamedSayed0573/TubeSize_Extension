@@ -210,10 +210,10 @@ export default function Popup() {
                         .reverse()}
                 {twitchData?.twitchData?.data &&
                     twitchData?.twitchData?.data
-                        .map((item: any) => {
+                        .sort((a, b) => b.bandwidth - a.bandwidth)
+                        .map((item) => {
                             return <TwitchFormat key={item.resolution} item={item} />;
-                        })
-                        .sort((a, b) => b.props.item.bandwidth - a.props.item.bandwidth)}
+                        })}
             </div>
         </>
     );
