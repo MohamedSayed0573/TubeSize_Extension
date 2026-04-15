@@ -82,12 +82,8 @@ export type YoutubeBackgroundResponse = {
 };
 
 export type TwitchTokenData = {
-    data: {
-        streamPlaybackAccessToken: {
-            value: string;
-            signature: string;
-        };
-    };
+    value: string;
+    signature: string;
 };
 
 export type TwitchData = {
@@ -96,7 +92,8 @@ export type TwitchData = {
         resolution: number;
         codec: string;
     }[];
-    channelName: string;
+    channelName?: string;
+    vodId?: string;
 };
 
 export type TwitchBackgroundResponse = {
@@ -104,3 +101,14 @@ export type TwitchBackgroundResponse = {
     twitchData?: TwitchData;
     message?: string;
 };
+
+export type Message = {
+    type: MessageTypes;
+    channelName?: string;
+    videoTag?: string;
+    twitchVodId?: string;
+    html?: string;
+    tabId?: number;
+};
+
+export type MessageTypes = "clearBadge" | "setBadge" | "sendYoutubeUrl" | "sendTwitchUrl";

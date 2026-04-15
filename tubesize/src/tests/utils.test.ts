@@ -3,6 +3,8 @@ import {
     extractVideoTag,
     fetchAndRetry,
     isTwitchPage,
+    isTwitchVod,
+    extractTwitchVodId,
     extractTwitchChannelName,
 } from "@lib/utils";
 
@@ -54,6 +56,9 @@ describe("isTwitchPage", () => {
     test("should return true for a valid Twitch URL", () => {
         expect(isTwitchPage("https://www.twitch.tv/somechannel")).toBe(true);
     });
+    test("should return true for a valid Twitch VOD URL", () => {
+        expect(isTwitchPage("https://www.twitch.tv/videos/2748008198")).toBe(true);
+    });
     test("should return false for an invalid Twitch URL", () => {
         expect(isTwitchPage("https://www.twitc.tv/somechannel")).toBe(false);
     });
@@ -69,7 +74,7 @@ describe("isTwitchPage", () => {
     test("should return false for a URL with no protocol", () => {
         expect(isTwitchPage("www.twitch.tv/somechannel")).toBe(false);
     });
-    test("should return false for a URL with a different path", () => {
+    test("should return false for a URL with a different path than videos", () => {
         expect(isTwitchPage("https://www.twitch.tv/live/somechannel")).toBe(false);
     });
 });
@@ -91,6 +96,26 @@ describe("extractTwitchChannelName", () => {
         expect(extractTwitchChannelName("https://www.twitch.tv/somechannel/videos")).toBe(
             "somechannel",
         );
+    });
+});
+
+describe("isTwitchVod", () => {
+    test("should return true for a valid Twitch VOD URL", () => {
+        expect(isTwitchVod("https://www.twitch.tv/videos/2748008198")).toBe(true);
+    });
+
+    test("should return false for a Twitch channel URL", () => {
+        expect(isTwitchVod("https://www.twitch.tv/somechannel")).toBe(false);
+    });
+});
+
+describe("extractTwitchVodId", () => {
+    test("should return the VOD ID from a valid Twitch VOD URL", () => {
+        expect(extractTwitchVodId("https://www.twitch.tv/videos/2748008198")).toBe("2748008198");
+    });
+
+    test("should return undefined for a Twitch channel URL", () => {
+        expect(extractTwitchVodId("https://www.twitch.tv/somechannel")).toBeUndefined();
     });
 });
 

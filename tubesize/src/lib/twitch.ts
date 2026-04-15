@@ -1,24 +1,38 @@
 import type { TwitchData, TwitchTokenData } from "@/types/types";
 import { Parser } from "m3u8-parser";
 
-export async function getClientId(channelName: string): Promise<string> {
-    const res = await fetch(`https://www.twitch.tv/${channelName}`);
+type target =
+    | {
+          type: "live";
+          channelName: string;
+      }
+    | {
+          type: "vod";
+          vodId: string;
+      };
+
+export async function getClientId(target: target): Promise<string> {
+    const url =
+        target.type === "vod"
+            ? `https://www.twitch.tv/videos/${target.vodId}`
+            : `https://www.twitch.tv/${target.channelName}`;
+    const res = await fetch(url);
     if (!res.ok) {
         throw new Error("Failed to fetch Twitch page");
     }
+
     const data = await res.text();
     const clientId = data.match(/clientId\s*=\s*"(.*?)"/);
 
     if (!clientId?.[1]) {
-        console.error("Failed to extract client ID from Twitch page");
         throw new Error("Failed to extract client ID from Twitch page");
     }
     return clientId?.[1];
 }
 
-export async function getTwitchToken(channelName: string): Promise<TwitchTokenData> {
+export async function getTwitchToken(target: target): Promise<TwitchTokenData> {
     try {
-        const clientId = await getClientId(channelName);
+        const clientId = await getClientId(target);
         const headers = {
             "Client-Id": clientId,
             "Content-Type": "application/json",
@@ -26,10 +40,10 @@ export async function getTwitchToken(channelName: string): Promise<TwitchTokenDa
         const body = {
             query: 'query PlaybackAccessToken_Template($login: String!, $isLive: Boolean!, $vodID: ID!, $isVod: Boolean!, $playerType: String!, $platform: String!) { streamPlaybackAccessToken(channelName: $login, params: {platform: $platform, playerBackend: "mediaplayer", playerType: $playerType}) @include(if: $isLive) { value signature authorization { isForbidden forbiddenReasonCode } __typename } videoPlaybackAccessToken(id: $vodID, params: {platform: $platform, playerBackend: "mediaplayer", playerType: $playerType}) @include(if: $isVod) { value signature __typename }}',
             variables: {
-                login: channelName,
-                isLive: true,
-                vodID: "",
-                isVod: false,
+                login: target.type === "live" ? target.channelName : "",
+                isLive: target.type === "live",
+                vodID: target.type === "vod" ? target.vodId : "",
+                isVod: target.type === "vod",
                 playerType: "site",
                 platform: "web",
             },
@@ -46,31 +60,37 @@ export async function getTwitchToken(channelName: string): Promise<TwitchTokenDa
             );
         }
         const data = await res.json();
-        if (!data?.data?.streamPlaybackAccessToken) {
+        if (!data?.data?.streamPlaybackAccessToken && !data?.data?.videoPlaybackAccessToken) {
             throw new Error("Failed to get stream playback access token");
         }
-        return data;
+        return {
+            value:
+                data.data.streamPlaybackAccessToken?.value ||
+                data.data.videoPlaybackAccessToken.value,
+            signature:
+                data.data.streamPlaybackAccessToken?.signature ||
+                data.data.videoPlaybackAccessToken.signature,
+        };
     } catch (error) {
         console.error("Failed to get Twitch token:", error);
         throw error;
     }
 }
 
-export async function getM3U8Data(tokenData: TwitchTokenData, channelName: string) {
-    const url = new URL(`https://usher.ttvnw.net/api/v2/channel/hls/${channelName}.m3u8`);
+export async function getM3U8Data(tokenData: TwitchTokenData, target: target) {
+    const url =
+        target.type === "live"
+            ? new URL(`https://usher.ttvnw.net/api/v2/channel/hls/${target.channelName}.m3u8`)
+            : new URL(`https://usher.ttvnw.net/vod/v2/${target.vodId}.m3u8`);
 
-    url.searchParams.set("token", tokenData.data.streamPlaybackAccessToken.value);
-    url.searchParams.set("sig", tokenData.data.streamPlaybackAccessToken.signature);
+    url.searchParams.set("token", tokenData.value);
+    url.searchParams.set("sig", tokenData.signature);
 
     const res = await fetch(url);
     if (!res.ok) {
         throw new Error("Failed to fetch Twitch m3u8 data");
     }
-    const data = await res.text();
-    return {
-        channelName,
-        data,
-    };
+    return await res.text();
 }
 
 export function filterM3U8Data(m3u8Data: string): TwitchData["data"] {

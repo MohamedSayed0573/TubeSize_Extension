@@ -17,7 +17,9 @@ export default function Header({
         pageType === "youtube"
             ? (youtubeData?.data?.title ?? "TubeSize")
             : pageType === "twitch"
-              ? twitchData?.twitchData?.channelName || "Twitch Stream"
+              ? twitchData?.twitchData?.vodId
+                  ? "Twitch Video"
+                  : twitchData?.twitchData?.channelName || "Twitch"
               : "TubeSize";
 
     const duration =

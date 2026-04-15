@@ -9,7 +9,7 @@ describe("getClientId", () => {
             ok: true,
             text: async () => fs.readFileSync(htmlPath, "utf-8"),
         });
-        const clientId = await getClientId(channelName);
+        const clientId = await getClientId({ channelName, type: "live" });
         expect(clientId).toBe("kimne78kx3ncx6brgo4mv6wki5et0ko");
     });
 });

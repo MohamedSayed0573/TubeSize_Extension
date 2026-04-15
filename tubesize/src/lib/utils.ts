@@ -22,15 +22,51 @@ export function isShortsVideo(url: string): boolean {
 export function isTwitchPage(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
+        const isTwitchHost =
+            parsedUrl.hostname === "www.twitch.tv" ||
+            parsedUrl.hostname === "twitch.tv" ||
+            parsedUrl.hostname === "www.twitch.com" ||
+            parsedUrl.hostname === "twitch.com";
+
+        if (!isTwitchHost) return false;
+
+        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+        if (pathSegments.length === 0) return false; // No path segments, not a valid Twitch URL
+
+        // Check for channel URL (e.g., twitch.tv/channelName)
+        if (pathSegments.length === 1) return true;
+
+        // Check for VOD URL (e.g., twitch.tv/videos/vodId)
+        if (pathSegments.length === 2 && pathSegments[0] === "videos") return true;
+
+        return false;
+    } catch (err) {
+        return false;
+    }
+}
+
+export function isTwitchVod(url: string): boolean {
+    try {
+        const parsedUrl = new URL(url);
         return (
-            (parsedUrl.hostname === "www.twitch.tv" ||
-                parsedUrl.hostname === "twitch.tv" ||
-                parsedUrl.hostname === "www.twitch.com" ||
-                parsedUrl.hostname === "twitch.com") &&
-            parsedUrl.pathname.split("/").length === 2
+            parsedUrl.pathname.startsWith("/videos") && parsedUrl.pathname.split("/").length === 3
         );
     } catch (err) {
         return false;
+    }
+}
+
+export function extractTwitchVodId(url: string): string | undefined {
+    try {
+        const parsedUrl = new URL(url);
+        const parts = parsedUrl.pathname.split("/").filter(Boolean);
+        if (parts.length === 2 && parts[0] === "videos") {
+            return parts[1];
+        }
+        return;
+    } catch (err) {
+        console.error(err);
+        return;
     }
 }
 

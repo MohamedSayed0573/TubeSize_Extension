@@ -1,7 +1,8 @@
 import { extractVideoTag } from "@lib/utils";
 import renderPanel from "./panel";
+import type { Message } from "./types/types";
 
-async function sendRuntimeMessage(message: { type: string; tag?: string; html?: string }) {
+async function sendRuntimeMessage(message: Message) {
     try {
         return await chrome.runtime.sendMessage(message);
     } catch (err) {
@@ -25,7 +26,7 @@ async function init(videoTag: string) {
 
     const response = await sendRuntimeMessage({
         type: "sendYoutubeUrl",
-        tag: videoTag,
+        videoTag: videoTag,
         html: scriptContent,
     });
 

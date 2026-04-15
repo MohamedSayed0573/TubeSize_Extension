@@ -1,5 +1,9 @@
 import "@styles/popup.css";
-import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
+import type {
+    Message,
+    TwitchBackgroundResponse,
+    YoutubeBackgroundResponse,
+} from "@app-types/types";
 import { useEffect, useState } from "react";
 import {
     extractVideoTag,
@@ -7,6 +11,8 @@ import {
     isShortsVideo,
     isTwitchPage,
     extractTwitchChannelName,
+    isTwitchVod,
+    extractTwitchVodId,
 } from "@lib/utils";
 import { getFromSyncCache } from "@lib/cache";
 import ms from "ms";
@@ -22,23 +28,24 @@ async function getTab() {
 
 async function sendMessageToBackground(
     type: "sendYoutubeUrl",
-    videoTag: string,
+    message: Message,
     tabId: number,
 ): Promise<YoutubeBackgroundResponse>;
+
 async function sendMessageToBackground(
     type: "sendTwitchUrl",
-    videoTag: string,
+    message: Message,
     tabId?: number,
 ): Promise<TwitchBackgroundResponse>;
 
 async function sendMessageToBackground(
     type: "sendYoutubeUrl" | "sendTwitchUrl",
-    videoTag: string,
+    message: Message,
     tabId?: number,
 ) {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
-            { type, tag: videoTag, tabId: tabId },
+            { ...message, type, tabId },
             (response: YoutubeBackgroundResponse | TwitchBackgroundResponse) => {
                 if (chrome.runtime.lastError) {
                     reject(new Error(chrome.runtime.lastError.message));
@@ -97,13 +104,17 @@ export default function Popup() {
 
                 if (isYoutubePage(url)) {
                     setPageType("youtube");
-                    const tag = extractVideoTag(url);
-                    if (!tag) {
+                    const videoTag = extractVideoTag(url);
+                    if (!videoTag) {
                         setMessage("Open a Youtube video");
                         return;
                     }
 
-                    const response = await sendMessageToBackground("sendYoutubeUrl", tag, tab.id!);
+                    const response = await sendMessageToBackground(
+                        "sendYoutubeUrl",
+                        { type: "sendYoutubeUrl", videoTag, tabId: tab.id! },
+                        tab.id!,
+                    );
                     if (!response.success) throw new Error(response.message);
                     if (response.api)
                         setNote("Used API. Execution time: " + response.executionTime);
@@ -116,13 +127,33 @@ export default function Popup() {
                     );
                 } else if (isTwitchPage(url)) {
                     setPageType("twitch");
+                    if (isTwitchVod(url)) {
+                        const vodId = extractTwitchVodId(url);
+                        if (!vodId) {
+                            setMessage("Open a Twitch stream or VOD");
+                            return;
+                        }
+
+                        const response = await sendMessageToBackground("sendTwitchUrl", {
+                            type: "sendTwitchUrl",
+                            twitchVodId: vodId,
+                            tabId: tab.id!,
+                        });
+                        if (!response.success) throw new Error(response.message);
+                        setTwitchData(response);
+                        return;
+                    }
                     const channelName = extractTwitchChannelName(url);
                     if (!channelName) {
                         setMessage("Open a Twitch stream");
                         return;
                     }
 
-                    const response = await sendMessageToBackground("sendTwitchUrl", channelName);
+                    const response = await sendMessageToBackground("sendTwitchUrl", {
+                        type: "sendTwitchUrl",
+                        channelName,
+                        tabId: tab.id!,
+                    });
                     if (!response.success) throw new Error(response.message);
                     setTwitchData(response);
                 } else {
