@@ -33,13 +33,13 @@ export function isTwitchPage(url: string): boolean {
         const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
         if (pathSegments.length === 0) return false; // No path segments, not a valid Twitch URL
 
+        // Check for Invalid VOD URL (e.g., twitch.tv/videos without vodId)
+        if (pathSegments.length === 1 && pathSegments[0] === "videos") return false;
         // Check for channel URL (e.g., twitch.tv/channelName)
         if (pathSegments.length === 1) return true;
 
         // Check for VOD URL (e.g., twitch.tv/videos/vodId)
         if (pathSegments.length === 2 && pathSegments[0] === "videos") return true;
-
-        if (pathSegments.length === 1 && pathSegments[0] === "videos") return false;
 
         return false;
     } catch (err) {
