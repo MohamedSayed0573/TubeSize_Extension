@@ -65,8 +65,10 @@ export async function saveToStorage(tag: string, response: HumanizedFormat | Twi
         createdAt: new Date().toISOString(),
     };
 
+    const prefix = "videoFormats" in response ? "youtube" : "twitch";
+
     await setToLocalCache({
-        [tag]: dataToStore,
+        [`${prefix}:${tag}`]: dataToStore,
     });
 }
 
@@ -80,17 +82,17 @@ export async function getFromStorage(
 ): Promise<StorageData<TwitchData> | null>;
 
 export async function getFromStorage(
-    _target: "youtube" | "twitch",
+    target: "youtube" | "twitch",
     tag: string,
 ): Promise<StorageData<HumanizedFormat | TwitchData> | null> {
-    const data = await getFromLocalCache(tag);
+    const data = await getFromLocalCache(`${target}:${tag}`);
     const item = data as StorageData<HumanizedFormat | TwitchData> | undefined;
 
     if (!item) return null;
 
     // Tag expired
     if (item.expiry && item.expiry < Date.now()) {
-        await removeFromLocalCache(tag);
+        await removeFromLocalCache(`${target}:${tag}`);
         return null;
     }
 
