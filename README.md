@@ -5,7 +5,6 @@
 # TubeSize
 
 ![GitHub stars](https://img.shields.io/github/stars/MohamedSayed0573/Tubesize_Extension)
-[![Downloads Counter](https://img.shields.io/github/downloads/MohamedSayed0573/Tubesize_Extension/total)](https://github.com/MohamedSayed0573/Tubesize_Extension/releases)
 
 **Know exactly how much data a YouTube or Twitch stream/video will cost you before you press play.**
 
