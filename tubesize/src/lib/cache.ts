@@ -70,9 +70,21 @@ export async function saveToStorage(tag: string, response: HumanizedFormat | Twi
     });
 }
 
-export async function getFromStorage(tag: string): Promise<StorageData | null> {
+export async function getFromStorage(
+    target: "youtube",
+    tag: string,
+): Promise<StorageData<HumanizedFormat> | null>;
+export async function getFromStorage(
+    target: "twitch",
+    tag: string,
+): Promise<StorageData<TwitchData> | null>;
+
+export async function getFromStorage(
+    _target: "youtube" | "twitch",
+    tag: string,
+): Promise<StorageData<HumanizedFormat | TwitchData> | null> {
     const data = await getFromLocalCache(tag);
-    const item = data as StorageData | undefined;
+    const item = data as StorageData<HumanizedFormat | TwitchData> | undefined;
 
     if (!item) return null;
 

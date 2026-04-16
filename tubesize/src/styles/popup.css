@@ -93,6 +93,20 @@ body {
     cursor: pointer;
     border: 1px solid transparent;
 }
+.format-item.current {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: rgba(172, 60, 75, 0.452);
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+.format-item.current:hover {
+    background: rgba(172, 60, 75, 0.6);
+    border-color: #690b0b;
+}
 .format-item:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: #690b0b;

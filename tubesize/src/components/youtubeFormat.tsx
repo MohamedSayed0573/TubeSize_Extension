@@ -4,11 +4,18 @@ interface Props {
     item: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"][number];
     isLive: boolean | undefined;
     isShorts: boolean | undefined;
+    currentQuality: number | undefined;
 }
 
-export default function YoutubeFormat({ item, isLive = false, isShorts = false }: Props) {
+export default function YoutubeFormat({
+    item,
+    isLive = false,
+    isShorts = false,
+    currentQuality,
+}: Props) {
+    const className = item?.height === currentQuality ? "format-item current" : "format-item";
     return (
-        <div className="format-item">
+        <div className={className}>
             <div className="format-height"> {item.height} </div>
             <div className="format-size">
                 <span>{!isLive ? item.sizeMB : item.sizeMB + "/hour"}</span>
