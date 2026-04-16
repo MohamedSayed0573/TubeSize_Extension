@@ -83,13 +83,29 @@ export type TwitchBackgroundResponse = {
     message?: string;
 };
 
-export type Message = {
-    type: MessageTypes;
-    channelName?: string;
-    videoTag?: string;
-    twitchVodId?: string;
-    html?: string;
+export type FrontEndMessage =
+    | YoutubeMessage
+    | TwitchVodMessage
+    | TwitchLiveMessage
+    | { type: "clearBadge" }
+    | { type: "setBadge" };
+
+export type YoutubeMessage = {
+    type: "sendYoutubeUrl";
+    videoTag: string;
     tabId?: number;
+    html?: string;
+};
+export type TwitchMessage = TwitchVodMessage | TwitchLiveMessage;
+
+// export type MessageTypes = "clearBadge" | "setBadge" | "sendYoutubeUrl" | "sendTwitchUrl";
+
+export type TwitchVodMessage = {
+    type: "twitchVod";
+    vodId: string;
 };
 
-export type MessageTypes = "clearBadge" | "setBadge" | "sendYoutubeUrl" | "sendTwitchUrl";
+export type TwitchLiveMessage = {
+    type: "twitchLive";
+    channelName: string;
+};

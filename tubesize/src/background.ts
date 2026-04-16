@@ -1,7 +1,10 @@
 import type {
     YoutubeBackgroundResponse,
     TwitchBackgroundResponse,
-    Message,
+    TwitchData,
+    YoutubeMessage,
+    FrontEndMessage,
+    TwitchMessage,
 } from "@app-types/types";
 import { getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
@@ -20,12 +23,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function handleMessage(
-    message: Message,
+    message: FrontEndMessage,
     sender: chrome.runtime.MessageSender,
     sendResponse: (response: YoutubeBackgroundResponse | TwitchBackgroundResponse) => void,
 ): Promise<void> {
     // If the message is sent from the content script, use sender.tab.id, otherwise use message.tabId (sent from popup)
-    const tabId = sender.tab?.id ?? message.tabId;
+    const tabId = sender.tab?.id ?? (message.type === "sendYoutubeUrl" ? message.tabId : undefined);
 
     switch (message.type) {
         case "clearBadge":
@@ -35,8 +38,9 @@ async function handleMessage(
             addBadge(tabId);
             return sendResponse({ success: true });
         case "sendYoutubeUrl":
-            return await handleYoutube(message, tabId, sendResponse);
-        case "sendTwitchUrl":
+            return await handleYoutube(message, sendResponse);
+        case "twitchVod":
+        case "twitchLive":
             return await handleTwitch(message, sendResponse);
         default:
             return;
@@ -44,36 +48,40 @@ async function handleMessage(
 }
 
 async function handleTwitch(
-    message: Message,
+    message: TwitchMessage,
     sendResponse: (response: TwitchBackgroundResponse) => void,
 ) {
     try {
-        const channelName = message.channelName;
-        const vodId = message.twitchVodId;
-
-        if (channelName) {
-            const twitchToken = await getTwitchToken({ type: "live", channelName });
+        if (message.type === "twitchLive") {
+            if (!message.channelName) {
+                throw new Error("No channel name provided for live Twitch URL");
+            }
+            const twitchToken = await getTwitchToken(message);
             if (!twitchToken) {
                 throw new Error("Failed to retrieve Twitch token");
             }
-            const m3u8Data = await getM3U8Data(twitchToken, { type: "live", channelName });
+            const m3u8Data = await getM3U8Data(twitchToken, message);
             const filteredM3U8Data = filterM3U8Data(m3u8Data);
 
+            const twitchData: TwitchData = {
+                data: filteredM3U8Data,
+                channelName: message.channelName,
+            };
             return sendResponse({
                 success: true,
-                twitchData: { data: filteredM3U8Data, channelName },
+                twitchData,
             });
-        } else if (vodId) {
-            const twitchToken = await getTwitchToken({ type: "vod", vodId });
+        } else if (message.type === "twitchVod") {
+            const twitchToken = await getTwitchToken(message);
             if (!twitchToken) {
                 throw new Error("Failed to retrieve Twitch token");
             }
-            const m3u8Data = await getM3U8Data(twitchToken, { type: "vod", vodId });
+            const m3u8Data = await getM3U8Data(twitchToken, message);
             const filteredM3U8Data = filterM3U8Data(m3u8Data);
 
             return sendResponse({
                 success: true,
-                twitchData: { data: filteredM3U8Data, vodId },
+                twitchData: { data: filteredM3U8Data, vodId: message.vodId },
             });
         } else {
             throw new Error("No channel name or VOD ID provided");
@@ -87,12 +95,11 @@ async function handleTwitch(
 }
 
 async function handleYoutube(
-    message: Message,
-    tabId: number | undefined,
+    message: YoutubeMessage,
     sendResponse: (response: YoutubeBackgroundResponse) => void,
 ) {
     const { videoTag, html } = message;
-    if (!tabId) {
+    if (!message.tabId) {
         return sendResponse({
             success: false,
             message: "No tab ID provided",
@@ -104,11 +111,11 @@ async function handleYoutube(
             message: "No video tag provided",
         });
     }
-    clearBadge(tabId);
+    clearBadge(message.tabId);
 
     const cached = await getFromStorage(videoTag);
     if (cached) {
-        addBadge(tabId);
+        addBadge(message.tabId);
         return sendResponse({
             success: true,
             data: cached.response,
@@ -136,14 +143,14 @@ async function handleYoutube(
             await saveToStorage(videoTag, humanizedFormats);
         }
 
-        addBadge(tabId);
+        addBadge(message.tabId);
         return sendResponse({
             success: true,
             data: humanizedFormats,
         });
     } catch (err) {
         console.error("Couldn't use local, " + err);
-        clearBadge(tabId);
+        clearBadge(message.tabId);
         return sendResponse({
             success: false,
             data: null,

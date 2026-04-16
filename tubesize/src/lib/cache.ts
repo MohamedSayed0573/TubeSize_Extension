@@ -1,5 +1,5 @@
 import CONFIG from "@lib/constants";
-import type { HumanizedFormat, StorageData } from "@app-types/types";
+import type { HumanizedFormat, StorageData, TwitchData } from "@app-types/types";
 
 async function getCacheTTLSetting(): Promise<number> {
     const cacheTTL = await getFromSyncCache("cacheTTL");
@@ -47,14 +47,16 @@ async function removeFromCache(storage: "local" | "sync", key?: string | number)
 export const removeFromLocalCache = removeFromCache.bind(null, "local");
 export const removeFromSyncCache = removeFromCache.bind(null, "sync");
 
-export async function saveToStorage(tag: string, response: HumanizedFormat | null) {
+export async function saveToStorage(tag: string, response: HumanizedFormat | TwitchData | null) {
     if (!response) return;
 
     const ttlInSecondsOptions = await getCacheTTLSetting();
     const expiry = Date.now() + ttlInSecondsOptions * 1000;
 
     // If any of the formats have null sizes, we don't want to cache the response as it might be incomplete.
-    const hasNullSizes = response.videoFormats.some((f) => !f.sizeMB || f.sizeMB === "0 B");
+    const hasNullSizes =
+        "videoFormats" in response &&
+        response.videoFormats.some((f) => !f.sizeMB || f.sizeMB === "0 B");
     if (hasNullSizes) return;
 
     const dataToStore = {

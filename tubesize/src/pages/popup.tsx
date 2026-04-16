@@ -1,8 +1,9 @@
 import "@styles/popup.css";
 import type {
-    Message,
     TwitchBackgroundResponse,
+    TwitchMessage,
     YoutubeBackgroundResponse,
+    YoutubeMessage,
 } from "@app-types/types";
 import { useEffect, useState } from "react";
 import {
@@ -26,11 +27,11 @@ async function getTab() {
     return await chrome.tabs.query({ active: true, currentWindow: true });
 }
 
-async function sendMessageToBackground(message: Message): Promise<YoutubeBackgroundResponse>;
+async function sendMessageToBackground(message: YoutubeMessage): Promise<YoutubeBackgroundResponse>;
 
-async function sendMessageToBackground(message: Message): Promise<TwitchBackgroundResponse>;
+async function sendMessageToBackground(message: TwitchMessage): Promise<TwitchBackgroundResponse>;
 
-async function sendMessageToBackground(message: Message) {
+async function sendMessageToBackground(message: YoutubeMessage | TwitchMessage) {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
             { ...message },
@@ -43,7 +44,8 @@ async function sendMessageToBackground(message: Message) {
                     reject(new Error(response?.message || "Failed to fetch video data"));
                     return;
                 }
-                if (message.type === "sendTwitchUrl") resolve(response as TwitchBackgroundResponse);
+                if (message.type === "twitchVod" || message.type === "twitchLive")
+                    resolve(response as TwitchBackgroundResponse);
                 else resolve(response as YoutubeBackgroundResponse);
             },
         );
@@ -120,9 +122,8 @@ export default function Popup() {
                         }
 
                         const response = await sendMessageToBackground({
-                            type: "sendTwitchUrl",
-                            twitchVodId: vodId,
-                            tabId: tab.id!,
+                            type: "twitchVod",
+                            vodId: vodId,
                         });
                         if (!response.success) throw new Error(response.message);
                         setTwitchData(response);
@@ -135,9 +136,8 @@ export default function Popup() {
                     }
 
                     const response = await sendMessageToBackground({
-                        type: "sendTwitchUrl",
-                        channelName,
-                        tabId: tab.id!,
+                        type: "twitchLive",
+                        channelName: channelName,
                     });
                     if (!response.success) throw new Error(response.message);
                     setTwitchData(response);

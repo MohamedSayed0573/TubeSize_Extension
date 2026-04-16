@@ -145,7 +145,7 @@ describe("getM3U8Data", () => {
 
         const data = await getM3U8Data(
             { value: '{"token":"vod"}', signature: "vod-signature" },
-            { type: "vod", vodId: "2748008198" },
+            { type: "sendTwitchUrl", target: "vod", twitchVodId: "2748008198" },
         );
 
         expect(data).toBe("#EXTM3U\n#EXT-X-ENDLIST\n");

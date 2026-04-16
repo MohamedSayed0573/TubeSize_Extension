@@ -1,7 +1,7 @@
 import { extractVideoTag } from "@lib/utils";
-import type { Message } from "./types/types";
+import type { FrontEndMessage } from "./types/types";
 
-async function sendRuntimeMessage(message: Message) {
+async function sendRuntimeMessage(message: FrontEndMessage) {
     try {
         return await chrome.runtime.sendMessage(message);
     } catch (err) {

@@ -1,21 +1,11 @@
-import type { TwitchData, TwitchTokenData } from "@/types/types";
+import type { TwitchData, TwitchMessage, TwitchTokenData } from "@/types/types";
 import { Parser } from "m3u8-parser";
 
-type Target =
-    | {
-          type: "live";
-          channelName: string;
-      }
-    | {
-          type: "vod";
-          vodId: string;
-      };
-
-export async function getClientId(target: Target): Promise<string> {
+export async function getClientId(message: TwitchMessage): Promise<string> {
     const url =
-        target.type === "vod"
-            ? `https://www.twitch.tv/videos/${target.vodId}`
-            : `https://www.twitch.tv/${target.channelName}`;
+        message.type === "twitchVod"
+            ? `https://www.twitch.tv/videos/${message.vodId}`
+            : `https://www.twitch.tv/${message.channelName}`;
     const res = await fetch(url);
     if (!res.ok) {
         throw new Error("Failed to fetch Twitch page");
@@ -30,9 +20,9 @@ export async function getClientId(target: Target): Promise<string> {
     return clientId?.[1];
 }
 
-export async function getTwitchToken(target: Target): Promise<TwitchTokenData> {
+export async function getTwitchToken(message: TwitchMessage): Promise<TwitchTokenData> {
     try {
-        const clientId = await getClientId(target);
+        const clientId = await getClientId(message);
         const headers = {
             "Client-Id": clientId,
             "Content-Type": "application/json",
@@ -40,10 +30,10 @@ export async function getTwitchToken(target: Target): Promise<TwitchTokenData> {
         const body = {
             query: 'query PlaybackAccessToken_Template($login: String!, $isLive: Boolean!, $vodID: ID!, $isVod: Boolean!, $playerType: String!, $platform: String!) { streamPlaybackAccessToken(channelName: $login, params: {platform: $platform, playerBackend: "mediaplayer", playerType: $playerType}) @include(if: $isLive) { value signature authorization { isForbidden forbiddenReasonCode } __typename } videoPlaybackAccessToken(id: $vodID, params: {platform: $platform, playerBackend: "mediaplayer", playerType: $playerType}) @include(if: $isVod) { value signature __typename }}',
             variables: {
-                login: target.type === "live" ? target.channelName : "",
-                isLive: target.type === "live",
-                vodID: target.type === "vod" ? target.vodId : "",
-                isVod: target.type === "vod",
+                login: message.type === "twitchLive" ? message.channelName : "",
+                isLive: message.type === "twitchLive",
+                vodID: message.type === "twitchVod" ? message.vodId : "",
+                isVod: message.type === "twitchVod",
                 playerType: "site",
                 platform: "web",
             },
@@ -77,11 +67,14 @@ export async function getTwitchToken(target: Target): Promise<TwitchTokenData> {
     }
 }
 
-export async function getM3U8Data(tokenData: TwitchTokenData, target: Target) {
+export async function getM3U8Data(
+    tokenData: TwitchTokenData,
+    message: TwitchMessage,
+): Promise<string> {
     const url =
-        target.type === "live"
-            ? new URL(`https://usher.ttvnw.net/api/v2/channel/hls/${target.channelName}.m3u8`)
-            : new URL(`https://usher.ttvnw.net/vod/v2/${target.vodId}.m3u8`);
+        message.type === "twitchLive"
+            ? new URL(`https://usher.ttvnw.net/api/v2/channel/hls/${message.channelName}.m3u8`)
+            : new URL(`https://usher.ttvnw.net/vod/v2/${message.vodId}.m3u8`);
 
     url.searchParams.set("token", tokenData.value);
     url.searchParams.set("sig", tokenData.signature);
