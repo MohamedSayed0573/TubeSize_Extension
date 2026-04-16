@@ -91,7 +91,9 @@ async function handleTwitch(
                 data: filteredM3U8Data,
                 vodId: message.vodId,
             };
-            await saveToStorage(message.vodId, response);
+            if (filteredM3U8Data.length > 0) {
+                await saveToStorage(message.vodId, response);
+            }
 
             return sendResponse({
                 success: true,
