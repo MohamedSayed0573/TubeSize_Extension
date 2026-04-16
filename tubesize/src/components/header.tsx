@@ -7,20 +7,29 @@ interface Props {
     setUseOptionsPage: (useOptionsPage: boolean) => void;
 }
 
+function getTitle(
+    pageType: Props["pageType"],
+    youtubeData?: YoutubeBackgroundResponse | null,
+    twitchData?: TwitchBackgroundResponse | null,
+): string {
+    if (pageType === "youtube") {
+        return youtubeData?.data?.title ?? "TubeSize";
+    }
+    if (pageType === "twitch") {
+        const data = twitchData?.twitchData;
+        if (!data) return "Twitch";
+        return "channelName" in data ? (data.channelName ?? "Twitch") : "Twitch Video";
+    }
+    return "TubeSize";
+}
+
 export default function Header({
     pageType = "default",
     youtubeData,
     twitchData,
     setUseOptionsPage,
 }: Props) {
-    const title =
-        pageType === "youtube"
-            ? (youtubeData?.data?.title ?? "TubeSize")
-            : pageType === "twitch"
-              ? twitchData?.twitchData?.vodId
-                  ? "Twitch Video"
-                  : twitchData?.twitchData?.channelName || "Twitch"
-              : "TubeSize";
+    const title = getTitle(pageType, youtubeData, twitchData);
 
     const duration =
         pageType === "youtube" && !youtubeData?.data?.isLive

@@ -27,28 +27,31 @@ async function getTab() {
     return await chrome.tabs.query({ active: true, currentWindow: true });
 }
 
-async function sendMessageToBackground(message: YoutubeMessage): Promise<YoutubeBackgroundResponse>;
+// async function sendMessageToBackground(message: YoutubeMessage): Promise<YoutubeBackgroundResponse>;
 
-async function sendMessageToBackground(message: TwitchMessage): Promise<TwitchBackgroundResponse>;
+// async function sendMessageToBackground(message: TwitchMessage): Promise<TwitchBackgroundResponse>;
 
-async function sendMessageToBackground(message: YoutubeMessage | TwitchMessage) {
+type MessageResponseMap = {
+    youtubeVideo: YoutubeBackgroundResponse;
+    twitchVod: TwitchBackgroundResponse;
+    twitchLive: TwitchBackgroundResponse;
+};
+
+async function sendMessageToBackground<T extends YoutubeMessage | TwitchMessage>(
+    message: T,
+): Promise<MessageResponseMap[T["type"]]> {
     return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage(
-            { ...message },
-            (response: YoutubeBackgroundResponse | TwitchBackgroundResponse) => {
-                if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                    return;
-                }
-                if (!response?.success) {
-                    reject(new Error(response?.message || "Failed to fetch video data"));
-                    return;
-                }
-                if (message.type === "twitchVod" || message.type === "twitchLive")
-                    resolve(response as TwitchBackgroundResponse);
-                else resolve(response as YoutubeBackgroundResponse);
-            },
-        );
+        chrome.runtime.sendMessage({ ...message }, (response) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+            if (!response?.success) {
+                reject(new Error(response?.message || "Failed to fetch video data"));
+                return;
+            }
+            resolve(response);
+        });
     });
 }
 
@@ -100,7 +103,7 @@ export default function Popup() {
                     }
 
                     const response = await sendMessageToBackground({
-                        type: "sendYoutubeUrl",
+                        type: "youtubeVideo",
                         videoTag,
                         tabId: tab.id!,
                     });

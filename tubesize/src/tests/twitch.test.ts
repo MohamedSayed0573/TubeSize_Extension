@@ -14,7 +14,7 @@ describe("getClientId", () => {
             ok: true,
             text: async () => fs.readFileSync(htmlPath, "utf-8"),
         });
-        const clientId = await getClientId({ channelName, type: "live" });
+        const clientId = await getClientId({ channelName, type: "twitchLive" });
         expect(clientId).toBe("kimne78kx3ncx6brgo4mv6wki5et0ko");
     });
 });
@@ -41,7 +41,7 @@ describe("getTwitchToken", () => {
 
         global.fetch = fetchMock;
 
-        const token = await getTwitchToken({ type: "live", channelName: "hivise" });
+        const token = await getTwitchToken({ type: "twitchLive", channelName: "hivise" });
 
         expect(token).toEqual({
             value: '{"foo":"bar"}',
@@ -90,7 +90,7 @@ describe("getTwitchToken", () => {
 
         global.fetch = fetchMock;
 
-        const token = await getTwitchToken({ type: "vod", vodId: "2748008198" });
+        const token = await getTwitchToken({ type: "twitchVod", vodId: "2748008198" });
 
         expect(token).toEqual({
             value: '{"vod":true}',
@@ -123,7 +123,7 @@ describe("getM3U8Data", () => {
 
         const data = await getM3U8Data(
             { value: '{"token":"live"}', signature: "live-signature" },
-            { type: "live", channelName: "hivise" },
+            { type: "twitchLive", channelName: "hivise" },
         );
 
         expect(data).toBe("#EXTM3U\n");
@@ -145,7 +145,7 @@ describe("getM3U8Data", () => {
 
         const data = await getM3U8Data(
             { value: '{"token":"vod"}', signature: "vod-signature" },
-            { type: "sendTwitchUrl", target: "vod", twitchVodId: "2748008198" },
+            { type: "twitchVod", vodId: "2748008198" },
         );
 
         expect(data).toBe("#EXTM3U\n#EXT-X-ENDLIST\n");

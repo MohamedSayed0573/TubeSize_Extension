@@ -24,7 +24,7 @@ async function init(videoTag: string) {
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
     await sendRuntimeMessage({
-        type: "sendYoutubeUrl",
+        type: "youtubeVideo",
         videoTag: videoTag,
         html: scriptContent,
     });

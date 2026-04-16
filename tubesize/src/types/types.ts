@@ -67,15 +67,15 @@ export type TwitchTokenData = {
     signature: string;
 };
 
-export type TwitchData = {
-    data: {
-        bandwidth: number;
-        resolution: number;
-        codec: string;
-    }[];
-    channelName?: string;
-    vodId?: string;
+type TwitchStreamInfo = {
+    bandwidth: number;
+    resolution: number;
+    codec: string;
 };
+
+export type TwitchData =
+    | { data: TwitchStreamInfo[]; channelName: string }
+    | { data: TwitchStreamInfo[]; vodId: string };
 
 export type TwitchBackgroundResponse = {
     success: boolean;
@@ -91,14 +91,12 @@ export type FrontEndMessage =
     | { type: "setBadge" };
 
 export type YoutubeMessage = {
-    type: "sendYoutubeUrl";
+    type: "youtubeVideo";
     videoTag: string;
     tabId?: number;
     html?: string;
 };
 export type TwitchMessage = TwitchVodMessage | TwitchLiveMessage;
-
-// export type MessageTypes = "clearBadge" | "setBadge" | "sendYoutubeUrl" | "sendTwitchUrl";
 
 export type TwitchVodMessage = {
     type: "twitchVod";

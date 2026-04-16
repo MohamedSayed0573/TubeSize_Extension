@@ -28,7 +28,7 @@ async function handleMessage(
     sendResponse: (response: YoutubeBackgroundResponse | TwitchBackgroundResponse) => void,
 ): Promise<void> {
     // If the message is sent from the content script, use sender.tab.id, otherwise use message.tabId (sent from popup)
-    const tabId = sender.tab?.id ?? (message.type === "sendYoutubeUrl" ? message.tabId : undefined);
+    const tabId = sender.tab?.id ?? (message.type === "youtubeVideo" ? message.tabId : undefined);
 
     switch (message.type) {
         case "clearBadge":
@@ -37,12 +37,13 @@ async function handleMessage(
         case "setBadge":
             addBadge(tabId);
             return sendResponse({ success: true });
-        case "sendYoutubeUrl":
+        case "youtubeVideo":
             return await handleYoutube(message, sendResponse);
         case "twitchVod":
         case "twitchLive":
             return await handleTwitch(message, sendResponse);
         default:
+            console.error("Unknown message type:", message);
             return;
     }
 }
@@ -53,9 +54,6 @@ async function handleTwitch(
 ) {
     try {
         if (message.type === "twitchLive") {
-            if (!message.channelName) {
-                throw new Error("No channel name provided for live Twitch URL");
-            }
             const twitchToken = await getTwitchToken(message);
             if (!twitchToken) {
                 throw new Error("Failed to retrieve Twitch token");
