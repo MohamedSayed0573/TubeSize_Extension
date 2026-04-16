@@ -7,12 +7,10 @@ import { getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
 import {
     extractYtInitial,
-    fetchAPI,
     fetchHTMLPage,
     parseDataFromYtInitial,
     humanizeData,
 } from "@lib/youtube";
-import { getAPIFallbackSetting } from "@lib/utils";
 import { filterM3U8Data, getM3U8Data, getTwitchToken } from "./lib/twitch";
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -145,35 +143,12 @@ async function handleYoutube(
         });
     } catch (err) {
         console.error("Couldn't use local, " + err);
-
-        try {
-            const useAPIFallback = await getAPIFallbackSetting();
-            if (!useAPIFallback) {
-                const errorMessage =
-                    err instanceof Error ? err.message : "An unknown error occurred";
-                throw new Error(errorMessage);
-            }
-
-            const apiData = await fetchAPI(videoTag);
-            // Do not cache API responses, in order to keep the cache consistent.
-            // Because the API response is different than the data we extract from the html page.
-            addBadge(tabId);
-            return sendResponse({
-                success: true,
-                data: apiData,
-                cached: false,
-                api: true,
-                executionTime: apiData.executionTime,
-            });
-        } catch (apiErr) {
-            console.error(apiErr);
-            clearBadge(tabId);
-            return sendResponse({
-                success: false,
-                data: null,
-                cached: false,
-                message: apiErr instanceof Error ? apiErr.message : "Unknown error",
-            });
-        }
+        clearBadge(tabId);
+        return sendResponse({
+            success: false,
+            data: null,
+            cached: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        });
     }
 }

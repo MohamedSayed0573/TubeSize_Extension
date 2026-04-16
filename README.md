@@ -38,9 +38,9 @@ TubeSize is a browser extension that shows estimated data usage for YouTube and 
 - **YouTube Live support** — estimates live data usage per quality using bitrate-derived hourly and per-minute usage
 - **Twitch live support** — reads Twitch HLS playlists and shows estimated bandwidth usage per quality level
 - **Twitch VOD support** — works on `twitch.tv/videos/...` pages in the same popup flow
-- **Client-first, privacy-respecting** — YouTube metadata is extracted directly from the page; Twitch data is pulled from Twitch playback endpoints; the backup API is only used for YouTube when local extraction fails
+- **Client-first, privacy-respecting** — YouTube metadata is extracted directly from the page and Twitch data is pulled from Twitch playback endpoints
 - **Local cache for YouTube** — YouTube results are stored in `chrome.storage.local` with a configurable TTL (default: 3 days) so repeat views are instant
-- **Self-hosted fallback API for YouTube** — if client-side YouTube extraction fails, an optional backup API powered by `yt-dlp` and deployed on AWS EC2 takes over silently
+- **Deprecated backup API** — the old YouTube fallback API is still in the repository, but extension builds no longer use it
 - **Cross-browser** — Chrome, Firefox, and Edge are all supported from the same codebase (Manifest V3 for Chromium, adapted manifest for Firefox)
 - **Keyboard shortcut** — open the popup at any time with `Ctrl+Shift+0` (`Cmd+Shift+0` on Mac)
 
@@ -58,7 +58,7 @@ TubeSize is a browser extension that shows estimated data usage for YouTube and 
 
 ## Stack
 
-TubeSize is built as a browser extension with a self-hosted fallback API.
+TubeSize is built primarily as a browser extension. The old fallback API remains in the repository but is currently deprecated and not used by the extension.
 
 | Layer            | Technology                                                |
 | ---------------- | --------------------------------------------------------- |
@@ -86,8 +86,7 @@ flowchart LR
     C -->|No| E[Extract ytInitialPlayerResponse locally]
     E --> F{Local success?}
     F -->|Yes| G[Return sizes and cache non-live results]
-    F -->|No| H[Call optional fallback API]
-    H --> I[Return API result]
+    F -->|No| H[Return local extraction error]
     B -->|Twitch| J[Detect live channel or VOD]
     J --> K[Fetch Twitch playback token]
     K --> L[Fetch HLS master playlist]
@@ -105,7 +104,7 @@ flowchart LR
 
 ### YouTube Path
 
-For YouTube, TubeSize keeps the original client-first strategy: it extracts `ytInitialPlayerResponse` locally, builds a resolution table, merges audio into video sizes, caches non-live results, and only calls the backup API if local extraction fails.
+For YouTube, TubeSize uses a fully local strategy: it extracts `ytInitialPlayerResponse` locally, builds a resolution table, merges audio into video sizes, and caches non-live results.
 
 For YouTube Live streams, exact file size is not available the same way as on-demand videos, so TubeSize derives an estimate from the advertised stream bitrate and presents usage as hourly and per-minute estimates.
 
@@ -139,7 +138,9 @@ For Twitch live streams and VODs, TubeSize reads the HLS playlist variants expos
 
 ## Backend API
 
-The fallback API is a standalone **Fastify + TypeScript** server that runs on **AWS EC2** inside a Docker container. It is called only when the extension cannot extract video data locally.
+The fallback API is a standalone **Fastify + TypeScript** server that runs on **AWS EC2** inside a Docker container.
+
+It is currently deprecated and is no longer used by the extension.
 
 ### Endpoint
 
@@ -172,15 +173,14 @@ Two GitHub Actions workflows handle the full release lifecycle:
 
 The extension requests the minimum permissions required:
 
-| Permission                                | Why                                                                       |
-| ----------------------------------------- | ------------------------------------------------------------------------- |
-| `activeTab`                               | Read the current tab's URL to detect the current YouTube or Twitch page   |
-| `storage`                                 | Cache YouTube data and user preferences locally                           |
-| `host_permissions: *.youtube.com`         | Read YouTube pages and extract stream metadata locally                    |
-| `host_permissions: *.twitch.tv`           | Read Twitch live/VOD pages and request Twitch playback metadata           |
-| `host_permissions: usher.ttvnw.net`       | Fetch Twitch HLS playlists to inspect available resolutions and bandwidth |
-| `host_permissions: gql.twitch.tv`         | Request Twitch playback access tokens                                     |
-| `host_permissions: api.mohammedsayed.dev` | Call the optional self-hosted fallback API for YouTube only               |
+| Permission                          | Why                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------- |
+| `activeTab`                         | Read the current tab's URL to detect the current YouTube or Twitch page   |
+| `storage`                           | Cache YouTube data and user preferences locally                           |
+| `host_permissions: *.youtube.com`   | Read YouTube pages and extract stream metadata locally                    |
+| `host_permissions: *.twitch.tv`     | Read Twitch live/VOD pages and request Twitch playback metadata           |
+| `host_permissions: usher.ttvnw.net` | Fetch Twitch HLS playlists to inspect available resolutions and bandwidth |
+| `host_permissions: gql.twitch.tv`   | Request Twitch playback access tokens                                     |
 
 ---
 

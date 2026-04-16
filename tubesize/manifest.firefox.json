@@ -23,7 +23,6 @@
 
     "host_permissions": [
         "https://*.youtube.com/*",
-        "https://api.mohammedsayed.dev/*",
         "https://*.twitch.tv/*",
         "https://usher.ttvnw.net/api/v2/channel/hls/*",
         "https://gql.twitch.tv/gql/*"

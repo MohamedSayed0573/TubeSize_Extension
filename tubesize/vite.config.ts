@@ -17,9 +17,6 @@ export default defineConfig({
             "@app-types": path.resolve(__dirname, "src/types"),
         },
     },
-    define: {
-        __API_URL__: '"https://api.mohammedsayed.dev"',
-    },
     plugins: [
         react({
             babel: {

@@ -1,10 +1,7 @@
-import type { YoutubeBackgroundResponse, APIData } from "@app-types/types";
+import type { YoutubeBackgroundResponse } from "@app-types/types";
 
 interface Props {
-    item: Exclude<
-        YoutubeBackgroundResponse["data"],
-        APIData | null | undefined
-    >["videoFormats"][number];
+    item: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"][number];
     isLive: boolean | undefined;
     isShorts: boolean | undefined;
 }

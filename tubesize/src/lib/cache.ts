@@ -1,5 +1,5 @@
 import CONFIG from "@lib/constants";
-import type { APIData, HumanizedFormat, StorageData } from "@app-types/types";
+import type { HumanizedFormat, StorageData } from "@app-types/types";
 
 async function getCacheTTLSetting(): Promise<number> {
     const cacheTTL = await getFromSyncCache("cacheTTL");
@@ -47,7 +47,7 @@ async function removeFromCache(storage: "local" | "sync", key?: string | number)
 export const removeFromLocalCache = removeFromCache.bind(null, "local");
 export const removeFromSyncCache = removeFromCache.bind(null, "sync");
 
-export async function saveToStorage(tag: string, response: APIData | HumanizedFormat | null) {
+export async function saveToStorage(tag: string, response: HumanizedFormat | null) {
     if (!response) return;
 
     const ttlInSecondsOptions = await getCacheTTLSetting();

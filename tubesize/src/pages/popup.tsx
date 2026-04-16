@@ -74,7 +74,6 @@ export default function Popup() {
     const [youtubeData, setYoutubeData] = useState<YoutubeBackgroundResponse | null>(null);
     const [twitchData, setTwitchData] = useState<TwitchBackgroundResponse | null>(null);
     const [cache, setCache] = useState<string | undefined>(undefined);
-    const [note, setNote] = useState<string | null>(null);
     const [useOptionsPage, setUseOptionsPage] = useState(false);
     const [enabledOptions, setEnabledOptions] = useState<string[]>([]);
     const [error, setError] = useState<Error | null>(null);
@@ -104,8 +103,6 @@ export default function Popup() {
                         tabId: tab.id!,
                     });
                     if (!response.success) throw new Error(response.message);
-                    if (response.api)
-                        setNote("Used API. Execution time: " + response.executionTime);
                     if (isShortsVideo(url)) response.isShorts = true;
                     setYoutubeData(response);
                     setCache(
@@ -187,7 +184,6 @@ export default function Popup() {
             />
             <div id="container">
                 {cache && <div className="cached-note">{cache}</div>}
-                {note && <div className="cached-note">{note}</div>}
                 {!youtubeData && !twitchData && <span className="info">{message}</span>}
                 {youtubeData && enabledOptions.length === 0 && (
                     <span className="error">All Resolutions Disabled. Enable in options</span>

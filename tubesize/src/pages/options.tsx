@@ -3,7 +3,6 @@ import CONFIG from "@lib/constants";
 import HeaderOptions from "@components/options/headerOptions";
 import OptionItem from "@components/options/optionItem";
 import CacheSettings from "@components/options/cacheSettings";
-import ApiFallbackSetting from "@components/options/apiFallbackSetting";
 import { useState, useEffect } from "react";
 import { getFromSyncCache } from "@lib/cache";
 
@@ -42,9 +41,6 @@ export default function Options() {
 
             <div className="section-divider"></div>
             <CacheSettings />
-
-            <div className="section-divider"></div>
-            <ApiFallbackSetting />
 
             <div className="section-divider"></div>
             <div className="author">
