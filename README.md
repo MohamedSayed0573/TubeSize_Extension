@@ -3,10 +3,11 @@
 <img src="tubesize/public/icons/icon-128.png" alt="TubeSize Logo" width="96" />
 
 # TubeSize
+
 ![GitHub stars](https://img.shields.io/github/stars/MohamedSayed0573/Tubesize_Extension)
 [![Downloads Counter](https://img.shields.io/github/downloads/MohamedSayed0573/Tubesize_Extension/total)](https://github.com/MohamedSayed0573/Tubesize_Extension/releases)
 
-**Know exactly how much data a YouTube video will cost you — before you press play.**
+**Know exactly how much data a YouTube or Twitch stream/video will cost you before you press play.**
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Install-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/tubesize/bdpkcpbkonollfbgcnkknkjdbfpacnoi)
 [![Firefox Add-ons](https://img.shields.io/badge/Firefox-Install-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)
@@ -15,13 +16,13 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)](https://developer.chrome.com/docs/extensions/mv3/)
 
-[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/mohamedsayed253) 
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/mohamedsayed253)
 
 </div>
 
 ---
 
-TubeSize is a browser extension that shows you the estimated file size of any YouTube video — across every available quality — directly in a popup, without leaving the page. No trackers, no sign-in, no third-party analytics. It works locally first, and only ever reaches out to a self-hosted backup API when the client-side extraction has exhausted every option.
+TubeSize is a browser extension that shows estimated data usage for YouTube and Twitch directly in a popup without leaving the page.
 
 ## Screenshots
 
@@ -33,11 +34,13 @@ TubeSize is a browser extension that shows you the estimated file size of any Yo
 
 ## Features
 
-- **Per-resolution file sizes** — 144p through 8K (4320p), with audio already merged in
-- **Size ranges at 1080p+** — when multiple encoding formats exist for a resolution (e.g. AV1, VP9, H.264), the popup shows the smallest–largest range so you can compare
-- **Client-first, privacy-respecting** — metadata is extracted directly from the YouTube page; no data is sent anywhere unless local extraction fails
-- **Local cache** — results are stored in `chrome.storage.local` with a configurable TTL (default: 3 days) so repeat views are instant
-- **Self-hosted fallback API** — if client-side extraction fails, an optional backup API powered by `yt-dlp` and deployed on AWS EC2 takes over silently
+- **YouTube videos** — per-resolution file sizes from 144p through 8K (4320p), with audio already merged in
+- **YouTube Live support** — estimates live data usage per quality using bitrate-derived hourly and per-minute usage
+- **Twitch live support** — reads Twitch HLS playlists and shows estimated bandwidth usage per quality level
+- **Twitch VOD support** — works on `twitch.tv/videos/...` pages in the same popup flow
+- **Client-first, privacy-respecting** — YouTube metadata is extracted directly from the page; Twitch data is pulled from Twitch playback endpoints; the backup API is only used for YouTube when local extraction fails
+- **Local cache for YouTube** — YouTube results are stored in `chrome.storage.local` with a configurable TTL (default: 3 days) so repeat views are instant
+- **Self-hosted fallback API for YouTube** — if client-side YouTube extraction fails, an optional backup API powered by `yt-dlp` and deployed on AWS EC2 takes over silently
 - **Cross-browser** — Chrome, Firefox, and Edge are all supported from the same codebase (Manifest V3 for Chromium, adapted manifest for Firefox)
 - **Keyboard shortcut** — open the popup at any time with `Ctrl+Shift+0` (`Cmd+Shift+0` on Mac)
 
@@ -73,25 +76,48 @@ TubeSize is built as a browser extension with a self-hosted fallback API.
 
 ## How It Works
 
-TubeSize uses a **client-first resolution strategy**: local first, API only as a fallback.
+TubeSize uses two retrieval paths depending on the site.
 
 ```mermaid
 flowchart LR
-    A[Open YouTube video] --> B{Local cache?}
-    B -->|Yes| C[Return sizes]
-    B -->|No| D[Extract data locally]
-    D --> E{Local success?}
-    E -->|Yes| F[Cache and return]
-    E -->|No| G[Check fallback API]
-    G --> H{API cache?}
-    H -->|Yes| I[Return API result]
-    H -->|No| J[Run yt-dlp]
-    J --> K[Return API result]
+    A[Open YouTube or Twitch page] --> B{Site?}
+    B -->|YouTube| C{Local cache?}
+    C -->|Yes| D[Return cached sizes]
+    C -->|No| E[Extract ytInitialPlayerResponse locally]
+    E --> F{Local success?}
+    F -->|Yes| G[Return sizes and cache non-live results]
+    F -->|No| H[Call optional fallback API]
+    H --> I[Return API result]
+    B -->|Twitch| J[Detect live channel or VOD]
+    J --> K[Fetch Twitch playback token]
+    K --> L[Fetch HLS master playlist]
+    L --> M[Parse resolutions and bandwidth]
+    M --> N[Return hourly and per-minute estimates]
 ```
+
+### Supported Pages
+
+- YouTube watch pages
+- YouTube Shorts
+- YouTube Live streams
+- Twitch live channel pages
+- Twitch VOD pages at `twitch.tv/videos/:id`
+
+### YouTube Path
+
+For YouTube, TubeSize keeps the original client-first strategy: it extracts `ytInitialPlayerResponse` locally, builds a resolution table, merges audio into video sizes, caches non-live results, and only calls the backup API if local extraction fails.
+
+For YouTube Live streams, exact file size is not available the same way as on-demand videos, so TubeSize derives an estimate from the advertised stream bitrate and presents usage as hourly and per-minute estimates.
+
+### Twitch Path
+
+For Twitch live channels and VODs, TubeSize fetches a playback access token, requests the HLS master playlist, and parses the available variants to show estimated usage per resolution.
+
+Twitch entries are currently presented as approximate bandwidth usage per hour and per minute.
 
 ### Resolution & Codec Support
 
-TubeSize resolves all standard YouTube adaptive-streaming itags:
+TubeSize resolves standard YouTube adaptive-streaming itags:
 
 | Resolution | Itags checked (priority order) |
 | ---------- | ------------------------------ |
@@ -105,7 +131,11 @@ TubeSize resolves all standard YouTube adaptive-streaming itags:
 | 2160p (4K) | 401, 337, 315, 313, 305, 266   |
 | 4320p (8K) | 402, 571, 272, 138             |
 
-Audio size is determined by averaging all available `itag 251` (Opus 160kbps) streams returned by YouTube and is added to every video format.
+For regular YouTube videos, audio size is determined by averaging all available `itag 251` (Opus 160kbps) streams returned by YouTube and is added to every video format.
+
+For YouTube Live streams, TubeSize estimates both audio and video usage from bitrate data when content length is not available.
+
+For Twitch live streams and VODs, TubeSize reads the HLS playlist variants exposed by Twitch and reports the available resolutions with approximate transfer usage derived from each variant bandwidth.
 
 ## Backend API
 
@@ -142,12 +172,15 @@ Two GitHub Actions workflows handle the full release lifecycle:
 
 The extension requests the minimum permissions required:
 
-| Permission                                | Why                                                                                   |
-| ----------------------------------------- | ------------------------------------------------------------------------------------- |
-| `activeTab`                               | Read the current tab's URL to extract the video ID                                    |
-| `storage`                                 | Cache video data and user preferences locally                                         |
-| `host_permissions: *.youtube.com`         | Inject the content script; fetch the YouTube page from the service worker when needed |
-| `host_permissions: api.mohammedsayed.dev` | Call the optional self-hosted fallback API                                            |
+| Permission                                | Why                                                                       |
+| ----------------------------------------- | ------------------------------------------------------------------------- |
+| `activeTab`                               | Read the current tab's URL to detect the current YouTube or Twitch page   |
+| `storage`                                 | Cache YouTube data and user preferences locally                           |
+| `host_permissions: *.youtube.com`         | Read YouTube pages and extract stream metadata locally                    |
+| `host_permissions: *.twitch.tv`           | Read Twitch live/VOD pages and request Twitch playback metadata           |
+| `host_permissions: usher.ttvnw.net`       | Fetch Twitch HLS playlists to inspect available resolutions and bandwidth |
+| `host_permissions: gql.twitch.tv`         | Request Twitch playback access tokens                                     |
+| `host_permissions: api.mohammedsayed.dev` | Call the optional self-hosted fallback API for YouTube only               |
 
 ---
 
@@ -177,6 +210,13 @@ pnpm run test
 ```
 
 Load the `tubesize/dist/` folder as an unpacked extension in your browser.
+
+Then test the popup on:
+
+- a regular YouTube video
+- a YouTube Live stream
+- a Twitch live channel
+- a Twitch VOD page
 
 ### API
 
