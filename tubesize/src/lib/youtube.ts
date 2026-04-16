@@ -1,9 +1,8 @@
 import { filesize } from "filesize";
-import type { APIData, HumanizedFormat, RawData, RawFormat } from "@app-types/types";
+import type { HumanizedFormat, RawData, RawFormat } from "@app-types/types";
 import ms from "ms";
 import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
-declare const __API_URL__: string;
 
 export function sizePerMinute(
     sizeInBytes: number,
@@ -181,17 +180,4 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
         audioFormats: chooseAudioFormats(data),
         isLive: data.videoDetails.isLive ?? false,
     };
-}
-
-export async function fetchAPI(tag: string): Promise<APIData> {
-    const apiUrl = `${__API_URL__}/api/video-sizes/${tag}?humanReadableSizes=true&mergeAudioWithVideo=true`;
-
-    const res = await fetchAndRetry(apiUrl, {
-        method: "GET",
-        signal: AbortSignal.timeout(CONFIG.FETCH_API_TIMEOUT),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    const data = (await res.json()) as APIData;
-    return data;
 }

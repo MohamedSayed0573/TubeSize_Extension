@@ -20,7 +20,6 @@ const optionIDs = ["p144", "p240", "p360", "p480", "p720", "p1080", "p1440", "p2
 
 const CONFIG = {
     FETCH_HTML_TIMEOUT: 5000,
-    FETCH_API_TIMEOUT: 15000,
     VIDEO_ITAGS,
     resolutions: Array.from(VIDEO_ITAGS.entries()),
     liveResolutions: [248, 247, 244, 243, 242, 278],

@@ -154,8 +154,3 @@ export async function fetchAndRetry(
     }
     throw new Error(`Failed after ${maxRetries} tries, last error: ${lastError}`);
 }
-
-export async function getAPIFallbackSetting() {
-    const apiFallback = (await getFromSyncCache("apiFallback")) ?? false;
-    return apiFallback;
-}
