@@ -1,20 +1,3 @@
-export type APIData = {
-    success: boolean;
-    id: string;
-    title: string;
-    durationMinutes: string;
-    audioFormat: string;
-    videoFormats: {
-        formatId: number;
-        height: number;
-        sizeMB: string;
-        sizePerMinuteMB: number;
-    }[];
-    isLive: boolean;
-    createdAt?: string;
-    executionTime: string;
-};
-
 export type RawData = {
     videoDetails: {
         videoId: string;
@@ -65,20 +48,18 @@ export type HumanizedFormat = {
 };
 
 export type StorageData = {
-    response: APIData | HumanizedFormat;
+    response: HumanizedFormat;
     expiry?: number;
     createdAt?: string;
 };
 
 export type YoutubeBackgroundResponse = {
     success: boolean;
-    data?: APIData | HumanizedFormat | null;
+    data?: HumanizedFormat | null;
     cached?: boolean;
     isShorts?: boolean;
     createdAt?: string; // Only when we use cached
     message?: string;
-    api?: boolean; // Only when we use the server API
-    executionTime?: string; // Only when we use the server API
 };
 
 export type TwitchTokenData = {
