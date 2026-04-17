@@ -34,10 +34,9 @@ async function getCurrentQuality(tabId: number): Promise<number | undefined> {
                 const errorMessage = chrome.runtime.lastError.message || "";
 
                 if (errorMessage.includes("Receiving end does not exist")) {
-                    console.error(errorMessage);
                     return resolve(undefined);
                 }
-                return reject(undefined);
+                return reject(new Error(errorMessage || "Failed to get current resolution"));
             }
             resolve(response);
         });
