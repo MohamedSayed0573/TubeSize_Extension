@@ -36,6 +36,11 @@ body {
     white-space: nowrap;
     flex-shrink: 0;
 }
+.live-indicator {
+    font-size: 14px;
+    color: #bd0202e3;
+    font-weight: bolder;
+}
 #optionsBtn {
     font-size: 12px;
     padding: 4px 6px;
@@ -126,7 +131,7 @@ body {
 }
 .cached-note {
     font-size: 11px;
-    color: #888;
+    color: #949494;
     text-align: center;
     font-style: italic;
 }

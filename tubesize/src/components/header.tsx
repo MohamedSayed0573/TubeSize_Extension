@@ -8,40 +8,29 @@ interface Props {
     setUseOptionsPage: (useOptionsPage: boolean) => void;
 }
 
-function getTitle(
-    pageType: Props["pageType"],
-    youtubeData?: YoutubeBackgroundResponse | null,
-    twitchData?: TwitchBackgroundResponse | null,
-): string {
-    if (pageType === "youtube") {
-        return youtubeData?.data?.title ?? "TubeSize";
-    }
-    if (pageType === "twitch") {
-        const data = twitchData?.twitchData;
-        if (!data) return "Twitch";
-        return "channelName" in data ? (data.channelName ?? "Twitch") : "Twitch Video";
-    }
-    return "TubeSize";
+function getYoutubeTitle(isLive: boolean | undefined): string {
+    return isLive ? "Live Stream" : "YouTube Video";
 }
 
-function getDuration(
-    pageType: Props["pageType"],
-    youtubeData?: YoutubeBackgroundResponse | null,
-    twitchData?: TwitchBackgroundResponse | null,
-): string | undefined {
-    if (pageType === "youtube") {
-        return youtubeData?.data?.isLive ? "Live" : youtubeData?.data?.durationMinutes;
+function getYoutubeDuration(youtubeData?: YoutubeBackgroundResponse | null): string | undefined {
+    return youtubeData?.data?.durationMinutes;
+}
+
+function getTwitchTitle(isLive: boolean | undefined): string {
+    return isLive ? "Live Stream" : "Twitch Video";
+}
+
+function getTwitchDuration(twitchData?: TwitchBackgroundResponse | null): string | undefined {
+    const data = twitchData?.twitchData;
+
+    if (!data || "channelName" in data) {
+        return undefined;
     }
-    if (pageType === "twitch") {
-        const data = twitchData?.twitchData;
-        if (data && "durationSeconds" in data && data.durationSeconds) {
-            return humanizeDuration(data.durationSeconds * 1000);
-        } else if (data && "channelName" in data) {
-            return "Live";
-        } else {
-            return undefined;
-        }
+
+    if (data.durationSeconds) {
+        return humanizeDuration(data.durationSeconds * 1000);
     }
+
     return undefined;
 }
 
@@ -51,8 +40,20 @@ export default function Header({
     twitchData,
     setUseOptionsPage,
 }: Props) {
-    const title = getTitle(pageType, youtubeData, twitchData);
-    const duration = getDuration(pageType, youtubeData, twitchData);
+    const isLive =
+        (pageType === "youtube" && youtubeData?.data?.isLive) ||
+        (pageType === "twitch" && twitchData?.twitchData && "channelName" in twitchData.twitchData);
+
+    let title = "TubeSize";
+    let duration: string | undefined;
+
+    if (pageType === "youtube") {
+        title = getYoutubeTitle(isLive);
+        duration = getYoutubeDuration(youtubeData);
+    } else if (pageType === "twitch") {
+        title = getTwitchTitle(isLive);
+        duration = getTwitchDuration(twitchData);
+    }
 
     return (
         <div className="header">
@@ -62,11 +63,15 @@ export default function Header({
             >
                 {title}
             </div>
-            {duration && (
+            {isLive ? (
+                <span className="live-indicator" id="duration-display">
+                    Live
+                </span>
+            ) : duration ? (
                 <span className="duration" id="duration-display">
                     {duration}
                 </span>
-            )}
+            ) : null}
             <button id="optionsBtn" onClick={() => setUseOptionsPage(true)}>
                 Options
             </button>
