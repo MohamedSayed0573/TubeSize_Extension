@@ -1,4 +1,4 @@
-import { extractVideoTag } from "@lib/utils";
+import { extractVideoTag, isYoutubePage } from "@lib/utils";
 import type { FrontEndMessage } from "./types/types";
 
 async function sendRuntimeMessage(message: FrontEndMessage) {
@@ -15,7 +15,7 @@ async function sendRuntimeMessage(message: FrontEndMessage) {
     }
 }
 
-async function init(videoTag: string) {
+async function initYoutube(videoTag: string) {
     const scriptsArray = Array.from(document.scripts);
     const ytInitialPlayerResponse = scriptsArray.find((script) => {
         return script.textContent?.includes("ytInitialPlayerResponse");
@@ -33,17 +33,47 @@ async function init(videoTag: string) {
 let lastTag: string | undefined = undefined;
 async function handlePageNavigation() {
     await sendRuntimeMessage({ type: "clearBadge" });
+
+    if (!isYoutubePage(window.location.href)) {
+        return;
+    }
+
     const url = window.location.href;
     const tag = extractVideoTag(url);
 
     if (lastTag === tag) return;
     lastTag = tag;
 
-    if (tag) await init(tag);
+    if (tag) await initYoutube(tag);
 }
 
-window.addEventListener("yt-navigate-finish", () => {
-    void handlePageNavigation();
-});
+if (isYoutubePage(window.location.href)) {
+    window.addEventListener("yt-navigate-finish", () => {
+        void handlePageNavigation();
+    });
+}
+
+chrome.runtime.onMessage.addListener(
+    (message: { type: string }, _sender: chrome.runtime.MessageSender, sendResponse) => {
+        if (message.type !== "getCurrentResolution") return;
+
+        void getCurrentResolution().then((resolution) => {
+            sendResponse(resolution);
+        });
+
+        return true;
+    },
+);
+
+async function getCurrentResolution() {
+    for (let i = 0; i < 5; i++) {
+        const video = document.querySelector("video");
+        if (video && video.videoHeight > 0) {
+            return video.videoHeight;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    return undefined;
+}
 
 void handlePageNavigation();

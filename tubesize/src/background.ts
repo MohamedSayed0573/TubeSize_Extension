@@ -6,7 +6,7 @@ import type {
     FrontEndMessage,
     TwitchMessage,
 } from "@app-types/types";
-import { getFromStorage, saveToStorage } from "@lib/cache";
+import { clearLocalStorage, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
 import {
     extractYtInitial,
@@ -70,6 +70,16 @@ async function handleTwitch(
                 twitchData,
             });
         } else if (message.type === "twitchVod") {
+            const cached = await getFromStorage("twitch", message.vodId);
+            if (cached) {
+                return sendResponse({
+                    success: true,
+                    twitchData: cached.response,
+                    cached: true,
+                    createdAt: cached.createdAt,
+                });
+            }
+
             const twitchToken = await getTwitchToken(message);
             if (!twitchToken) {
                 throw new Error("Failed to retrieve Twitch token");
@@ -77,9 +87,18 @@ async function handleTwitch(
             const m3u8Data = await getM3U8Data(twitchToken, message);
             const filteredM3U8Data = filterM3U8Data(m3u8Data);
 
+            const response: TwitchData = {
+                data: filteredM3U8Data,
+                vodId: message.vodId,
+                durationSeconds: twitchToken.durationSeconds,
+            };
+            if (filteredM3U8Data.length > 0) {
+                await saveToStorage(message.vodId, response);
+            }
+
             return sendResponse({
                 success: true,
-                twitchData: { data: filteredM3U8Data, vodId: message.vodId },
+                twitchData: response,
             });
         } else {
             throw new Error("No channel name or VOD ID provided");
@@ -111,7 +130,7 @@ async function handleYoutube(
     }
     clearBadge(message.tabId);
 
-    const cached = await getFromStorage(videoTag);
+    const cached = await getFromStorage("youtube", videoTag);
     if (cached) {
         addBadge(message.tabId);
         return sendResponse({
@@ -157,3 +176,9 @@ async function handleYoutube(
         });
     }
 }
+
+chrome.runtime.onInstalled.addListener(async (details) => {
+    if (details.reason === "install" || details.reason === "update") {
+        await clearLocalStorage();
+    }
+});

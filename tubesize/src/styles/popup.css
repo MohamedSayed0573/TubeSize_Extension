@@ -36,6 +36,11 @@ body {
     white-space: nowrap;
     flex-shrink: 0;
 }
+.live-indicator {
+    font-size: 14px;
+    color: #bd0202e3;
+    font-weight: bolder;
+}
 #optionsBtn {
     font-size: 12px;
     padding: 4px 6px;
@@ -93,6 +98,13 @@ body {
     cursor: pointer;
     border: 1px solid transparent;
 }
+.format-item.current {
+    background: rgba(220, 38, 38, 0.22);
+}
+.format-item.current:hover {
+    background: rgba(220, 38, 38, 0.3);
+    border-color: rgba(239, 68, 68, 0.42);
+}
 .format-item:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: #690b0b;
@@ -105,19 +117,21 @@ body {
 }
 .format-size {
     display: flex;
-    justify-content: right;
     flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
     color: #bbb;
     font-weight: 500;
     font-size: 13px;
 }
 .format-size-per-minute {
+    align-self: flex-end;
     font-size: 11px;
-    color: #888;
+    color: #7dd3fc;
 }
 .cached-note {
     font-size: 11px;
-    color: #888;
+    color: #949494;
     text-align: center;
     font-style: italic;
 }

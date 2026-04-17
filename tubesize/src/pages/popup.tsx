@@ -14,9 +14,9 @@ import {
     extractTwitchChannelName,
     isTwitchVod,
     extractTwitchVodId,
+    humanizeDuration,
 } from "@lib/utils";
 import { getFromSyncCache } from "@lib/cache";
-import ms from "ms";
 import Options from "@pages/options";
 import CONFIG from "@lib/constants";
 import Header from "@components/header";
@@ -27,10 +27,21 @@ async function getTab() {
     return await chrome.tabs.query({ active: true, currentWindow: true });
 }
 
-// async function sendMessageToBackground(message: YoutubeMessage): Promise<YoutubeBackgroundResponse>;
+async function getCurrentQuality(tabId: number): Promise<number | undefined> {
+    return new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(tabId, { type: "getCurrentResolution" }, (response) => {
+            if (chrome.runtime.lastError) {
+                const errorMessage = chrome.runtime.lastError.message || "";
 
-// async function sendMessageToBackground(message: TwitchMessage): Promise<TwitchBackgroundResponse>;
-
+                if (errorMessage.includes("Receiving end does not exist")) {
+                    return resolve(undefined);
+                }
+                return reject(new Error(errorMessage || "Failed to get current resolution"));
+            }
+            resolve(response);
+        });
+    });
+}
 type MessageResponseMap = {
     youtubeVideo: YoutubeBackgroundResponse;
     twitchVod: TwitchBackgroundResponse;
@@ -61,7 +72,7 @@ function getCachedAgo(createdAt: string | undefined) {
     if (timeInMs < CONFIG.CACHE_JUST_NOW_THRESHOLD) {
         return "Cached just now";
     } else {
-        const timeAgo = ms(timeInMs, { long: true });
+        const timeAgo = humanizeDuration(timeInMs);
         return `Cached ${timeAgo} ago`;
     }
 }
@@ -82,6 +93,7 @@ export default function Popup() {
     const [useOptionsPage, setUseOptionsPage] = useState(false);
     const [enabledOptions, setEnabledOptions] = useState<string[]>([]);
     const [error, setError] = useState<Error | null>(null);
+    const [currentQuality, setCurrentQuality] = useState<number | undefined>(undefined);
 
     useEffect(() => {
         (async () => {
@@ -130,6 +142,11 @@ export default function Popup() {
                         });
                         if (!response.success) throw new Error(response.message);
                         setTwitchData(response);
+                        setCache(
+                            response.cached
+                                ? getCachedAgo(response.createdAt) || "Cached just now"
+                                : undefined,
+                        );
                         return;
                     }
                     const channelName = extractTwitchChannelName(url);
@@ -169,6 +186,19 @@ export default function Popup() {
         })();
     }, []);
 
+    useEffect(() => {
+        (async () => {
+            try {
+                const [tab] = await getTab();
+                if (!tab?.id) return;
+                const quality = await getCurrentQuality(tab.id!);
+                setCurrentQuality(quality);
+            } catch (err: any) {
+                console.error(err);
+            }
+        })();
+    }, []);
+
     if (error) {
         throw error;
     }
@@ -203,6 +233,7 @@ export default function Popup() {
                                     item={item}
                                     isLive={youtubeData.data?.isLive}
                                     isShorts={youtubeData.isShorts}
+                                    currentQuality={currentQuality}
                                 />
                             );
                         })
@@ -211,7 +242,13 @@ export default function Popup() {
                     twitchData?.twitchData?.data
                         .sort((a, b) => b.bandwidth - a.bandwidth)
                         .map((item) => {
-                            return <TwitchFormat key={item.resolution} item={item} />;
+                            return (
+                                <TwitchFormat
+                                    key={item.resolution}
+                                    item={item}
+                                    currentQuality={currentQuality}
+                                />
+                            );
                         })}
             </div>
         </>

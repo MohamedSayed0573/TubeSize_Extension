@@ -47,8 +47,8 @@ export type HumanizedFormat = {
     }[];
 };
 
-export type StorageData = {
-    response: HumanizedFormat;
+export type StorageData<T extends HumanizedFormat | TwitchData> = {
+    response: T;
     expiry?: number;
     createdAt?: string;
 };
@@ -65,6 +65,7 @@ export type YoutubeBackgroundResponse = {
 export type TwitchTokenData = {
     value: string;
     signature: string;
+    durationSeconds?: number;
 };
 
 type TwitchStreamInfo = {
@@ -75,12 +76,14 @@ type TwitchStreamInfo = {
 
 export type TwitchData =
     | { data: TwitchStreamInfo[]; channelName: string }
-    | { data: TwitchStreamInfo[]; vodId: string };
+    | { data: TwitchStreamInfo[]; vodId: string; durationSeconds: number | undefined };
 
 export type TwitchBackgroundResponse = {
     success: boolean;
     twitchData?: TwitchData;
     message?: string;
+    cached?: boolean;
+    createdAt?: string;
 };
 
 export type FrontEndMessage =

@@ -30,7 +30,7 @@
 
     "content_scripts": [
         {
-            "matches": ["https://*.youtube.com/*"],
+            "matches": ["https://*.youtube.com/*", "https://*.twitch.tv/*"],
             "js": ["src/content.js"]
         }
     ],
