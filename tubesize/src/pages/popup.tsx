@@ -14,9 +14,9 @@ import {
     extractTwitchChannelName,
     isTwitchVod,
     extractTwitchVodId,
+    humanizeDuration,
 } from "@lib/utils";
 import { getFromSyncCache } from "@lib/cache";
-import ms from "ms";
 import Options from "@pages/options";
 import CONFIG from "@lib/constants";
 import Header from "@components/header";
@@ -75,7 +75,7 @@ function getCachedAgo(createdAt: string | undefined) {
     if (timeInMs < CONFIG.CACHE_JUST_NOW_THRESHOLD) {
         return "Cached just now";
     } else {
-        const timeAgo = ms(timeInMs, { long: true });
+        const timeAgo = humanizeDuration(timeInMs);
         return `Cached ${timeAgo} ago`;
     }
 }
