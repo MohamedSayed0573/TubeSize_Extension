@@ -94,11 +94,11 @@ body {
     border: 1px solid transparent;
 }
 .format-item.current {
-    background: rgba(172, 60, 75, 0.452);
+    background: rgba(220, 38, 38, 0.22);
 }
 .format-item.current:hover {
-    background: rgba(172, 60, 75, 0.6);
-    border-color: #690b0b;
+    background: rgba(220, 38, 38, 0.3);
+    border-color: rgba(239, 68, 68, 0.42);
 }
 .format-item:hover {
     background: rgba(255, 255, 255, 0.08);
@@ -112,13 +112,15 @@ body {
 }
 .format-size {
     display: flex;
-    justify-content: right;
     flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
     color: #bbb;
     font-weight: 500;
     font-size: 13px;
 }
 .format-size-per-minute {
+    align-self: flex-end;
     font-size: 11px;
     color: #7dd3fc;
 }

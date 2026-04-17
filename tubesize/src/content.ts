@@ -66,9 +66,9 @@ chrome.runtime.onMessage.addListener(
 );
 
 async function getCurrentResolution() {
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 5; i++) {
         const video = document.querySelector("video");
-        if (video) {
+        if (video && video.videoHeight > 0) {
             return video.videoHeight;
         }
         await new Promise((resolve) => setTimeout(resolve, 500));

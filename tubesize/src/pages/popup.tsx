@@ -34,12 +34,10 @@ async function getCurrentQuality(tabId: number): Promise<number | undefined> {
                 const errorMessage = chrome.runtime.lastError.message || "";
 
                 if (errorMessage.includes("Receiving end does not exist")) {
-                    resolve(undefined);
-                    return;
+                    console.error(errorMessage);
+                    return resolve(undefined);
                 }
-
-                reject(new Error(errorMessage));
-                return;
+                return reject(undefined);
             }
             resolve(response);
         });
