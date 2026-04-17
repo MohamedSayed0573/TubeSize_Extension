@@ -1,5 +1,6 @@
 import { getFromSyncCache } from "@lib/cache";
 import CONFIG from "@lib/constants";
+import humanize from "humanize-duration";
 
 export function isYoutubePage(url: string): boolean {
     try {
@@ -155,7 +156,6 @@ export async function fetchAndRetry(
     throw new Error(`Failed after ${maxRetries} tries, last error: ${lastError}`);
 }
 
-import humanize from "humanize-duration";
 export const humanizeDuration = humanize.humanizer({
     language: "shortEn",
     round: true,
