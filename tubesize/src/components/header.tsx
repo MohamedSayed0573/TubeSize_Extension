@@ -17,16 +17,17 @@ function getYoutubeDuration(youtubeData?: YoutubeBackgroundResponse | null): str
 }
 
 function getTwitchTitle(twitchData?: TwitchBackgroundResponse | null): string {
-    if (!twitchData?.twitchData) {
+    const data = twitchData?.twitchData;
+
+    if (!data) {
         return "Twitch";
     }
-    if ("channelName" in twitchData?.twitchData) {
-        return twitchData.twitchData.channelName;
+
+    if ("channelName" in data) {
+        return data.channelName;
     }
-    if ("vodId" in twitchData.twitchData) {
-        return "Twitch Video";
-    }
-    return "Twitch";
+
+    return "Twitch Video";
 }
 
 function getTwitchDuration(twitchData?: TwitchBackgroundResponse | null): string | undefined {
