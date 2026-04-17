@@ -198,7 +198,6 @@ export default function Popup() {
                 setCurrentQuality(quality);
             } catch (err: any) {
                 console.error(err);
-                setError(err);
             }
         })();
     }, []);
