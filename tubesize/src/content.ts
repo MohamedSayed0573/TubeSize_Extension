@@ -32,11 +32,12 @@ async function initYoutube(videoTag: string) {
 
 let lastTag: string | undefined = undefined;
 async function handlePageNavigation() {
+    await sendRuntimeMessage({ type: "clearBadge" });
+
     if (!isYoutubePage(window.location.href)) {
         return;
     }
 
-    await sendRuntimeMessage({ type: "clearBadge" });
     const url = window.location.href;
     const tag = extractVideoTag(url);
 
