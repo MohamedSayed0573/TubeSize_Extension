@@ -10,11 +10,13 @@
         "test:coverage": "jest --coverage",
         "test:preview": "wslview ./coverage/lcov-report/index.html",
         "prettier:write": "pnpm exec prettier . --write",
-        "pack": "pnpm run build && zip -r dist/tubesize.zip dist",
+        "pack": "pnpm run build && pnpm run generate-firefox-manifest && zip -r dist/tubesize.zip dist",
         "pack:firefox": "pnpm run build && sh ./scripts/pack-firefox.sh",
         "lint": "eslint .",
         "preview": "vite preview",
-        "tsc": "tsc --noEmit -p tsconfig.app.json"
+        "tsc": "tsc --noEmit -p tsconfig.app.json",
+        "generate-firefox-manifest": "node ./scripts/generate-firefox-manifest.cjs",
+        "release": "node ./scripts/release.cjs"
     },
     "dependencies": {
         "filesize": "^11.0.13",

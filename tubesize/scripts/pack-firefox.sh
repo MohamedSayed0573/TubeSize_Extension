@@ -21,16 +21,10 @@ cd "$ROOT_DIR/dist"
 cp -r * ../dist_firefox
 cd ../dist_firefox
 
-if [ -f "$ROOT_DIR/manifest_firefox.json" ]; then
-  echo "[pack-firefox] Applying manifest_firefox.json..."
-  cp ../manifest_firefox.json ./manifest.json
-elif [ -f "$ROOT_DIR/manifest.firefox.json" ]; then
-  echo "[pack-firefox] Applying manifest.firefox.json..."
-  cp ../manifest.firefox.json ./manifest.json
-else
-  echo "[pack-firefox] Error: Firefox-specific manifest not found."
-  exit 1
-fi
+echo "[pack-firefox] Generating Firefox manifest from built output..."
+node "$ROOT_DIR/scripts/generate-firefox-manifest.cjs" \
+  "$ROOT_DIR/dist/manifest.json" \
+  "$ROOT_DIR/dist_firefox/manifest.json"
 
 echo "[pack-firefox] Creating tubesize_firefox.zip..."
 zip -r tubesize_firefox.zip .
