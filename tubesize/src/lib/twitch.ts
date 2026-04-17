@@ -1,5 +1,6 @@
 import type { TwitchData, TwitchMessage, TwitchTokenData } from "@/types/types";
 import { Parser } from "m3u8-parser";
+import CONFIG from "@lib/constants";
 
 export async function getClientId(message: TwitchMessage): Promise<string> {
     const url =
@@ -28,7 +29,7 @@ export async function getTwitchToken(message: TwitchMessage): Promise<TwitchToke
             "Content-Type": "application/json",
         };
         const body = {
-            query: 'query PlaybackAccessToken_Template($login: String!, $isLive: Boolean!, $vodID: ID!, $isVod: Boolean!, $playerType: String!, $platform: String!) { streamPlaybackAccessToken(channelName: $login, params: {platform: $platform, playerBackend: "mediaplayer", playerType: $playerType}) @include(if: $isLive) { value signature authorization { isForbidden forbiddenReasonCode } __typename } videoPlaybackAccessToken(id: $vodID, params: {platform: $platform, playerBackend: "mediaplayer", playerType: $playerType}) @include(if: $isVod) { value signature __typename }}',
+            query: CONFIG.TWITCH_GQL_GRAPHQL_QUERY,
             variables: {
                 login: message.type === "twitchLive" ? message.channelName : "",
                 isLive: message.type === "twitchLive",
@@ -60,6 +61,7 @@ export async function getTwitchToken(message: TwitchMessage): Promise<TwitchToke
             signature:
                 data.data.streamPlaybackAccessToken?.signature ||
                 data.data.videoPlaybackAccessToken.signature,
+            durationSeconds: data.data.video?.lengthSeconds,
         };
     } catch (error) {
         console.error("Failed to get Twitch token:", error);

@@ -87,9 +87,10 @@ async function handleTwitch(
             const m3u8Data = await getM3U8Data(twitchToken, message);
             const filteredM3U8Data = filterM3U8Data(m3u8Data);
 
-            const response = {
+            const response: TwitchData = {
                 data: filteredM3U8Data,
                 vodId: message.vodId,
+                durationSeconds: twitchToken.durationSeconds,
             };
             if (filteredM3U8Data.length > 0) {
                 await saveToStorage(message.vodId, response);

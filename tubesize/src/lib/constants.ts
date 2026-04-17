@@ -33,6 +33,48 @@ const CONFIG = {
     VIDEO_ID_REGEX: /^[a-zA-Z0-9_-]{11}$/,
     YT_INITIAL_PLAYER_REGEX: /ytInitialPlayerResponse\s*=\s*(\{.+?\});/s,
     CACHE_JUST_NOW_THRESHOLD: 5000,
+    TWITCH_GQL_GRAPHQL_QUERY: `
+        query PlaybackAccessToken_Template(
+        $login: String!,
+        $isLive: Boolean!,
+        $vodID: ID!,
+        $isVod: Boolean!,
+        $playerType: String!,
+        $platform: String!
+        ) {
+        streamPlaybackAccessToken(
+            channelName: $login,
+            params: {
+            platform: $platform,
+            playerBackend: "mediaplayer",
+            playerType: $playerType
+            }
+        ) @include(if: $isLive) {
+            value
+            signature
+            authorization {
+            isForbidden
+            forbiddenReasonCode
+            }
+            __typename
+        }
+        videoPlaybackAccessToken(
+            id: $vodID,
+            params: {
+            platform: $platform,
+            playerBackend: "mediaplayer",
+            playerType: $playerType
+            }
+        ) @include(if: $isVod) {
+            value
+            signature
+            __typename
+        }
+        video(id: $vodID) @include(if: $isVod) {
+            lengthSeconds
+        }
+    }
+`,
 } as const;
 
 export default CONFIG;

@@ -65,6 +65,7 @@ export type YoutubeBackgroundResponse = {
 export type TwitchTokenData = {
     value: string;
     signature: string;
+    durationSeconds?: number;
 };
 
 type TwitchStreamInfo = {
@@ -75,7 +76,7 @@ type TwitchStreamInfo = {
 
 export type TwitchData =
     | { data: TwitchStreamInfo[]; channelName: string }
-    | { data: TwitchStreamInfo[]; vodId: string };
+    | { data: TwitchStreamInfo[]; vodId: string; durationSeconds: number | undefined };
 
 export type TwitchBackgroundResponse = {
     success: boolean;

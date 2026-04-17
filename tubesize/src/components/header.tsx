@@ -1,4 +1,5 @@
 import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
+import { humanizeDuration } from "@lib/utils";
 
 interface Props {
     pageType?: "youtube" | "twitch" | "default";
@@ -23,6 +24,27 @@ function getTitle(
     return "TubeSize";
 }
 
+function getDuration(
+    pageType: Props["pageType"],
+    youtubeData?: YoutubeBackgroundResponse | null,
+    twitchData?: TwitchBackgroundResponse | null,
+): string | undefined {
+    if (pageType === "youtube") {
+        return youtubeData?.data?.isLive ? "Live" : youtubeData?.data?.durationMinutes;
+    }
+    if (pageType === "twitch") {
+        const data = twitchData?.twitchData;
+        if (data && "durationSeconds" in data && data.durationSeconds) {
+            return humanizeDuration(data.durationSeconds * 1000);
+        } else if (data && "channelName" in data) {
+            return "Live";
+        } else {
+            return undefined;
+        }
+    }
+    return undefined;
+}
+
 export default function Header({
     pageType = "default",
     youtubeData,
@@ -30,11 +52,7 @@ export default function Header({
     setUseOptionsPage,
 }: Props) {
     const title = getTitle(pageType, youtubeData, twitchData);
-
-    const duration =
-        pageType === "youtube" && !youtubeData?.data?.isLive
-            ? youtubeData?.data?.durationMinutes
-            : undefined;
+    const duration = getDuration(pageType, youtubeData, twitchData);
 
     return (
         <div className="header">
@@ -44,7 +62,7 @@ export default function Header({
             >
                 {title}
             </div>
-            {pageType === "youtube" && (
+            {duration && (
                 <span className="duration" id="duration-display">
                     {duration}
                 </span>
