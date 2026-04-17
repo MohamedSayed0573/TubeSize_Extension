@@ -8,16 +8,25 @@ interface Props {
     setUseOptionsPage: (useOptionsPage: boolean) => void;
 }
 
-function getYoutubeTitle(isLive: boolean | undefined): string {
-    return isLive ? "Live Stream" : "YouTube Video";
+function getYoutubeTitle(youtubeData?: YoutubeBackgroundResponse | null): string {
+    return youtubeData?.data?.title || "YouTube Video";
 }
 
 function getYoutubeDuration(youtubeData?: YoutubeBackgroundResponse | null): string | undefined {
     return youtubeData?.data?.durationMinutes;
 }
 
-function getTwitchTitle(isLive: boolean | undefined): string {
-    return isLive ? "Live Stream" : "Twitch Video";
+function getTwitchTitle(twitchData?: TwitchBackgroundResponse | null): string {
+    if (!twitchData?.twitchData) {
+        return "Twitch";
+    }
+    if ("channelName" in twitchData?.twitchData) {
+        return twitchData.twitchData.channelName;
+    }
+    if ("vodId" in twitchData.twitchData) {
+        return "Twitch Video";
+    }
+    return "Twitch";
 }
 
 function getTwitchDuration(twitchData?: TwitchBackgroundResponse | null): string | undefined {
@@ -48,10 +57,10 @@ export default function Header({
     let duration: string | undefined;
 
     if (pageType === "youtube") {
-        title = getYoutubeTitle(isLive);
+        title = getYoutubeTitle(youtubeData);
         duration = getYoutubeDuration(youtubeData);
     } else if (pageType === "twitch") {
-        title = getTwitchTitle(isLive);
+        title = getTwitchTitle(twitchData);
         duration = getTwitchDuration(twitchData);
     }
 
