@@ -65,9 +65,7 @@ export const clearLocalCache = removeAllFromCache.bind(null, "local");
  */
 export const clearSyncCache = removeAllFromCache.bind(null, "sync");
 
-export async function saveToStorage(tag: string, response: HumanizedFormat | TwitchData | null) {
-    if (!response) return;
-
+export async function saveToStorage(tag: string, response: HumanizedFormat | TwitchData) {
     const ttlInSecondsOptions = await getCacheTTLSetting();
     const expiry = Date.now() + ttlInSecondsOptions * 1000;
 
