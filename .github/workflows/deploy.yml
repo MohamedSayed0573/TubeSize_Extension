@@ -1,4 +1,6 @@
 name: Build and Deploy to EC2
+permissions:
+    contents: read
 on:
     workflow_dispatch:
 jobs:

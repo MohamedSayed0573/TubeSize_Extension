@@ -1,33 +1,35 @@
 name: CI
-on: 
-  pull_request:
-  push:
-    branches: 
-      - main
+permissions:
+    contents: read
+on:
+    pull_request:
+    push:
+        branches:
+            - main
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-        
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6.0.1
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6.0.2
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6.3.0
-        with:
-          node-version: 24
-          cache: pnpm
+            - name: Install pnpm
+              uses: pnpm/action-setup@v6.0.1
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+            - name: Setup Node.js
+              uses: actions/setup-node@v6.3.0
+              with:
+                  node-version: 24
+                  cache: pnpm
 
-      - name: TypeCheck
-        run: pnpm -F tubesize run tsc
-      
-      - name: Run Tests
-        run: pnpm -F tubesize run test
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm -F tubesize run build
+            - name: TypeCheck
+              run: pnpm -F tubesize run tsc
+
+            - name: Run Tests
+              run: pnpm -F tubesize run test
+
+            - name: Build
+              run: pnpm -F tubesize run build
