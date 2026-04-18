@@ -6,7 +6,7 @@ export function isYoutubePage(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         return parsedUrl.hostname === "www.youtube.com" || parsedUrl.hostname === "youtube.com";
-    } catch (err) {
+    } catch {
         return false;
     }
 }
@@ -16,7 +16,7 @@ export function isShortsVideo(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         return parsedUrl.pathname.startsWith("/shorts");
-    } catch (err) {
+    } catch {
         return false;
     }
 }
@@ -44,7 +44,7 @@ export function isTwitchPage(url: string): boolean {
         if (pathSegments.length === 2 && pathSegments[0] === "videos") return true;
 
         return false;
-    } catch (err) {
+    } catch {
         return false;
     }
 }
@@ -55,7 +55,7 @@ export function isTwitchVod(url: string): boolean {
         const parsedUrl = new URL(url);
         const pathname = parsedUrl.pathname.split("/").filter(Boolean);
         return pathname.length === 2 && pathname[0] === "videos" && /^[0-9]+$/.test(pathname[1]);
-    } catch (err) {
+    } catch {
         return false;
     }
 }

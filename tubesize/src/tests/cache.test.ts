@@ -17,10 +17,11 @@ const syncClear = jest.fn();
 const localSet = jest.fn();
 const syncSet = jest.fn();
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 (global as any).chrome = {
     storage: {
         local: {
-            set: async (input: Record<string | number, any>) => {
+            set: async (input: Record<string | number, unknown>) => {
                 localSet(input);
             },
             get: async (key: string) => {
@@ -34,7 +35,7 @@ const syncSet = jest.fn();
             },
         },
         sync: {
-            set: async (input: Record<string | number, any>) => {
+            set: async (input: Record<string | number, unknown>) => {
                 syncSet(input);
             },
             get: async (key: string) => {

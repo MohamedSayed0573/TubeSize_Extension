@@ -2,20 +2,18 @@ import CONFIG from "@lib/constants";
 import type { HumanizedFormat, StorageData, TwitchData } from "@app-types/types";
 
 async function getCacheTTLSetting(): Promise<number> {
-    const cacheTTL = await getFromSyncCache("cacheTTL");
+    const cacheTTL = (await getFromSyncCache("cacheTTL")) as number;
     return cacheTTL || CONFIG.DEFAULT_CACHE_TTL;
 }
 
-async function setToCache(storage: "local" | "sync", input: { [key: string | number]: any }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function setToCache(storage: "local" | "sync", input: { [key: string]: any }) {
     await chrome.storage[storage].set(input);
 }
 export const setToLocalCache = setToCache.bind(null, "local");
 export const setToSyncCache = setToCache.bind(null, "sync");
 
-async function getFromCache(
-    storage: "local" | "sync",
-    key?: string | string[] | number | number[],
-) {
+async function getFromCache(storage: "local" | "sync", key?: string | string[]) {
     if (!key) {
         const allData = await chrome.storage[storage].get(null);
         return allData;
@@ -29,6 +27,7 @@ async function getFromCache(
         return data?.[key];
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return data as any;
 }
 export const getFromLocalCache = getFromCache.bind(null, "local");

@@ -63,7 +63,7 @@ export default function CacheSettings() {
                             setClearCache("idle");
                             setDisableClearCache(false);
                         }, 2000);
-                    } catch (err) {
+                    } catch {
                         setClearCache("fail");
                         setDisableClearCache(false);
                     }

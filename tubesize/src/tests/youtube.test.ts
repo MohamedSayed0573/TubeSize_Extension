@@ -138,6 +138,7 @@ describe("mergeAudioWithVideo", () => {
 describe("parseDataFromYtInitial", () => {
     test("should throw an error if videoDetails is missing", () => {
         const rawData: RawData = {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             videoDetails: undefined as any,
             streamingData: {
                 adaptiveFormats: [],
@@ -155,6 +156,7 @@ describe("parseDataFromYtInitial", () => {
                 lengthSeconds: "300",
                 isLive: false,
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             streamingData: undefined as any,
         };
 
