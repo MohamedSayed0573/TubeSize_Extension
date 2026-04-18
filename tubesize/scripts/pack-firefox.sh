@@ -1,10 +1,6 @@
 #!/bin/sh
 # Don't run this file directly. Run it from package.json instead. Because pnpm run build must be run before this script.
 
-
-# pnpm run build && mkdir -p dist_firefox && cd dist &&
-# cp -r * ../dist_firefox && cd ../dist_firefox &&
-# cp ../manifest_firefox.json ./manifest.json && zip -r tubesize_firefox.zip .,
 set -e
 ROOT_DIR=$(cd -- "$(dirname "$0")/.." && pwd)
 

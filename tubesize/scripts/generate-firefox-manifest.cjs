@@ -2,7 +2,8 @@ const fs = require("fs");
 const path = require("path");
 
 const inputManifestPath = process.argv[2] || path.join(__dirname, "..", "manifest.json");
-const outputManifestPath = process.argv[3] || path.join(__dirname, "..", "manifest.firefox.json");
+const outputManifestPath =
+    process.argv[3] || path.join(__dirname, "..", "dist_firefox", "manifest.json");
 
 function generateManifestFirefox() {
     const rawManifest = fs.readFileSync(inputManifestPath, { encoding: "utf-8" });

@@ -11,6 +11,22 @@ if (!/^\d+\.\d+\.\d+$/.test(versionNumber)) {
     process.exit(1);
 }
 const fullVersion = `extension-v${versionNumber}`;
+
+function checkGitClean() {
+    try {
+        execFileSync("git", ["diff", "--quiet"]);
+        execFileSync("git", ["diff", "--cached", "--quiet"]);
+    } catch {
+        console.error("Git working directory is not clean. Please commit or stash your changes.");
+        process.exit(1);
+    }
+}
+
+function gitCommit() {
+    execFileSync("git", ["add", "package.json", "manifest.json"], { stdio: "inherit" });
+    execFileSync("git", ["commit", "-m", `Release ${fullVersion}`], { stdio: "inherit" });
+}
+
 function createGitTag() {
     execFileSync("git", ["tag", fullVersion]);
     console.log(
@@ -46,8 +62,8 @@ function updateJsonVersion(filePath) {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 4), { encoding: "utf-8" });
 }
 function pack() {
-    execFileSync("pnpm", ["run", "pack"], { stdio: "inherit" });
     execFileSync("pnpm", ["run", "pack:firefox"], { stdio: "inherit" });
+    execFileSync("pnpm", ["run", "pack"], { stdio: "inherit" });
 }
 function main() {
     if (tagExistsLocally(fullVersion)) {
@@ -58,9 +74,10 @@ function main() {
         console.error(`Tag ${fullVersion} already exists on remote. Please delete it first.`);
         process.exit(1);
     }
+    checkGitClean();
     updateJsonVersion(path.join(__dirname, "..", "manifest.json"));
-    updateJsonVersion(path.join(__dirname, "..", "manifest.firefox.json"));
     updateJsonVersion(path.join(__dirname, "..", "package.json"));
+    gitCommit();
     pack();
     createGitTag();
 }
