@@ -100,8 +100,6 @@ async function handleTwitch(
                 success: true,
                 twitchData: response,
             });
-        } else {
-            throw new Error("No channel name or VOD ID provided");
         }
     } catch (err) {
         return sendResponse({
