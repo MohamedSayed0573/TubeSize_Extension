@@ -12,6 +12,7 @@ export function isYoutubePage(url: string): boolean {
 }
 
 export function isShortsVideo(url: string): boolean {
+    if (!isYoutubePage(url)) return false;
     try {
         const parsedUrl = new URL(url);
         return parsedUrl.pathname.startsWith("/shorts");
@@ -49,6 +50,7 @@ export function isTwitchPage(url: string): boolean {
 }
 
 export function isTwitchVod(url: string): boolean {
+    if (!isTwitchPage(url)) return false;
     try {
         const parsedUrl = new URL(url);
         const pathname = parsedUrl.pathname.split("/").filter(Boolean);
