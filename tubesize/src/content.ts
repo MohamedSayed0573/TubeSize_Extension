@@ -66,14 +66,26 @@ chrome.runtime.onMessage.addListener(
 );
 
 async function getCurrentResolution() {
-    for (let i = 0; i < 5; i++) {
-        const video = document.querySelector("video");
-        if (video && video.videoHeight > 0) {
-            return video.videoHeight;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-    return undefined;
+    return new Promise((resolve) => {
+        const observer = new MutationObserver(() => {
+            const video = document.querySelector("video");
+            if (video && video.videoHeight > 0) {
+                observer.disconnect();
+                clearTimeout(timeout);
+                return resolve(video.videoHeight);
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+
+        const timeout = setTimeout(() => {
+            observer.disconnect();
+            return resolve(undefined);
+        }, 10000);
+    });
 }
 
 void handlePageNavigation();
