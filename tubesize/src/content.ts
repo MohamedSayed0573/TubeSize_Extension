@@ -67,6 +67,12 @@ chrome.runtime.onMessage.addListener(
 
 async function getCurrentResolution() {
     return new Promise((resolve) => {
+        // Check immediately in case the video is already loaded
+        const video = document.querySelector("video");
+        if (video && video.videoHeight > 0) {
+            return resolve(video.videoHeight);
+        }
+
         const observer = new MutationObserver(() => {
             const video = document.querySelector("video");
             if (video && video.videoHeight > 0) {
