@@ -6,7 +6,9 @@ export default function OptionItem({
     setOptionsState,
 }: {
     option: string;
+    // eslint-disable-next-line
     optionsState: Record<any, any> | undefined;
+    // eslint-disable-next-line
     setOptionsState: (optionsState: Record<any, any>) => void;
 }) {
     return (

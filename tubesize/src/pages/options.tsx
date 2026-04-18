@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { getFromSyncCache } from "@lib/cache";
 
 export default function Options() {
+    // eslint-disable-next-line
     const [optionsState, setOptionsState] = useState<Record<any, any>>({});
 
     useEffect(() => {

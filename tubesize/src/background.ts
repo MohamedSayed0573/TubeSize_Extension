@@ -144,7 +144,7 @@ async function handleYoutube(
         try {
             if (!html) throw new Error("No HTML");
             rawData = extractYtInitial(html);
-        } catch (e) {
+        } catch {
             if (html) console.warn("Local HTML extraction failed, falling back to fetchHTMLPage");
             const pageHtml = await fetchHTMLPage(videoTag);
             rawData = extractYtInitial(pageHtml);

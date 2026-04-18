@@ -164,9 +164,9 @@ export default function Popup() {
                 } else {
                     setMessage("Open a YouTube video or Twitch stream to view sizes");
                 }
-            } catch (err: any) {
+            } catch (err) {
                 console.error("[Popup Error]:", err);
-                setError(err);
+                setError(err as Error);
             }
         })();
     }, []);
@@ -179,9 +179,9 @@ export default function Popup() {
                     return allOptions[option] ?? true;
                 });
                 setEnabledOptions(enabledOptions);
-            } catch (err: any) {
+            } catch (err) {
                 console.error(err);
-                setError(err);
+                setError(err as Error);
             }
         })();
     }, []);
@@ -193,7 +193,7 @@ export default function Popup() {
                 if (!tab?.id) return;
                 const quality = await getCurrentQuality(tab.id);
                 setCurrentQuality(quality);
-            } catch (err: any) {
+            } catch (err) {
                 console.error(err);
             }
         })();
