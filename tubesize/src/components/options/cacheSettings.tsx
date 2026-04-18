@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { clearLocalStorage, setToSyncCache, getFromSyncCache } from "@lib/cache";
+import { setToSyncCache, getFromSyncCache, clearLocalCache } from "@lib/cache";
 
 function convertDaysToSeconds(days: number | string) {
     return Number(days) * 24 * 60 * 60;
@@ -56,15 +56,14 @@ export default function CacheSettings() {
                 disabled={disableClearCache}
                 onClick={async () => {
                     setDisableClearCache(true);
-                    const success = await clearLocalStorage();
-
-                    if (success) {
+                    try {
+                        await clearLocalCache();
                         setClearCache("success");
                         setTimeout(() => {
                             setClearCache("idle");
                             setDisableClearCache(false);
                         }, 2000);
-                    } else {
+                    } catch (err) {
                         setClearCache("fail");
                         setDisableClearCache(false);
                     }
