@@ -34,22 +34,38 @@ async function getFromCache(
 export const getFromLocalCache = getFromCache.bind(null, "local");
 export const getFromSyncCache = getFromCache.bind(null, "sync");
 
-/**
- * Removes a key from cache, if no key is provided, clears all cache
- */
-async function removeFromCache(storage: "local" | "sync", key?: string | number) {
-    if (!key) {
-        await chrome.storage[storage].clear();
-        return;
-    }
+async function removeFromCache(storage: "local" | "sync", key: string | string[]) {
     await chrome.storage[storage].remove(key);
 }
+async function removeAllFromCache(storage: "local" | "sync") {
+    await chrome.storage[storage].clear();
+}
+
+/**
+ * Remove a key from local cache
+ * @throws Will throw an error if the cache removal process fails
+ */
 export const removeFromLocalCache = removeFromCache.bind(null, "local");
+
+/**
+ * Remove a key from sync cache
+ * @throws Will throw an error if the cache removal process fails
+ */
 export const removeFromSyncCache = removeFromCache.bind(null, "sync");
 
-export async function saveToStorage(tag: string, response: HumanizedFormat | TwitchData | null) {
-    if (!response) return;
+/**
+ * Clear all keys from local cache
+ * @throws Will throw an error if the cache clearing process fails
+ */
+export const clearLocalCache = removeAllFromCache.bind(null, "local");
 
+/**
+ * Clear all keys from sync cache
+ * @throws Will throw an error if the cache clearing process fails
+ */
+export const clearSyncCache = removeAllFromCache.bind(null, "sync");
+
+export async function saveToStorage(tag: string, response: HumanizedFormat | TwitchData) {
     const ttlInSecondsOptions = await getCacheTTLSetting();
     const expiry = Date.now() + ttlInSecondsOptions * 1000;
 
@@ -97,14 +113,4 @@ export async function getFromStorage(
     }
 
     return item;
-}
-
-export async function clearLocalStorage(): Promise<boolean> {
-    try {
-        await removeFromLocalCache();
-        return true;
-    } catch (err) {
-        console.error("Failed to clear storage", err);
-        return false;
-    }
 }

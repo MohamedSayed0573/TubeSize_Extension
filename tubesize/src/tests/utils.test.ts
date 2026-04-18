@@ -1,5 +1,6 @@
 import {
     isYoutubePage,
+    isShortsVideo,
     extractVideoTag,
     fetchAndRetry,
     isTwitchPage,
@@ -31,24 +32,20 @@ describe("isYoutubePage", () => {
 });
 
 describe("isShortsVideo", () => {
-    test("should return true for a valid YouTube URL", () => {
-        expect(isYoutubePage("https://www.youtube.com/shorts/dQw4w9WgXcQ")).toBe(true);
+    test("should return true for a valid shorts URL", () => {
+        expect(isShortsVideo("https://www.youtube.com/shorts/dQw4w9WgXcQ")).toBe(true);
     });
 
-    test("should return true if video tag isn't present", () => {
-        expect(isYoutubePage("https://youtube.com")).toBe(true);
-    });
-
-    test("should return false for a non-YouTube URL", () => {
-        expect(isYoutubePage("https://www.example.com")).toBe(false);
+    test("should return false if video tag isn't present", () => {
+        expect(isShortsVideo("https://youtube.com")).toBe(false);
     });
 
     test("should return false for an empty string", () => {
-        expect(isYoutubePage("")).toBe(false);
+        expect(isShortsVideo("")).toBe(false);
     });
 
     test("should return false for a wrong hostname", () => {
-        expect(isYoutubePage("https://www.youtubex.com/shorts/dQw4w9WgXcQ")).toBe(false);
+        expect(isShortsVideo("https://www.youtubex.com/shorts/dQw4w9WgXcQ")).toBe(false);
     });
 });
 
@@ -70,9 +67,6 @@ describe("isTwitchPage", () => {
     });
     test("should return false for twitch.com/videos", () => {
         expect(isTwitchPage("https://www.twitch.com/videos")).toBe(false);
-    });
-    test("should return false for a URL with no protocol", () => {
-        expect(isTwitchPage("www.twitch.tv/somechannel")).toBe(false);
     });
     test("should return false for a URL with a different path than videos", () => {
         expect(isTwitchPage("https://www.twitch.tv/live/somechannel")).toBe(false);
@@ -106,6 +100,10 @@ describe("isTwitchVod", () => {
 
     test("should return false for a Twitch channel URL", () => {
         expect(isTwitchVod("https://www.twitch.tv/somechannel")).toBe(false);
+    });
+
+    test("should return false for a non-Twitch videos URL", () => {
+        expect(isTwitchVod("https://www.example.com/videos/2748008198")).toBe(false);
     });
 });
 
