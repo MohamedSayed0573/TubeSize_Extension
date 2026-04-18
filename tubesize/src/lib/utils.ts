@@ -54,7 +54,7 @@ export function isTwitchVod(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         const pathname = parsedUrl.pathname.split("/").filter(Boolean);
-        return pathname.length === 2 && pathname[0] === "videos" && /^[0-9]{10}$/.test(pathname[1]);
+        return pathname.length === 2 && pathname[0] === "videos" && /^[0-9]$/.test(pathname[1]);
     } catch (err) {
         return false;
     }
