@@ -6,9 +6,9 @@ export default function OptionItem({
     setOptionsState,
 }: {
     option: string;
-    // eslint-disable-next-line
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     optionsState: Record<any, any> | undefined;
-    // eslint-disable-next-line
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setOptionsState: (optionsState: Record<any, any>) => void;
 }) {
     return (

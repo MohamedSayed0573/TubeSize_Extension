@@ -6,7 +6,7 @@ async function getCacheTTLSetting(): Promise<number> {
     return cacheTTL || CONFIG.DEFAULT_CACHE_TTL;
 }
 
-// eslint-disable-next-line
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function setToCache(storage: "local" | "sync", input: { [key: string]: any }) {
     await chrome.storage[storage].set(input);
 }
@@ -27,7 +27,7 @@ async function getFromCache(storage: "local" | "sync", key?: string | string[]) 
         return data?.[key];
     }
 
-    // eslint-disable-next-line
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return data as any;
 }
 export const getFromLocalCache = getFromCache.bind(null, "local");
