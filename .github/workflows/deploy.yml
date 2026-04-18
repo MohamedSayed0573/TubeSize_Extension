@@ -1,12 +1,5 @@
 name: Build and Deploy to EC2
 on:
-    push:
-        branches:
-            - "**"
-        tags:
-            - "api-v*"
-        paths:
-            - "api/**"
     workflow_dispatch:
 jobs:
     build:
