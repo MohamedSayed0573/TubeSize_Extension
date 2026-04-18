@@ -117,7 +117,7 @@ export default function Popup() {
                     const response = await sendMessageToBackground({
                         type: "youtubeVideo",
                         videoTag,
-                        tabId: tab.id!,
+                        tabId: tab.id,
                     });
                     if (!response.success) throw new Error(response.message);
                     if (isShortsVideo(url)) response.isShorts = true;
@@ -191,7 +191,7 @@ export default function Popup() {
             try {
                 const [tab] = await getTab();
                 if (!tab?.id) return;
-                const quality = await getCurrentQuality(tab.id!);
+                const quality = await getCurrentQuality(tab.id);
                 setCurrentQuality(quality);
             } catch (err: any) {
                 console.error(err);
