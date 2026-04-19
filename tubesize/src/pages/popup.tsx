@@ -120,6 +120,10 @@ export default function Popup() {
                         tabId: tab.id,
                     });
                     if (!response.success) throw new Error(response.message);
+                    if (response.data?.videoFormats.length === 0) {
+                        setError(new Error("No video formats found for this video"));
+                        return;
+                    }
                     if (isShortsVideo(url)) response.isShorts = true;
                     setYoutubeData(response);
                     setCache(
