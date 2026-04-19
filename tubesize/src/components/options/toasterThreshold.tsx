@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 export default function ToasterSettings() {
     const [toasterThreshold, setToasterThreshold] = useState<number>(
-        CONFIG.DEFAULT_TOASTER_THRESHOLD_MB_PER_MINUTE,
+        CONFIG.DEFAULT_TOASTER_THRESHOLD,
     );
     const [thresholdUnit, setThresholdUnit] = useState<"mbPerMinute" | "mbPerHour">(
         CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT,
