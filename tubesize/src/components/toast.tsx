@@ -25,7 +25,8 @@ export default function Toast({
         <div className="container">
             <div className="title">TubeSize | Warning: High Data Usage</div>
             <div className="toast">
-                High Data Usage Detected for {currentQuality}p.
+                High Data Usage Detected for {currentQuality}p. It crosses the threshold specified
+                in your settings.
                 <div>
                     <span className="current-quality">Current Quality: {currentQuality}p</span>
                     <div className="toast-inner">

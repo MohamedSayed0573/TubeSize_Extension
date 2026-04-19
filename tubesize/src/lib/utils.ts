@@ -11,6 +11,18 @@ export function isYoutubePage(url: string): boolean {
     }
 }
 
+export function isYoutubeVideo(url: string): boolean {
+    if (!isYoutubePage(url)) return false;
+    try {
+        const parsedUrl = new URL(url);
+        const isWatchPage = parsedUrl.pathname === "/watch" && parsedUrl.searchParams.has("v");
+        const isShortsPage = parsedUrl.pathname.startsWith("/shorts/");
+        return isWatchPage || isShortsPage;
+    } catch {
+        return false;
+    }
+}
+
 export function isShortsVideo(url: string): boolean {
     if (!isYoutubePage(url)) return false;
     try {

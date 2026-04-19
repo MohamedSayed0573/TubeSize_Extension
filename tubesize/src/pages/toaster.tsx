@@ -3,7 +3,6 @@ import type { YoutubeBackgroundResponse } from "@app-types/types";
 import Toast from "@components/toast";
 
 const HOST_ID = "TubeSize-Toast-Host";
-const THRESHOLD_MB_PER_MINUTE: number = 3;
 
 function ensureRoot() {
     let host = document.getElementById(HOST_ID);
@@ -21,11 +20,13 @@ let DONT_SHOW_AGAIN: boolean = false;
 export function showToast(
     currentQuality: number,
     videoFormats: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"],
+    toasterThresholdMbpm: number,
 ) {
     if (DONT_SHOW_AGAIN) return;
 
     const [format] = videoFormats.filter((format) => format.height === currentQuality);
-    if (format.sizePerMinuteMB > THRESHOLD_MB_PER_MINUTE) {
+    console.log("Toaster Threshold (MB/minute):", toasterThresholdMbpm);
+    if (format.sizePerMinuteMB > toasterThresholdMbpm) {
         ensureRoot().render(
             <Toast
                 currentQuality={currentQuality}

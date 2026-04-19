@@ -1,6 +1,8 @@
-import { extractVideoTag, isYoutubePage } from "@lib/utils";
+import { extractVideoTag, isYoutubePage, isYoutubeVideo } from "@lib/utils";
 import type { FrontEndMessage, YoutubeBackgroundResponse } from "./types/types";
 import { showToast } from "@pages/toaster.tsx";
+import { getFromSyncCache } from "./lib/cache";
+import CONFIG from "./lib/constants";
 
 async function sendRuntimeMessage(message: FrontEndMessage) {
     try {
@@ -33,29 +35,40 @@ async function initYoutube(videoTag: string) {
 
 let lastTag: string | undefined = undefined;
 async function handlePageNavigation() {
-    await sendRuntimeMessage({ type: "clearBadge" });
+    try {
+        await sendRuntimeMessage({ type: "clearBadge" });
 
-    if (!isYoutubePage(window.location.href)) {
-        return;
-    }
+        if (!isYoutubePage(window.location.href)) {
+            return;
+        }
 
-    const url = window.location.href;
-    const tag = extractVideoTag(url);
+        const url = window.location.href;
+        const tag = extractVideoTag(url);
 
-    if (lastTag === tag) return;
-    lastTag = tag;
+        if (lastTag === tag) return;
+        lastTag = tag;
 
-    if (tag) {
-        const youtubeResponse = await initYoutube(tag);
+        if (tag) {
+            const youtubeResponse = await initYoutube(tag);
 
-        let currentQuality: number | undefined;
-        setInterval(async () => {
-            const resolution = await getCurrentResolution();
-            if (resolution && youtubeResponse.data?.videoFormats && resolution !== currentQuality) {
-                currentQuality = resolution;
-                showToast(resolution, youtubeResponse.data?.videoFormats);
-            }
-        }, 5000);
+            let currentQuality: number | undefined;
+            const toasterThresholdMbpm = await getToasterThreshold();
+            if (!isYoutubeVideo(url)) return;
+            setInterval(async () => {
+                const resolution = await getCurrentResolution();
+                console.log("Current video resolution:", resolution);
+                if (
+                    resolution &&
+                    youtubeResponse.data?.videoFormats &&
+                    resolution !== currentQuality
+                ) {
+                    currentQuality = resolution;
+                    showToast(resolution, youtubeResponse.data?.videoFormats, toasterThresholdMbpm);
+                }
+            }, 5000);
+        }
+    } catch (err) {
+        console.error("[content] Error handling page navigation", err);
     }
 }
 
@@ -104,4 +117,20 @@ async function getCurrentResolution() {
             return resolve(undefined);
         }, 10000);
     });
+}
+
+/**
+ * Returns the setting for the toaster threshold in MB per minute.
+ * If the setting is not found or is invalid, it returns the default threshold defined in CONFIG.
+ * @returns {number} The toaster threshold in MB per minute.
+ * @throws Will throw an error if there is an issue retrieving the setting from cache.
+ */
+async function getToasterThreshold() {
+    const threshold = (await getFromSyncCache("toasterThreshold")) as number;
+    const thresholdUnit =
+        ((await getFromSyncCache("toasterThresholdUnit")) as "mbPerMinute" | "mbPerHour") ||
+        CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
+    if (!threshold) return CONFIG.DEFAULT_TOASTER_THRESHOLD_MB_PER_MINUTE;
+
+    return thresholdUnit === "mbPerMinute" ? threshold : threshold / 60;
 }
