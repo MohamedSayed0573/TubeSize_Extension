@@ -4,16 +4,18 @@ import Toast from "@components/toast";
 
 const HOST_ID = "TubeSize-Toast-Host";
 
+let root: ReturnType<typeof createRoot> | undefined = undefined;
 function ensureRoot() {
     let host = document.getElementById(HOST_ID);
     if (!host) {
         host = document.createElement("div");
         host.className = "root";
         host.id = HOST_ID;
+        document.body?.append(host);
+        root = createRoot(host);
     }
 
-    document.body?.append(host);
-    return createRoot(host);
+    return root!;
 }
 
 let DONT_SHOW_AGAIN: boolean = false;
