@@ -2,7 +2,7 @@ import type { YoutubeBackgroundResponse } from "./types/types";
 
 const HOST_ID = "TubeSize-Toast-Host";
 let DONT_SHOW_AGAIN: boolean = false;
-const THRESHOLD_MB_PER_MINUTE: number = 5;
+const THRESHOLD_MB_PER_MINUTE: number = 3;
 
 function ensureHost() {
     let host = document.getElementById(HOST_ID);
@@ -11,6 +11,7 @@ function ensureHost() {
         host.id = HOST_ID;
     }
 
+    host.style.cssText = HOST_STYLE;
     document.body?.append(host);
     return host;
 }
@@ -19,7 +20,7 @@ function createContainer() {
     const container = document.createElement("div");
     const title = document.createElement("div");
     title.textContent = "TubeSize | Warning: High Data Usage";
-    title.style.cssText = `font-size: 18px; font-weight: bold; margin-bottom: 8px;`;
+    title.style.cssText = TITLE_STYLE;
     container.append(title);
     container.style.cssText = CONTAINER_STYLE;
     return container;
@@ -43,8 +44,10 @@ export function showToast(
 }
 function createToast(currentQuality: number, sizePerMinuteMB: number) {
     const toast = document.createElement("div");
-    toast.textContent = `Current Quality: ${currentQuality} (High data usage: ${sizePerMinuteMB.toFixed(2)} MB/min)`;
-    toast.style.cssText = `font-size: 20px; color: red`;
+    toast.textContent = `The Current Quality(${currentQuality}) uses: ${sizePerMinuteMB.toFixed(2)} MB/minute. Consider switching to a lower quality to save data.`;
+    toast.style.cssText = TOAST_STYLE;
+    const actionsDiv = document.createElement("div");
+    actionsDiv.style.cssText = ACTIONS_STYLE;
 
     const okBtn = createButton("OK", () => {
         const host = document.getElementById(HOST_ID);
@@ -55,8 +58,9 @@ function createToast(currentQuality: number, sizePerMinuteMB: number) {
         const host = document.getElementById(HOST_ID);
         if (host) host.remove();
     });
-    toast.append(okBtn);
-    toast.append(dontShowAgainBtn);
+    actionsDiv.append(okBtn);
+    actionsDiv.append(dontShowAgainBtn);
+    toast.append(actionsDiv);
     return toast;
 }
 
@@ -68,25 +72,55 @@ function createButton(text: string, onClick: () => void) {
     return button;
 }
 const BUTTON_STYLE = `
-        margin-top: 8px;
-        margin-left: 8px;
-        padding: 4px 12px;
-        background-color: white;
-        color: black;
-        border: none;
-        border-radius: 4px;
+        display: inline-flex;
+        width: auto;
+        margin: 0 8px 0 0;
+        padding: 6px 10px;
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
         cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
     `;
 
-const CONTAINER_STYLE = `
+const HOST_STYLE = `
             position: fixed;
-            top: 30px;
-            right: 30px;
-            width: auto;
-            height: auto;
-            background-color: rgb(0, 0, 0);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            top: 24px;
+            right: 24px;
+            z-index: 2147483647; // the higher, the more priority it has to be shown on top of other elements. The maximum value is 2147483647
         `;
+
+const CONTAINER_STYLE = `
+            width: 360px;
+            color: white;
+            padding: 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(20, 20, 20, 0.96);
+        `;
+
+const TITLE_STYLE = `
+        margin-bottom: 10px;
+        color: #fca5a5;
+        font-size: 15px;
+        font-weight: 700;
+        text-transform: uppercase;
+    `;
+
+const TOAST_STYLE = `
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 14px;
+        line-height: 1.45;
+        color: rgba(255, 255, 255, 0.92);
+    `;
+
+const ACTIONS_STYLE = `
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    `;
