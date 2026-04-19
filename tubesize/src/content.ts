@@ -1,6 +1,6 @@
 import { extractVideoTag, isYoutubePage } from "@lib/utils";
 import type { FrontEndMessage, YoutubeBackgroundResponse } from "./types/types";
-import { showToast } from "./pages/toaster.tsx";
+import { showToast } from "@pages/toaster.tsx";
 
 async function sendRuntimeMessage(message: FrontEndMessage) {
     try {
@@ -53,7 +53,11 @@ async function handlePageNavigation() {
             const resolution = await getCurrentResolution();
             if (resolution && youtubeResponse.data?.videoFormats && resolution !== currentQuality) {
                 currentQuality = resolution;
-                showToast(resolution, youtubeResponse.data?.videoFormats);
+                showToast(
+                    resolution,
+                    youtubeResponse.data?.videoFormats,
+                    youtubeResponse.data?.durationMinutes,
+                );
             }
         }, 5000);
     }

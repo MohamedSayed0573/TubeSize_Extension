@@ -21,6 +21,7 @@ let DONT_SHOW_AGAIN: boolean = false;
 export function showToast(
     currentQuality: number,
     videoFormats: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"],
+    durationMinutes: string,
 ) {
     if (DONT_SHOW_AGAIN) return;
 
@@ -30,6 +31,7 @@ export function showToast(
             <Toast
                 currentQuality={currentQuality}
                 sizePerMinuteMB={format.sizePerMinuteMB}
+                durationMinutes={durationMinutes}
                 okOnClick={okOnClick}
                 dontShowAgainOnClick={dontShowAgainOnClick}
             />,
