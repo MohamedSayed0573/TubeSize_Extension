@@ -69,7 +69,6 @@ async function handlePageNavigation() {
 
             resolutionIntervalId = window.setInterval(async () => {
                 const resolution = await getCurrentResolution();
-                console.log("Current video resolution:", resolution);
                 if (
                     resolution &&
                     youtubeResponse.data?.videoFormats &&
@@ -147,6 +146,5 @@ async function getToasterThreshold() {
         CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
     if (!threshold) return CONFIG.DEFAULT_TOASTER_THRESHOLD;
 
-    console.log("Retrieved toaster threshold from cache:", threshold, thresholdUnit);
     return thresholdUnit === "mbPerMinute" ? threshold : threshold / 60;
 }
