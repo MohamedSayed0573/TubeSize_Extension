@@ -41,11 +41,17 @@ export function showToast(
 }
 
 function okOnClick() {
-    const host = document.getElementById(HOST_ID);
-    if (host) host.remove();
+    unmountToast();
 }
 function dontShowAgainOnClick() {
     DONT_SHOW_AGAIN = true;
+    unmountToast();
+}
+
+function unmountToast() {
+    if (root) root.unmount();
+    root = undefined;
+
     const host = document.getElementById(HOST_ID);
     if (host) host.remove();
 }
