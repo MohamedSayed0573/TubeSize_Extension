@@ -33,8 +33,12 @@ export default function Toast({
         <div className="container">
             <div className="title">TubeSize | Warning: High Data Usage</div>
             <div className="toast">
-                Current Quality ({currentQuality}p) uses: {format(sizePerMinuteMB, durationMinutes)}
-                . Consider switching to a lower quality to save data.
+                High Data Usage Detected for {currentQuality}p.
+                <div className="toast-inner">
+                    <span>Current Quality: {currentQuality}p</span>
+                    <span>Data Usage: {format(sizePerMinuteMB, durationMinutes)}</span>
+                    <span>Per Minute Usage: {sizePerMinuteMB.toFixed(2)} MB/minute</span>
+                </div>
             </div>
             <div className="actions">
                 <button onClick={okOnClick}>OK</button>
