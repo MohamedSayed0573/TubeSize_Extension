@@ -1,6 +1,6 @@
 import { extractVideoTag, isYoutubePage } from "@lib/utils";
 import type { FrontEndMessage, YoutubeBackgroundResponse } from "./types/types";
-import { showToast } from "./toaster";
+import { showToast } from "./pages/toaster.tsx";
 
 async function sendRuntimeMessage(message: FrontEndMessage) {
     try {
