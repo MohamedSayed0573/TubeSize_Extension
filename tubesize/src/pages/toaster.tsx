@@ -27,6 +27,7 @@ export function showToast(
     if (DONT_SHOW_AGAIN) return;
 
     const [format] = videoFormats.filter((format) => format.height === currentQuality);
+    if (!format) return;
     if (format.sizePerMinuteMB > toasterThresholdMbpm) {
         ensureRoot().render(
             <Toast
