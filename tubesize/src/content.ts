@@ -53,11 +53,7 @@ async function handlePageNavigation() {
             const resolution = await getCurrentResolution();
             if (resolution && youtubeResponse.data?.videoFormats && resolution !== currentQuality) {
                 currentQuality = resolution;
-                showToast(
-                    resolution,
-                    youtubeResponse.data?.videoFormats,
-                    youtubeResponse.data?.durationMinutes,
-                );
+                showToast(resolution, youtubeResponse.data?.videoFormats);
             }
         }, 5000);
     }

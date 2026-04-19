@@ -31,15 +31,25 @@
 .toast-inner {
     display: flex;
     gap: 6px;
-    align-items: center;
-    font-size: 13px;
+    font-size: 12px;
+    margin-top: 4px;
+}
+.current-quality {
+    font-weight: 500;
+    color: "rgba(255, 255, 255, 0.96)";
 }
 .toast-inner span {
+    flex: 1;
     padding: 4px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.96);
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    text-align: center;
+    display: inline-flex;
 }
 .actions {
     display: flex;
