@@ -10,13 +10,13 @@
     padding: 12px;
     border-radius: 18px;
     border: 1px solid rgba(255, 255, 255, 0.14);
-    background: rgba(20, 20, 20, 0.96);
+    background: rgba(20, 20, 20, 0.97);
 }
 .title {
     margin-bottom: 10px;
     color: #ff6b6b;
     font-size: 15px;
-    font-weight: 800;
+    font-weight: 900;
     letter-spacing: 0.5px;
     text-transform: uppercase;
 }
@@ -32,7 +32,7 @@
 .toast-inner {
     display: flex;
     gap: 6px;
-    font-size: 12px;
+    font-size: 13px;
     margin-top: 4px;
 }
 .current-quality {
@@ -44,7 +44,7 @@
     padding: 4px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(79, 172, 254, 0.08);
     color: rgba(255, 255, 255, 0.96);
     align-items: center;
     justify-content: center;
@@ -55,13 +55,12 @@
 .actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     flex-wrap: wrap;
 }
 button {
-    background: linear-gradient(135deg, #ff416c, #ff4b2b);
+    background: #ff416c;
     color: white;
-
     display: inline-flex;
     width: auto;
     margin: 0 8px 0 0;
@@ -73,7 +72,15 @@ button {
     font-size: 12px;
     font-weight: 600;
 }
+button.firstBtn {
+    background: #ff4b2b;
+    color: white;
+}
 button:hover {
     background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+button.firstBtn:hover {
+    background: #dd7c6b;
     color: white;
 }

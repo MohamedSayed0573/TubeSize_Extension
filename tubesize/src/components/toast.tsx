@@ -35,7 +35,9 @@ export default function Toast({
                 </div>
             </div>
             <div className="actions">
-                <button onClick={okOnClick}>OK</button>
+                <button className="firstBtn" onClick={okOnClick}>
+                    OK
+                </button>
                 <button onClick={dontShowAgainOnClick}>Don't show again for this video</button>
             </div>
         </div>
