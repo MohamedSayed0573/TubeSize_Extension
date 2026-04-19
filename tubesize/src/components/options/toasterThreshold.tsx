@@ -51,7 +51,6 @@ export default function ToasterSettings() {
                                     isNaN(parseInt(event.target.value))
                                 )
                                     return;
-                                console.log("New toaster threshold value:", event.target.value);
                                 const value = Number(event.target.value);
                                 setToasterThreshold(value);
                                 await setToSyncCache({
