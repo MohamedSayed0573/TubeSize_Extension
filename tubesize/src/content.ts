@@ -34,11 +34,22 @@ async function initYoutube(videoTag: string) {
 }
 
 let lastTag: string | undefined = undefined;
+let resolutionIntervalId: number | undefined;
+
+function stopResolutionPolling() {
+    if (resolutionIntervalId === undefined) return;
+
+    clearInterval(resolutionIntervalId);
+    resolutionIntervalId = undefined;
+}
+
 async function handlePageNavigation() {
     try {
         await sendRuntimeMessage({ type: "clearBadge" });
 
-        if (!isYoutubePage(window.location.href)) {
+        if (!isYoutubeVideo(window.location.href)) {
+            stopResolutionPolling();
+            lastTag = undefined;
             return;
         }
 
@@ -48,13 +59,15 @@ async function handlePageNavigation() {
         if (lastTag === tag) return;
         lastTag = tag;
 
+        stopResolutionPolling();
+
         if (tag) {
             const youtubeResponse = await initYoutube(tag);
 
             let currentQuality: number | undefined;
             const toasterThresholdMbpm = await getToasterThreshold();
-            if (!isYoutubeVideo(url)) return;
-            setInterval(async () => {
+
+            resolutionIntervalId = window.setInterval(async () => {
                 const resolution = await getCurrentResolution();
                 console.log("Current video resolution:", resolution);
                 if (
@@ -77,6 +90,8 @@ if (isYoutubePage(window.location.href)) {
         void handlePageNavigation();
     });
 }
+
+void handlePageNavigation();
 
 chrome.runtime.onMessage.addListener(
     (message: { type: string }, _sender: chrome.runtime.MessageSender, sendResponse) => {
