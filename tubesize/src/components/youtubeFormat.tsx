@@ -20,7 +20,7 @@ export default function YoutubeFormat({
             <div className="format-size">
                 <span>{!isLive ? item.sizeMB : item.sizeMB + "/hour"}</span>
                 <span className="format-size-per-minute">
-                    {isShorts ? null : item.sizePerMinuteMB + "MB/min"}
+                    {!isShorts && item.sizePerMinuteMB + "MB/min "}
                 </span>
             </div>
         </div>
