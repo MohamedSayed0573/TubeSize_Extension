@@ -4,7 +4,7 @@ import webExtension from "vite-plugin-web-extension";
 import path from "path";
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "src"),
@@ -26,6 +26,6 @@ export default defineConfig({
         [webExtension({ disableAutoLaunch: true })],
     ],
     build: {
-        sourcemap: true,
+        sourcemap: mode === "development",
     },
-});
+}));

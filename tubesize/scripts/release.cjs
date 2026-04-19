@@ -13,11 +13,13 @@ if (!/^\d+\.\d+\.\d+$/.test(versionNumber)) {
 const fullVersion = `extension-v${versionNumber}`;
 
 function checkGitClean() {
-    try {
-        execFileSync("git", ["diff", "--quiet"]);
-        execFileSync("git", ["diff", "--cached", "--quiet"]);
-    } catch {
-        console.error("Git working directory is not clean. Please commit or stash your changes.");
+    const status = execFileSync("git", ["status", "--short"], { encoding: "utf8" }).trim();
+
+    if (status) {
+        console.error(
+            "Git working directory is not clean. Commit, stash, or remove these changes:",
+        );
+        console.error(status);
         process.exit(1);
     }
 }
