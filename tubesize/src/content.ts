@@ -1,5 +1,6 @@
 import { extractVideoTag, isYoutubePage } from "@lib/utils";
-import type { FrontEndMessage } from "./types/types";
+import type { FrontEndMessage, YoutubeBackgroundResponse } from "./types/types";
+import { showToast } from "./toaster";
 
 async function sendRuntimeMessage(message: FrontEndMessage) {
     try {
@@ -23,11 +24,11 @@ async function initYoutube(videoTag: string) {
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    await sendRuntimeMessage({
+    return (await sendRuntimeMessage({
         type: "youtubeVideo",
         videoTag: videoTag,
         html: scriptContent,
-    });
+    })) as YoutubeBackgroundResponse;
 }
 
 let lastTag: string | undefined = undefined;
@@ -44,7 +45,18 @@ async function handlePageNavigation() {
     if (lastTag === tag) return;
     lastTag = tag;
 
-    if (tag) await initYoutube(tag);
+    if (tag) {
+        const youtubeResponse = await initYoutube(tag);
+
+        let currentQuality: number | undefined;
+        setInterval(async () => {
+            const resolution = await getCurrentResolution();
+            if (resolution && youtubeResponse.data?.videoFormats && resolution !== currentQuality) {
+                currentQuality = resolution;
+                showToast(resolution, youtubeResponse.data?.videoFormats);
+            }
+        }, 5000);
+    }
 }
 
 if (isYoutubePage(window.location.href)) {
@@ -66,7 +78,7 @@ chrome.runtime.onMessage.addListener(
 );
 
 async function getCurrentResolution() {
-    return new Promise((resolve) => {
+    return new Promise<number | undefined>((resolve) => {
         // Check immediately in case the video is already loaded
         const video = document.querySelector("video");
         if (video && video.videoHeight > 0) {
@@ -93,5 +105,3 @@ async function getCurrentResolution() {
         }, 10000);
     });
 }
-
-void handlePageNavigation();

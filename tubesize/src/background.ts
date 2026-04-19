@@ -114,12 +114,12 @@ async function handleYoutube(
     sendResponse: (response: YoutubeBackgroundResponse) => void,
 ) {
     const { videoTag, html } = message;
-    if (!message.tabId) {
-        return sendResponse({
-            success: false,
-            message: "No tab ID provided",
-        });
-    }
+    // if (!message.tabId) {
+    //     return sendResponse({
+    //         success: false,
+    //         message: "No tab ID provided",
+    //     });
+    // }
     if (!videoTag) {
         return sendResponse({
             success: false,
