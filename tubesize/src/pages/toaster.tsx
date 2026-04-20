@@ -47,24 +47,18 @@ export function showTwitchToast(
     videoFormats: NonNullable<TwitchBackgroundResponse["twitchData"]>["data"],
     toasterThresholdMbpm: number,
     isLive: boolean,
-    duration?: number,
+    durationSeconds?: number,
 ) {
-    console.log("showTwitchToast called with", {
-        currentQuality,
-        videoFormats,
-        toasterThresholdMbpm,
-        isLive,
-        duration,
-    });
     if (DONT_SHOW_AGAIN) return;
 
     const format = videoFormats.find((format) => format.resolution === currentQuality);
     if (!format) return;
     const sizePerMinuteMB = bandwidthToSizePerMinuteMB(format.bandwidth);
     if (sizePerMinuteMB > toasterThresholdMbpm) {
-        const sizeMB = !isLive
-            ? ((sizePerMinuteMB * (duration || 0)) / 60).toFixed(1) + " MB"
-            : undefined;
+        const sizeMB =
+            !isLive && durationSeconds
+                ? ((sizePerMinuteMB * durationSeconds) / 60).toFixed(1) + " MB"
+                : undefined;
         ensureRoot().render(
             <Toast
                 currentQuality={currentQuality}

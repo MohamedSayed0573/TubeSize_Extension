@@ -23,12 +23,6 @@ export default function Toast({
     okOnClick: () => void;
     dontShowAgainOnClick: () => void;
 }) {
-    console.log("Rendering Toast with props:", {
-        currentQuality,
-        sizePerMinuteMB,
-        sizeMB,
-        isLive,
-    });
     return (
         <div className="container">
             <div className="title">TubeSize | Warning: High Data Usage</div>

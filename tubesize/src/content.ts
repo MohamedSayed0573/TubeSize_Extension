@@ -70,7 +70,6 @@ function toastTwitchPolling(
         const resolution = await getCurrentResolution();
         if (resolution && twitchData?.data && resolution !== currentQuality) {
             currentQuality = resolution;
-            console.log("Current Twitch resolution:", resolution, "Data: ", twitchData);
             showTwitchToast(
                 resolution,
                 twitchData.data,
@@ -96,19 +95,15 @@ function getCurrentUrl() {
 
 async function handlePageNavigation() {
     try {
-        console.log("Handling page navigation for URL:", getCurrentUrl());
         const url = getCurrentUrl();
         await sendRuntimeMessage({ type: "clearBadge" });
 
         if (!isYoutubePage(url) && !isTwitchPage(url)) {
-            console.log("Not a YouTube or Twitch page, resetting state.");
             lastYoutubeTag = undefined;
             lastTwitchTag = undefined;
             stopResolutionPolling();
             return;
         }
-
-        console.log("Page is a YouTube video or Twitch page, proceeding with checks.");
 
         if (isYoutubePage(url)) {
             const tag = extractVideoTag(url);
@@ -128,7 +123,6 @@ async function handlePageNavigation() {
             const isLive = !isTwitchVod(url);
             const tag = isLive ? extractTwitchChannelName(url) : extractTwitchVodId(url);
 
-            console.log("Extracted Twitch tag:", tag, " isLive:", isLive);
             if (lastTwitchTag === tag) return;
             lastTwitchTag = tag;
 
@@ -138,12 +132,6 @@ async function handlePageNavigation() {
                 const twitchResponse = await initTwitch(tag, isLive);
                 const toasterThresholdMbpm = await getToasterThreshold();
 
-                console.log(
-                    "Twitch response received:",
-                    twitchResponse,
-                    "Toaster threshold (MB/min):",
-                    toasterThresholdMbpm,
-                );
                 toastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm, isLive);
             }
         }
