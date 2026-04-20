@@ -53,8 +53,6 @@ export function showTwitchToast(
     const format = videoFormats.find((format) => format.resolution === currentQuality);
     if (!format) return;
     const sizePerMinuteMB = bandwidthToSizePerMinuteMB(format.bandwidth);
-    console.log("[toaster] Twitch format bandwidth:", format.bandwidth);
-    console.log("[toaster] Twitch format size per minute (MB):", sizePerMinuteMB);
     if (sizePerMinuteMB > toasterThresholdMbpm) {
         ensureRoot().render(
             <Toast

@@ -113,8 +113,6 @@ async function handlePageNavigation() {
                 const twitchResponse = await initTwitch(tag);
                 const toasterThresholdMbpm = await getToasterThreshold();
 
-                console.log("[content] Starting Twitch toast polling with data", twitchResponse);
-                console.log("[content] Toaster threshold:", toasterThresholdMbpm);
                 toastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm, isLive);
             }
         }
@@ -180,11 +178,9 @@ async function getCurrentResolution() {
  */
 async function getToasterThreshold() {
     const threshold = (await getFromSyncCache("toasterThreshold")) as number;
-    console.log("[content] Retrieved toaster threshold from cache:", threshold);
     const thresholdUnit =
         ((await getFromSyncCache("toasterThresholdUnit")) as "mbPerMinute" | "mbPerHour") ||
         CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
-    console.log("[content] Retrieved toaster threshold unit from cache:", thresholdUnit);
     if (!threshold)
         return thresholdUnit === "mbPerHour"
             ? CONFIG.DEFAULT_TOASTER_THRESHOLD / 60
