@@ -63,7 +63,9 @@ export async function getTwitchToken(message: TwitchMessage): Promise<TwitchToke
                 data.data.videoPlaybackAccessToken.signature,
             durationSeconds: data.data.video?.lengthSeconds,
         };
-        if (!twitchToken) throw new Error("Failed to retrieve Twitch token");
+        if (!twitchToken.signature || !twitchToken.value) {
+            throw new Error("Failed to retrieve Twitch token");
+        }
         return twitchToken;
     } catch (error) {
         console.error("Failed to get Twitch token:", error);

@@ -5,28 +5,37 @@ import {
     isTwitchPage,
     isTwitchVod,
     isYoutubePage,
-    isYoutubeVideo,
 } from "@lib/utils";
 import type {
     FrontEndMessage,
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
 } from "@app-types/types";
-import { showToast, showTwitchToast } from "@pages/toaster.tsx";
+import { showYoutubeToast, showTwitchToast } from "@pages/toaster.tsx";
 import { getFromSyncCache } from "@lib/cache";
 import CONFIG from "@lib/constants";
 
-async function sendRuntimeMessage(message: FrontEndMessage) {
+/**
+ * Sends a message to the background script and returns the response.
+ * @param message The message to send to the background script
+ * @returns The response from the background script
+ * @throws Throws an error on failure except if the message type is clearBadge or setBadge
+ */
+async function sendRuntimeMessage(message: FrontEndMessage): Promise<unknown> {
     try {
         return await chrome.runtime.sendMessage(message);
     } catch (err) {
         if (err instanceof Error && err.message.includes("Extension context invalidated")) {
             console.warn("[content] Extension context invalidated. Reload the page to reconnect.");
-            return undefined;
+        } else {
+            console.error("[content] Failed to send runtime message", err);
         }
 
-        console.error("[content] Failed to send runtime message", err);
-        return undefined;
+        if (message.type === "clearBadge" || message.type === "setBadge") {
+            // These messages are not critical, so we can fail silently
+        } else {
+            throw err;
+        }
     }
 }
 
@@ -34,7 +43,6 @@ let lastYoutubeTag: string | undefined;
 let lastTwitchTag: string | undefined;
 let resolutionIntervalId: number | undefined;
 let currentQuality: number | undefined;
-const url = window.location.href;
 
 function toastYoutubePolling(
     youtubeResponse: YoutubeBackgroundResponse,
@@ -44,7 +52,7 @@ function toastYoutubePolling(
         const resolution = await getCurrentResolution();
         if (resolution && youtubeResponse?.data?.videoFormats && resolution !== currentQuality) {
             currentQuality = resolution;
-            showToast(
+            showYoutubeToast(
                 resolution,
                 youtubeResponse.data?.videoFormats,
                 toasterThresholdMbpm,
@@ -62,7 +70,14 @@ function toastTwitchPolling(
         const resolution = await getCurrentResolution();
         if (resolution && twitchData?.data && resolution !== currentQuality) {
             currentQuality = resolution;
-            showTwitchToast(resolution, twitchData.data, toasterThresholdMbpm, isLive);
+            console.log("Current Twitch resolution:", resolution, "Data: ", twitchData);
+            showTwitchToast(
+                resolution,
+                twitchData.data,
+                toasterThresholdMbpm,
+                isLive,
+                "vodId" in twitchData ? twitchData.durationSeconds : undefined,
+            );
         }
     }, CONFIG.TOASTER_POLLING_INTERVAL);
 }
@@ -75,16 +90,25 @@ function stopResolutionPolling() {
     clearInterval(resolutionIntervalId);
     resolutionIntervalId = undefined;
 }
+function getCurrentUrl() {
+    return window.location.href;
+}
 
 async function handlePageNavigation() {
     try {
+        console.log("Handling page navigation for URL:", getCurrentUrl());
+        const url = getCurrentUrl();
         await sendRuntimeMessage({ type: "clearBadge" });
 
-        if (!isYoutubeVideo(url) && !isTwitchPage(url)) {
-            stopResolutionPolling();
+        if (!isYoutubePage(url) && !isTwitchPage(url)) {
+            console.log("Not a YouTube or Twitch page, resetting state.");
             lastYoutubeTag = undefined;
+            lastTwitchTag = undefined;
+            stopResolutionPolling();
             return;
         }
+
+        console.log("Page is a YouTube video or Twitch page, proceeding with checks.");
 
         if (isYoutubePage(url)) {
             const tag = extractVideoTag(url);
@@ -104,15 +128,22 @@ async function handlePageNavigation() {
             const isLive = !isTwitchVod(url);
             const tag = isLive ? extractTwitchChannelName(url) : extractTwitchVodId(url);
 
+            console.log("Extracted Twitch tag:", tag, " isLive:", isLive);
             if (lastTwitchTag === tag) return;
             lastTwitchTag = tag;
 
             stopResolutionPolling();
 
             if (tag) {
-                const twitchResponse = await initTwitch(tag);
+                const twitchResponse = await initTwitch(tag, isLive);
                 const toasterThresholdMbpm = await getToasterThreshold();
 
+                console.log(
+                    "Twitch response received:",
+                    twitchResponse,
+                    "Toaster threshold (MB/min):",
+                    toasterThresholdMbpm,
+                );
                 toastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm, isLive);
             }
         }
@@ -204,16 +235,16 @@ async function initYoutube(videoTag: string) {
     })) as YoutubeBackgroundResponse;
 }
 
-async function initTwitch(videoTag: string) {
-    if (isTwitchVod(url)) {
+async function initTwitch(tag: string, isLive: boolean) {
+    if (isLive) {
         return (await sendRuntimeMessage({
-            type: "twitchVod",
-            vodId: videoTag,
+            type: "twitchLive",
+            channelName: tag,
         })) as TwitchBackgroundResponse;
     } else {
         return (await sendRuntimeMessage({
-            type: "twitchLive",
-            channelName: videoTag,
+            type: "twitchVod",
+            vodId: tag,
         })) as TwitchBackgroundResponse;
     }
 }

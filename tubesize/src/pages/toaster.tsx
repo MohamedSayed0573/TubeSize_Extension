@@ -19,7 +19,7 @@ function ensureRoot() {
 }
 
 let DONT_SHOW_AGAIN: boolean = false;
-export function showToast(
+export function showYoutubeToast(
     currentQuality: number,
     videoFormats: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"],
     toasterThresholdMbpm: number,
@@ -47,18 +47,29 @@ export function showTwitchToast(
     videoFormats: NonNullable<TwitchBackgroundResponse["twitchData"]>["data"],
     toasterThresholdMbpm: number,
     isLive: boolean,
+    duration?: number,
 ) {
+    console.log("showTwitchToast called with", {
+        currentQuality,
+        videoFormats,
+        toasterThresholdMbpm,
+        isLive,
+        duration,
+    });
     if (DONT_SHOW_AGAIN) return;
 
     const format = videoFormats.find((format) => format.resolution === currentQuality);
     if (!format) return;
     const sizePerMinuteMB = bandwidthToSizePerMinuteMB(format.bandwidth);
     if (sizePerMinuteMB > toasterThresholdMbpm) {
+        const sizeMB = !isLive
+            ? ((sizePerMinuteMB * (duration || 0)) / 60).toFixed(1) + " MB"
+            : undefined;
         ensureRoot().render(
             <Toast
                 currentQuality={currentQuality}
                 sizePerMinuteMB={sizePerMinuteMB}
-                sizeMB={String(sizePerMinuteMB)}
+                sizeMB={sizeMB}
                 isLive={isLive}
                 okOnClick={okOnClick}
                 dontShowAgainOnClick={dontShowAgainOnClick}
