@@ -12,12 +12,14 @@ export default function Toast({
     currentQuality,
     sizePerMinuteMB,
     sizeMB,
+    isLive,
     okOnClick,
     dontShowAgainOnClick,
 }: {
     currentQuality: number;
     sizePerMinuteMB: number;
     sizeMB: string;
+    isLive: boolean;
     okOnClick: () => void;
     dontShowAgainOnClick: () => void;
 }) {
@@ -30,7 +32,7 @@ export default function Toast({
                 <div>
                     <span className="current-quality">Current Quality: {currentQuality}p</span>
                     <div className="toast-inner">
-                        <span>Total Usage: {sizeMB}</span>
+                        {!isLive && <span>Total Usage: {sizeMB}</span>}
                         <span>Per Hour Usage: {perHourFormat(sizePerMinuteMB)}</span>
                     </div>
                 </div>

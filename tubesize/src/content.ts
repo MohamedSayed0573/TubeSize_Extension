@@ -75,7 +75,12 @@ async function handlePageNavigation() {
                     resolution !== currentQuality
                 ) {
                     currentQuality = resolution;
-                    showToast(resolution, youtubeResponse.data?.videoFormats, toasterThresholdMbpm);
+                    showToast(
+                        resolution,
+                        youtubeResponse.data?.videoFormats,
+                        toasterThresholdMbpm,
+                        youtubeResponse.data.isLive,
+                    );
                 }
             }, 5000);
         }

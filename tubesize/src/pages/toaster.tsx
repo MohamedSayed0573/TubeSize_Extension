@@ -23,6 +23,7 @@ export function showToast(
     currentQuality: number,
     videoFormats: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"],
     toasterThresholdMbpm: number,
+    isLive: boolean,
 ) {
     if (DONT_SHOW_AGAIN) return;
 
@@ -34,6 +35,7 @@ export function showToast(
                 currentQuality={currentQuality}
                 sizePerMinuteMB={format.sizePerMinuteMB}
                 sizeMB={format.sizeMB}
+                isLive={isLive}
                 okOnClick={okOnClick}
                 dontShowAgainOnClick={dontShowAgainOnClick}
             />,
