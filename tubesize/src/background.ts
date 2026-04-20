@@ -32,11 +32,9 @@ async function handleMessage(
 
     switch (message.type) {
         case "clearBadge":
-            clearBadge(tabId);
-            return sendResponse({ success: true });
+            return handleClearBadge(tabId, sendResponse);
         case "setBadge":
-            addBadge(tabId);
-            return sendResponse({ success: true });
+            return handleSetBadge(tabId, sendResponse);
         case "youtubeVideo":
             return await handleYoutube(message, sendResponse);
         case "twitchVod":
@@ -55,19 +53,16 @@ async function handleTwitch(
     try {
         if (message.type === "twitchLive") {
             const twitchToken = await getTwitchToken(message);
-            if (!twitchToken) {
-                throw new Error("Failed to retrieve Twitch token");
-            }
             const m3u8Data = await getM3U8Data(twitchToken, message);
             const filteredM3U8Data = filterM3U8Data(m3u8Data);
 
-            const twitchData: TwitchData = {
-                data: filteredM3U8Data,
-                channelName: message.channelName,
-            };
             return sendResponse({
                 success: true,
-                twitchData,
+                twitchData: {
+                    type: "live",
+                    data: filteredM3U8Data,
+                    channelName: message.channelName,
+                },
             });
         } else if (message.type === "twitchVod") {
             const cached = await getFromStorage("twitch", message.vodId);
@@ -88,6 +83,7 @@ async function handleTwitch(
             const filteredM3U8Data = filterM3U8Data(m3u8Data);
 
             const response: TwitchData = {
+                type: "vod",
                 data: filteredM3U8Data,
                 vodId: message.vodId,
                 durationSeconds: twitchToken.durationSeconds,
@@ -178,3 +174,19 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         }
     }
 });
+
+function handleClearBadge(
+    tabId: number | undefined,
+    sendResponse: (response: { success: boolean }) => void,
+) {
+    clearBadge(tabId);
+    return sendResponse({ success: true });
+}
+
+function handleSetBadge(
+    tabId: number | undefined,
+    sendResponse: (response: { success: boolean }) => void,
+) {
+    addBadge(tabId);
+    return sendResponse({ success: true });
+}

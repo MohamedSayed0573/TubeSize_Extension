@@ -3,6 +3,8 @@ import {
     isShortsVideo,
     extractVideoTag,
     fetchAndRetry,
+    bandwidthToSizePerHourMB,
+    bandwidthToSizePerMinuteMB,
     isTwitchPage,
     isTwitchVod,
     extractTwitchVodId,
@@ -160,6 +162,20 @@ describe("extractVideoTag", () => {
 
     test("should return undefined for youtube short video with invalid itag", () => {
         expect(extractVideoTag("https://www.youtube.com/shorts/muzkbNA0")).toBeNil();
+    });
+});
+
+describe("bandwidthToSizePerMinuteMB", () => {
+    test("should convert bits per second to megabytes per minute", () => {
+        // 8,000,000 bits/s = 1 MB/s = 60 MB/min
+        expect(bandwidthToSizePerMinuteMB(8_000_000)).toBeCloseTo(60, 5);
+    });
+});
+
+describe("bandwidthToSizePerHourMB", () => {
+    test("should convert bits per second to megabytes per hour", () => {
+        // 8,000,000 bits/s = 1 MB/s = 3600 MB/hour
+        expect(bandwidthToSizePerHourMB(8_000_000)).toBeCloseTo(3600, 5);
     });
 });
 

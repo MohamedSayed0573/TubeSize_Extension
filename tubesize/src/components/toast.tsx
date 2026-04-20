@@ -18,11 +18,17 @@ export default function Toast({
 }: {
     currentQuality: number;
     sizePerMinuteMB: number;
-    sizeMB: string;
+    sizeMB: string | undefined;
     isLive: boolean;
     okOnClick: () => void;
     dontShowAgainOnClick: () => void;
 }) {
+    console.log("Rendering Toast with props:", {
+        currentQuality,
+        sizePerMinuteMB,
+        sizeMB,
+        isLive,
+    });
     return (
         <div className="container">
             <div className="title">TubeSize | Warning: High Data Usage</div>
@@ -32,7 +38,7 @@ export default function Toast({
                 <div>
                     <span className="current-quality">Current Quality: {currentQuality}p</span>
                     <div className="toast-inner">
-                        {!isLive && <span>Total Usage: {sizeMB}</span>}
+                        {!isLive && sizeMB && <span>Total Usage: {sizeMB}</span>}
                         <span>Per Hour Usage: {perHourFormat(sizePerMinuteMB)}</span>
                     </div>
                 </div>

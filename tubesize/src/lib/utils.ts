@@ -72,6 +72,17 @@ export function isTwitchVod(url: string): boolean {
     }
 }
 
+export function isTwitchLive(url: string): boolean {
+    if (!isTwitchPage(url)) return false;
+    try {
+        const parsedUrl = new URL(url);
+        const pathname = parsedUrl.pathname.split("/").filter(Boolean);
+        return pathname.length === 1 && /^[a-zA-Z0-9_]+$/.test(pathname[0]);
+    } catch {
+        return false;
+    }
+}
+
 export function extractTwitchVodId(url: string): string | undefined {
     try {
         const parsedUrl = new URL(url);
@@ -187,3 +198,10 @@ export const humanizeDuration = humanize.humanizer({
         },
     },
 });
+
+export function bandwidthToSizePerMinuteMB(bandwidth: number): number {
+    return (bandwidth / 8 / 1_000_000) * 60;
+}
+export function bandwidthToSizePerHourMB(bandwidth: number): number {
+    return (bandwidth / 8 / 1_000_000) * 60 * 60;
+}

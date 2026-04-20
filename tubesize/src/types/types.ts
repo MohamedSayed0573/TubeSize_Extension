@@ -75,8 +75,8 @@ type TwitchStreamInfo = {
 };
 
 export type TwitchData =
-    | { data: TwitchStreamInfo[]; channelName: string }
-    | { data: TwitchStreamInfo[]; vodId: string; durationSeconds: number | undefined };
+    | { type: "live"; data: TwitchStreamInfo[]; channelName: string }
+    | { type: "vod"; data: TwitchStreamInfo[]; vodId: string; durationSeconds: number | undefined };
 
 export type TwitchBackgroundResponse = {
     success: boolean;
