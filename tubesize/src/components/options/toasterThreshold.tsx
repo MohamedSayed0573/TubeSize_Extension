@@ -45,13 +45,8 @@ export default function ToasterSettings() {
                         value={toasterThreshold}
                         onChange={async (event) => {
                             try {
-                                if (
-                                    parseInt(event.target.value) === 0 ||
-                                    parseInt(event.target.value) > 10000 ||
-                                    isNaN(parseInt(event.target.value))
-                                )
-                                    return;
-                                const value = Number(event.target.value);
+                                const value = parseInt(event.target.value);
+                                if (value < 1 || value > 10000 || isNaN(value)) return;
                                 setToasterThreshold(value);
                                 await setToSyncCache({
                                     toasterThreshold: value,
