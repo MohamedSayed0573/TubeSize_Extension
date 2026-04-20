@@ -44,19 +44,17 @@ let settingsBtnHandler: ((event: Event) => void) | null = null;
 let qualityBtnHandler: ((event: Event) => void) | null = null;
 
 export function removeEventListeners() {
-    if (settingsBtnEl) {
-        if (settingsBtnHandler) {
-            settingsBtnEl.removeEventListener("click", settingsBtnHandler);
-        }
-        settingsBtnEl = null;
+    if (settingsBtnEl && settingsBtnHandler) {
+        settingsBtnEl.removeEventListener("click", settingsBtnHandler);
     }
+    settingsBtnEl = null;
+    settingsBtnHandler = null;
 
-    if (qualityBtnEl) {
-        if (qualityBtnHandler) {
-            qualityBtnEl.removeEventListener("click", qualityBtnHandler);
-        }
-        qualityBtnEl = null;
+    if (qualityBtnEl && qualityBtnHandler) {
+        qualityBtnEl.removeEventListener("click", qualityBtnHandler);
     }
+    qualityBtnEl = null;
+    qualityBtnHandler = null;
 }
 
 export async function injectQualityMenu(
@@ -67,7 +65,9 @@ export async function injectQualityMenu(
         if (!data) throw new Error("No video format data provided to qualityMenuInjector");
         settingsBtnEl = await waitForSettingsBtn();
 
-        settingsBtnHandler = () => settingsBtnClickListener(data, isLive);
+        settingsBtnHandler = async () => {
+            await settingsBtnClickListener(data, isLive);
+        };
         settingsBtnEl.addEventListener("click", settingsBtnHandler);
     } catch (err) {
         // Don't throw the error since this is not critical.
@@ -93,8 +93,8 @@ async function settingsBtnClickListener(
     }
     qualityBtnEl = await findQualityButton(ytpMenuItems);
 
-    qualityBtnHandler = () => {
-        qualityBtnClickListener(data, isLive);
+    qualityBtnHandler = async () => {
+        await qualityBtnClickListener(data, isLive);
     };
     qualityBtnEl.addEventListener("click", qualityBtnHandler);
 }
@@ -154,6 +154,6 @@ async function findQualityButton(ytMenuItems: NodeListOf<Element>): Promise<Elem
             )
                 return resolve(ytMenuItem);
         });
-        reject();
+        reject(new Error("Quality button not found in settings menu"));
     });
 }

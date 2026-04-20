@@ -116,6 +116,7 @@ async function handlePageNavigation() {
             stopResolutionPolling();
 
             if (tag) {
+                removeEventListeners();
                 const youtubeResponse = await initYoutube(tag);
                 await injectQualityMenu(
                     youtubeResponse.data?.videoFormats,
