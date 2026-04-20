@@ -5,6 +5,7 @@ import OptionItem from "@components/options/optionItem";
 import CacheSettings from "@components/options/cacheSettings";
 import { useState, useEffect } from "react";
 import { getFromSyncCache } from "@lib/cache";
+import ToasterSettings from "@/components/options/toasterThreshold";
 
 export default function Options() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,6 +43,9 @@ export default function Options() {
 
             <div className="section-divider"></div>
             <CacheSettings />
+
+            <div className="section-divider"></div>
+            <ToasterSettings />
 
             <div className="section-divider"></div>
             <div className="author">

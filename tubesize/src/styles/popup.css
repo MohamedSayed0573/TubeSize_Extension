@@ -107,7 +107,7 @@ body {
 }
 .format-item:hover {
     background: rgba(255, 255, 255, 0.08);
-    border-color: #690b0b;
+    border-color: rgba(255, 255, 255, 0.15);
 }
 .format-height {
     font-weight: 500;

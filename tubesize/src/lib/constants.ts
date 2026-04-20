@@ -33,6 +33,8 @@ const CONFIG = {
     VIDEO_ID_REGEX: /^[a-zA-Z0-9_-]{11}$/,
     YT_INITIAL_PLAYER_REGEX: /ytInitialPlayerResponse\s*=\s*(\{.+?\});/s,
     CACHE_JUST_NOW_THRESHOLD: 5000,
+    DEFAULT_TOASTER_THRESHOLD: 500,
+    DEFAULT_TOASTER_THRESHOLD_UNIT: "mbPerHour",
     TWITCH_GQL_GRAPHQL_QUERY: `
         query PlaybackAccessToken_Template(
         $login: String!,

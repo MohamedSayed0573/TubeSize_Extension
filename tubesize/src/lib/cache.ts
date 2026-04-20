@@ -73,6 +73,7 @@ export async function saveToStorage(tag: string, response: HumanizedFormat | Twi
         "videoFormats" in response &&
         response.videoFormats.some((f) => !f.sizeMB || f.sizeMB === "0 B");
     if (hasNullSizes) return;
+    if ("videoFormats" in response && response.videoFormats.length === 0) return;
 
     const dataToStore = {
         response,

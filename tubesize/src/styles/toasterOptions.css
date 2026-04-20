@@ -1,0 +1,36 @@
+.toaster-threshold-row {
+    background: rgba(255, 255, 255, 0.04);
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+}
+.toaster-input {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.toaster-threshold-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+}
+.toaster-threshold-types {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 7px;
+}
+.toaster-threshold-input {
+    width: 130px;
+    background: #2a2a2a;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 12px;
+    outline: none;
+}
+.toaster-threshold-radio {
+    font-size: 14px;
+    font-weight: 500;
+}

@@ -1,5 +1,8 @@
-import { extractVideoTag, isYoutubePage } from "@lib/utils";
-import type { FrontEndMessage } from "./types/types";
+import { extractVideoTag, isYoutubePage, isYoutubeVideo } from "@lib/utils";
+import type { FrontEndMessage, YoutubeBackgroundResponse } from "./types/types";
+import { showToast } from "@pages/toaster.tsx";
+import { getFromSyncCache } from "./lib/cache";
+import CONFIG from "./lib/constants";
 
 async function sendRuntimeMessage(message: FrontEndMessage) {
     try {
@@ -23,28 +26,67 @@ async function initYoutube(videoTag: string) {
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    await sendRuntimeMessage({
+    return (await sendRuntimeMessage({
         type: "youtubeVideo",
         videoTag: videoTag,
         html: scriptContent,
-    });
+    })) as YoutubeBackgroundResponse;
 }
 
 let lastTag: string | undefined = undefined;
+let resolutionIntervalId: number | undefined;
+
+function stopResolutionPolling() {
+    if (resolutionIntervalId === undefined) return;
+
+    clearInterval(resolutionIntervalId);
+    resolutionIntervalId = undefined;
+}
+
 async function handlePageNavigation() {
-    await sendRuntimeMessage({ type: "clearBadge" });
+    try {
+        await sendRuntimeMessage({ type: "clearBadge" });
 
-    if (!isYoutubePage(window.location.href)) {
-        return;
+        if (!isYoutubeVideo(window.location.href)) {
+            stopResolutionPolling();
+            lastTag = undefined;
+            return;
+        }
+
+        const url = window.location.href;
+        const tag = extractVideoTag(url);
+
+        if (lastTag === tag) return;
+        lastTag = tag;
+
+        stopResolutionPolling();
+
+        if (tag) {
+            const youtubeResponse = await initYoutube(tag);
+
+            let currentQuality: number | undefined;
+            const toasterThresholdMbpm = await getToasterThreshold();
+
+            resolutionIntervalId = window.setInterval(async () => {
+                const resolution = await getCurrentResolution();
+                if (
+                    resolution &&
+                    youtubeResponse?.data?.videoFormats &&
+                    resolution !== currentQuality
+                ) {
+                    currentQuality = resolution;
+                    showToast(
+                        resolution,
+                        youtubeResponse.data?.videoFormats,
+                        toasterThresholdMbpm,
+                        youtubeResponse.data.isLive,
+                    );
+                }
+            }, 5000);
+        }
+    } catch (err) {
+        console.error("[content] Error handling page navigation", err);
     }
-
-    const url = window.location.href;
-    const tag = extractVideoTag(url);
-
-    if (lastTag === tag) return;
-    lastTag = tag;
-
-    if (tag) await initYoutube(tag);
 }
 
 if (isYoutubePage(window.location.href)) {
@@ -52,6 +94,8 @@ if (isYoutubePage(window.location.href)) {
         void handlePageNavigation();
     });
 }
+
+void handlePageNavigation();
 
 chrome.runtime.onMessage.addListener(
     (message: { type: string }, _sender: chrome.runtime.MessageSender, sendResponse) => {
@@ -66,7 +110,7 @@ chrome.runtime.onMessage.addListener(
 );
 
 async function getCurrentResolution() {
-    return new Promise((resolve) => {
+    return new Promise<number | undefined>((resolve) => {
         // Check immediately in case the video is already loaded
         const video = document.querySelector("video");
         if (video && video.videoHeight > 0) {
@@ -94,4 +138,21 @@ async function getCurrentResolution() {
     });
 }
 
-void handlePageNavigation();
+/**
+ * Returns the setting for the toaster threshold in MB per minute.
+ * If the setting is not found or is invalid, it returns the default threshold defined in CONFIG.
+ * @returns {number} The toaster threshold in MB per minute.
+ * @throws Will throw an error if there is an issue retrieving the setting from cache.
+ */
+async function getToasterThreshold() {
+    const threshold = (await getFromSyncCache("toasterThreshold")) as number;
+    const thresholdUnit =
+        ((await getFromSyncCache("toasterThresholdUnit")) as "mbPerMinute" | "mbPerHour") ||
+        CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
+    if (!threshold)
+        return thresholdUnit === "mbPerHour"
+            ? CONFIG.DEFAULT_TOASTER_THRESHOLD / 60
+            : CONFIG.DEFAULT_TOASTER_THRESHOLD;
+
+    return thresholdUnit === "mbPerMinute" ? threshold : threshold / 60;
+}

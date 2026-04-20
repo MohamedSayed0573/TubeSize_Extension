@@ -1,0 +1,85 @@
+.root {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 2147483647;
+}
+.container {
+    width: 360px;
+    color: white;
+    padding: 12px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(20, 20, 20, 0.97);
+}
+.title {
+    margin-bottom: 10px;
+    color: #ff6b6b;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.toast {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 14px;
+    margin-bottom: 10px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.85);
+}
+.toast-inner {
+    display: flex;
+    gap: 6px;
+    font-size: 13px;
+    margin-top: 4px;
+}
+.current-quality {
+    font-weight: 600;
+    color: #4facfe;
+}
+.toast-inner span {
+    flex: 1;
+    padding: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    background: rgba(79, 172, 254, 0.08);
+    color: rgba(255, 255, 255, 0.96);
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    text-align: center;
+    display: inline-flex;
+}
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+button {
+    color: white;
+    display: inline-flex;
+    width: auto;
+    margin: 0 8px 0 0;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+}
+button.firstBtn {
+    background: #ff4b2b;
+    color: white;
+}
+button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+button.firstBtn:hover {
+    background: #dd7c6b;
+    color: white;
+}
