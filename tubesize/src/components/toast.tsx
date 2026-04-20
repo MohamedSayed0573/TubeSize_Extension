@@ -38,7 +38,7 @@ export default function Toast({
                 <div>
                     <span className="current-quality">Current Quality: {currentQuality}p</span>
                     <div className="toast-inner">
-                        {!isLive && <span>Total Usage: {sizeMB}</span>}
+                        {!isLive && sizeMB && <span>Total Usage: {sizeMB}</span>}
                         <span>Per Hour Usage: {perHourFormat(sizePerMinuteMB)}</span>
                     </div>
                 </div>

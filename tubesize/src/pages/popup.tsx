@@ -257,8 +257,8 @@ export default function Popup() {
                                     currentQuality={currentQuality}
                                     isLive={isLive}
                                     durationSeconds={
-                                        twitchData.twitchData && "vodId" in twitchData.twitchData
-                                            ? twitchData.twitchData?.durationSeconds
+                                        twitchData.twitchData?.type === "vod"
+                                            ? twitchData.twitchData.durationSeconds
                                             : undefined
                                     }
                                 />

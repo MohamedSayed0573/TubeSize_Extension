@@ -76,7 +76,7 @@ function toastTwitchPolling(
                 twitchData.data,
                 toasterThresholdMbpm,
                 isLive,
-                "vodId" in twitchData ? twitchData.durationSeconds : undefined,
+                twitchData.type === "vod" ? twitchData.durationSeconds : undefined,
             );
         }
     }, CONFIG.TOASTER_POLLING_INTERVAL);

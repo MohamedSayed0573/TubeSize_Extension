@@ -23,7 +23,7 @@ function getTwitchTitle(twitchData?: TwitchBackgroundResponse | null): string {
         return "Twitch";
     }
 
-    if ("channelName" in data) {
+    if (data.type === "live") {
         return data.channelName;
     }
 
@@ -33,11 +33,11 @@ function getTwitchTitle(twitchData?: TwitchBackgroundResponse | null): string {
 function getTwitchDuration(twitchData?: TwitchBackgroundResponse | null): string | undefined {
     const data = twitchData?.twitchData;
 
-    if (!data || "channelName" in data) {
+    if (!data || data.type === "live") {
         return undefined;
     }
 
-    if (data.durationSeconds) {
+    if (data.type === "vod" && data.durationSeconds) {
         return humanizeDuration(data.durationSeconds * 1000);
     }
 

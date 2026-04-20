@@ -59,6 +59,7 @@ async function handleTwitch(
             return sendResponse({
                 success: true,
                 twitchData: {
+                    type: "live",
                     data: filteredM3U8Data,
                     channelName: message.channelName,
                 },
@@ -82,6 +83,7 @@ async function handleTwitch(
             const filteredM3U8Data = filterM3U8Data(m3u8Data);
 
             const response: TwitchData = {
+                type: "vod",
                 data: filteredM3U8Data,
                 vodId: message.vodId,
                 durationSeconds: twitchToken.durationSeconds,
