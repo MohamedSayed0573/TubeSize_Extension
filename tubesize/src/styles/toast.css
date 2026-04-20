@@ -1,18 +1,21 @@
-.root {
+#TubeSize-Toast-Host {
     position: fixed;
     top: 24px;
     right: 24px;
     z-index: 2147483647;
-}
-.container {
     width: 360px;
+    height: 300px;
+}
+
+#TubeSize-Toast-Host .container {
     color: white;
     padding: 12px;
     border-radius: 18px;
     border: 1px solid rgba(255, 255, 255, 0.14);
     background: rgba(20, 20, 20, 0.97);
 }
-.title {
+
+#TubeSize-Toast-Host .title {
     margin-bottom: 10px;
     color: #ff6b6b;
     font-size: 15px;
@@ -20,7 +23,8 @@
     letter-spacing: 0.5px;
     text-transform: uppercase;
 }
-.toast {
+
+#TubeSize-Toast-Host .toast {
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -29,17 +33,20 @@
     line-height: 1.5;
     color: rgba(255, 255, 255, 0.85);
 }
-.toast-inner {
+
+#TubeSize-Toast-Host .toast-inner {
     display: flex;
     gap: 6px;
     font-size: 13px;
     margin-top: 4px;
 }
-.current-quality {
+
+#TubeSize-Toast-Host .current-quality {
     font-weight: 600;
     color: #4facfe;
 }
-.toast-inner span {
+
+#TubeSize-Toast-Host .toast-inner span {
     flex: 1;
     padding: 4px;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -52,13 +59,15 @@
     text-align: center;
     display: inline-flex;
 }
-.actions {
+
+#TubeSize-Toast-Host .actions {
     display: flex;
     align-items: center;
     gap: 4px;
     flex-wrap: wrap;
 }
-button {
+
+#TubeSize-Toast-Host button {
     color: white;
     display: inline-flex;
     width: auto;
@@ -71,15 +80,18 @@ button {
     font-size: 12px;
     font-weight: 600;
 }
-button.firstBtn {
+
+#TubeSize-Toast-Host button.firstBtn {
     background: #ff4b2b;
     color: white;
 }
-button:hover {
+
+#TubeSize-Toast-Host button:hover {
     background: rgba(255, 255, 255, 0.15);
     color: white;
 }
-button.firstBtn:hover {
+
+#TubeSize-Toast-Host button.firstBtn:hover {
     background: #dd7c6b;
     color: white;
 }
