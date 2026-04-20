@@ -71,7 +71,7 @@ async function handlePageNavigation() {
                 const resolution = await getCurrentResolution();
                 if (
                     resolution &&
-                    youtubeResponse.data?.videoFormats &&
+                    youtubeResponse?.data?.videoFormats &&
                     resolution !== currentQuality
                 ) {
                     currentQuality = resolution;
@@ -144,7 +144,10 @@ async function getToasterThreshold() {
     const thresholdUnit =
         ((await getFromSyncCache("toasterThresholdUnit")) as "mbPerMinute" | "mbPerHour") ||
         CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
-    if (!threshold) return CONFIG.DEFAULT_TOASTER_THRESHOLD;
+    if (!threshold)
+        return CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT === "mbPerHour"
+            ? CONFIG.DEFAULT_TOASTER_THRESHOLD / 60
+            : CONFIG.DEFAULT_TOASTER_THRESHOLD;
 
     return thresholdUnit === "mbPerMinute" ? threshold : threshold / 60;
 }
