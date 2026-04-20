@@ -54,7 +54,7 @@ export async function getTwitchToken(message: TwitchMessage): Promise<TwitchToke
         if (!data?.data?.streamPlaybackAccessToken && !data?.data?.videoPlaybackAccessToken) {
             throw new Error("Failed to get stream playback access token");
         }
-        return {
+        const twitchToken = {
             value:
                 data.data.streamPlaybackAccessToken?.value ||
                 data.data.videoPlaybackAccessToken.value,
@@ -63,6 +63,8 @@ export async function getTwitchToken(message: TwitchMessage): Promise<TwitchToke
                 data.data.videoPlaybackAccessToken.signature,
             durationSeconds: data.data.video?.lengthSeconds,
         };
+        if (!twitchToken) throw new Error("Failed to retrieve Twitch token");
+        return twitchToken;
     } catch (error) {
         console.error("Failed to get Twitch token:", error);
         throw error;
