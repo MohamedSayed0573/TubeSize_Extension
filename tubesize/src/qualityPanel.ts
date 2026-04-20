@@ -117,12 +117,7 @@ function injectQualityLabels(data: NonNullable<YoutubeBackgroundResponse["data"]
         console.log("Matching quality text with data formats:", qualityText, data);
         const format = data.find((format) => format.height === parseInt(qualityText!));
         if (!format) return;
-
-        if (!format.maxSizeMB) {
-            newDiv.textContent = `${format.sizeMB}`;
-        } else {
-            newDiv.textContent = `${format.sizeMB} - ${format.maxSizeMB} MB`;
-        }
+        newDiv.textContent = format.sizeMB;
         newDiv.id = "tubesize-quality-label";
 
         innerDiv?.appendChild(newDiv);
