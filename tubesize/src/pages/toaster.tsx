@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
-import type { YoutubeBackgroundResponse } from "@app-types/types";
+import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
 import Toast from "@components/toast";
+import { bandwidthToSizePerMinuteMB } from "@/lib/utils";
 
 const HOST_ID = "TubeSize-Toast-Host";
 
@@ -9,7 +10,6 @@ function ensureRoot() {
     let host = document.getElementById(HOST_ID);
     if (!host) {
         host = document.createElement("div");
-        host.className = "root";
         host.id = HOST_ID;
         document.body?.append(host);
         root = createRoot(host);
@@ -35,6 +35,32 @@ export function showToast(
                 currentQuality={currentQuality}
                 sizePerMinuteMB={format.sizePerMinuteMB}
                 sizeMB={format.sizeMB}
+                isLive={isLive}
+                okOnClick={okOnClick}
+                dontShowAgainOnClick={dontShowAgainOnClick}
+            />,
+        );
+    }
+}
+export function showTwitchToast(
+    currentQuality: number,
+    videoFormats: NonNullable<TwitchBackgroundResponse["twitchData"]>["data"],
+    toasterThresholdMbpm: number,
+    isLive: boolean,
+) {
+    if (DONT_SHOW_AGAIN) return;
+
+    const format = videoFormats.find((format) => format.resolution === currentQuality);
+    if (!format) return;
+    const sizePerMinuteMB = bandwidthToSizePerMinuteMB(format.bandwidth);
+    console.log("[toaster] Twitch format bandwidth:", format.bandwidth);
+    console.log("[toaster] Twitch format size per minute (MB):", sizePerMinuteMB);
+    if (sizePerMinuteMB > toasterThresholdMbpm) {
+        ensureRoot().render(
+            <Toast
+                currentQuality={currentQuality}
+                sizePerMinuteMB={sizePerMinuteMB}
+                sizeMB={String(sizePerMinuteMB)}
                 isLive={isLive}
                 okOnClick={okOnClick}
                 dontShowAgainOnClick={dontShowAgainOnClick}

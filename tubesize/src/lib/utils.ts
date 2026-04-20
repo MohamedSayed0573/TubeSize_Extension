@@ -187,3 +187,10 @@ export const humanizeDuration = humanize.humanizer({
         },
     },
 });
+
+export function bandwidthToSizePerMinuteMB(bandwidth: number): number {
+    return (bandwidth / 8 / 1_000_000) * 60;
+}
+export function bandwidthToSizePerHourMB(bandwidth: number): number {
+    return (bandwidth / 8 / 1_000_000) * 60 * 60;
+}
