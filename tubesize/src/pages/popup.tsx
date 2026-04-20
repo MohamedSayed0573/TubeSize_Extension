@@ -94,6 +94,7 @@ export default function Popup() {
     const [enabledOptions, setEnabledOptions] = useState<string[]>([]);
     const [error, setError] = useState<Error | null>(null);
     const [currentQuality, setCurrentQuality] = useState<number | undefined>(undefined);
+    const [isLive, setIsLive] = useState<boolean>(false);
 
     useEffect(() => {
         (async () => {
@@ -126,6 +127,7 @@ export default function Popup() {
                     }
                     if (isShortsVideo(url)) response.isShorts = true;
                     setYoutubeData(response);
+                    setIsLive(response.data?.isLive || false);
                     setCache(
                         response.cached
                             ? getCachedAgo(response.createdAt) || "Cached just now"
@@ -151,20 +153,22 @@ export default function Popup() {
                                 ? getCachedAgo(response.createdAt) || "Cached just now"
                                 : undefined,
                         );
-                        return;
-                    }
-                    const channelName = extractTwitchChannelName(url);
-                    if (!channelName) {
-                        setMessage("Open a Twitch stream");
-                        return;
-                    }
+                        setIsLive(false);
+                    } else {
+                        const channelName = extractTwitchChannelName(url);
+                        if (!channelName) {
+                            setMessage("Open a Twitch stream");
+                            return;
+                        }
 
-                    const response = await sendMessageToBackground({
-                        type: "twitchLive",
-                        channelName: channelName,
-                    });
-                    if (!response.success) throw new Error(response.message);
-                    setTwitchData(response);
+                        const response = await sendMessageToBackground({
+                            type: "twitchLive",
+                            channelName: channelName,
+                        });
+                        if (!response.success) throw new Error(response.message);
+                        setTwitchData(response);
+                        setIsLive(true);
+                    }
                 } else {
                     setMessage("Open a YouTube video or Twitch stream to view sizes");
                 }
@@ -235,7 +239,7 @@ export default function Popup() {
                                 <YoutubeFormat
                                     key={item.formatId}
                                     item={item}
-                                    isLive={youtubeData.data?.isLive}
+                                    isLive={isLive}
                                     isShorts={youtubeData.isShorts}
                                     currentQuality={currentQuality}
                                 />
@@ -251,6 +255,12 @@ export default function Popup() {
                                     key={item.resolution}
                                     item={item}
                                     currentQuality={currentQuality}
+                                    isLive={isLive}
+                                    durationSeconds={
+                                        twitchData.twitchData && "vodId" in twitchData.twitchData
+                                            ? twitchData.twitchData?.durationSeconds
+                                            : undefined
+                                    }
                                 />
                             );
                         })}

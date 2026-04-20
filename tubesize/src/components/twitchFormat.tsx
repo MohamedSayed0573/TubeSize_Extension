@@ -4,9 +4,20 @@ import type { TwitchData } from "@/types/types";
 interface Props {
     item: NonNullable<TwitchData["data"]>[number];
     currentQuality?: number;
+    isLive: boolean;
+    durationSeconds?: number;
 }
 
-export default function TwitchFormat({ item, currentQuality }: Props) {
+function formatTotalSize(sizePerMinuteMB: number, durationSeconds?: number): string {
+    if (!durationSeconds) return "";
+    const totalSizeMB = (sizePerMinuteMB / 60) * durationSeconds;
+    if (totalSizeMB >= 1000) {
+        return `${(totalSizeMB / 1000).toFixed(1)} GB`;
+    }
+    return `${totalSizeMB.toFixed(1)} MB`;
+}
+
+export default function TwitchFormat({ item, currentQuality, isLive, durationSeconds }: Props) {
     const className = item.resolution === currentQuality ? "format-item current" : "format-item";
     const sizePerHourMB = bandwidthToSizePerHourMB(item.bandwidth);
     const sizePerMinuteMB = bandwidthToSizePerMinuteMB(item.bandwidth);
@@ -19,7 +30,9 @@ export default function TwitchFormat({ item, currentQuality }: Props) {
         <div className={className}>
             <div className="format-height"> {item.resolution} </div>
             <div className="format-size">
-                <span>{perHourDisplay}</span>
+                <span>
+                    {isLive ? perHourDisplay : formatTotalSize(sizePerMinuteMB, durationSeconds)}
+                </span>
                 <span className="format-size-per-minute">
                     {`${sizePerMinuteMB.toFixed(1)} MB/min`}
                 </span>
