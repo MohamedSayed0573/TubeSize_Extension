@@ -97,10 +97,10 @@ function getCurrentUrl() {
 async function handlePageNavigation() {
     try {
         const url = getCurrentUrl();
-        removeEventListeners();
         await sendRuntimeMessage({ type: "clearBadge" });
 
         if (!isYoutubePage(url) && !isTwitchPage(url)) {
+            removeEventListeners();
             lastYoutubeTag = undefined;
             lastTwitchTag = undefined;
             stopResolutionPolling();
@@ -117,7 +117,10 @@ async function handlePageNavigation() {
 
             if (tag) {
                 const youtubeResponse = await initYoutube(tag);
-                await injectQualityMenu(youtubeResponse.data?.videoFormats);
+                await injectQualityMenu(
+                    youtubeResponse.data?.videoFormats,
+                    youtubeResponse.data?.isLive,
+                );
                 const toasterThresholdMbpm = await getToasterThreshold();
 
                 toastYoutubePolling(youtubeResponse, toasterThresholdMbpm);
