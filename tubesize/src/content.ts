@@ -145,7 +145,7 @@ async function getToasterThreshold() {
         ((await getFromSyncCache("toasterThresholdUnit")) as "mbPerMinute" | "mbPerHour") ||
         CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
     if (!threshold)
-        return CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT === "mbPerHour"
+        return thresholdUnit === "mbPerHour"
             ? CONFIG.DEFAULT_TOASTER_THRESHOLD / 60
             : CONFIG.DEFAULT_TOASTER_THRESHOLD;
 
