@@ -35,8 +35,29 @@ async function initYoutube(videoTag: string) {
 
 let lastTag: string | undefined = undefined;
 let resolutionIntervalId: number | undefined;
+let currentQuality: number | undefined;
+
+function toastYoutubePolling(
+    youtubeResponse: YoutubeBackgroundResponse,
+    toasterThresholdMbpm: number,
+) {
+    resolutionIntervalId = window.setInterval(async () => {
+        const resolution = await getCurrentResolution();
+        if (resolution && youtubeResponse?.data?.videoFormats && resolution !== currentQuality) {
+            currentQuality = resolution;
+            showToast(
+                resolution,
+                youtubeResponse.data?.videoFormats,
+                toasterThresholdMbpm,
+                youtubeResponse.data.isLive,
+            );
+        }
+    }, 5000);
+}
 
 function stopResolutionPolling() {
+    currentQuality = undefined;
+
     if (resolutionIntervalId === undefined) return;
 
     clearInterval(resolutionIntervalId);
@@ -63,26 +84,8 @@ async function handlePageNavigation() {
 
         if (tag) {
             const youtubeResponse = await initYoutube(tag);
-
-            let currentQuality: number | undefined;
             const toasterThresholdMbpm = await getToasterThreshold();
-
-            resolutionIntervalId = window.setInterval(async () => {
-                const resolution = await getCurrentResolution();
-                if (
-                    resolution &&
-                    youtubeResponse?.data?.videoFormats &&
-                    resolution !== currentQuality
-                ) {
-                    currentQuality = resolution;
-                    showToast(
-                        resolution,
-                        youtubeResponse.data?.videoFormats,
-                        toasterThresholdMbpm,
-                        youtubeResponse.data.isLive,
-                    );
-                }
-            }, 5000);
+            toastYoutubePolling(youtubeResponse, toasterThresholdMbpm);
         }
     } catch (err) {
         console.error("[content] Error handling page navigation", err);
