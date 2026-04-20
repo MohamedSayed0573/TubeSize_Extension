@@ -14,6 +14,7 @@ import type {
 import { showYoutubeToast, showTwitchToast } from "@pages/toaster.tsx";
 import { getFromSyncCache } from "@lib/cache";
 import CONFIG from "@lib/constants";
+import { injectQualityMenu, removeEventListeners } from "./qualityPanel";
 
 /**
  * Sends a message to the background script and returns the response.
@@ -96,6 +97,7 @@ function getCurrentUrl() {
 async function handlePageNavigation() {
     try {
         const url = getCurrentUrl();
+        removeEventListeners();
         await sendRuntimeMessage({ type: "clearBadge" });
 
         if (!isYoutubePage(url) && !isTwitchPage(url)) {
@@ -115,6 +117,7 @@ async function handlePageNavigation() {
 
             if (tag) {
                 const youtubeResponse = await initYoutube(tag);
+                await injectQualityMenu(youtubeResponse.data?.videoFormats);
                 const toasterThresholdMbpm = await getToasterThreshold();
 
                 toastYoutubePolling(youtubeResponse, toasterThresholdMbpm);
