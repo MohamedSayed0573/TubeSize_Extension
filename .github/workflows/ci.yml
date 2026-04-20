@@ -28,6 +28,9 @@ jobs:
             - name: TypeCheck
               run: pnpm -F tubesize run tsc
 
+            - name: Lint
+              run: pnpm -F tubesize run lint
+
             - name: Run Tests
               run: pnpm -F tubesize run test
 
