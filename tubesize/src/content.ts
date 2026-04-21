@@ -6,63 +6,20 @@ import {
     isTwitchVod,
     isYoutubePage,
 } from "@lib/utils";
-import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
-import { showYoutubeToast, showTwitchToast } from "@pages/toaster.tsx";
 import { getFromSyncCache } from "@lib/cache";
 import CONFIG from "@lib/constants";
 import { injectQualityMenu, removeEventListeners } from "@/quality-menu-injector";
 import { sendMessageToBackground } from "./runtime";
+import {
+    getCurrentResolution,
+    startToastTwitchPolling,
+    startToastYoutubePolling,
+    stopResolutionPolling,
+} from "./resolution";
 
 let lastYoutubeTag: string | undefined;
 let lastTwitchTag: string | undefined;
-let resolutionIntervalId: number | undefined;
-let currentQuality: number | undefined;
 
-function toastYoutubePolling(
-    youtubeResponse: YoutubeBackgroundResponse,
-    toasterThresholdMbpm: number,
-) {
-    resolutionIntervalId = window.setInterval(async () => {
-        const resolution = await getCurrentResolution();
-        if (resolution && youtubeResponse?.data?.videoFormats && resolution !== currentQuality) {
-            currentQuality = resolution;
-            showYoutubeToast(
-                resolution,
-                youtubeResponse.data?.videoFormats,
-                toasterThresholdMbpm,
-                youtubeResponse.data.isLive,
-            );
-        }
-    }, CONFIG.TOASTER_POLLING_INTERVAL);
-}
-function toastTwitchPolling(
-    twitchData: TwitchBackgroundResponse["twitchData"],
-    toasterThresholdMbpm: number,
-    isLive: boolean,
-) {
-    resolutionIntervalId = window.setInterval(async () => {
-        const resolution = await getCurrentResolution();
-        if (resolution && twitchData?.data && resolution !== currentQuality) {
-            currentQuality = resolution;
-            showTwitchToast(
-                resolution,
-                twitchData.data,
-                toasterThresholdMbpm,
-                isLive,
-                twitchData.type === "vod" ? twitchData.durationSeconds : undefined,
-            );
-        }
-    }, CONFIG.TOASTER_POLLING_INTERVAL);
-}
-
-function stopResolutionPolling() {
-    currentQuality = undefined;
-
-    if (resolutionIntervalId === undefined) return;
-
-    clearInterval(resolutionIntervalId);
-    resolutionIntervalId = undefined;
-}
 function getCurrentUrl() {
     return window.location.href;
 }
@@ -96,7 +53,7 @@ async function handlePageNavigation() {
             }
 
             const toasterThresholdMbpm = await getToasterThreshold();
-            toastYoutubePolling(youtubeResponse, toasterThresholdMbpm);
+            startToastYoutubePolling(youtubeResponse, toasterThresholdMbpm);
         } else if (isTwitchPage(url)) {
             const isLive = !isTwitchVod(url);
             const tag = isLive ? extractTwitchChannelName(url) : extractTwitchVodId(url);
@@ -110,7 +67,7 @@ async function handlePageNavigation() {
             const twitchResponse = await initTwitch(tag, isLive);
             const toasterThresholdMbpm = await getToasterThreshold();
 
-            toastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm, isLive);
+            startToastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm);
         }
     } catch (err) {
         console.error("[content] Error handling page navigation", err);
@@ -136,39 +93,6 @@ chrome.runtime.onMessage.addListener(
         return true;
     },
 );
-
-async function getCurrentResolution() {
-    return new Promise<number | undefined>((resolve) => {
-        // Check immediately in case the video is already loaded
-        const video = document.querySelector("video");
-        if (video && video.videoHeight > 0) {
-            console.log("Video already loaded with resolution:", video.videoHeight);
-            return resolve(video.videoHeight);
-        }
-
-        let attempt = 0;
-        const observer = new MutationObserver(() => {
-            console.log("Mutation observed, checking for video resolution... " + attempt++);
-            const video = document.querySelector("video");
-            if (video && video.videoHeight > 0) {
-                console.log("Video loaded with resolution:", video.videoHeight);
-                observer.disconnect();
-                clearTimeout(timeout);
-                return resolve(video.videoHeight);
-            }
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-        });
-
-        const timeout = setTimeout(() => {
-            observer.disconnect();
-            return resolve(undefined);
-        }, 10000);
-    });
-}
 
 /**
  * Returns the setting for the toaster threshold in MB per minute.
