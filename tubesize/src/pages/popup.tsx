@@ -1,10 +1,6 @@
 import "@styles/popup.css";
-import type {
-    TwitchBackgroundResponse,
-    TwitchMessage,
-    YoutubeBackgroundResponse,
-    YoutubeMessage,
-} from "@app-types/types";
+import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
+import { sendMessageToBackground, sendMessageToContentScript, getTab } from "@/runtime";
 import { useEffect, useState } from "react";
 import {
     extractVideoTag,
@@ -22,49 +18,6 @@ import CONFIG from "@lib/constants";
 import Header from "@components/header";
 import YoutubeFormat from "@/components/youtubeFormat";
 import TwitchFormat from "@/components/twitchFormat";
-
-async function getTab() {
-    return await chrome.tabs.query({ active: true, currentWindow: true });
-}
-
-async function getCurrentQuality(tabId: number): Promise<number | undefined> {
-    return new Promise((resolve, reject) => {
-        chrome.tabs.sendMessage(tabId, { type: "getCurrentResolution" }, (response) => {
-            if (chrome.runtime.lastError) {
-                const errorMessage = chrome.runtime.lastError.message || "";
-
-                if (errorMessage.includes("Receiving end does not exist")) {
-                    return resolve(undefined);
-                }
-                return reject(new Error(errorMessage || "Failed to get current resolution"));
-            }
-            resolve(response);
-        });
-    });
-}
-type MessageResponseMap = {
-    youtubeVideo: YoutubeBackgroundResponse;
-    twitchVod: TwitchBackgroundResponse;
-    twitchLive: TwitchBackgroundResponse;
-};
-
-async function sendMessageToBackground<T extends YoutubeMessage | TwitchMessage>(
-    message: T,
-): Promise<MessageResponseMap[T["type"]]> {
-    return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ ...message }, (response) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
-            if (!response?.success) {
-                reject(new Error(response?.message || "Failed to fetch video data"));
-                return;
-            }
-            resolve(response);
-        });
-    });
-}
 
 function getCachedAgo(createdAt: string | undefined) {
     if (!createdAt) return;
@@ -199,7 +152,9 @@ export default function Popup() {
             try {
                 const [tab] = await getTab();
                 if (!tab?.id) return;
-                const quality = await getCurrentQuality(tab.id);
+                const quality = await sendMessageToContentScript(tab.id, {
+                    type: "getCurrentResolution",
+                });
                 setCurrentQuality(quality);
             } catch (err) {
                 console.error(err);

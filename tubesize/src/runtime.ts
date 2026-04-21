@@ -51,3 +51,10 @@ export async function sendMessageToContentScript<T extends ContentScriptMessage>
         });
     });
 }
+
+/**
+ * @returns The active tab
+ */
+export async function getTab() {
+    return await chrome.tabs.query({ active: true, currentWindow: true });
+}
