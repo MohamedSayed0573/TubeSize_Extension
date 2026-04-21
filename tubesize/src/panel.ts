@@ -59,6 +59,9 @@ async function settingsBtnClickListener(
         qualityBtnEl.removeEventListener("click", qualityBtnHandler);
     }
     qualityBtnEl = findQualityButton(ytpMenuItems);
+    if (qualityBtnEl) {
+        console.log("Quality button found, adding click listener");
+    }
 
     qualityBtnHandler = async () => {
         await qualityBtnClickListener(data, isLive);
@@ -115,26 +118,24 @@ async function renderQualityLabels(
         return;
     }
 
-    const ytpPanelMenu = await waitForElement(".ytp-panel-menu");
+    const ytpPanelMenu = await waitForElement(".ytp-panel.ytp-quality-menu");
     const ytpMenuItems = ytpPanelMenu?.querySelectorAll(".ytp-menuitem");
-    if (!ytpMenuItems) return;
+    if (ytpMenuItems.length < 1) return;
 
     ytpMenuItems.forEach((ytMenuItem) => {
         const ytMenuItemLabel = ytMenuItem.querySelector(".ytp-menuitem-label");
         const innerDiv = ytMenuItemLabel?.querySelector("div");
         const qualityText = innerDiv?.querySelector("span")?.textContent;
+        console.log("Found quality option in menu:", qualityText);
         if (qualityText === "Auto" || qualityText?.includes("Premium")) return;
 
         const newDiv = document.createElement("div");
-        console.log("Matching quality text with data formats:", qualityText, formats);
         const format = formats.find((format) => format.height === parseInt(qualityText!));
-        console.log("Matched format for quality text:", format);
         if (!format) return;
         newDiv.textContent = isLive ? format.sizeMB + "/hour" : format.sizeMB;
         newDiv.className = "tubesize-quality-label";
 
         innerDiv?.appendChild(newDiv);
-        console.log("Injected Tubesize label into YouTube quality menu item:", qualityText);
     });
 }
 
@@ -142,7 +143,10 @@ function findQualityButton(ytMenuItems: NodeListOf<Element>): Element {
     for (const ytMenuItem of ytMenuItems) {
         const ytMenuItemLabel = ytMenuItem.querySelector(".ytp-menuitem-label");
         // No need to support more languages since the expected user base has English or Arabic as their YouTube language.
-        if (ytMenuItemLabel?.textContent === "Quality" || ytMenuItemLabel?.textContent === "الجودة")
+        if (
+            ytMenuItemLabel?.textContent.includes("Quality") ||
+            ytMenuItemLabel?.textContent.includes("الجودة")
+        )
             return ytMenuItem;
     }
     throw new Error("Quality button not found in settings menu");
