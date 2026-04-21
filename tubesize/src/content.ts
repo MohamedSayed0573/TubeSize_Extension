@@ -48,12 +48,20 @@ async function handlePageNavigation() {
 
             removeEventListeners();
             const youtubeResponse = await initYoutube(tag);
-            if (youtubeResponse && youtubeResponse.data) {
+            const qualityMenuEnabled =
+                (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
+            console.log("Quality menu enabled:", qualityMenuEnabled);
+            if (qualityMenuEnabled && youtubeResponse && youtubeResponse.data) {
                 injectQualityMenu(youtubeResponse.data?.videoFormats, youtubeResponse.data?.isLive);
             }
 
-            const toasterThresholdMbpm = await getToasterThreshold();
-            startToastYoutubePolling(youtubeResponse, toasterThresholdMbpm);
+            const toasterEnabled =
+                (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
+            console.log("Toaster enabled:", toasterEnabled);
+            if (toasterEnabled) {
+                const toasterThresholdMbpm = await getToasterThreshold();
+                startToastYoutubePolling(youtubeResponse, toasterThresholdMbpm);
+            }
         } else if (isTwitchPage(url)) {
             const isLive = !isTwitchVod(url);
             const tag = isLive ? extractTwitchChannelName(url) : extractTwitchVodId(url);
@@ -62,12 +70,15 @@ async function handlePageNavigation() {
             lastTwitchTag = tag;
 
             stopResolutionPolling();
-
             if (!tag) return;
-            const twitchResponse = await initTwitch(tag, isLive);
-            const toasterThresholdMbpm = await getToasterThreshold();
 
-            startToastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm);
+            const twitchResponse = await initTwitch(tag, isLive);
+            const toasterEnabled =
+                (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
+            if (toasterEnabled) {
+                const toasterThresholdMbpm = await getToasterThreshold();
+                startToastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm);
+            }
         }
     } catch (err) {
         console.error("[content] Error handling page navigation", err);
@@ -87,6 +98,7 @@ chrome.runtime.onMessage.addListener(
         if (message.type !== "getCurrentResolution") return;
 
         void getCurrentResolution().then((resolution) => {
+            console.log("[content] Current resolution:", resolution);
             sendResponse(resolution);
         });
 

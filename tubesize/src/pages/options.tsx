@@ -4,8 +4,9 @@ import HeaderOptions from "@components/options/headerOptions";
 import OptionItem from "@components/options/optionItem";
 import CacheSettings from "@components/options/cacheSettings";
 import { useState, useEffect } from "react";
-import { getFromSyncCache } from "@lib/cache";
-import ToasterSettings from "@/components/options/toasterThreshold";
+import { getAllFromSyncCache } from "@lib/cache";
+import ToasterSettings from "@components/options/toasterThreshold";
+import QualityMenu from "@components/options/qualityMenu";
 
 export default function Options() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,7 +15,7 @@ export default function Options() {
     useEffect(() => {
         try {
             (async () => {
-                const options = await getFromSyncCache();
+                const options = await getAllFromSyncCache();
                 setOptionsState(options);
             })();
         } catch (err) {
@@ -46,6 +47,9 @@ export default function Options() {
 
             <div className="section-divider"></div>
             <ToasterSettings />
+
+            <div className="section-divider"></div>
+            <QualityMenu />
 
             <div className="section-divider"></div>
             <div className="author">

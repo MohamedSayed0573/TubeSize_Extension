@@ -1,4 +1,3 @@
-import { getFromSyncCache } from "@lib/cache";
 import CONFIG from "@lib/constants";
 import humanize from "humanize-duration";
 
@@ -124,11 +123,6 @@ export function extractVideoTag(ytUrl: string): string | undefined {
     } catch (err) {
         console.error(err);
     }
-}
-
-// Return the user options
-export async function getOptions() {
-    return await getFromSyncCache(CONFIG.optionIDs);
 }
 
 export function getElement(id: string, isFatal: true): HTMLElement;

@@ -6,7 +6,7 @@ import type {
     FrontEndMessage,
     TwitchMessage,
 } from "@app-types/types";
-import { clearLocalCache, getFromStorage, saveToStorage } from "@lib/cache";
+import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
 import {
     extractYtInitial,
@@ -172,6 +172,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     if (details.reason === "install" || details.reason === "update") {
         try {
             await clearLocalCache();
+            await clearSyncCache();
         } catch (e) {
             console.error("Failed to clear local cache on install/update", e);
         }

@@ -10,6 +10,8 @@ export default function ToasterSettings() {
     const [thresholdUnit, setThresholdUnit] = useState<"mbPerMinute" | "mbPerHour">(
         CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT,
     );
+
+    const [toasterEnabled, setToasterEnabled] = useState<boolean>(false);
     useEffect(() => {
         (async () => {
             try {
@@ -29,9 +31,35 @@ export default function ToasterSettings() {
             } catch {}
         })();
     }, []);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const toasterEnabled = (await getFromSyncCache("toasterEnabled")) as boolean;
+                if (typeof toasterEnabled === "boolean") {
+                    setToasterEnabled(toasterEnabled);
+                }
+                // eslint-disable-next-line no-empty
+            } catch {}
+        })();
+    }, []);
+
     return (
         <div className="container">
             <div className="section-title">Toaster Threshold</div>
+            <input
+                type="checkbox"
+                id="toasterThresholdToggle"
+                checked={toasterEnabled}
+                onChange={async (event) => {
+                    const { checked } = event.target as HTMLInputElement;
+                    setToasterEnabled(checked);
+                    await setToSyncCache({
+                        toasterEnabled: checked,
+                    });
+                }}
+            />
+            <label htmlFor="toasterThresholdToggle">Enable Toaster</label>
             <div className="description">
                 Set the data usage threshold for showing the warning toaster.
             </div>

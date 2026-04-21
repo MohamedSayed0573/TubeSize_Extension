@@ -19,13 +19,22 @@ export default function OptionItem({
             <input
                 id={option}
                 type="checkbox"
-                checked={optionsState?.[option] ?? true}
+                checked={optionsState?.["qualityIds"]?.[option] ?? true}
                 onChange={async (event) => {
                     const isChecked = event.target.checked;
                     await setToSyncCache({
-                        [option]: isChecked,
+                        qualityIds: {
+                            ...(optionsState?.["qualityIds"] ?? {}),
+                            [option]: isChecked,
+                        },
                     });
-                    setOptionsState({ ...optionsState, [option]: isChecked });
+                    setOptionsState({
+                        ...optionsState,
+                        qualityIds: {
+                            ...(optionsState?.["qualityIds"] ?? {}),
+                            [option]: isChecked,
+                        },
+                    });
                 }}
             ></input>
         </div>
