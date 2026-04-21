@@ -114,15 +114,16 @@ async function handlePageNavigation() {
             lastYoutubeTag = tag;
 
             stopResolutionPolling();
+            if (!tag) return;
 
-            if (tag) {
-                removeEventListeners();
-                const youtubeResponse = await initYoutube(tag);
+            removeEventListeners();
+            const youtubeResponse = await initYoutube(tag);
+            if (youtubeResponse && youtubeResponse.data) {
                 injectQualityMenu(youtubeResponse.data?.videoFormats, youtubeResponse.data?.isLive);
-                const toasterThresholdMbpm = await getToasterThreshold();
-
-                toastYoutubePolling(youtubeResponse, toasterThresholdMbpm);
             }
+
+            const toasterThresholdMbpm = await getToasterThreshold();
+            toastYoutubePolling(youtubeResponse, toasterThresholdMbpm);
         } else if (isTwitchPage(url)) {
             const isLive = !isTwitchVod(url);
             const tag = isLive ? extractTwitchChannelName(url) : extractTwitchVodId(url);
@@ -132,12 +133,11 @@ async function handlePageNavigation() {
 
             stopResolutionPolling();
 
-            if (tag) {
-                const twitchResponse = await initTwitch(tag, isLive);
-                const toasterThresholdMbpm = await getToasterThreshold();
+            if (!tag) return;
+            const twitchResponse = await initTwitch(tag, isLive);
+            const toasterThresholdMbpm = await getToasterThreshold();
 
-                toastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm, isLive);
-            }
+            toastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm, isLive);
         }
     } catch (err) {
         console.error("[content] Error handling page navigation", err);
