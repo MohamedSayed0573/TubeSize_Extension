@@ -118,10 +118,7 @@ async function handlePageNavigation() {
             if (tag) {
                 removeEventListeners();
                 const youtubeResponse = await initYoutube(tag);
-                await injectQualityMenu(
-                    youtubeResponse.data?.videoFormats,
-                    youtubeResponse.data?.isLive,
-                );
+                injectQualityMenu(youtubeResponse.data?.videoFormats, youtubeResponse.data?.isLive);
                 const toasterThresholdMbpm = await getToasterThreshold();
 
                 toastYoutubePolling(youtubeResponse, toasterThresholdMbpm);

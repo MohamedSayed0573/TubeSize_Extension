@@ -3,11 +3,13 @@ import type { YoutubeBackgroundResponse } from "@app-types/types";
 
 function waitForSettingsBtn() {
     return new Promise<Element>((resolve, reject) => {
-        const button = document.querySelector(".ytp-button.ytp-settings-button");
-        if (button) {
-            console.log("Settings button found immediately");
-            return resolve(button);
-        }
+        // setTimeout(() => {
+        //     const button = document.querySelector(".ytp-button.ytp-settings-button");
+        //     if (button) {
+        //         console.log("Settings button found immediately");
+        //         return resolve(button);
+        //     }
+        // }, 10000);
         const observer = new MutationObserver(() => {
             const button = document.querySelector(".ytp-button.ytp-settings-button");
             if (button) {
@@ -44,6 +46,9 @@ let settingsBtnHandler: ((event: Event) => void) | null = null;
 let qualityBtnHandler: ((event: Event) => void) | null = null;
 
 export function removeEventListeners() {
+    const tubeSizeLabelElements = document.querySelectorAll(".tubesize-quality-label");
+    tubeSizeLabelElements.forEach((el) => el.remove());
+
     if (settingsBtnEl && settingsBtnHandler) {
         settingsBtnEl.removeEventListener("click", settingsBtnHandler);
     }
@@ -91,7 +96,7 @@ async function settingsBtnClickListener(
     if (qualityBtnEl && qualityBtnHandler) {
         qualityBtnEl.removeEventListener("click", qualityBtnHandler);
     }
-    qualityBtnEl = await findQualityButton(ytpMenuItems);
+    qualityBtnEl = findQualityButton(ytpMenuItems);
 
     qualityBtnHandler = async () => {
         await qualityBtnClickListener(data, isLive);
@@ -143,17 +148,12 @@ function renderQualityLabels(
     });
 }
 
-async function findQualityButton(ytMenuItems: NodeListOf<Element>): Promise<Element> {
-    return new Promise((resolve, reject) => {
-        ytMenuItems.forEach((ytMenuItem) => {
-            const ytMenuItemLabel = ytMenuItem.querySelector(".ytp-menuitem-label");
-            // No need to support more languages since the expected user base has English or Arabic as their YouTube language.
-            if (
-                ytMenuItemLabel?.textContent === "Quality" ||
-                ytMenuItemLabel?.textContent === "الجودة"
-            )
-                return resolve(ytMenuItem);
-        });
-        reject(new Error("Quality button not found in settings menu"));
-    });
+function findQualityButton(ytMenuItems: NodeListOf<Element>): Element {
+    for (const ytMenuItem of ytMenuItems) {
+        const ytMenuItemLabel = ytMenuItem.querySelector(".ytp-menuitem-label");
+        // No need to support more languages since the expected user base has English or Arabic as their YouTube language.
+        if (ytMenuItemLabel?.textContent === "Quality" || ytMenuItemLabel?.textContent === "الجودة")
+            return ytMenuItem;
+    }
+    throw new Error("Quality button not found in settings menu");
 }
