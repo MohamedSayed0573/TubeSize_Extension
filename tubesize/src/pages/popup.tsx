@@ -39,7 +39,8 @@ export default function Popup() {
         "Loading sizes for this video… (This might take a few seconds)",
     );
 
-    const [tab, setTab] = useState<chrome.tabs.Tab | null>(null);
+    const [tabId, setTabId] = useState<number | undefined>(undefined);
+    const [tabUrl, setTabUrl] = useState<string | undefined>(undefined);
     const [pageType, setPageType] = useState<"youtube" | "twitch" | "default">("default");
     const [youtubeData, setYoutubeData] = useState<YoutubeBackgroundResponse | null>(null);
     const [twitchData, setTwitchData] = useState<TwitchBackgroundResponse | null>(null);
@@ -54,24 +55,20 @@ export default function Popup() {
         (async () => {
             try {
                 const activeTabs = await getTab();
-                const activeTab = activeTabs[0];
-                setTab(activeTab);
+                setTabId(activeTabs[0]?.id);
+                setTabUrl(activeTabs[0]?.url);
             } catch (err) {
                 console.error("Failed to get active tab:", err);
                 setError(new Error("Failed to get active tab"));
             }
         })();
-    });
+    }, []);
 
     useEffect(() => {
         (async () => {
             try {
-                const url = tab?.url;
-
-                if (!url) {
-                    setMessage("No Active Tab found");
-                    return;
-                }
+                const url = tabUrl;
+                if (!url) return;
 
                 if (isYoutubePage(url)) {
                     setPageType("youtube");
@@ -84,7 +81,7 @@ export default function Popup() {
                     const response = await sendMessageToBackground({
                         type: "youtubeVideo",
                         videoTag,
-                        tabId: tab.id,
+                        tabId,
                     });
                     if (!response.success) throw new Error(response.message);
                     if (response.data?.videoFormats.length === 0) {
@@ -143,7 +140,7 @@ export default function Popup() {
                 setError(err as Error);
             }
         })();
-    }, [tab]);
+    }, [tabId, tabUrl]);
 
     useEffect(() => {
         (async () => {
@@ -163,8 +160,8 @@ export default function Popup() {
     useEffect(() => {
         (async () => {
             try {
-                if (!tab?.id) return;
-                const quality = await sendMessageToContentScript(tab.id, {
+                if (!tabId) return;
+                const quality = await sendMessageToContentScript(tabId, {
                     type: "getCurrentResolution",
                 });
                 setCurrentQuality(quality);
@@ -172,7 +169,7 @@ export default function Popup() {
                 console.error(err);
             }
         })();
-    }, [tab]);
+    }, [tabId, tabUrl]);
 
     if (error) {
         throw error;

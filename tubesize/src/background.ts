@@ -134,6 +134,9 @@ async function handleYoutube(
         try {
             if (!html) throw new Error("No HTML");
             rawData = extractYtInitial(html);
+            if (rawData.videoDetails.videoId !== videoTag) {
+                throw new Error("Video ID mismatch");
+            }
         } catch {
             if (html) console.warn("Local HTML extraction failed, falling back to fetchHTMLPage");
             const pageHtml = await fetchHTMLPage(videoTag);
