@@ -6,39 +6,12 @@ import {
     isTwitchVod,
     isYoutubePage,
 } from "@lib/utils";
-import type {
-    FrontEndMessage,
-    TwitchBackgroundResponse,
-    YoutubeBackgroundResponse,
-} from "@app-types/types";
+import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
 import { showYoutubeToast, showTwitchToast } from "@pages/toaster.tsx";
 import { getFromSyncCache } from "@lib/cache";
 import CONFIG from "@lib/constants";
 import { injectQualityMenu, removeEventListeners } from "@/quality-menu-injector";
-
-/**
- * Sends a message to the background script and returns the response.
- * @param message The message to send to the background script
- * @returns The response from the background script
- * @throws Throws an error on failure except if the message type is clearBadge or setBadge
- */
-async function sendRuntimeMessage(message: FrontEndMessage): Promise<unknown> {
-    try {
-        return await chrome.runtime.sendMessage(message);
-    } catch (err) {
-        if (err instanceof Error && err.message.includes("Extension context invalidated")) {
-            console.warn("[content] Extension context invalidated. Reload the page to reconnect.");
-        } else {
-            console.error("[content] Failed to send runtime message", err);
-        }
-
-        if (message.type === "clearBadge" || message.type === "setBadge") {
-            // These messages are not critical, so we can fail silently
-        } else {
-            throw err;
-        }
-    }
-}
+import { sendMessageToBackground } from "./runtime";
 
 let lastYoutubeTag: string | undefined;
 let lastTwitchTag: string | undefined;
@@ -97,7 +70,7 @@ function getCurrentUrl() {
 async function handlePageNavigation() {
     try {
         const url = getCurrentUrl();
-        await sendRuntimeMessage({ type: "clearBadge" });
+        await sendMessageToBackground({ type: "clearBadge" });
 
         if (!isYoutubePage(url) && !isTwitchPage(url)) {
             removeEventListeners();
@@ -169,12 +142,16 @@ async function getCurrentResolution() {
         // Check immediately in case the video is already loaded
         const video = document.querySelector("video");
         if (video && video.videoHeight > 0) {
+            console.log("Video already loaded with resolution:", video.videoHeight);
             return resolve(video.videoHeight);
         }
 
+        let attempt = 0;
         const observer = new MutationObserver(() => {
+            console.log("Mutation observed, checking for video resolution... " + attempt++);
             const video = document.querySelector("video");
             if (video && video.videoHeight > 0) {
+                console.log("Video loaded with resolution:", video.videoHeight);
                 observer.disconnect();
                 clearTimeout(timeout);
                 return resolve(video.videoHeight);
@@ -220,23 +197,23 @@ async function initYoutube(videoTag: string) {
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    return (await sendRuntimeMessage({
+    return await sendMessageToBackground({
         type: "youtubeVideo",
         videoTag: videoTag,
         html: scriptContent,
-    })) as YoutubeBackgroundResponse;
+    });
 }
 
 async function initTwitch(tag: string, isLive: boolean) {
     if (isLive) {
-        return (await sendRuntimeMessage({
+        return await sendMessageToBackground({
             type: "twitchLive",
             channelName: tag,
-        })) as TwitchBackgroundResponse;
+        });
     } else {
-        return (await sendRuntimeMessage({
+        return await sendMessageToBackground({
             type: "twitchVod",
             vodId: tag,
-        })) as TwitchBackgroundResponse;
+        });
     }
 }
