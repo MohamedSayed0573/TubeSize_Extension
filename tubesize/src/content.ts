@@ -14,7 +14,7 @@ import type {
 import { showYoutubeToast, showTwitchToast } from "@pages/toaster.tsx";
 import { getFromSyncCache } from "@lib/cache";
 import CONFIG from "@lib/constants";
-import { injectQualityMenu, removeEventListeners } from "@/panel";
+import { injectQualityMenu, removeEventListeners } from "@/quality-menu-injector";
 
 /**
  * Sends a message to the background script and returns the response.
