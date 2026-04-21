@@ -1,44 +1,6 @@
 import "@styles/panel.css";
 import type { YoutubeBackgroundResponse } from "@app-types/types";
 
-function waitForSettingsBtn() {
-    return new Promise<Element>((resolve, reject) => {
-        // setTimeout(() => {
-        //     const button = document.querySelector(".ytp-button.ytp-settings-button");
-        //     if (button) {
-        //         console.log("Settings button found immediately");
-        //         return resolve(button);
-        //     }
-        // }, 10000);
-        const observer = new MutationObserver(() => {
-            const button = document.querySelector(".ytp-button.ytp-settings-button");
-            if (button) {
-                console.log("Found .ytp-settings-button");
-                observer.disconnect();
-                clearTimeout(timeout);
-                return resolve(button);
-            } else {
-                console.log("Checked for .ytp-settings-button but not found");
-            }
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-        });
-
-        const timeout = setTimeout(() => {
-            observer.disconnect();
-            console.log("Stopped observing for .ytp-settings-button after timeout");
-            return reject(new Error("Settings button not found after waiting"));
-        }, 15000);
-    });
-}
-
-async function wait(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 let settingsBtnEl: Element | null = null;
 let qualityBtnEl: Element | null = null;
 
@@ -68,7 +30,7 @@ export async function injectQualityMenu(
 ) {
     try {
         if (!data) throw new Error("No video format data provided to qualityMenuInjector");
-        settingsBtnEl = await waitForSettingsBtn();
+        settingsBtnEl = await waitForElement(".ytp-button.ytp-settings-button");
 
         settingsBtnHandler = async () => {
             await settingsBtnClickListener(data, isLive);
@@ -86,7 +48,7 @@ async function settingsBtnClickListener(
 ) {
     if (!data) return;
     console.log("Settings button clicked, waiting for menu to appear");
-    await wait(500);
+    await waitForElement(".ytp-panel-menu");
     const ytpPanelMenu = document.querySelector(".ytp-panel-menu");
     if (!ytpPanelMenu) throw new Error("Settings menu not found after waiting");
 
@@ -110,11 +72,39 @@ async function qualityBtnClickListener(
 ) {
     if (!data) return;
     console.log("Quality button clicked, waiting for quality options to load");
-    await wait(500);
-    renderQualityLabels(data, isLive);
+
+    await renderQualityLabels(data, isLive);
 }
 
-function renderQualityLabels(
+function waitForElement(selector: string, timeout: number = 10000): Promise<Element> {
+    return new Promise((resolve, reject) => {
+        const element = document.querySelector(selector);
+        if (element) {
+            return resolve(element);
+        }
+
+        const observer = new MutationObserver(() => {
+            const element = document.querySelector(selector);
+            if (element) {
+                observer.disconnect();
+                clearTimeout(timeoutId);
+                return resolve(element);
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+
+        const timeoutId = setTimeout(() => {
+            observer.disconnect();
+            reject(new Error(`Element with selector "${selector}" not found after ${timeout}ms`));
+        }, timeout);
+    });
+}
+
+async function renderQualityLabels(
     formats: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"],
     isLive: boolean,
 ) {
@@ -125,7 +115,7 @@ function renderQualityLabels(
         return;
     }
 
-    const ytpPanelMenu = document.querySelector(".ytp-panel-menu");
+    const ytpPanelMenu = await waitForElement(".ytp-panel-menu");
     const ytpMenuItems = ytpPanelMenu?.querySelectorAll(".ytp-menuitem");
     if (!ytpMenuItems) return;
 
