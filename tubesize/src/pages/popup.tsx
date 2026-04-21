@@ -39,6 +39,7 @@ export default function Popup() {
         "Loading sizes for this video… (This might take a few seconds)",
     );
 
+    const [tab, setTab] = useState<chrome.tabs.Tab | null>(null);
     const [pageType, setPageType] = useState<"youtube" | "twitch" | "default">("default");
     const [youtubeData, setYoutubeData] = useState<YoutubeBackgroundResponse | null>(null);
     const [twitchData, setTwitchData] = useState<TwitchBackgroundResponse | null>(null);
@@ -52,7 +53,19 @@ export default function Popup() {
     useEffect(() => {
         (async () => {
             try {
-                const [tab] = await getTab();
+                const activeTabs = await getTab();
+                const activeTab = activeTabs[0];
+                setTab(activeTab);
+            } catch (err) {
+                console.error("Failed to get active tab:", err);
+                setError(new Error("Failed to get active tab"));
+            }
+        })();
+    });
+
+    useEffect(() => {
+        (async () => {
+            try {
                 const url = tab?.url;
 
                 if (!url) {
@@ -130,7 +143,7 @@ export default function Popup() {
                 setError(err as Error);
             }
         })();
-    }, []);
+    }, [tab]);
 
     useEffect(() => {
         (async () => {
@@ -150,7 +163,6 @@ export default function Popup() {
     useEffect(() => {
         (async () => {
             try {
-                const [tab] = await getTab();
                 if (!tab?.id) return;
                 const quality = await sendMessageToContentScript(tab.id, {
                     type: "getCurrentResolution",
@@ -160,7 +172,7 @@ export default function Popup() {
                 console.error(err);
             }
         })();
-    }, []);
+    }, [tab]);
 
     if (error) {
         throw error;
