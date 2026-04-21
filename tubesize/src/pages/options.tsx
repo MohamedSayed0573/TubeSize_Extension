@@ -5,7 +5,7 @@ import OptionItem from "@components/options/optionItem";
 import CacheSettings from "@components/options/cacheSettings";
 import { useState, useEffect } from "react";
 import { getAllFromSyncCache } from "@lib/cache";
-import ToasterSettings from "@components/options/toasterThreshold";
+import ToasterSettings from "@components/options/toasterSettings";
 import QualityMenu from "@components/options/qualityMenu";
 
 export default function Options() {

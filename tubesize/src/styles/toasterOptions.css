@@ -1,8 +1,21 @@
-.toaster-threshold-row {
+.toaster-settings-box {
     background: rgba(255, 255, 255, 0.04);
-    padding: 8px 10px;
-    border-radius: 6px;
     border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+.toaster-toggle-row {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 12px;
+}
+
+.toaster-toggle-row:hover {
+    background: transparent;
+    border-color: transparent;
 }
 .toaster-input {
     display: flex;
@@ -12,6 +25,7 @@
 .toaster-threshold-label {
     font-size: 13px;
     font-weight: 500;
+    white-space: nowrap;
     color: #fff;
 }
 .toaster-threshold-types {

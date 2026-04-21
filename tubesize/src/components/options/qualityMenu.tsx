@@ -6,21 +6,23 @@ export default function QualityMenu() {
     return (
         <div className="container">
             <div className="section-title">Quality Menu</div>
-            <label className="option-label" htmlFor="qualityMenuToggle">
-                Enable Quality Menu
-            </label>
-            <input
-                id="qualityMenuToggle"
-                type="checkbox"
-                checked={qualityMenuState ?? true}
-                onChange={async (event) => {
-                    const { checked } = event.target as HTMLInputElement;
-                    setQualityMenuState(checked);
-                    await setToSyncCache({
-                        qualityMenu: checked,
-                    });
-                }}
-            ></input>
+            <div className="setting-toggle-row">
+                <label className="option-label" htmlFor="qualityMenuToggle">
+                    Enable Quality Menu
+                </label>
+                <input
+                    id="qualityMenuToggle"
+                    type="checkbox"
+                    checked={qualityMenuState ?? true}
+                    onChange={async (event) => {
+                        const { checked } = event.target as HTMLInputElement;
+                        setQualityMenuState(checked);
+                        await setToSyncCache({
+                            qualityMenu: checked,
+                        });
+                    }}
+                ></input>
+            </div>
         </div>
     );
 }
