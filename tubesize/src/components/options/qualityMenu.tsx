@@ -1,8 +1,26 @@
-import { setToSyncCache } from "@/lib/cache";
-import { useState } from "react";
+import { getFromSyncCache, setToSyncCache } from "@/lib/cache";
+import CONFIG from "@/lib/constants";
+import { useEffect, useState } from "react";
 
 export default function QualityMenu() {
-    const [qualityMenuState, setQualityMenuState] = useState<boolean>();
+    const [qualityMenuEnabled, setQualityMenuEnabled] = useState<boolean>(
+        CONFIG.DEFAULT_QUALITY_MENU_ENABLED,
+    );
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const qualityMenu =
+                    (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
+                if (typeof qualityMenu === "boolean") {
+                    setQualityMenuEnabled(qualityMenu);
+                }
+            } catch (error) {
+                console.error("Failed to load qualityMenu setting from sync cache.", error);
+            }
+        })();
+    }, []);
+
     return (
         <div className="container">
             <div className="section-title">Quality Menu</div>
@@ -13,10 +31,10 @@ export default function QualityMenu() {
                 <input
                     id="qualityMenuToggle"
                     type="checkbox"
-                    checked={qualityMenuState ?? true}
+                    checked={qualityMenuEnabled}
                     onChange={async (event) => {
                         const { checked } = event.target as HTMLInputElement;
-                        setQualityMenuState(checked);
+                        setQualityMenuEnabled(checked);
                         await setToSyncCache({
                             qualityMenu: checked,
                         });
