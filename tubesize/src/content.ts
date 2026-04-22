@@ -85,19 +85,18 @@ async function handlePageNavigation() {
 
 if (isYoutubePage(window.location.href)) {
     window.addEventListener("yt-navigate-finish", () => {
-        void handlePageNavigation();
+        handlePageNavigation();
     });
 }
 
-void handlePageNavigation();
+handlePageNavigation();
 
 chrome.runtime.onMessage.addListener(
-    (message: { type: string }, _sender: chrome.runtime.MessageSender, sendResponse) => {
+    async (message: { type: string }, _sender: chrome.runtime.MessageSender, sendResponse) => {
         if (message.type !== "getCurrentResolution") return;
 
-        void getCurrentResolution().then((resolution) => {
-            sendResponse(resolution);
-        });
+        const resolution = await getCurrentResolution();
+        sendResponse(resolution);
 
         return true;
     },

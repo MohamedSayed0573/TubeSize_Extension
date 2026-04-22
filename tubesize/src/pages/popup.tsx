@@ -172,10 +172,16 @@ export default function Popup() {
         (async () => {
             try {
                 if (!tabId) return;
-                const quality = await sendMessageToContentScript(tabId, {
-                    type: "getCurrentResolution",
-                });
-                setCurrentQuality(quality);
+                for (let attempt = 0; attempt < 5; attempt++) {
+                    const quality = await sendMessageToContentScript(tabId, {
+                        type: "getCurrentResolution",
+                    });
+                    if (quality !== undefined) {
+                        setCurrentQuality(quality);
+                        return;
+                    }
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                }
             } catch (err) {
                 console.error(err);
             }
