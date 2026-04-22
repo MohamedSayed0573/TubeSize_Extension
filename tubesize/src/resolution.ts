@@ -55,7 +55,9 @@ export async function startYoutubeToastTracking(
 ) {
     await getCurrentResolution();
     const video = document.querySelector("video");
-    videoResizeListener && currentVideoElement?.removeEventListener("resize", videoResizeListener);
+    if (videoResizeListener) {
+        currentVideoElement?.removeEventListener("resize", videoResizeListener);
+    }
     currentVideoElement = video;
     videoResizeListener = () => {
         const resolution = currentVideoElement?.videoHeight;
@@ -85,7 +87,9 @@ export async function startToastTwitchPolling(
 ) {
     await getCurrentResolution();
     const video = document.querySelector("video");
-    videoResizeListener && currentVideoElement?.removeEventListener("resize", videoResizeListener);
+    if (videoResizeListener) {
+        currentVideoElement?.removeEventListener("resize", videoResizeListener);
+    }
     currentVideoElement = video;
     videoResizeListener = () => {
         const resolution = currentVideoElement?.videoHeight;
@@ -104,7 +108,9 @@ export async function startToastTwitchPolling(
 }
 
 export function stopResolutionTracking() {
-    videoResizeListener && currentVideoElement?.removeEventListener("resize", videoResizeListener);
+    if (videoResizeListener) {
+        currentVideoElement?.removeEventListener("resize", videoResizeListener);
+    }
     currentQuality = undefined;
     currentVideoElement = null;
     videoResizeListener = undefined;
