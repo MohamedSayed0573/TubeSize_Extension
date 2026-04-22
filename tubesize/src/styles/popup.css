@@ -65,6 +65,25 @@
     text-align: center;
     font-size: 13px;
 }
+.loading-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 12px 0;
+}
+.spinner {
+    width: 22px;
+    height: 22px;
+    border: 2px solid rgba(77, 171, 247, 0.2);
+    border-top-color: #4dabf7;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
 .formats-section {
     display: flex;
     flex-direction: column;

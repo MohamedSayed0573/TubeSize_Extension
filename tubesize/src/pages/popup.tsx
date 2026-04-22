@@ -37,9 +37,8 @@ async function getOptions() {
 }
 
 export default function Popup() {
-    const [message, setMessage] = useState<string>(
-        "Loading sizes for this video… (This might take a few seconds)",
-    );
+    const [message, setMessage] = useState<string>("");
+    const [isLoading, setIsLoading] = useState(true);
 
     const [tabId, setTabId] = useState<number | undefined>(undefined);
     const [tabUrl, setTabUrl] = useState<string | undefined>(undefined);
@@ -72,11 +71,14 @@ export default function Popup() {
                 const url = tabUrl;
                 if (!url) return;
 
+                setIsLoading(true);
+
                 if (isYoutubePage(url)) {
                     setPageType("youtube");
                     const videoTag = extractVideoTag(url);
                     if (!videoTag) {
                         setMessage("Open a Youtube video");
+                        setIsLoading(false);
                         return;
                     }
 
@@ -98,12 +100,14 @@ export default function Popup() {
                             ? getCachedAgo(response.createdAt) || "Cached just now"
                             : undefined,
                     );
+                    setIsLoading(false);
                 } else if (isTwitchPage(url)) {
                     setPageType("twitch");
                     if (isTwitchVod(url)) {
                         const vodId = extractTwitchVodId(url);
                         if (!vodId) {
                             setMessage("Open a Twitch stream or VOD");
+                            setIsLoading(false);
                             return;
                         }
 
@@ -119,10 +123,12 @@ export default function Popup() {
                                 : undefined,
                         );
                         setIsLive(false);
+                        setIsLoading(false);
                     } else {
                         const channelName = extractTwitchChannelName(url);
                         if (!channelName) {
                             setMessage("Open a Twitch stream");
+                            setIsLoading(false);
                             return;
                         }
 
@@ -133,12 +139,15 @@ export default function Popup() {
                         if (!response.success) throw new Error(response.message);
                         setTwitchData(response);
                         setIsLive(true);
+                        setIsLoading(false);
                     }
                 } else {
                     setMessage("TubeSize works on YouTube and Twitch only.");
+                    setIsLoading(false);
                 }
             } catch (err) {
                 console.error("[Popup Error]:", err);
+                setIsLoading(false);
                 setError(err as Error);
             }
         })();
@@ -191,7 +200,14 @@ export default function Popup() {
             />
             <div id="container">
                 {cache && <div className="cached-note">{cache}</div>}
-                {!youtubeData && !twitchData && <span className="info">{message}</span>}
+                {!youtubeData && !twitchData && isLoading && (
+                    <div className="loading-state">
+                        <span className="spinner" />
+                    </div>
+                )}
+                {!youtubeData && !twitchData && !isLoading && message && (
+                    <span className="info">{message}</span>
+                )}
                 {youtubeData && enabledOptions.length === 0 && (
                     <span className="error">All Resolutions Disabled. Enable in options</span>
                 )}
