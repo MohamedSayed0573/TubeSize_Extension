@@ -44,9 +44,9 @@ async function handlePageNavigation() {
             lastYoutubeTag = tag;
 
             stopResolutionTracking();
+            removeEventListeners();
             if (!tag) return;
 
-            removeEventListeners();
             const youtubeResponse = await initYoutube(tag);
             const qualityMenuEnabled =
                 (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;

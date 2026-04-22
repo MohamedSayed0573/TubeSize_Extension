@@ -13,14 +13,14 @@ export default function Options() {
     const [optionsState, setOptionsState] = useState<Record<any, any>>({});
 
     useEffect(() => {
-        try {
-            (async () => {
+        (async () => {
+            try {
                 const options = await getAllFromSyncCache();
                 setOptionsState(options);
-            })();
-        } catch (err) {
-            console.error("Failed to load options from cache:", err);
-        }
+            } catch (err) {
+                console.error("Failed to load options from cache:", err);
+            }
+        })();
     }, []);
 
     return (

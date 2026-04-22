@@ -35,17 +35,17 @@ const qualityBtnHandler = async () => {
     await renderQualityLabels();
 };
 
-let youtubeDataFormats: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"] | undefined;
-let IS_LIVE: boolean = false;
+let currentYoutubeData: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"] | undefined;
+let isCurrentVideoLive: boolean = false;
 
 export async function injectQualityMenu(
-    data: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"],
+    youtubeData: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"],
     isLive: boolean = false,
 ) {
     try {
         removeEventListeners();
-        youtubeDataFormats = data;
-        IS_LIVE = isLive;
+        currentYoutubeData = youtubeData;
+        isCurrentVideoLive = isLive;
         settingsBtnEl = await waitForElement(SETTINGS_BTN_SELECTOR);
         if (!settingsBtnEl) return;
 
@@ -100,7 +100,7 @@ function waitForElement(selector: string, timeout: number = 10000): Promise<Elem
 
 function createQualitySizeLookup() {
     const lookup = new Map<number, string>();
-    youtubeDataFormats?.forEach((format) => {
+    currentYoutubeData?.forEach((format) => {
         lookup.set(format.height, format.sizeMB);
     });
     return lookup;
@@ -113,7 +113,7 @@ function clearInjectedQualityMenuSizes() {
 
 async function renderQualityLabels() {
     clearInjectedQualityMenuSizes();
-    console.log("Injecting data into YouTube quality menu:", youtubeDataFormats);
+    console.log("Injecting data into YouTube quality menu:", currentYoutubeData);
 
     const ytpPanelMenu = await waitForElement(QUALITY_MENU_BTN_SELECTOR);
     if (!ytpPanelMenu) return;
@@ -133,7 +133,7 @@ async function renderQualityLabels() {
         const newDiv = document.createElement("div");
         const size = lookup.get(parseInt(qualityText));
         if (!size) return;
-        newDiv.textContent = IS_LIVE ? size + "/hour" : size;
+        newDiv.textContent = isCurrentVideoLive ? size + "/hour" : size;
         newDiv.className = TUBESIZE_QUALITY_MENU_CLASS;
 
         innerDiv?.appendChild(newDiv);

@@ -11,14 +11,17 @@ export default function ToasterSettings() {
         CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT,
     );
 
-    const [toasterEnabled, setToasterEnabled] = useState<boolean>(false);
+    const [toasterEnabled, setToasterEnabled] = useState<boolean>(CONFIG.DEFAULT_TOASTER_ENABLED);
     useEffect(() => {
         (async () => {
             try {
-                const toasterThreshold = (await getFromSyncCache("toasterThreshold")) as number;
-                const toasterThresholdUnit = (await getFromSyncCache("toasterThresholdUnit")) as
-                    | "mbPerMinute"
-                    | "mbPerHour";
+                const toasterThreshold =
+                    (await getFromSyncCache("toasterThreshold")) ??
+                    CONFIG.DEFAULT_TOASTER_THRESHOLD;
+                const toasterThresholdUnit =
+                    ((await getFromSyncCache("toasterThresholdUnit")) as
+                        | "mbPerMinute"
+                        | "mbPerHour") ?? CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
 
                 if (typeof toasterThreshold === "number") {
                     setToasterThreshold(toasterThreshold);
@@ -61,10 +64,10 @@ export default function ToasterSettings() {
                         checked={toasterEnabled}
                         onChange={async (event) => {
                             const { checked } = event.target as HTMLInputElement;
-                            setToasterEnabled(checked);
                             await setToSyncCache({
                                 toasterEnabled: checked,
                             });
+                            setToasterEnabled(checked);
                         }}
                     />
                 </div>
@@ -85,10 +88,10 @@ export default function ToasterSettings() {
                                 try {
                                     const value = parseInt(event.target.value);
                                     if (value < 1 || value > 10000 || isNaN(value)) return;
-                                    setToasterThreshold(value);
                                     await setToSyncCache({
                                         toasterThreshold: value,
                                     });
+                                    setToasterThreshold(value);
                                 } catch {}
                             }}
                             disabled={!toasterEnabled}
@@ -100,11 +103,11 @@ export default function ToasterSettings() {
                             id="toasterThresholdType1"
                             name="toasterThresholdType"
                             value="mbPerHour"
-                            onChange={() => {
-                                setThresholdUnit("mbPerHour");
-                                setToSyncCache({
+                            onChange={async () => {
+                                await setToSyncCache({
                                     toasterThresholdUnit: "mbPerHour",
                                 });
+                                setThresholdUnit("mbPerHour");
                             }}
                             checked={thresholdUnit === "mbPerHour"}
                             disabled={!toasterEnabled}
@@ -120,11 +123,11 @@ export default function ToasterSettings() {
                             id="toasterThresholdType2"
                             name="toasterThresholdType"
                             value="mbPerMinute"
-                            onChange={() => {
-                                setThresholdUnit("mbPerMinute");
-                                setToSyncCache({
+                            onChange={async () => {
+                                await setToSyncCache({
                                     toasterThresholdUnit: "mbPerMinute",
                                 });
+                                setThresholdUnit("mbPerMinute");
                             }}
                             checked={thresholdUnit === "mbPerMinute"}
                             disabled={!toasterEnabled}

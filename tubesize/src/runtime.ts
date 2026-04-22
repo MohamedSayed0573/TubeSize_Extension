@@ -21,7 +21,7 @@ export async function sendMessageToBackground<T extends FrontEndMessage>(
                 return;
             }
             if (!response?.success) {
-                reject(new Error(response?.message || "Failed to fetch video data"));
+                reject(new Error(response?.message || "Unknown error from background script"));
                 return;
             }
             resolve(response);
@@ -55,6 +55,7 @@ export async function sendMessageToContentScript<T extends ContentScriptMessage>
 /**
  * @returns The active tab
  */
-export async function getTab() {
-    return await chrome.tabs.query({ active: true, currentWindow: true });
+export async function getTab(): Promise<chrome.tabs.Tab | undefined> {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tabs[0];
 }

@@ -38,7 +38,6 @@ export async function getCurrentResolution() {
     });
 }
 
-let resolutionIntervalId: number | undefined;
 let currentQuality: number | undefined;
 
 let videoResizeListener: (() => void) | undefined;
@@ -79,7 +78,6 @@ export async function startYoutubeToastTracking(
  * Starts polling for resolution changes and shows toasts for Twitch videos.
  * @param twitchData The Twitch data from the background script.
  * @param toasterThresholdMbpm The threshold for showing toasts in MB per minute.
- * @param isLive Indicates whether the Twitch stream is live or a VOD. This affects how the toast is displayed and what information is shown.
  */
 export async function startToastTwitchPolling(
     twitchData: TwitchBackgroundResponse["twitchData"],
@@ -114,6 +112,4 @@ export function stopResolutionTracking() {
     currentQuality = undefined;
     currentVideoElement = null;
     videoResizeListener = undefined;
-    clearInterval(resolutionIntervalId);
-    resolutionIntervalId = undefined;
 }

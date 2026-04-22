@@ -256,7 +256,7 @@ input[type="checkbox"]:checked {
     padding: 10px 12px;
     text-align: center;
 }
-a {
+.footer a {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -264,6 +264,6 @@ a {
     font-size: 11px;
     text-decoration: none;
 }
-a:hover {
+.footer a:hover {
     color: #4dabf7;
 }

@@ -58,9 +58,9 @@ export default function Popup() {
     useEffect(() => {
         (async () => {
             try {
-                const activeTabs = await getTab();
-                setTabId(activeTabs[0]?.id);
-                setTabUrl(activeTabs[0]?.url);
+                const activeTab = await getTab();
+                setTabId(activeTab?.id);
+                setTabUrl(activeTab?.url);
             } catch (err) {
                 console.error("Failed to get active tab:", err);
                 setError(new Error("Failed to get active tab"));
