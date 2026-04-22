@@ -39,7 +39,6 @@ export default function ToasterSettings() {
             try {
                 const toasterEnabled =
                     (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
-                console.log("Fetched toasterEnabled from cache:", toasterEnabled);
                 if (typeof toasterEnabled === "boolean") {
                     setToasterEnabled(toasterEnabled);
                 }

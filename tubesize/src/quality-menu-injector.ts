@@ -57,7 +57,6 @@ export async function injectQualityMenu(
 }
 
 async function settingsBtnClickListener() {
-    console.log("Settings button clicked, waiting for menu to appear");
     const ytpPanelMenu = await waitForElement(PANEL_MENU_SELECTOR);
     if (!ytpPanelMenu) return;
 
@@ -113,7 +112,6 @@ function clearInjectedQualityMenuSizes() {
 
 async function renderQualityLabels() {
     clearInjectedQualityMenuSizes();
-    console.log("Injecting data into YouTube quality menu:", currentYoutubeData);
 
     const ytpPanelMenu = await waitForElement(QUALITY_MENU_BTN_SELECTOR);
     if (!ytpPanelMenu) return;
@@ -126,7 +124,6 @@ async function renderQualityLabels() {
         const ytMenuItemLabel = ytMenuItem.querySelector(MENU_ITEM_LABEL_SELECTOR);
         const innerDiv = ytMenuItemLabel?.querySelector(INNER_DIV_SELECTOR);
         const qualityText = innerDiv?.querySelector(SPAN_SELECTOR)?.textContent;
-        console.log("Found quality option in menu:", qualityText);
         if (!qualityText || qualityText.includes("Auto") || qualityText?.includes("Premium"))
             return;
 

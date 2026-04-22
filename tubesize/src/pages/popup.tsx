@@ -32,9 +32,7 @@ function getCachedAgo(createdAt: string | undefined) {
 }
 
 async function getOptions() {
-    console.log("Fetching options from cache...");
     const qualityIds = await getFromSyncCache("qualityIds");
-    console.log("Fetched options:", qualityIds);
     return qualityIds ?? {};
 }
 
@@ -150,7 +148,6 @@ export default function Popup() {
         (async () => {
             try {
                 const qualityIds = await getOptions();
-                console.log("Enabled quality options:", qualityIds);
                 const enabledOptions = CONFIG.optionIDs.filter((option) => {
                     return qualityIds[option] ?? true;
                 });
@@ -169,7 +166,6 @@ export default function Popup() {
                 const quality = await sendMessageToContentScript(tabId, {
                     type: "getCurrentResolution",
                 });
-                if (!quality) console.log("No current quality set");
                 setCurrentQuality(quality);
             } catch (err) {
                 console.error(err);

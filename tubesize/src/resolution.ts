@@ -10,16 +10,12 @@ export async function getCurrentResolution() {
         // Check immediately in case the video is already loaded
         const video = document.querySelector("video");
         if (video && video.videoHeight > 0) {
-            console.log("Video already loaded with resolution:", video.videoHeight);
             return resolve(video.videoHeight);
         }
 
-        let attempt = 0;
         const observer = new MutationObserver(() => {
-            console.log("Mutation observed, checking for video resolution... " + attempt++);
             const video = document.querySelector("video");
             if (video && video.videoHeight > 0) {
-                console.log("Video loaded with resolution:", video.videoHeight);
                 observer.disconnect();
                 clearTimeout(timeout);
                 return resolve(video.videoHeight);
@@ -61,7 +57,6 @@ export async function startYoutubeToastTracking(
     videoResizeListener = () => {
         const resolution = currentVideoElement?.videoHeight;
         if (!resolution || !youtubeResponse.data || resolution === currentQuality) return;
-        console.log("Resolution change detected:", resolution);
         currentQuality = resolution;
         showYoutubeToast(
             resolution,

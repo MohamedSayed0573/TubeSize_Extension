@@ -50,14 +50,12 @@ async function handlePageNavigation() {
             const youtubeResponse = await initYoutube(tag);
             const qualityMenuEnabled =
                 (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
-            console.log("Quality menu enabled:", qualityMenuEnabled);
             if (qualityMenuEnabled && youtubeResponse && youtubeResponse.data) {
                 injectQualityMenu(youtubeResponse.data?.videoFormats, youtubeResponse.data?.isLive);
             }
 
             const toasterEnabled =
                 (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
-            console.log("Toaster enabled:", toasterEnabled);
             if (toasterEnabled) {
                 const toasterThresholdMbpm = await getToasterThreshold();
                 startYoutubeToastTracking(youtubeResponse, toasterThresholdMbpm);
@@ -98,7 +96,6 @@ chrome.runtime.onMessage.addListener(
         if (message.type !== "getCurrentResolution") return;
 
         void getCurrentResolution().then((resolution) => {
-            console.log("[content] Current resolution:", resolution);
             sendResponse(resolution);
         });
 
