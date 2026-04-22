@@ -6,9 +6,7 @@ export default function OptionItem({
     setOptionsState,
 }: {
     option: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     optionsState: Record<any, any> | undefined;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setOptionsState: (optionsState: Record<any, any>) => void;
 }) {
     return (
@@ -21,22 +19,31 @@ export default function OptionItem({
                 type="checkbox"
                 checked={optionsState?.["qualityIds"]?.[option] ?? true}
                 onChange={async (event) => {
-                    const isChecked = event.target.checked;
-                    await setToSyncCache({
-                        qualityIds: {
-                            ...(optionsState?.["qualityIds"] ?? {}),
-                            [option]: isChecked,
-                        },
-                    });
-                    setOptionsState({
-                        ...optionsState,
-                        qualityIds: {
-                            ...(optionsState?.["qualityIds"] ?? {}),
-                            [option]: isChecked,
-                        },
-                    });
+                    const { checked } = event.target as HTMLInputElement;
+                    await handleOptionChange(option, checked, optionsState, setOptionsState);
                 }}
             ></input>
         </div>
     );
+}
+
+async function handleOptionChange(
+    option: string,
+    isChecked: boolean,
+    optionsState: Record<any, any> | undefined,
+    setOptionsState: (optionsState: Record<any, any>) => void,
+) {
+    await setToSyncCache({
+        qualityIds: {
+            ...(optionsState?.["qualityIds"] ?? {}),
+            [option]: isChecked,
+        },
+    });
+    setOptionsState({
+        ...optionsState,
+        qualityIds: {
+            ...(optionsState?.["qualityIds"] ?? {}),
+            [option]: isChecked,
+        },
+    });
 }

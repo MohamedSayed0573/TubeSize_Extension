@@ -17,7 +17,6 @@ const syncClear = jest.fn();
 const localSet = jest.fn();
 const syncSet = jest.fn();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 (global as any).chrome = {
     storage: {
         local: {

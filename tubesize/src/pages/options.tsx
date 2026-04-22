@@ -10,7 +10,6 @@ import ToasterSettings from "@components/options/toasterSettings";
 import QualityMenu from "@components/options/qualityMenu";
 
 export default function Options() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [optionsState, setOptionsState] = useState<Record<any, any>>({});
 
     useEffect(() => {

@@ -40,7 +40,6 @@ async function getFromCache(storage: "local" | "sync", key?: string | string[]) 
         return data?.[key];
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return data as any;
 }
 export function getFromLocalCache(key?: string | string[]) {

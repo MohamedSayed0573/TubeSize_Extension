@@ -27,7 +27,6 @@ export default function ToasterSettings() {
                 if (toasterThresholdUnit) {
                     setThresholdUnit(toasterThresholdUnit);
                 }
-                // eslint-disable-next-line no-empty
             } catch {}
         })();
     }, []);
@@ -41,7 +40,6 @@ export default function ToasterSettings() {
                 if (typeof toasterEnabled === "boolean") {
                     setToasterEnabled(toasterEnabled);
                 }
-                // eslint-disable-next-line no-empty
             } catch {}
         })();
     }, []);
@@ -91,7 +89,6 @@ export default function ToasterSettings() {
                                     await setToSyncCache({
                                         toasterThreshold: value,
                                     });
-                                    // eslint-disable-next-line no-empty
                                 } catch {}
                             }}
                             disabled={!toasterEnabled}
