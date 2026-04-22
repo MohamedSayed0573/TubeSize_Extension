@@ -5,22 +5,16 @@
     padding: 8px 10px;
 }
 
-.toaster-toggle-row {
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    padding: 0;
-    margin-bottom: 12px;
-}
-
-.toaster-toggle-row:hover {
-    background: transparent;
-    border-color: transparent;
+.toaster-threshold {
+    padding: 8px;
+    background-color: #ffffff0a;
+    margin-top: 8px;
+    border-radius: 6px;
 }
 .toaster-input {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
 }
 .toaster-threshold-label {
     font-size: 13px;

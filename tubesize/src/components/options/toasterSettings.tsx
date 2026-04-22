@@ -66,7 +66,7 @@ export default function ToasterSettings() {
                         }}
                     />
                 </div>
-                <div>
+                <div className="toaster-threshold">
                     <div className="toaster-input">
                         <span className="toaster-threshold-label">Usage Limit</span>
                         <input

@@ -1,4 +1,5 @@
 import "@styles/popup.css";
+import "@styles/global.css";
 import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
 import { sendMessageToBackground, sendMessageToContentScript, getTab } from "@/runtime";
 import { useEffect, useState } from "react";
@@ -185,7 +186,7 @@ export default function Popup() {
     }
 
     return (
-        <>
+        <div className="popup-page">
             <Header
                 pageType={pageType}
                 youtubeData={youtubeData}
@@ -234,6 +235,6 @@ export default function Popup() {
                             );
                         })}
             </div>
-        </>
+        </div>
     );
 }
