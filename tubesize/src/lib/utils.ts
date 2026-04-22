@@ -136,7 +136,7 @@ export async function fetchAndRetry(
     throw new Error(`Failed after ${maxRetries} tries, last error: ${lastError}`);
 }
 
-export const humanizeDuration = humanize.humanizer({
+const baseHumanizeDuration = humanize.humanizer({
     language: "shortEn",
     round: true,
     largest: 2,
@@ -153,6 +153,13 @@ export const humanizeDuration = humanize.humanizer({
         },
     },
 });
+
+export function humanizeDuration(ms: number) {
+    if (ms >= 60_000 && ms < 3_600_000) {
+        return baseHumanizeDuration(Math.floor(ms / 60_000) * 60_000);
+    }
+    return baseHumanizeDuration(ms);
+}
 
 export function bandwidthToSizePerMinuteMB(bandwidth: number): number {
     return (bandwidth / 8 / 1_000_000) * 60;
