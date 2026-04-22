@@ -32,8 +32,8 @@
     "commands": {
         "_execute_action": {
             "suggested_key": {
-                "default": "Ctrl+Shift+0",
-                "mac": "Command+Shift+0"
+                "default": "Alt+P",
+                "mac": "Alt+P"
             },
             "description": "Open the TubeSize popup"
         }
