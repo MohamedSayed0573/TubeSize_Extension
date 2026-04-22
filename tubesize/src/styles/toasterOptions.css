@@ -8,7 +8,7 @@
 .toaster-threshold {
     padding: 8px;
     background-color: #ffffff0a;
-    margin-top: 8px;
+    margin-top: 11px;
     border-radius: 6px;
 }
 .toaster-input {
@@ -24,7 +24,7 @@
 }
 .toaster-threshold-types {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-around;
     align-items: center;
     padding-top: 7px;
 }

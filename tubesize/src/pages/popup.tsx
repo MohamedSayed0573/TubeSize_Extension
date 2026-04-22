@@ -137,7 +137,7 @@ export default function Popup() {
                         setIsLive(true);
                     }
                 } else {
-                    setMessage("Open a YouTube video or Twitch stream to view sizes");
+                    setMessage("TubeSize works on YouTube and Twitch only.");
                 }
             } catch (err) {
                 console.error("[Popup Error]:", err);
