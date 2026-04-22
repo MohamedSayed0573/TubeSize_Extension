@@ -38,7 +38,6 @@
     font-size: 12px;
     outline: none;
 }
-.toaster-threshold-radio {
-    font-size: 14px;
+.toaster-threshold-radio-label {
     font-weight: 500;
 }

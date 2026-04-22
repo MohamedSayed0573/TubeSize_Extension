@@ -54,6 +54,7 @@ export function startToastYoutubePolling(
     resolutionIntervalId = window.setInterval(async () => {
         const resolution = await getCurrentResolution();
         if (resolution && youtubeResponse?.data?.videoFormats && resolution !== currentQuality) {
+            console.log("Resolution change detected:", resolution);
             currentQuality = resolution;
             showYoutubeToast(
                 resolution,

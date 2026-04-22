@@ -94,7 +94,6 @@ export default function ToasterSettings() {
                             id="toasterThresholdType1"
                             name="toasterThresholdType"
                             value="mbPerHour"
-                            className="toaster-threshold-radio"
                             onChange={() => {
                                 setThresholdUnit("mbPerHour");
                                 setToSyncCache({
@@ -114,7 +113,6 @@ export default function ToasterSettings() {
                             id="toasterThresholdType2"
                             name="toasterThresholdType"
                             value="mbPerMinute"
-                            className="toaster-threshold-radio"
                             onChange={() => {
                                 setThresholdUnit("mbPerMinute");
                                 setToSyncCache({
