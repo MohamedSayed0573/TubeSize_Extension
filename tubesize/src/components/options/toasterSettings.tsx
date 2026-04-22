@@ -50,7 +50,9 @@ export default function ToasterSettings() {
         <div className="container">
             <div className="section-title">Data Usage Alert</div>
             <div className="description">Show a warning when internet usage gets too high.</div>
-            <div className="toaster-settings-box">
+            <div
+                className={`toaster-settings-box${toasterEnabled ? "" : " toaster-settings-box-disabled"}`}
+            >
                 <div className="setting-toggle-row toaster-toggle-row">
                     <label className="option-label" htmlFor="toasterThresholdToggle">
                         Enable Data Usage Alert
@@ -68,13 +70,18 @@ export default function ToasterSettings() {
                         }}
                     />
                 </div>
-                <div className="toaster-threshold">
+                <div
+                    className={`toaster-threshold${toasterEnabled ? "" : " toaster-threshold-disabled"}`}
+                >
                     <div className="toaster-input">
-                        <span className="toaster-threshold-label">Usage Limit</span>
+                        <label className="toaster-threshold-label" htmlFor="toasterThreshold">
+                            Usage Limit
+                        </label>
                         <input
                             type="number"
                             className="toaster-threshold-input"
                             min="1"
+                            id="toasterThreshold"
                             value={toasterThreshold}
                             onChange={async (event) => {
                                 try {
@@ -103,6 +110,7 @@ export default function ToasterSettings() {
                                 });
                             }}
                             checked={thresholdUnit === "mbPerHour"}
+                            disabled={!toasterEnabled}
                         />
                         <label
                             htmlFor="toasterThresholdType1"
@@ -122,6 +130,7 @@ export default function ToasterSettings() {
                                 });
                             }}
                             checked={thresholdUnit === "mbPerMinute"}
+                            disabled={!toasterEnabled}
                         />
                         <label
                             htmlFor="toasterThresholdType2"

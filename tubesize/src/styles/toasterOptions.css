@@ -3,6 +3,11 @@
     border: 1px solid transparent;
     border-radius: 6px;
     padding: 8px 10px;
+    transition: background-color 0.3s;
+}
+
+.toaster-settings-box-disabled {
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .toaster-threshold {
@@ -10,6 +15,11 @@
     background-color: #ffffff0a;
     margin-top: 11px;
     border-radius: 6px;
+    transition: background-color 0.3s;
+}
+
+.toaster-threshold-disabled {
+    background-color: rgba(255, 255, 255, 0.03);
 }
 .toaster-input {
     display: flex;
