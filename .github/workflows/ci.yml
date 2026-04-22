@@ -31,6 +31,9 @@ jobs:
             - name: Lint
               run: pnpm -F tubesize run lint
 
+            - name: Knip
+              run: pnpm -F tubesize run knip
+
             - name: Run Tests
               run: pnpm -F tubesize run test
 

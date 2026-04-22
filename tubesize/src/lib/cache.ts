@@ -69,13 +69,6 @@ async function removeAllFromCache(storage: "local" | "sync") {
 export function removeFromLocalCache(key: string | string[]) {
     return removeFromCache("local", key);
 }
-/**
- * Remove a key from sync cache
- * @throws Will throw an error if the cache removal process fails
- */
-export function removeFromSyncCache(key: keyof SyncCacheMap | (keyof SyncCacheMap)[]) {
-    return removeFromCache("sync", key);
-}
 
 /**
  * Clear all keys from local cache

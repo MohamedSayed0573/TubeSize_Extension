@@ -10,18 +10,6 @@ export function isYoutubePage(url: string): boolean {
     }
 }
 
-export function isYoutubeVideo(url: string): boolean {
-    if (!isYoutubePage(url)) return false;
-    try {
-        const parsedUrl = new URL(url);
-        const isWatchPage = parsedUrl.pathname === "/watch" && parsedUrl.searchParams.has("v");
-        const isShortsPage = parsedUrl.pathname.startsWith("/shorts/");
-        return isWatchPage || isShortsPage;
-    } catch {
-        return false;
-    }
-}
-
 export function isShortsVideo(url: string): boolean {
     if (!isYoutubePage(url)) return false;
     try {
@@ -71,17 +59,6 @@ export function isTwitchVod(url: string): boolean {
     }
 }
 
-export function isTwitchLive(url: string): boolean {
-    if (!isTwitchPage(url)) return false;
-    try {
-        const parsedUrl = new URL(url);
-        const pathname = parsedUrl.pathname.split("/").filter(Boolean);
-        return pathname.length === 1 && /^[a-zA-Z0-9_]+$/.test(pathname[0]);
-    } catch {
-        return false;
-    }
-}
-
 export function extractTwitchVodId(url: string): string | undefined {
     try {
         const parsedUrl = new URL(url);
@@ -123,22 +100,6 @@ export function extractVideoTag(ytUrl: string): string | undefined {
     } catch (err) {
         console.error(err);
     }
-}
-
-export function getElement(id: string, isFatal: true): HTMLElement;
-export function getElement(id: string, isFatal?: false): HTMLElement | null;
-
-export function getElement(id: string, isFatal: boolean = false): HTMLElement | null {
-    const element = document.getElementById(id);
-    if (!element) {
-        const message = `[HTML] [${isFatal ? "Fatal" : "Not-Fatal"}] Element #${id} not found`;
-        console.error(message);
-
-        if (isFatal) {
-            throw new Error(message);
-        }
-    }
-    return element;
 }
 
 export async function fetchAndRetry(
