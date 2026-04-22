@@ -1,4 +1,3 @@
-import CONFIG from "@lib/constants";
 import { showTwitchToast, showYoutubeToast } from "@pages/toaster";
 import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
 
@@ -42,28 +41,36 @@ export async function getCurrentResolution() {
 let resolutionIntervalId: number | undefined;
 let currentQuality: number | undefined;
 
+let videoResizeListener: (() => void) | undefined;
+let currentVideoElement: HTMLVideoElement | null = null;
+
 /**
  * Starts polling for resolution changes and shows toasts for YouTube videos.
  * @param youtubeResponse The response from the YouTube background script.
  * @param toasterThresholdMbpm The threshold for showing toasts in MB per minute.
  */
-export function startToastYoutubePolling(
+export async function startYoutubeToastTracking(
     youtubeResponse: YoutubeBackgroundResponse,
     toasterThresholdMbpm: number,
 ) {
-    resolutionIntervalId = window.setInterval(async () => {
-        const resolution = await getCurrentResolution();
-        if (resolution && youtubeResponse?.data?.videoFormats && resolution !== currentQuality) {
-            console.log("Resolution change detected:", resolution);
-            currentQuality = resolution;
-            showYoutubeToast(
-                resolution,
-                youtubeResponse.data?.videoFormats,
-                toasterThresholdMbpm,
-                youtubeResponse.data.isLive,
-            );
-        }
-    }, CONFIG.TOASTER_POLLING_INTERVAL);
+    await getCurrentResolution();
+    const video = document.querySelector("video");
+    videoResizeListener && currentVideoElement?.removeEventListener("resize", videoResizeListener);
+    currentVideoElement = video;
+    videoResizeListener = () => {
+        const resolution = currentVideoElement?.videoHeight;
+        if (!resolution || !youtubeResponse.data || resolution === currentQuality) return;
+        console.log("Resolution change detected:", resolution);
+        currentQuality = resolution;
+        showYoutubeToast(
+            resolution,
+            youtubeResponse.data?.videoFormats,
+            toasterThresholdMbpm,
+            youtubeResponse.data.isLive,
+        );
+    };
+    videoResizeListener();
+    currentVideoElement?.addEventListener("resize", videoResizeListener);
 }
 
 /**
@@ -72,30 +79,35 @@ export function startToastYoutubePolling(
  * @param toasterThresholdMbpm The threshold for showing toasts in MB per minute.
  * @param isLive Indicates whether the Twitch stream is live or a VOD. This affects how the toast is displayed and what information is shown.
  */
-export function startToastTwitchPolling(
+export async function startToastTwitchPolling(
     twitchData: TwitchBackgroundResponse["twitchData"],
     toasterThresholdMbpm: number,
 ) {
-    resolutionIntervalId = window.setInterval(async () => {
-        const resolution = await getCurrentResolution();
-        if (resolution && twitchData?.data && resolution !== currentQuality) {
-            currentQuality = resolution;
-            showTwitchToast(
-                resolution,
-                twitchData.data,
-                toasterThresholdMbpm,
-                twitchData?.type === "live",
-                twitchData.type === "vod" ? twitchData.durationSeconds : undefined,
-            );
-        }
-    }, CONFIG.TOASTER_POLLING_INTERVAL);
+    await getCurrentResolution();
+    const video = document.querySelector("video");
+    videoResizeListener && currentVideoElement?.removeEventListener("resize", videoResizeListener);
+    currentVideoElement = video;
+    videoResizeListener = () => {
+        const resolution = currentVideoElement?.videoHeight;
+        if (!resolution || !twitchData?.data || resolution === currentQuality) return;
+        currentQuality = resolution;
+        showTwitchToast(
+            resolution,
+            twitchData.data,
+            toasterThresholdMbpm,
+            twitchData?.type === "live",
+            twitchData.type === "vod" ? twitchData.durationSeconds : undefined,
+        );
+    };
+    videoResizeListener();
+    currentVideoElement?.addEventListener("resize", videoResizeListener);
 }
 
-export function stopResolutionPolling() {
+export function stopResolutionTracking() {
+    videoResizeListener && currentVideoElement?.removeEventListener("resize", videoResizeListener);
     currentQuality = undefined;
-
-    if (resolutionIntervalId === undefined) return;
-
+    currentVideoElement = null;
+    videoResizeListener = undefined;
     clearInterval(resolutionIntervalId);
     resolutionIntervalId = undefined;
 }

@@ -13,8 +13,8 @@ import { sendMessageToBackground } from "./runtime";
 import {
     getCurrentResolution,
     startToastTwitchPolling,
-    startToastYoutubePolling,
-    stopResolutionPolling,
+    startYoutubeToastTracking,
+    stopResolutionTracking,
 } from "./resolution";
 
 let lastYoutubeTag: string | undefined;
@@ -33,7 +33,7 @@ async function handlePageNavigation() {
             removeEventListeners();
             lastYoutubeTag = undefined;
             lastTwitchTag = undefined;
-            stopResolutionPolling();
+            stopResolutionTracking();
             return;
         }
 
@@ -43,7 +43,7 @@ async function handlePageNavigation() {
             if (lastYoutubeTag === tag) return;
             lastYoutubeTag = tag;
 
-            stopResolutionPolling();
+            stopResolutionTracking();
             if (!tag) return;
 
             removeEventListeners();
@@ -60,7 +60,7 @@ async function handlePageNavigation() {
             console.log("Toaster enabled:", toasterEnabled);
             if (toasterEnabled) {
                 const toasterThresholdMbpm = await getToasterThreshold();
-                startToastYoutubePolling(youtubeResponse, toasterThresholdMbpm);
+                startYoutubeToastTracking(youtubeResponse, toasterThresholdMbpm);
             }
         } else if (isTwitchPage(url)) {
             const isLive = !isTwitchVod(url);
@@ -69,7 +69,7 @@ async function handlePageNavigation() {
             if (lastTwitchTag === tag) return;
             lastTwitchTag = tag;
 
-            stopResolutionPolling();
+            stopResolutionTracking();
             if (!tag) return;
 
             const twitchResponse = await initTwitch(tag, isLive);
@@ -77,7 +77,7 @@ async function handlePageNavigation() {
                 (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
             if (toasterEnabled) {
                 const toasterThresholdMbpm = await getToasterThreshold();
-                startToastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm);
+                await startToastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm);
             }
         }
     } catch (err) {
