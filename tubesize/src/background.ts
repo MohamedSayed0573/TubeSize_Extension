@@ -6,7 +6,7 @@ import type {
     FrontEndMessage,
     TwitchMessage,
 } from "@app-types/types";
-import { clearLocalCache, getFromStorage, saveToStorage } from "@lib/cache";
+import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
 import {
     extractYtInitial,
@@ -134,6 +134,9 @@ async function handleYoutube(
         try {
             if (!html) throw new Error("No HTML");
             rawData = extractYtInitial(html);
+            if (rawData.videoDetails.videoId !== videoTag) {
+                throw new Error("Video ID mismatch");
+            }
         } catch {
             if (html) console.warn("Local HTML extraction failed, falling back to fetchHTMLPage");
             const pageHtml = await fetchHTMLPage(videoTag);
@@ -169,6 +172,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     if (details.reason === "install" || details.reason === "update") {
         try {
             await clearLocalCache();
+            await clearSyncCache();
         } catch (e) {
             console.error("Failed to clear local cache on install/update", e);
         }

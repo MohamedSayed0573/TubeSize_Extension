@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { setToSyncCache, getFromSyncCache, clearLocalCache } from "@lib/cache";
+import { setToSyncCache, clearLocalCache, getAllFromSyncCache } from "@lib/cache";
 
 function convertDaysToSeconds(days: number | string) {
     return Number(days) * 24 * 60 * 60;
@@ -17,9 +17,9 @@ export default function CacheSettings() {
     useEffect(() => {
         (async () => {
             try {
-                const options = await getFromSyncCache();
+                const options = await getAllFromSyncCache();
                 if (options?.cacheTTL) {
-                    setCacheState(convertSecondsToDays(options.cacheTTL as string));
+                    setCacheState(convertSecondsToDays(options.cacheTTL));
                 }
             } catch (err) {
                 console.error("Failed to load cache setting from cache:", err);

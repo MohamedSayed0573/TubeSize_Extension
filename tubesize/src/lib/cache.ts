@@ -6,12 +6,25 @@ async function getCacheTTLSetting(): Promise<number> {
     return cacheTTL || CONFIG.DEFAULT_CACHE_TTL;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function setToCache(storage: "local" | "sync", input: { [key: string]: any }) {
+async function setToCache(storage: "local" | "sync", input: { [key: string]: unknown }) {
     await chrome.storage[storage].set(input);
 }
-export const setToLocalCache = setToCache.bind(null, "local");
-export const setToSyncCache = setToCache.bind(null, "sync");
+export function setToLocalCache(input: Record<string, unknown>) {
+    return setToCache("local", input);
+}
+
+type SyncCacheMap = {
+    toasterEnabled: boolean;
+    toasterThreshold: number;
+    toasterThresholdUnit: string;
+    cacheTTL: number;
+    qualityIds: Record<string, boolean>;
+    qualityMenu: boolean;
+};
+
+export function setToSyncCache(input: Partial<SyncCacheMap>) {
+    return setToCache("sync", input);
+}
 
 async function getFromCache(storage: "local" | "sync", key?: string | string[]) {
     if (!key) {
@@ -27,11 +40,19 @@ async function getFromCache(storage: "local" | "sync", key?: string | string[]) 
         return data?.[key];
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return data as any;
 }
-export const getFromLocalCache = getFromCache.bind(null, "local");
-export const getFromSyncCache = getFromCache.bind(null, "sync");
+export function getFromLocalCache(key?: string | string[]) {
+    return getFromCache("local", key);
+}
+export function getAllFromSyncCache(): Promise<SyncCacheMap> {
+    return getFromCache("sync");
+}
+export function getFromSyncCache<T extends keyof SyncCacheMap>(
+    key?: T | T[],
+): Promise<SyncCacheMap[T]> {
+    return getFromCache("sync", key);
+}
 
 async function removeFromCache(storage: "local" | "sync", key: string | string[]) {
     await chrome.storage[storage].remove(key);
@@ -44,25 +65,25 @@ async function removeAllFromCache(storage: "local" | "sync") {
  * Remove a key from local cache
  * @throws Will throw an error if the cache removal process fails
  */
-export const removeFromLocalCache = removeFromCache.bind(null, "local");
-
-/**
- * Remove a key from sync cache
- * @throws Will throw an error if the cache removal process fails
- */
-export const removeFromSyncCache = removeFromCache.bind(null, "sync");
+export function removeFromLocalCache(key: string | string[]) {
+    return removeFromCache("local", key);
+}
 
 /**
  * Clear all keys from local cache
  * @throws Will throw an error if the cache clearing process fails
  */
-export const clearLocalCache = removeAllFromCache.bind(null, "local");
+export function clearLocalCache() {
+    return removeAllFromCache("local");
+}
 
 /**
  * Clear all keys from sync cache
  * @throws Will throw an error if the cache clearing process fails
  */
-export const clearSyncCache = removeAllFromCache.bind(null, "sync");
+export function clearSyncCache() {
+    return removeAllFromCache("sync");
+}
 
 export async function saveToStorage(tag: string, response: HumanizedFormat | TwitchData) {
     const ttlInSecondsOptions = await getCacheTTLSetting();

@@ -6,90 +6,20 @@ import {
     isTwitchVod,
     isYoutubePage,
 } from "@lib/utils";
-import type {
-    FrontEndMessage,
-    TwitchBackgroundResponse,
-    YoutubeBackgroundResponse,
-} from "@app-types/types";
-import { showYoutubeToast, showTwitchToast } from "@pages/toaster.tsx";
 import { getFromSyncCache } from "@lib/cache";
 import CONFIG from "@lib/constants";
-import { injectQualityMenu, removeEventListeners } from "@/panel";
-
-/**
- * Sends a message to the background script and returns the response.
- * @param message The message to send to the background script
- * @returns The response from the background script
- * @throws Throws an error on failure except if the message type is clearBadge or setBadge
- */
-async function sendRuntimeMessage(message: FrontEndMessage): Promise<unknown> {
-    try {
-        return await chrome.runtime.sendMessage(message);
-    } catch (err) {
-        if (err instanceof Error && err.message.includes("Extension context invalidated")) {
-            console.warn("[content] Extension context invalidated. Reload the page to reconnect.");
-        } else {
-            console.error("[content] Failed to send runtime message", err);
-        }
-
-        if (message.type === "clearBadge" || message.type === "setBadge") {
-            // These messages are not critical, so we can fail silently
-        } else {
-            throw err;
-        }
-    }
-}
+import { injectQualityMenu, removeEventListeners } from "@/quality-menu-injector";
+import { sendMessageToBackground } from "./runtime";
+import {
+    getCurrentResolution,
+    startToastTwitchPolling,
+    startYoutubeToastTracking,
+    stopResolutionTracking,
+} from "./resolution";
 
 let lastYoutubeTag: string | undefined;
 let lastTwitchTag: string | undefined;
-let resolutionIntervalId: number | undefined;
-let currentQuality: number | undefined;
 
-function toastYoutubePolling(
-    youtubeResponse: YoutubeBackgroundResponse,
-    toasterThresholdMbpm: number,
-) {
-    resolutionIntervalId = window.setInterval(async () => {
-        const resolution = await getCurrentResolution();
-        if (resolution && youtubeResponse?.data?.videoFormats && resolution !== currentQuality) {
-            currentQuality = resolution;
-            showYoutubeToast(
-                resolution,
-                youtubeResponse.data?.videoFormats,
-                toasterThresholdMbpm,
-                youtubeResponse.data.isLive,
-            );
-        }
-    }, CONFIG.TOASTER_POLLING_INTERVAL);
-}
-function toastTwitchPolling(
-    twitchData: TwitchBackgroundResponse["twitchData"],
-    toasterThresholdMbpm: number,
-    isLive: boolean,
-) {
-    resolutionIntervalId = window.setInterval(async () => {
-        const resolution = await getCurrentResolution();
-        if (resolution && twitchData?.data && resolution !== currentQuality) {
-            currentQuality = resolution;
-            showTwitchToast(
-                resolution,
-                twitchData.data,
-                toasterThresholdMbpm,
-                isLive,
-                twitchData.type === "vod" ? twitchData.durationSeconds : undefined,
-            );
-        }
-    }, CONFIG.TOASTER_POLLING_INTERVAL);
-}
-
-function stopResolutionPolling() {
-    currentQuality = undefined;
-
-    if (resolutionIntervalId === undefined) return;
-
-    clearInterval(resolutionIntervalId);
-    resolutionIntervalId = undefined;
-}
 function getCurrentUrl() {
     return window.location.href;
 }
@@ -97,13 +27,13 @@ function getCurrentUrl() {
 async function handlePageNavigation() {
     try {
         const url = getCurrentUrl();
-        await sendRuntimeMessage({ type: "clearBadge" });
+        await sendMessageToBackground({ type: "clearBadge" });
 
         if (!isYoutubePage(url) && !isTwitchPage(url)) {
             removeEventListeners();
             lastYoutubeTag = undefined;
             lastTwitchTag = undefined;
-            stopResolutionPolling();
+            stopResolutionTracking();
             return;
         }
 
@@ -113,15 +43,22 @@ async function handlePageNavigation() {
             if (lastYoutubeTag === tag) return;
             lastYoutubeTag = tag;
 
-            stopResolutionPolling();
+            stopResolutionTracking();
+            removeEventListeners();
+            if (!tag) return;
 
-            if (tag) {
-                removeEventListeners();
-                const youtubeResponse = await initYoutube(tag);
+            const youtubeResponse = await initYoutube(tag);
+            const qualityMenuEnabled =
+                (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
+            if (qualityMenuEnabled && youtubeResponse && youtubeResponse.data) {
                 injectQualityMenu(youtubeResponse.data?.videoFormats, youtubeResponse.data?.isLive);
-                const toasterThresholdMbpm = await getToasterThreshold();
+            }
 
-                toastYoutubePolling(youtubeResponse, toasterThresholdMbpm);
+            const toasterEnabled =
+                (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
+            if (toasterEnabled) {
+                const toasterThresholdMbpm = await getToasterThreshold();
+                startYoutubeToastTracking(youtubeResponse, toasterThresholdMbpm);
             }
         } else if (isTwitchPage(url)) {
             const isLive = !isTwitchVod(url);
@@ -130,13 +67,15 @@ async function handlePageNavigation() {
             if (lastTwitchTag === tag) return;
             lastTwitchTag = tag;
 
-            stopResolutionPolling();
+            stopResolutionTracking();
+            if (!tag) return;
 
-            if (tag) {
-                const twitchResponse = await initTwitch(tag, isLive);
+            const twitchResponse = await initTwitch(tag, isLive);
+            const toasterEnabled =
+                (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
+            if (toasterEnabled) {
                 const toasterThresholdMbpm = await getToasterThreshold();
-
-                toastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm, isLive);
+                await startToastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm);
             }
         }
     } catch (err) {
@@ -163,35 +102,6 @@ chrome.runtime.onMessage.addListener(
         return true;
     },
 );
-
-async function getCurrentResolution() {
-    return new Promise<number | undefined>((resolve) => {
-        // Check immediately in case the video is already loaded
-        const video = document.querySelector("video");
-        if (video && video.videoHeight > 0) {
-            return resolve(video.videoHeight);
-        }
-
-        const observer = new MutationObserver(() => {
-            const video = document.querySelector("video");
-            if (video && video.videoHeight > 0) {
-                observer.disconnect();
-                clearTimeout(timeout);
-                return resolve(video.videoHeight);
-            }
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-        });
-
-        const timeout = setTimeout(() => {
-            observer.disconnect();
-            return resolve(undefined);
-        }, 10000);
-    });
-}
 
 /**
  * Returns the setting for the toaster threshold in MB per minute.
@@ -220,23 +130,23 @@ async function initYoutube(videoTag: string) {
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    return (await sendRuntimeMessage({
+    return await sendMessageToBackground({
         type: "youtubeVideo",
         videoTag: videoTag,
         html: scriptContent,
-    })) as YoutubeBackgroundResponse;
+    });
 }
 
 async function initTwitch(tag: string, isLive: boolean) {
     if (isLive) {
-        return (await sendRuntimeMessage({
+        return await sendMessageToBackground({
             type: "twitchLive",
             channelName: tag,
-        })) as TwitchBackgroundResponse;
+        });
     } else {
-        return (await sendRuntimeMessage({
+        return await sendMessageToBackground({
             type: "twitchVod",
             vodId: tag,
-        })) as TwitchBackgroundResponse;
+        });
     }
 }

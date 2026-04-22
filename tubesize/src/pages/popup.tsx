@@ -1,10 +1,7 @@
 import "@styles/popup.css";
-import type {
-    TwitchBackgroundResponse,
-    TwitchMessage,
-    YoutubeBackgroundResponse,
-    YoutubeMessage,
-} from "@app-types/types";
+import "@styles/global.css";
+import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
+import { sendMessageToBackground, sendMessageToContentScript, getTab } from "@/runtime";
 import { useEffect, useState } from "react";
 import {
     extractVideoTag,
@@ -23,49 +20,6 @@ import Header from "@components/header";
 import YoutubeFormat from "@/components/youtubeFormat";
 import TwitchFormat from "@/components/twitchFormat";
 
-async function getTab() {
-    return await chrome.tabs.query({ active: true, currentWindow: true });
-}
-
-async function getCurrentQuality(tabId: number): Promise<number | undefined> {
-    return new Promise((resolve, reject) => {
-        chrome.tabs.sendMessage(tabId, { type: "getCurrentResolution" }, (response) => {
-            if (chrome.runtime.lastError) {
-                const errorMessage = chrome.runtime.lastError.message || "";
-
-                if (errorMessage.includes("Receiving end does not exist")) {
-                    return resolve(undefined);
-                }
-                return reject(new Error(errorMessage || "Failed to get current resolution"));
-            }
-            resolve(response);
-        });
-    });
-}
-type MessageResponseMap = {
-    youtubeVideo: YoutubeBackgroundResponse;
-    twitchVod: TwitchBackgroundResponse;
-    twitchLive: TwitchBackgroundResponse;
-};
-
-async function sendMessageToBackground<T extends YoutubeMessage | TwitchMessage>(
-    message: T,
-): Promise<MessageResponseMap[T["type"]]> {
-    return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ ...message }, (response) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
-            if (!response?.success) {
-                reject(new Error(response?.message || "Failed to fetch video data"));
-                return;
-            }
-            resolve(response);
-        });
-    });
-}
-
 function getCachedAgo(createdAt: string | undefined) {
     if (!createdAt) return;
     const timeInMs = new Date().getTime() - new Date(createdAt).getTime();
@@ -78,7 +32,8 @@ function getCachedAgo(createdAt: string | undefined) {
 }
 
 async function getOptions() {
-    return await getFromSyncCache(CONFIG.optionIDs);
+    const qualityIds = await getFromSyncCache("qualityIds");
+    return qualityIds ?? {};
 }
 
 export default function Popup() {
@@ -86,6 +41,8 @@ export default function Popup() {
         "Loading sizes for this video… (This might take a few seconds)",
     );
 
+    const [tabId, setTabId] = useState<number | undefined>(undefined);
+    const [tabUrl, setTabUrl] = useState<string | undefined>(undefined);
     const [pageType, setPageType] = useState<"youtube" | "twitch" | "default">("default");
     const [youtubeData, setYoutubeData] = useState<YoutubeBackgroundResponse | null>(null);
     const [twitchData, setTwitchData] = useState<TwitchBackgroundResponse | null>(null);
@@ -99,13 +56,21 @@ export default function Popup() {
     useEffect(() => {
         (async () => {
             try {
-                const [tab] = await getTab();
-                const url = tab?.url;
+                const activeTab = await getTab();
+                setTabId(activeTab?.id);
+                setTabUrl(activeTab?.url);
+            } catch (err) {
+                console.error("Failed to get active tab:", err);
+                setError(new Error("Failed to get active tab"));
+            }
+        })();
+    }, []);
 
-                if (!url) {
-                    setMessage("No Active Tab found");
-                    return;
-                }
+    useEffect(() => {
+        (async () => {
+            try {
+                const url = tabUrl;
+                if (!url) return;
 
                 if (isYoutubePage(url)) {
                     setPageType("youtube");
@@ -118,7 +83,7 @@ export default function Popup() {
                     const response = await sendMessageToBackground({
                         type: "youtubeVideo",
                         videoTag,
-                        tabId: tab.id,
+                        tabId,
                     });
                     if (!response.success) throw new Error(response.message);
                     if (response.data?.videoFormats.length === 0) {
@@ -170,21 +135,21 @@ export default function Popup() {
                         setIsLive(true);
                     }
                 } else {
-                    setMessage("Open a YouTube video or Twitch stream to view sizes");
+                    setMessage("TubeSize works on YouTube and Twitch only.");
                 }
             } catch (err) {
                 console.error("[Popup Error]:", err);
                 setError(err as Error);
             }
         })();
-    }, []);
+    }, [tabId, tabUrl]);
 
     useEffect(() => {
         (async () => {
             try {
-                const allOptions = await getOptions();
+                const qualityIds = await getOptions();
                 const enabledOptions = CONFIG.optionIDs.filter((option) => {
-                    return allOptions[option] ?? true;
+                    return qualityIds[option] ?? true;
                 });
                 setEnabledOptions(enabledOptions);
             } catch (err) {
@@ -197,15 +162,16 @@ export default function Popup() {
     useEffect(() => {
         (async () => {
             try {
-                const [tab] = await getTab();
-                if (!tab?.id) return;
-                const quality = await getCurrentQuality(tab.id);
+                if (!tabId) return;
+                const quality = await sendMessageToContentScript(tabId, {
+                    type: "getCurrentResolution",
+                });
                 setCurrentQuality(quality);
             } catch (err) {
                 console.error(err);
             }
         })();
-    }, []);
+    }, [tabId, tabUrl]);
 
     if (error) {
         throw error;
@@ -216,7 +182,7 @@ export default function Popup() {
     }
 
     return (
-        <>
+        <div className="popup-page">
             <Header
                 pageType={pageType}
                 youtubeData={youtubeData}
@@ -265,6 +231,6 @@ export default function Popup() {
                             );
                         })}
             </div>
-        </>
+        </div>
     );
 }

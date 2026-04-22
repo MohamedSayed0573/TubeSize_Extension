@@ -1,26 +1,8 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    width: 230px;
-    background: #222;
-    padding: 0;
-    color: #fff;
-}
-.header {
-    background: #1a1a1a;
-    padding: 10px 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #333;
-    gap: 6px;
+.popup-page {
+    width: 240px;
 }
 .title {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;

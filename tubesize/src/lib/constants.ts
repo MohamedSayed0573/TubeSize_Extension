@@ -36,6 +36,8 @@ const CONFIG = {
     DEFAULT_TOASTER_THRESHOLD: 500,
     DEFAULT_TOASTER_THRESHOLD_UNIT: "mbPerHour",
     TOASTER_POLLING_INTERVAL: 5000,
+    DEFAULT_TOASTER_ENABLED: true,
+    DEFAULT_QUALITY_MENU_ENABLED: true,
     TWITCH_GQL_GRAPHQL_QUERY: `
         query PlaybackAccessToken_Template(
         $login: String!,

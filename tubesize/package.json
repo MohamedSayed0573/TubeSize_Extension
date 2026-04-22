@@ -15,25 +15,34 @@
         "lint": "eslint .",
         "preview": "vite preview",
         "tsc": "tsc --noEmit -p tsconfig.app.json",
-        "release": "node ./scripts/release.cjs"
+        "release": "node ./scripts/release.cjs",
+        "knip": "knip"
+    },
+    "knip": {
+        "entry": [
+            "src/background.ts",
+            "src/content.ts",
+            "scripts/generate-firefox-manifest.cjs"
+        ],
+        "ignoreBinaries": [
+            "wslview"
+        ],
+        "vite": true,
+        "jest": true
     },
     "dependencies": {
         "filesize": "^11.0.15",
         "humanize-duration": "^3.33.2",
         "m3u8-parser": "^7.2.0",
         "react": "^19.2.5",
-        "react-dom": "^19.2.5",
-        "ts-node": "^10.9.2",
-        "webextension-polyfill": "^0.12.0"
+        "react-dom": "^19.2.5"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@types/chrome": "^0.1.40",
-        "@types/filesize": "^5.0.2",
         "@types/humanize-duration": "^3.27.4",
         "@types/jest": "^30.0.0",
         "@types/m3u8-parser": "^7.2.6",
-        "@types/ms": "^2.1.0",
         "@types/node": "^25.6.0",
         "@types/react": "^19.2.7",
         "@types/react-dom": "^19.2.3",
@@ -45,6 +54,7 @@
         "globals": "^17.5.0",
         "jest": "^30.3.0",
         "jest-extended": "^7.0.0",
+        "knip": "^6.6.0",
         "prettier": "^3.8.3",
         "ts-jest": "^29.4.9",
         "typescript": "~6.0.3",
