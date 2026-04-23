@@ -12,6 +12,7 @@ function generateManifestFirefox() {
     if (!manifest.background) manifest.background = {};
     const backgroundScript = manifest.background.service_worker;
     delete manifest.background.service_worker;
+    delete manifest.$schema;
 
     if (backgroundScript) {
         manifest.background.scripts = [backgroundScript];
@@ -21,6 +22,9 @@ function generateManifestFirefox() {
         gecko: {
             id: "tubesize@mohammedsayed.dev",
             strict_min_version: "109.0",
+            data_collection_permissions: {
+                required: ["browsingActivity"],
+            },
         },
     };
 
