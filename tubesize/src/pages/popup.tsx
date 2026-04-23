@@ -176,7 +176,7 @@ export default function Popup() {
                     const quality = await sendMessageToContentScript(tabId, {
                         type: "getCurrentResolution",
                     });
-                    if (quality !== undefined) {
+                    if (typeof quality === "number") {
                         setCurrentQuality(quality);
                         return;
                     }

@@ -41,13 +41,13 @@ async function handlePageNavigation() {
             const tag = extractVideoTag(url);
 
             if (lastYoutubeTag === tag) return;
-            lastYoutubeTag = tag;
 
             stopResolutionTracking();
             removeEventListeners();
             if (!tag) return;
 
             const youtubeResponse = await initYoutube(tag);
+            lastYoutubeTag = tag;
             const qualityMenuEnabled =
                 (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
             if (qualityMenuEnabled && youtubeResponse && youtubeResponse.data) {
@@ -92,13 +92,14 @@ if (isYoutubePage(window.location.href)) {
 handlePageNavigation();
 
 chrome.runtime.onMessage.addListener(
-    async (message: { type: string }, _sender: chrome.runtime.MessageSender, sendResponse) => {
-        if (message.type !== "getCurrentResolution") return;
-
-        const resolution = await getCurrentResolution();
-        sendResponse(resolution);
-
-        return true;
+    (message: { type: string }, _sender: chrome.runtime.MessageSender, sendResponse) => {
+        if (message.type === "getCurrentResolution") {
+            void (async () => {
+                const resolution = await getCurrentResolution();
+                sendResponse(resolution);
+            })();
+            return true;
+        }
     },
 );
 
