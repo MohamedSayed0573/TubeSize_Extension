@@ -1,6 +1,10 @@
 import "@styles/popup.css";
 import "@styles/global.css";
-import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
+import type {
+    OptionsMap,
+    TwitchBackgroundResponse,
+    YoutubeBackgroundResponse,
+} from "@app-types/types";
 import { sendMessageToBackground } from "@/runtime";
 import { useEffect, useState } from "react";
 import {
@@ -33,8 +37,8 @@ function getCachedAgo(createdAt: string | undefined) {
     }
 }
 
-function getEnabledOptions(optionsState: Record<any, any> | undefined = {}) {
-    const qualityIds = optionsState["qualityIds"] ?? {};
+function getEnabledOptions(optionsState: OptionsMap | null) {
+    const qualityIds = optionsState?.["qualityIds"] ?? {};
     return CONFIG.optionIDs.filter((option) => qualityIds[option] ?? true);
 }
 
@@ -142,7 +146,7 @@ export default function Popup() {
     }, [tabId, tabUrl]);
 
     if (error || tabError || optionsError) {
-        throw error;
+        throw error ?? tabError ?? optionsError;
     }
 
     if (useOptionsPage) {

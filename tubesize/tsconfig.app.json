@@ -31,6 +31,7 @@
             "@lib/*": ["./src/lib/*"],
             "@tests/*": ["./src/tests/*"],
             "@assets/*": ["./src/assets/*"],
+            "@hooks/*": ["./src/hooks/*"],
             "@app-types/*": ["./src/types/*"]
         }
     },

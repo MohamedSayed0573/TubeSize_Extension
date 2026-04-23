@@ -53,6 +53,15 @@ export type StorageData<T extends HumanizedFormat | TwitchData> = {
     createdAt?: string;
 };
 
+export type OptionsMap = {
+    toasterEnabled?: boolean;
+    toasterThreshold?: number;
+    toasterThresholdUnit?: string;
+    cacheTTL?: number;
+    qualityIds?: Record<string, boolean>;
+    qualityMenu?: boolean;
+};
+
 export type YoutubeBackgroundResponse = {
     success: boolean;
     data?: HumanizedFormat | null;

@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
-import { setToSyncCache, clearLocalCache, getAllFromSyncCache } from "@lib/cache";
+import { useState } from "react";
+import { setToSyncCache, clearLocalCache } from "@lib/cache";
+import useOptions from "@/hooks/useOptions";
+import CONFIG from "@/lib/constants";
 
 function convertDaysToSeconds(days: number | string) {
     return Number(days) * 24 * 60 * 60;
@@ -10,22 +12,9 @@ function convertSecondsToDays(seconds: number | string) {
 }
 
 export default function CacheSettings() {
-    const [cacheState, setCacheState] = useState<string>("3");
     const [clearCache, setClearCache] = useState<"idle" | "success" | "fail">("idle");
     const [disableClearCache, setDisableClearCache] = useState(false);
-
-    useEffect(() => {
-        (async () => {
-            try {
-                const options = await getAllFromSyncCache();
-                if (options?.cacheTTL) {
-                    setCacheState(convertSecondsToDays(options.cacheTTL));
-                }
-            } catch (err) {
-                console.error("Failed to load cache setting from cache:", err);
-            }
-        })();
-    }, []);
+    const { optionsState, setOptionsState } = useOptions();
 
     return (
         <div className="container">
@@ -35,14 +24,20 @@ export default function CacheSettings() {
                 <select
                     id="cacheTTL"
                     className="ttl-select"
-                    value={cacheState || "3"} // Fallback to "3" days if undefined
+                    value={
+                        convertSecondsToDays(optionsState?.cacheTTL ?? CONFIG.DEFAULT_CACHE_TTL) ||
+                        "3"
+                    } // Fallback to "3" days if undefined
                     onChange={async (event) => {
                         const days = event.target.value;
-                        const daysInSeconds = convertDaysToSeconds(days);
+                        const ttlInSeconds = convertDaysToSeconds(days);
                         await setToSyncCache({
-                            cacheTTL: daysInSeconds,
+                            cacheTTL: ttlInSeconds,
                         });
-                        setCacheState(days);
+                        setOptionsState((prev) => ({
+                            ...prev,
+                            cacheTTL: ttlInSeconds,
+                        }));
                     }}
                 >
                     <option value="1">1 Day</option>

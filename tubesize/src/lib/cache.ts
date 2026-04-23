@@ -1,5 +1,5 @@
 import CONFIG from "@lib/constants";
-import type { HumanizedFormat, StorageData, TwitchData } from "@app-types/types";
+import type { HumanizedFormat, OptionsMap, StorageData, TwitchData } from "@app-types/types";
 
 async function getCacheTTLSetting(): Promise<number> {
     const cacheTTL = (await getFromSyncCache("cacheTTL")) as number;
@@ -13,16 +13,7 @@ export function setToLocalCache(input: Record<string, unknown>) {
     return setToCache("local", input);
 }
 
-type SyncCacheMap = {
-    toasterEnabled: boolean;
-    toasterThreshold: number;
-    toasterThresholdUnit: string;
-    cacheTTL: number;
-    qualityIds: Record<string, boolean>;
-    qualityMenu: boolean;
-};
-
-export function setToSyncCache(input: Partial<SyncCacheMap>) {
+export function setToSyncCache(input: Partial<OptionsMap>) {
     return setToCache("sync", input);
 }
 
@@ -45,12 +36,12 @@ async function getFromCache(storage: "local" | "sync", key?: string | string[]) 
 export function getFromLocalCache(key?: string | string[]) {
     return getFromCache("local", key);
 }
-export function getAllFromSyncCache(): Promise<SyncCacheMap> {
+export function getAllFromSyncCache(): Promise<OptionsMap> {
     return getFromCache("sync");
 }
-export function getFromSyncCache<T extends keyof SyncCacheMap>(
+export function getFromSyncCache<T extends keyof OptionsMap>(
     key?: T | T[],
-): Promise<SyncCacheMap[T]> {
+): Promise<OptionsMap[T]> {
     return getFromCache("sync", key);
 }
 
