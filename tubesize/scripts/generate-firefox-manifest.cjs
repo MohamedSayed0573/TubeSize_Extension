@@ -23,7 +23,7 @@ function generateManifestFirefox() {
             id: "tubesize@mohammedsayed.dev",
             strict_min_version: "109.0",
             data_collection_permissions: {
-                required: ["browsingActivity"],
+                required: ["none"],
             },
         },
     };
