@@ -6,13 +6,13 @@
 
 ![GitHub stars](https://img.shields.io/github/stars/MohamedSayed0573/Tubesize_Extension)
 
-**Know exactly how much data a YouTube or Twitch stream/video will cost you before you press play.**
+**Know exactly how much internet data a YouTube or Twitch stream will use before you press play.**
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Install-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/tubesize/bdpkcpbkonollfbgcnkknkjdbfpacnoi)
 [![Firefox Add-ons](https://img.shields.io/badge/Firefox-Install-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)
 [![Edge Add-ons](https://img.shields.io/badge/Edge-Install-0078D7?logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)](https://developer.chrome.com/docs/extensions/mv3/)
 
 [![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/mohamedsayed253)
@@ -20,58 +20,84 @@
 </div>
 
 ---
-
 TubeSize is a browser extension that shows estimated data usage for YouTube and Twitch directly in a popup without leaving the page.
+
+## Installation
+
+<table width="100%">
+  <tr>
+    <td valign="top" width="33%">
+      <strong>Chrome Web Store</strong><br />
+      Install the Chromium build for Chrome.<br /><br />
+      <a href="https://chromewebstore.google.com/detail/tubesize/bdpkcpbkonollfbgcnkknkjdbfpacnoi">
+        <img src="https://img.shields.io/badge/Install%20for%20Chrome-4285F4?logo=google-chrome&logoColor=white" alt="Install for Chrome" />
+      </a>
+    </td>
+    <td valign="top" width="33%">
+      <strong>Firefox Add-ons</strong><br />
+      Install the Firefox package from Mozilla Add-ons.<br /><br />
+      <a href="https://addons.mozilla.org/en-US/firefox/addon/tubesize/">
+        <img src="https://img.shields.io/badge/Install%20for%20Firefox-FF7139?logo=firefox&logoColor=white" alt="Install for Firefox" />
+      </a>
+    </td>
+    <td valign="top" width="33%">
+      <strong>Edge Add-ons</strong><br />
+      Install the Chromium build for Microsoft Edge.<br /><br />
+      <a href="https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka">
+        <img src="https://img.shields.io/badge/Install%20for%20Edge-0078D7?logo=microsoftedge&logoColor=white" alt="Install for Edge" />
+      </a>
+    </td>
+  </tr>
+</table>
+
+---
+
 
 ## Screenshots
 
 <div align="center">
-  <img alt="TubeSize popup showing video file sizes per quality level" src="https://github.com/user-attachments/assets/1289364f-3cce-4050-a301-cb91e60a36bc" />
+  <img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/63aab6a5-72f8-4065-b2a1-68d6b8c2b6b3" />
 </div>
 
 ---
 
 ## Features
 
-- **YouTube videos** — per-resolution file sizes from 144p through 8K (4320p), with audio already merged in
-- **YouTube Live support** — estimates live data usage per quality using bitrate-derived hourly and per-minute usage
-- **Twitch live support** — reads Twitch HLS playlists and shows estimated bandwidth usage per quality level
-- **Twitch VOD support** — works on `twitch.tv/videos/...` pages in the same popup flow
-- **Client-first, privacy-respecting** — YouTube metadata is extracted directly from the page and Twitch data is pulled from Twitch playback endpoints
-- **Local cache for YouTube** — YouTube results are stored in `chrome.storage.local` with a configurable TTL (default: 3 days) so repeat views are instant
-- **Deprecated backup API** — the old YouTube fallback API is still in the repository, but extension builds no longer use it
-- **Cross-browser** — Chrome, Firefox, and Edge are all supported from the same codebase (Manifest V3 for Chromium, adapted manifest for Firefox)
-- **Keyboard shortcut** — open the popup at any time with `Ctrl+Shift+0` (`Cmd+Shift+0` on Mac)
-
+- **YouTube Videos Support**: see estimated data usage for each video quality
+- **Twitch Support**: compare data usage across stream qualities
+- **Live Streams**: check usage estimates for YouTube Live and Twitch live
+- **Data Usage Warning**: get alerted when a quality uses too much data
+- **Quality Menu**: view size info directly inside YouTube’s quality menu
+- **Shortcut**: open the popup anytime with Alt+P
+- **Browsers**: use it on Chrome, Firefox, and Edge
 ---
+## Permissions
 
-## Installation
+The extension requests the minimum permissions required:
 
-| Store            | Link                                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------------------ |
-| Chrome Web Store | [Install](https://chromewebstore.google.com/detail/tubesize/bdpkcpbkonollfbgcnkknkjdbfpacnoi)          |
-| Firefox Add-ons  | [Install](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)                                    |
-| Edge Add-ons     | [Install](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka) |
-
+| Permission                          | Why                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------- |
+| `activeTab`                         | Read the current tab's URL to detect the current YouTube or Twitch page   |
+| `storage`                           | Cache YouTube data and user preferences locally                           |
+| `host_permissions: *.youtube.com`   | Read YouTube pages and extract stream metadata locally                    |
+| `host_permissions: *.twitch.tv`     | Read Twitch live/VOD pages and request Twitch playback metadata           |
+| `host_permissions: usher.ttvnw.net` | Fetch Twitch HLS playlists to inspect available resolutions and bandwidth |
+| `host_permissions: gql.twitch.tv`   | Request Twitch playback access tokens                                     |
 ---
-
 ## Stack
 
-TubeSize is built primarily as a browser extension. The old fallback API remains in the repository but is currently deprecated and not used by the extension.
+TubeSize is currently an extension-first project. The legacy API under `api/` is deprecated and not used by the extension.
 
-| Layer            | Technology                                                |
-| ---------------- | --------------------------------------------------------- |
-| Extension        | React, TypeScript, Vite, Jest                             |
-| API Runtime      | Node.js + TypeScript                                      |
-| API Framework    | Fastify                                                   |
-| Validation       | Zod                                                       |
-| Video Metadata   | `yt-dlp` (spawned as a subprocess on the server)          |
-| Caching          | `chrome.storage.local` on the extension, Redis on the API |
-| Security         | `@fastify/helmet`, `@fastify/cors`, rate limiting         |
-| Containerisation | Docker (multi-stage: dev / staging / prod)                |
-| Hosting          | AWS EC2                                                   |
-| CI/CD            | GitHub Actions                                            |
-| API Docs         | OpenAPI 3 / Swagger UI (`/api-docs/swagger`)              |
+| Layer        | Technology                                                                |
+| ------------ | ------------------------------------------------------------------------- |
+| Extension UI | React, TypeScript, Vite                                                   |
+| Testing      | Jest                                                                      |
+| Linting      | ESLint, Knip, Prettier                                                    |
+| Storage      | `chrome.storage.local`, `chrome.storage.sync`                             |
+| YouTube Data | `ytInitialPlayerResponse` parsing with direct YouTube HTML fetch fallback |
+| Twitch Data  | Twitch GQL playback tokens + HLS playlist parsing                         |
+| Packaging    | `vite-plugin-web-extension`, zip packaging                                |
+| CI/CD        | GitHub Actions                                                            |
 
 ## How It Works
 
@@ -85,34 +111,18 @@ flowchart LR
     C -->|No| E[Extract ytInitialPlayerResponse locally]
     E --> F{Local success?}
     F -->|Yes| G[Return sizes and cache non-live results]
-    F -->|No| H[Return local extraction error]
+    F -->|No| H[Fetch YouTube watch HTML]
+    H --> I{Fetch parse success?}
+    I -->|Yes| G
+    I -->|No| X[Return extraction error]
     B -->|Twitch| J[Detect live channel or VOD]
-    J --> K[Fetch Twitch playback token]
-    K --> L[Fetch HLS master playlist]
-    L --> M[Parse resolutions and bandwidth]
-    M --> N[Return hourly and per-minute estimates]
+    J --> K{Twitch VOD cache?}
+    K -->|Yes| L[Return cached VOD estimates]
+    K -->|No| M[Fetch Twitch playback token]
+    M --> N[Fetch HLS master playlist]
+    N --> O[Parse resolutions and bandwidth]
+    O --> P[Return hourly and per-minute estimates and cache VOD results]
 ```
-
-### Supported Pages
-
-- YouTube watch pages
-- YouTube Shorts
-- YouTube Live streams
-- Twitch live channel pages
-- Twitch VOD pages at `twitch.tv/videos/:id`
-
-### YouTube Path
-
-For YouTube, TubeSize uses a fully local strategy: it extracts `ytInitialPlayerResponse` locally, builds a resolution table, merges audio into video sizes, and caches non-live results.
-
-For YouTube Live streams, exact file size is not available the same way as on-demand videos, so TubeSize derives an estimate from the advertised stream bitrate and presents usage as hourly and per-minute estimates.
-
-### Twitch Path
-
-For Twitch live channels and VODs, TubeSize fetches a playback access token, requests the HLS master playlist, and parses the available variants to show estimated usage per resolution.
-
-Twitch entries are currently presented as approximate bandwidth usage per hour and per minute.
-
 ### Resolution & Codec Support
 
 TubeSize resolves standard YouTube adaptive-streaming itags:
@@ -135,103 +145,9 @@ For YouTube Live streams, TubeSize estimates both audio and video usage from bit
 
 For Twitch live streams and VODs, TubeSize reads the HLS playlist variants exposed by Twitch and reports the available resolutions with approximate transfer usage derived from each variant bandwidth.
 
-## Backend API
-
-The fallback API is a standalone **Fastify + TypeScript** server that runs on **AWS EC2** inside a Docker container.
-
-It is currently deprecated and is no longer used by the extension.
-
-### Endpoint
-
-```
-GET /api/video-sizes/:videoTag
-    ?humanReadableSizes=true   # default true
-    ?mergeAudioWithVideo=true  # default true
-```
-
-The server validates the video ID format, checks Redis for a cached result, otherwise spawns `yt-dlp --skip-download -J` to fetch stream metadata, formats the response, writes to Redis (TTL-controlled), and returns it.
-
-### CI/CD Pipeline
-
-Two GitHub Actions workflows handle the full release lifecycle:
-
-**`deploy.yml` — API deployment**
-
-- Triggered on every push to any branch (→ staging) or on `api-v*` tags (→ production)
-- Builds a Docker image, pushes it to Docker Hub, then SSH-deploys it to EC2 via `docker compose up -d`
-- Production and staging share the same image; the target stage (`prod` / `staging`) is resolved at build time from the git ref
-
-**`release.yml` — Extension packaging**
-
-- Triggered on `extension-v*.*.*` tags
-- Installs dependencies, runs the Jest test suite, builds Chrome and Firefox packages, and publishes them as a GitHub Release
-
 ---
-
-## Permissions
-
-The extension requests the minimum permissions required:
-
-| Permission                          | Why                                                                       |
-| ----------------------------------- | ------------------------------------------------------------------------- |
-| `activeTab`                         | Read the current tab's URL to detect the current YouTube or Twitch page   |
-| `storage`                           | Cache YouTube data and user preferences locally                           |
-| `host_permissions: *.youtube.com`   | Read YouTube pages and extract stream metadata locally                    |
-| `host_permissions: *.twitch.tv`     | Read Twitch live/VOD pages and request Twitch playback metadata           |
-| `host_permissions: usher.ttvnw.net` | Fetch Twitch HLS playlists to inspect available resolutions and bandwidth |
-| `host_permissions: gql.twitch.tv`   | Request Twitch playback access tokens                                     |
-
----
-
-## Local Development
-
-### Prerequisites
-
-- Node.js `20.x`
-- pnpm `10.x`
-- For the API: Docker, Redis, `yt-dlp`
-
-### Extension
-
-```bash
-git clone https://github.com/MohamedSayed0573/TubeSize_Extension.git
-cd TubeSize_Extension
-pnpm install
-
-# Development build with watch
-cd tubesize && pnpm run dev
-
-# Production build
-pnpm run build
-
-# Run tests
-pnpm run test
-```
-
-Load the `tubesize/dist/` folder as an unpacked extension in your browser.
-
-Then test the popup on:
-
-- a regular YouTube video
-- a YouTube Live stream
-- a Twitch live channel
-- a Twitch VOD page
-
-### API
-
-```bash
-docker compose -f api/docker-compose.dev.yml up
-```
-
-### Package for Release
-
-```bash
-# Chrome / Edge
-cd tubesize && pnpm run pack
-
-# Firefox
-cd tubesize && pnpm run pack:firefox
-```
+### Legacy API
+The extension used to rely on an API that used yt-dlp to retrieve video data. The API is now deprecated and not used in the extension
 
 ---
 
@@ -241,6 +157,7 @@ cd tubesize && pnpm run pack:firefox
 
 - GitHub: [@MohamedSayed0573](https://github.com/MohamedSayed0573)
 - LinkedIn: [mohamed-sayed3](https://www.linkedin.com/in/mohamed-sayed3/)
+- Support: [ko-fi.com/mohamedsayed253](https://ko-fi.com/mohamedsayed253)
 
 ---
 
