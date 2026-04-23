@@ -13,7 +13,6 @@ import {
     extractTwitchVodId,
     humanizeDuration,
 } from "@lib/utils";
-import { getFromSyncCache } from "@lib/cache";
 import Options from "@pages/options";
 import CONFIG from "@lib/constants";
 import Header from "@components/header";
@@ -21,6 +20,7 @@ import YoutubeFormat from "@/components/youtubeFormat";
 import TwitchFormat from "@/components/twitchFormat";
 import useTab from "@/hooks/useTab";
 import useCurrentQuality from "@/hooks/useCurrentQuality";
+import useOptions from "@/hooks/useOptions";
 
 function getCachedAgo(createdAt: string | undefined) {
     if (!createdAt) return;
@@ -33,9 +33,9 @@ function getCachedAgo(createdAt: string | undefined) {
     }
 }
 
-async function getOptions() {
-    const qualityIds = await getFromSyncCache("qualityIds");
-    return qualityIds ?? {};
+function getEnabledOptions(optionsState: Record<any, any> | undefined = {}) {
+    const qualityIds = optionsState["qualityIds"] ?? {};
+    return CONFIG.optionIDs.filter((option) => qualityIds[option] ?? true);
 }
 
 export default function Popup() {
@@ -48,14 +48,11 @@ export default function Popup() {
     const [twitchData, setTwitchData] = useState<TwitchBackgroundResponse | null>(null);
     const [cache, setCache] = useState<string | undefined>(undefined);
     const [useOptionsPage, setUseOptionsPage] = useState(false);
-    const [enabledOptions, setEnabledOptions] = useState<string[]>([]);
     const [error, setError] = useState<Error | null>(null);
     const [isLive, setIsLive] = useState<boolean>(false);
     const { currentQuality } = useCurrentQuality(tabId, tabUrl);
-
-    if (tabError) {
-        throw tabError;
-    }
+    const { optionsState, error: optionsError } = useOptions();
+    const enabledOptions = getEnabledOptions(optionsState);
 
     useEffect(() => {
         (async () => {
@@ -144,22 +141,7 @@ export default function Popup() {
         })();
     }, [tabId, tabUrl]);
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const qualityIds = await getOptions();
-                const enabledOptions = CONFIG.optionIDs.filter((option) => {
-                    return qualityIds[option] ?? true;
-                });
-                setEnabledOptions(enabledOptions);
-            } catch (err) {
-                console.error(err);
-                setError(err as Error);
-            }
-        })();
-    }, []);
-
-    if (error) {
+    if (error || tabError || optionsError) {
         throw error;
     }
 

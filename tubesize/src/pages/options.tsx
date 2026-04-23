@@ -4,25 +4,12 @@ import CONFIG from "@lib/constants";
 import HeaderOptions from "@components/options/headerOptions";
 import OptionItem from "@components/options/optionItem";
 import CacheSettings from "@components/options/cacheSettings";
-import { useState, useEffect } from "react";
-import { getAllFromSyncCache } from "@lib/cache";
 import ToasterSettings from "@components/options/toasterSettings";
 import QualityMenu from "@components/options/qualityMenu";
+import useOptions from "@/hooks/useOptions";
 
 export default function Options() {
-    const [optionsState, setOptionsState] = useState<Record<any, any>>({});
-
-    useEffect(() => {
-        (async () => {
-            try {
-                const options = await getAllFromSyncCache();
-                setOptionsState(options);
-            } catch (err) {
-                console.error("Failed to load options from cache:", err);
-            }
-        })();
-    }, []);
-
+    const { optionsState, setOptionsState } = useOptions();
     return (
         <div className="options-page">
             <HeaderOptions />
