@@ -58,6 +58,13 @@ TubeSize is a browser extension that shows estimated data usage for YouTube and 
 <div align="center">
   <img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/63aab6a5-72f8-4065-b2a1-68d6b8c2b6b3" />
 </div>
+<br>
+
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/1685c8eb-ff3f-49df-a3e8-0df363367aa1" alt="toast" width="48%" />
+  <img alt="twitch1" src="https://github.com/user-attachments/assets/c56770f5-08ee-4a17-8ce1-3e05dcf13d5a" width="48%" />
+
+</div>
 
 ---
 
