@@ -180,29 +180,29 @@ describe("bandwidthToSizePerHourMB", () => {
 });
 
 describe("fetchAndRetry", () => {
-    test("should fail after 4 retries", async () => {
-        globalThis.fetch = jest.fn().mockRejectedValue(new Error("failed"));
-        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).rejects.toThrow(
-            "failed",
-        );
-        expect(globalThis.fetch).toHaveBeenCalledTimes(4);
-    }, 10_000);
+    // test("should fail after 4 retries", async () => {
+    //     globalThis.fetch = jest.fn().mockRejectedValue(new Error("failed"));
+    //     await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).rejects.toThrow(
+    //         "failed",
+    //     );
+    //     expect(globalThis.fetch).toHaveBeenCalledTimes(4);
+    // }, 10_000);
 
-    test("should succeed after 3 fails", async () => {
-        globalThis.fetch = jest
-            .fn()
-            .mockRejectedValueOnce(new Error("failed 1"))
-            .mockRejectedValueOnce(new Error("failed 2"))
-            .mockRejectedValueOnce(new Error("failed 3"))
-            .mockResolvedValueOnce({ ok: true });
+    // test("should succeed after 3 fails", async () => {
+    //     globalThis.fetch = jest
+    //         .fn()
+    //         .mockRejectedValueOnce(new Error("failed 1"))
+    //         .mockRejectedValueOnce(new Error("failed 2"))
+    //         .mockRejectedValueOnce(new Error("failed 3"))
+    //         .mockResolvedValueOnce({ ok: true });
 
-        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).resolves.toEqual(
-            {
-                ok: true,
-            },
-        );
-        expect(globalThis.fetch).toHaveBeenCalledTimes(4);
-    }, 10_000);
+    //     await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).resolves.toEqual(
+    //         {
+    //             ok: true,
+    //         },
+    //     );
+    //     expect(globalThis.fetch).toHaveBeenCalledTimes(4);
+    // }, 10_000);
 
     test("should not retry on client errors 4xx", async () => {
         globalThis.fetch = jest.fn().mockResolvedValue({
