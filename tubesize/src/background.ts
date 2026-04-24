@@ -178,12 +178,11 @@ async function handleYoutube(
 
 chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === "install" || details.reason === "update") {
-        try {
-            void clearLocalCache();
-            void clearSyncCache();
-        } catch (err) {
-            console.error("Failed to clear local cache on install/update", err);
-        }
+        clearLocalCache()
+            .then(() => clearSyncCache())
+            .catch((err) => {
+                console.error("Failed to clear local cache on install/update", err);
+            });
     }
 });
 
