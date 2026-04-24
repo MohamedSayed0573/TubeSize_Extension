@@ -43,6 +43,7 @@ export default defineConfig([
             "@typescript-eslint/no-explicit-any": "off",
             "@typescript-eslint/no-empty-object-type": "off",
             "no-empty": "off",
+            radix: "error",
             "unicorn/catch-error-name": ["error", { name: "err" }],
             "unicorn/prevent-abbreviations": "off",
             "unicorn/filename-case": [

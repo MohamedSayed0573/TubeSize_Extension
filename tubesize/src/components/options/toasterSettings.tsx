@@ -77,7 +77,7 @@ export default function ToasterSettings() {
                             id="toasterThreshold"
                             value={toasterThreshold}
                             onChange={(event) => {
-                                const value = Number.parseInt(event.target.value);
+                                const value = Number.parseInt(event.target.value, 10);
                                 if (value < 1 || value > 10_000 || Number.isNaN(value)) return;
                                 void setToSyncCache({
                                     toasterThreshold: value,

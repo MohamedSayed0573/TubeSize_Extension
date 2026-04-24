@@ -110,7 +110,7 @@ function chooseVideoFormats(data: RawData): RawFormat["formats"] {
             .filter((format): format is RawData["streamingData"]["adaptiveFormats"][number] => {
                 if (!format) return false;
                 if (data.videoDetails.isLive) return Boolean(format.bitrate);
-                return Number.parseInt(format.contentLength || "0") > 0;
+                return Number.parseInt(format.contentLength || "0", 10) > 0;
             });
 
         if (matchingFormats.length === 0) {
@@ -121,7 +121,7 @@ function chooseVideoFormats(data: RawData): RawFormat["formats"] {
             if (data.videoDetails.isLive) {
                 return format.bitrate ? (format.bitrate * 3600) / 8 : 0;
             }
-            return Number.parseInt(format.contentLength || "0");
+            return Number.parseInt(format.contentLength || "0", 10);
         });
         const firstFormat = matchingFormats[0];
         const shouldShowRange = resolution >= CONFIG.RANGE_RESOLUTION_THRESHOLD;
@@ -162,7 +162,7 @@ function chooseAudioFormats(data: RawData) {
         .map((format) => {
             return {
                 formatId: format.itag,
-                sizeBytes: Number.parseInt(format.contentLength || "0"),
+                sizeBytes: Number.parseInt(format.contentLength || "0", 10),
             };
         });
 }
@@ -174,7 +174,7 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
     return {
         id: data.videoDetails.videoId,
         title: data.videoDetails.title,
-        durationSeconds: Number.parseInt(data.videoDetails.lengthSeconds || "0"),
+        durationSeconds: Number.parseInt(data.videoDetails.lengthSeconds || "0", 10),
         formats: chooseVideoFormats(data),
         audioFormats: chooseAudioFormats(data),
         isLive: data.videoDetails.isLive ?? false,

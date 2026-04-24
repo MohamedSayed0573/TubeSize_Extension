@@ -129,7 +129,7 @@ async function renderQualityLabels() {
             continue;
 
         const newDiv = document.createElement("div");
-        const size = lookup.get(Number.parseInt(qualityText));
+        const size = lookup.get(Number.parseInt(qualityText, 10));
         if (!size) continue;
         newDiv.textContent = isCurrentVideoLive ? size + "/hour" : size;
         newDiv.className = TUBESIZE_QUALITY_MENU_CLASS;
