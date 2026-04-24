@@ -8,15 +8,11 @@ export default function QualityMenu() {
     );
 
     useEffect(() => {
-        (async () => {
-            try {
-                const qualityMenu =
-                    (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
-                if (typeof qualityMenu === "boolean") {
-                    setQualityMenuEnabled(qualityMenu);
-                }
-            } catch (error) {
-                console.error("Failed to load qualityMenu setting from sync cache.", error);
+        (() => {
+            const qualityMenu =
+                getFromSyncCache("qualityMenu") ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
+            if (typeof qualityMenu === "boolean") {
+                setQualityMenuEnabled(qualityMenu);
             }
         })();
     }, []);
@@ -32,12 +28,11 @@ export default function QualityMenu() {
                     id="qualityMenuToggle"
                     type="checkbox"
                     checked={qualityMenuEnabled}
-                    onChange={async (event) => {
-                        const { checked } = event.target as HTMLInputElement;
-                        setQualityMenuEnabled(checked);
-                        await setToSyncCache({
+                    onChange={(event) => {
+                        const { checked } = event.target;
+                        void setToSyncCache({
                             qualityMenu: checked,
-                        });
+                        }).then(() => setQualityMenuEnabled(checked));
                     }}
                 ></input>
             </div>

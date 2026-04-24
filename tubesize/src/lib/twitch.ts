@@ -1,4 +1,4 @@
-import type { TwitchData, TwitchMessage, TwitchTokenData } from "@/types/types";
+import type { TwitchData, TwitchGqlResponse, TwitchMessage, TwitchTokenData } from "@/types/types";
 import { Parser } from "m3u8-parser";
 import CONFIG from "@lib/constants";
 
@@ -50,26 +50,26 @@ export async function getTwitchToken(message: TwitchMessage): Promise<TwitchToke
                 `Failed to fetch Twitch token from GQL: ${res.status}, ${res.statusText}`,
             );
         }
-        const data = await res.json();
+        const data = (await res.json()) as TwitchGqlResponse;
         if (!data?.data?.streamPlaybackAccessToken && !data?.data?.videoPlaybackAccessToken) {
             throw new Error("Failed to get stream playback access token");
         }
-        const twitchToken = {
-            value:
-                data.data.streamPlaybackAccessToken?.value ||
-                data.data.videoPlaybackAccessToken.value,
-            signature:
-                data.data.streamPlaybackAccessToken?.signature ||
-                data.data.videoPlaybackAccessToken.signature,
-            durationSeconds: data.data.video?.lengthSeconds,
-        };
-        if (!twitchToken.signature || !twitchToken.value) {
+        const value =
+            data.data.streamPlaybackAccessToken?.value ?? data.data.videoPlaybackAccessToken?.value;
+        const signature =
+            data.data.streamPlaybackAccessToken?.signature ??
+            data.data.videoPlaybackAccessToken?.signature;
+        if (!value || !signature) {
             throw new Error("Failed to retrieve Twitch token");
         }
-        return twitchToken;
-    } catch (error) {
-        console.error("Failed to get Twitch token:", error);
-        throw error;
+        return {
+            value,
+            signature,
+            durationSeconds: data.data.video?.lengthSeconds,
+        };
+    } catch (err) {
+        console.error("Failed to get Twitch token:", err);
+        throw err;
     }
 }
 

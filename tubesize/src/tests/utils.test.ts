@@ -181,15 +181,15 @@ describe("bandwidthToSizePerHourMB", () => {
 
 describe("fetchAndRetry", () => {
     test("should fail after 4 retries", async () => {
-        global.fetch = jest.fn().mockRejectedValue(new Error("failed"));
+        globalThis.fetch = jest.fn().mockRejectedValue(new Error("failed"));
         await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).rejects.toThrow(
             "failed",
         );
-        expect(global.fetch).toHaveBeenCalledTimes(4);
-    }, 10000);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(4);
+    }, 10_000);
 
     test("should succeed after 3 fails", async () => {
-        global.fetch = jest
+        globalThis.fetch = jest
             .fn()
             .mockRejectedValueOnce(new Error("failed 1"))
             .mockRejectedValueOnce(new Error("failed 2"))
@@ -201,11 +201,11 @@ describe("fetchAndRetry", () => {
                 ok: true,
             },
         );
-        expect(global.fetch).toHaveBeenCalledTimes(4);
-    }, 10000);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(4);
+    }, 10_000);
 
     test("should not retry on client errors 4xx", async () => {
-        global.fetch = jest.fn().mockResolvedValue({
+        globalThis.fetch = jest.fn().mockResolvedValue({
             status: 400,
             ok: false,
         });
@@ -214,11 +214,11 @@ describe("fetchAndRetry", () => {
             "Client Error: 400, won't retry",
         );
 
-        expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     });
 
     test("should retry on server errors 5xx", async () => {
-        global.fetch = jest
+        globalThis.fetch = jest
             .fn()
             .mockResolvedValueOnce({
                 status: 500,

@@ -6,7 +6,7 @@ import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-t
  * @returns The current resolution as a number or undefined
  */
 export async function getCurrentResolution() {
-    return new Promise<number | undefined>((resolve) => {
+    return new Promise<number | void>((resolve) => {
         // Check immediately in case the video is already loaded
         const video = document.querySelector("video");
         if (video && video.videoHeight > 0) {
@@ -29,15 +29,15 @@ export async function getCurrentResolution() {
 
         const timeout = setTimeout(() => {
             observer.disconnect();
-            return resolve(undefined);
-        }, 10000);
+            return resolve();
+        }, 10_000);
     });
 }
 
 let currentQuality: number | undefined;
 
 let videoResizeListener: (() => void) | undefined;
-let currentVideoElement: HTMLVideoElement | null = null;
+let currentVideoElement: HTMLVideoElement | undefined;
 
 /**
  * Starts polling for resolution changes and shows toasts for YouTube videos.
@@ -53,7 +53,7 @@ export async function startYoutubeToastTracking(
     if (videoResizeListener) {
         currentVideoElement?.removeEventListener("resize", videoResizeListener);
     }
-    currentVideoElement = video;
+    currentVideoElement = video ?? undefined;
     videoResizeListener = () => {
         const resolution = currentVideoElement?.videoHeight;
         if (!resolution || !youtubeResponse.data || resolution === currentQuality) return;
@@ -83,7 +83,7 @@ export async function startToastTwitchPolling(
     if (videoResizeListener) {
         currentVideoElement?.removeEventListener("resize", videoResizeListener);
     }
-    currentVideoElement = video;
+    currentVideoElement = video ?? undefined;
     videoResizeListener = () => {
         const resolution = currentVideoElement?.videoHeight;
         if (!resolution || !twitchData?.data || resolution === currentQuality) return;
@@ -105,6 +105,6 @@ export function stopResolutionTracking() {
         currentVideoElement?.removeEventListener("resize", videoResizeListener);
     }
     currentQuality = undefined;
-    currentVideoElement = null;
+    currentVideoElement = undefined;
     videoResizeListener = undefined;
 }

@@ -15,13 +15,17 @@ export async function sendMessageToBackground<T extends FrontEndMessage>(
     message: T,
 ): Promise<MessageResponseMap[T["type"]]> {
     return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ ...message }, (response) => {
+        chrome.runtime.sendMessage({ ...message }, (response: MessageResponseMap[T["type"]]) => {
             if (chrome.runtime.lastError) {
                 reject(new Error(chrome.runtime.lastError.message));
                 return;
             }
             if (!response?.success) {
-                reject(new Error(response?.message || "Unknown error from background script"));
+                const responseMessage =
+                    response && "message" in response && typeof response.message === "string"
+                        ? response.message
+                        : undefined;
+                reject(new Error(responseMessage || "Unknown error from background script"));
                 return;
             }
             resolve(response);
@@ -38,12 +42,12 @@ export async function sendMessageToContentScript<T extends ContentScriptMessage>
     message: T,
 ): Promise<ContentScriptResponseMap[T["type"]]> {
     return new Promise((resolve, reject) => {
-        chrome.tabs.sendMessage(tabId, message, (response) => {
+        chrome.tabs.sendMessage(tabId, message, (response: ContentScriptResponseMap[T["type"]]) => {
             if (chrome.runtime.lastError) {
                 const errorMessage = chrome.runtime.lastError.message || "";
 
                 if (errorMessage.includes("Receiving end does not exist")) {
-                    return resolve(undefined);
+                    return reject(new Error("No content script found in the specified tab"));
                 }
                 return reject(new Error(errorMessage || "Failed to get current resolution"));
             }

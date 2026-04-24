@@ -5,9 +5,9 @@ import { bandwidthToSizePerMinuteMB } from "@/lib/utils";
 
 const HOST_ID = "TubeSize-Toast-Host";
 
-let root: ReturnType<typeof createRoot> | undefined = undefined;
+let root: ReturnType<typeof createRoot> | undefined;
 function ensureRoot() {
-    let host = document.getElementById(HOST_ID);
+    let host = document.querySelector(`#${HOST_ID}`);
     if (!host) {
         host = document.createElement("div");
         host.id = HOST_ID;
@@ -27,7 +27,7 @@ export function showYoutubeToast(
 ) {
     if (DONT_SHOW_AGAIN) return;
 
-    const [format] = videoFormats.filter((format) => format.height === currentQuality);
+    const format = videoFormats.find((format) => format.height === currentQuality);
     if (!format) return;
     if (format.sizePerMinuteMB > toasterThresholdMbpm) {
         ensureRoot().render(
@@ -84,6 +84,6 @@ function unmountToast() {
     if (root) root.unmount();
     root = undefined;
 
-    const host = document.getElementById(HOST_ID);
+    const host = document.querySelector(`#${HOST_ID}`);
     if (host) host.remove();
 }

@@ -6,38 +6,31 @@ async function getCacheTTLSetting(): Promise<number> {
     return cacheTTL || CONFIG.DEFAULT_CACHE_TTL;
 }
 
-async function setToCache(storage: "local" | "sync", input: { [key: string]: unknown }) {
+async function setToCache<T extends Record<string, unknown>>(storage: "local" | "sync", input: T) {
     await chrome.storage[storage].set(input);
 }
 export function setToLocalCache(input: Record<string, unknown>) {
     return setToCache("local", input);
 }
 
-export function setToSyncCache(input: Partial<OptionsMap>) {
-    return setToCache("sync", input);
+export function setToSyncCache(input: OptionsMap) {
+    return setToCache<OptionsMap>("sync", input);
 }
 
-async function getFromCache(storage: "local" | "sync", key?: string | string[]) {
+async function getFromCache<T>(storage: "local" | "sync", key?: string | string[]): Promise<T> {
     if (!key) {
-        const allData = await chrome.storage[storage].get(null);
-        return allData;
+        return await chrome.storage[storage].get();
     }
-
-    const data = await chrome.storage[storage].get(key);
-
     // If key is a single string/number, return just that value
     // If key is an array, return the object with all requested keys
-    if (!Array.isArray(key)) {
-        return data?.[key];
-    }
-
-    return data as any;
+    const data = await chrome.storage[storage].get(key);
+    return (Array.isArray(key) ? data : data?.[key]) as T;
 }
 export function getFromLocalCache(key?: string | string[]) {
     return getFromCache("local", key);
 }
 export function getAllFromSyncCache(): Promise<OptionsMap> {
-    return getFromCache("sync");
+    return getFromCache<OptionsMap>("sync");
 }
 export function getFromSyncCache<T extends keyof OptionsMap>(
     key?: T | T[],
@@ -103,25 +96,25 @@ export async function saveToStorage(tag: string, response: HumanizedFormat | Twi
 export async function getFromStorage(
     target: "youtube",
     tag: string,
-): Promise<StorageData<HumanizedFormat> | null>;
+): Promise<StorageData<HumanizedFormat> | undefined>;
 export async function getFromStorage(
     target: "twitch",
     tag: string,
-): Promise<StorageData<TwitchData> | null>;
+): Promise<StorageData<TwitchData> | undefined>;
 
 export async function getFromStorage(
     target: "youtube" | "twitch",
     tag: string,
-): Promise<StorageData<HumanizedFormat | TwitchData> | null> {
+): Promise<StorageData<HumanizedFormat | TwitchData> | undefined> {
     const data = await getFromLocalCache(`${target}:${tag}`);
     const item = data as StorageData<HumanizedFormat | TwitchData> | undefined;
 
-    if (!item) return null;
+    if (!item) return undefined;
 
     // Tag expired
     if (item.expiry && item.expiry < Date.now()) {
         await removeFromLocalCache(`${target}:${tag}`);
-        return null;
+        return undefined;
     }
 
     return item;

@@ -28,7 +28,7 @@ import useOptions from "@/hooks/useOptions";
 
 function getCachedAgo(createdAt: string | undefined) {
     if (!createdAt) return;
-    const timeInMs = new Date().getTime() - new Date(createdAt).getTime();
+    const timeInMs = Date.now() - new Date(createdAt).getTime();
     if (timeInMs < CONFIG.CACHE_JUST_NOW_THRESHOLD) {
         return "Cached just now";
     } else {
@@ -48,11 +48,11 @@ export default function Popup() {
 
     const { tabId, tabUrl, error: tabError } = useTab();
     const [pageType, setPageType] = useState<"youtube" | "twitch" | "default">("default");
-    const [youtubeData, setYoutubeData] = useState<YoutubeBackgroundResponse | null>(null);
-    const [twitchData, setTwitchData] = useState<TwitchBackgroundResponse | null>(null);
-    const [cache, setCache] = useState<string | undefined>(undefined);
+    const [youtubeData, setYoutubeData] = useState<YoutubeBackgroundResponse | undefined>();
+    const [twitchData, setTwitchData] = useState<TwitchBackgroundResponse | undefined>();
+    const [cache, setCache] = useState<string | undefined>();
     const [useOptionsPage, setUseOptionsPage] = useState(false);
-    const [error, setError] = useState<Error | null>(null);
+    const [error, setError] = useState<Error | undefined>();
     const [isLive, setIsLive] = useState<boolean>(false);
     const { currentQuality } = useCurrentQuality(tabId, tabUrl);
     const { optionsState, error: optionsError } = useOptions();
@@ -60,93 +60,92 @@ export default function Popup() {
 
     useEffect(() => {
         (async () => {
-            try {
-                if (!tabUrl) return;
+            if (!tabUrl) return;
 
-                setIsLoading(true);
+            setIsLoading(true);
 
-                if (isYoutubePage(tabUrl)) {
-                    setPageType("youtube");
-                    const videoTag = extractVideoTag(tabUrl);
-                    if (!videoTag) {
-                        setMessage("Open a Youtube video");
+            if (isYoutubePage(tabUrl)) {
+                setPageType("youtube");
+                const videoTag = extractVideoTag(tabUrl);
+                if (!videoTag) {
+                    setMessage("Open a Youtube video");
+                    setIsLoading(false);
+                    return;
+                }
+
+                const response = await sendMessageToBackground({
+                    type: "youtubeVideo",
+                    videoTag,
+                    tabId,
+                });
+                if (!response.success) throw new Error(response.message);
+                if (response.data?.videoFormats.length === 0) {
+                    setError(new Error("No video formats found for this video"));
+                    return;
+                }
+                if (isShortsVideo(tabUrl)) response.isShorts = true;
+                setYoutubeData(response);
+                setIsLive(response.data?.isLive || false);
+                setCache(
+                    response.cached
+                        ? getCachedAgo(response.createdAt) || "Cached just now"
+                        : undefined,
+                );
+                setIsLoading(false);
+            } else if (isTwitchPage(tabUrl)) {
+                setPageType("twitch");
+                if (isTwitchVod(tabUrl)) {
+                    const vodId = extractTwitchVodId(tabUrl);
+                    if (!vodId) {
+                        setMessage("Open a Twitch stream or VOD");
                         setIsLoading(false);
                         return;
                     }
 
                     const response = await sendMessageToBackground({
-                        type: "youtubeVideo",
-                        videoTag,
-                        tabId,
+                        type: "twitchVod",
+                        vodId: vodId,
                     });
                     if (!response.success) throw new Error(response.message);
-                    if (response.data?.videoFormats.length === 0) {
-                        setError(new Error("No video formats found for this video"));
-                        return;
-                    }
-                    if (isShortsVideo(tabUrl)) response.isShorts = true;
-                    setYoutubeData(response);
-                    setIsLive(response.data?.isLive || false);
+                    setTwitchData(response);
                     setCache(
                         response.cached
                             ? getCachedAgo(response.createdAt) || "Cached just now"
                             : undefined,
                     );
+                    setIsLive(false);
                     setIsLoading(false);
-                } else if (isTwitchPage(tabUrl)) {
-                    setPageType("twitch");
-                    if (isTwitchVod(tabUrl)) {
-                        const vodId = extractTwitchVodId(tabUrl);
-                        if (!vodId) {
-                            setMessage("Open a Twitch stream or VOD");
-                            setIsLoading(false);
-                            return;
-                        }
-
-                        const response = await sendMessageToBackground({
-                            type: "twitchVod",
-                            vodId: vodId,
-                        });
-                        if (!response.success) throw new Error(response.message);
-                        setTwitchData(response);
-                        setCache(
-                            response.cached
-                                ? getCachedAgo(response.createdAt) || "Cached just now"
-                                : undefined,
-                        );
-                        setIsLive(false);
-                        setIsLoading(false);
-                    } else {
-                        const channelName = extractTwitchChannelName(tabUrl);
-                        if (!channelName) {
-                            setMessage("Open a Twitch stream");
-                            setIsLoading(false);
-                            return;
-                        }
-
-                        const response = await sendMessageToBackground({
-                            type: "twitchLive",
-                            channelName: channelName,
-                        });
-                        if (!response.success) throw new Error(response.message);
-                        setTwitchData(response);
-                        setIsLive(true);
-                        setIsLoading(false);
-                    }
                 } else {
-                    setMessage("TubeSize works on YouTube and Twitch only.");
+                    const channelName = extractTwitchChannelName(tabUrl);
+                    if (!channelName) {
+                        setMessage("Open a Twitch stream");
+                        setIsLoading(false);
+                        return;
+                    }
+
+                    const response = await sendMessageToBackground({
+                        type: "twitchLive",
+                        channelName: channelName,
+                    });
+                    if (!response.success) throw new Error(response.message);
+                    setTwitchData(response);
+                    setIsLive(true);
                     setIsLoading(false);
                 }
-            } catch (err) {
-                console.error("[Popup Error]:", err);
+            } else {
+                setMessage("TubeSize works on YouTube and Twitch only.");
                 setIsLoading(false);
-                setError(err as Error);
             }
-        })();
+        })().catch((err) => {
+            console.error("[Popup Error]:", err);
+            setIsLoading(false);
+            setError(err as Error);
+        });
     }, [tabId, tabUrl]);
 
-    if (error || tabError || optionsError) {
-        throw error ?? tabError ?? optionsError;
+    const pageError = error || tabError || optionsError;
+    if (pageError) {
+        throw pageError;
     }
 
     if (useOptionsPage) {
@@ -174,7 +173,7 @@ export default function Popup() {
                 {youtubeData && enabledOptions.length === 0 && (
                     <span className="error">All Resolutions Disabled. Enable in options</span>
                 )}
-                {youtubeData &&
+                {youtubeData?.data?.videoFormats &&
                     youtubeData?.data?.videoFormats
                         ?.filter((item) => {
                             return enabledOptions.includes("p" + item.height);
@@ -190,10 +189,10 @@ export default function Popup() {
                                 />
                             );
                         })
-                        .reverse()}
+                        .toReversed()}
                 {twitchData?.twitchData?.data &&
                     twitchData?.twitchData?.data
-                        .sort((a, b) => b.bandwidth - a.bandwidth)
+                        .toSorted((a, b) => b.bandwidth - a.bandwidth)
                         .map((item) => {
                             return (
                                 <TwitchFormat

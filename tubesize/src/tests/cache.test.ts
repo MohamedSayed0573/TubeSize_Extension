@@ -5,8 +5,8 @@ import {
     setToLocalCache,
 } from "@/lib/cache";
 
-const localGet = jest.fn();
-const syncGet = jest.fn();
+const localGet = jest.fn<Promise<Record<string, unknown>>, [string | string[] | undefined]>();
+const syncGet = jest.fn<Promise<Record<string, unknown>>, [string | string[] | undefined]>();
 
 const localRemove = jest.fn();
 const syncRemove = jest.fn();
@@ -17,38 +17,34 @@ const syncClear = jest.fn();
 const localSet = jest.fn();
 const syncSet = jest.fn();
 
-(global as any).chrome = {
+globalThis.chrome = {
     storage: {
         local: {
             set: async (input: Record<string | number, unknown>) => {
-                localSet(input);
+                await localSet(input);
             },
-            get: async (key: string) => {
-                return localGet(key);
-            },
+            get: localGet as unknown as typeof chrome.storage.local.get,
             remove: async (key: string) => {
-                localRemove(key);
+                await localRemove(key);
             },
             clear: async () => {
-                localClear();
+                await localClear();
             },
         },
         sync: {
             set: async (input: Record<string | number, unknown>) => {
-                syncSet(input);
+                await syncSet(input);
             },
-            get: async (key: string) => {
-                return syncGet(key);
-            },
+            get: syncGet as unknown as typeof chrome.storage.sync.get,
             remove: async (key: string) => {
-                syncRemove(key);
+                await syncRemove(key);
             },
             clear: async () => {
-                syncClear();
+                await syncClear();
             },
         },
     },
-};
+} as unknown as typeof chrome;
 
 beforeEach(() => {
     jest.clearAllMocks();

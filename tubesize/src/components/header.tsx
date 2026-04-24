@@ -73,15 +73,12 @@ export default function Header({
             >
                 {title}
             </div>
-            {isLive ? (
-                <span className="live-indicator" id="duration-display">
-                    Live
-                </span>
-            ) : duration ? (
+            {isLive && <span className="live-indicator">Live</span>}
+            {duration && (
                 <span className="duration" id="duration-display">
                     {duration}
                 </span>
-            ) : null}
+            )}
             <button id="optionsBtn" onClick={() => setUseOptionsPage(true)}>
                 Options
             </button>

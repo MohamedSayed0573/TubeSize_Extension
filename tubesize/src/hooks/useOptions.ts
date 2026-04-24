@@ -1,10 +1,10 @@
-import { getAllFromSyncCache } from "@/lib/cache";
+import { getAllFromSyncCache } from "@lib/cache";
 import { useEffect, useState } from "react";
 import type { OptionsMap } from "@app-types/types";
 
 export default function useOptions() {
     const [optionsState, setOptionsState] = useState<OptionsMap>({});
-    const [error, setError] = useState<Error | null>(null);
+    const [error, setError] = useState<Error | undefined>();
 
     useEffect(() => {
         void (async () => {

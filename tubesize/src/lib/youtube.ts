@@ -89,7 +89,7 @@ export async function fetchHTMLPage(videoTag: string) {
 export function extractYtInitial(html: string): RawData {
     const match = html.match(CONFIG.YT_INITIAL_PLAYER_REGEX);
     if (!match || !match[1]) throw new Error("No match found");
-    const data = JSON.parse(match[1]);
+    const data = JSON.parse(match[1]) as unknown as RawData;
     if (!data) throw new Error("No data found");
     return data;
 }
@@ -101,7 +101,7 @@ function chooseVideoFormats(data: RawData): RawFormat["formats"] {
     const chosenFormats: RawFormat["formats"] = [];
     const adaptiveFormats = data.streamingData.adaptiveFormats;
 
-    for (const [resolution, itags] of CONFIG.resolutions) {
+    for (const [resolution, itags] of CONFIG.VIDEO_ITAGS) {
         const matchingFormats = itags
             .map((itag) => {
                 return adaptiveFormats.find((format) => format.itag === itag);
@@ -110,7 +110,7 @@ function chooseVideoFormats(data: RawData): RawFormat["formats"] {
             .filter((format): format is RawData["streamingData"]["adaptiveFormats"][number] => {
                 if (!format) return false;
                 if (data.videoDetails.isLive) return Boolean(format.bitrate);
-                return parseInt(format.contentLength || "0") > 0;
+                return Number.parseInt(format.contentLength || "0") > 0;
             });
 
         if (matchingFormats.length === 0) {
@@ -121,7 +121,7 @@ function chooseVideoFormats(data: RawData): RawFormat["formats"] {
             if (data.videoDetails.isLive) {
                 return format.bitrate ? (format.bitrate * 3600) / 8 : 0;
             }
-            return parseInt(format.contentLength || "0");
+            return Number.parseInt(format.contentLength || "0");
         });
         const firstFormat = matchingFormats[0];
         const shouldShowRange = resolution >= CONFIG.RANGE_RESOLUTION_THRESHOLD;
@@ -162,7 +162,7 @@ function chooseAudioFormats(data: RawData) {
         .map((format) => {
             return {
                 formatId: format.itag,
-                sizeBytes: parseInt(format.contentLength || "0"),
+                sizeBytes: Number.parseInt(format.contentLength || "0"),
             };
         });
 }
@@ -174,7 +174,7 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
     return {
         id: data.videoDetails.videoId,
         title: data.videoDetails.title,
-        durationSeconds: parseInt(data.videoDetails.lengthSeconds || "0"),
+        durationSeconds: Number.parseInt(data.videoDetails.lengthSeconds || "0"),
         formats: chooseVideoFormats(data),
         audioFormats: chooseAudioFormats(data),
         isLive: data.videoDetails.isLive ?? false,

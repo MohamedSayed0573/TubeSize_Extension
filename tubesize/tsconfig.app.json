@@ -1,9 +1,9 @@
 {
     "compilerOptions": {
         "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-        "target": "ES2022",
+        "target": "esnext",
         "useDefineForClassFields": true,
-        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
         "module": "ESNext",
         "types": ["vite/client", "chrome", "jest", "jest-extended", "node", "@types/jest"],
         "skipLibCheck": true,

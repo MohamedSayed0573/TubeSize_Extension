@@ -16,8 +16,8 @@ import {
 } from "@lib/youtube";
 import { filterM3U8Data, getM3U8Data, getTwitchToken } from "./lib/twitch";
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    handleMessage(message, sender, sendResponse);
+chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
+    void handleMessage(message, sender, sendResponse);
     // Synchronously return true to indicate that sendResponse will be called asynchronously
     return true;
 });
@@ -31,18 +31,23 @@ async function handleMessage(
     const tabId = sender.tab?.id ?? (message.type === "youtubeVideo" ? message.tabId : undefined);
 
     switch (message.type) {
-        case "clearBadge":
+        case "clearBadge": {
             return handleClearBadge(tabId, sendResponse);
-        case "setBadge":
+        }
+        case "setBadge": {
             return handleSetBadge(tabId, sendResponse);
-        case "youtubeVideo":
+        }
+        case "youtubeVideo": {
             return await handleYoutube(message, sendResponse);
+        }
         case "twitchVod":
-        case "twitchLive":
+        case "twitchLive": {
             return await handleTwitch(message, sendResponse);
-        default:
+        }
+        default: {
             console.error("Unknown message type:", message);
             return;
+        }
     }
 }
 
@@ -157,24 +162,27 @@ async function handleYoutube(
             data: humanizedFormats,
         });
     } catch (err) {
-        console.error("Couldn't use local, " + err);
+        console.error(
+            `Couldn't use local, ${err instanceof Error ? err.message : "unknown error"}.`,
+            err,
+        );
         clearBadge(message.tabId);
         return sendResponse({
             success: false,
-            data: null,
+            data: undefined,
             cached: false,
             message: err instanceof Error ? err.message : "Unknown error",
         });
     }
 }
 
-chrome.runtime.onInstalled.addListener(async (details) => {
+chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === "install" || details.reason === "update") {
         try {
-            await clearLocalCache();
-            await clearSyncCache();
-        } catch (e) {
-            console.error("Failed to clear local cache on install/update", e);
+            void clearLocalCache();
+            void clearSyncCache();
+        } catch (err) {
+            console.error("Failed to clear local cache on install/update", err);
         }
     }
 });
