@@ -47,7 +47,9 @@ export async function sendMessageToContentScript<T extends ContentScriptMessage>
                 const errorMessage = chrome.runtime.lastError.message || "";
 
                 if (errorMessage.includes("Receiving end does not exist")) {
-                    return reject(new Error("No content script found in the specified tab"));
+                    // eslint-disable-next-line unicorn/no-useless-undefined
+                    resolve(undefined);
+                    return;
                 }
                 return reject(new Error(errorMessage || "Failed to get current resolution"));
             }

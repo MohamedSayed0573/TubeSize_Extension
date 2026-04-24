@@ -6,7 +6,7 @@ import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-t
  * @returns The current resolution as a number or undefined
  */
 export async function getCurrentResolution() {
-    return new Promise<number | void>((resolve) => {
+    return new Promise<number | undefined>((resolve) => {
         // Check immediately in case the video is already loaded
         const video = document.querySelector("video");
         if (video && video.videoHeight > 0) {
@@ -29,7 +29,8 @@ export async function getCurrentResolution() {
 
         const timeout = setTimeout(() => {
             observer.disconnect();
-            return resolve();
+            // eslint-disable-next-line unicorn/no-useless-undefined
+            return resolve(undefined);
         }, 10_000);
     });
 }
