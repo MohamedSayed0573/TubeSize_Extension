@@ -78,7 +78,7 @@ export default function Popup() {
                     videoTag,
                     tabId,
                 });
-                if (!response.success) throw new Error(response.message);
+                if (!response.success) throw new Error(response?.message);
                 if (response.data?.videoFormats.length === 0) {
                     setError(new Error("No video formats found for this video"));
                     setIsLoading(false);
@@ -190,10 +190,12 @@ export default function Popup() {
                                 />
                             );
                         })
-                        .toReversed()}
+                        // eslint-disable-next-line unicorn/no-array-reverse
+                        .reverse()}
                 {twitchData?.twitchData?.data &&
                     twitchData?.twitchData?.data
-                        .toSorted((a, b) => b.bandwidth - a.bandwidth)
+                        // eslint-disable-next-line unicorn/no-array-sort
+                        .sort((a, b) => b.bandwidth - a.bandwidth)
                         .map((item) => {
                             return (
                                 <TwitchFormat
