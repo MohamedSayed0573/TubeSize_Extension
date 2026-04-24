@@ -28,11 +28,15 @@ export function removeEventListeners() {
 }
 
 const settingsBtnHandler = () => {
-    void settingsBtnClickListener();
+    settingsBtnClickListener().catch((err) => {
+        console.error("Error in settings button click handler:", err);
+    });
 };
 
 const qualityBtnHandler = () => {
-    void renderQualityLabels();
+    renderQualityLabels().catch((err) => {
+        console.error("Error in quality button click handler:", err);
+    });
 };
 
 let currentYoutubeData: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"] | undefined;

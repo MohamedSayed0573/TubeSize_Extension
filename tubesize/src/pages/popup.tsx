@@ -79,7 +79,7 @@ export default function Popup() {
                     tabId,
                 });
                 if (!response.success) throw new Error(response?.message);
-                if (response.data?.videoFormats.length === 0) {
+                if (response.data?.videoFormats?.length === 0) {
                     setError(new Error("No video formats found for this video"));
                     setIsLoading(false);
                     return;
