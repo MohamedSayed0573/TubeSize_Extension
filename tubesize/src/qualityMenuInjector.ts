@@ -127,11 +127,11 @@ async function renderQualityLabels() {
         const innerDiv = ytMenuItemLabel?.querySelector(INNER_DIV_SELECTOR);
         const qualityText = innerDiv?.querySelector(SPAN_SELECTOR)?.textContent;
         if (!qualityText || qualityText.includes("Auto") || qualityText?.includes("Premium"))
-            return;
+            continue;
 
         const newDiv = document.createElement("div");
         const size = lookup.get(Number.parseInt(qualityText));
-        if (!size) return;
+        if (!size) continue;
         newDiv.textContent = isCurrentVideoLive ? size + "/hour" : size;
         newDiv.className = TUBESIZE_QUALITY_MENU_CLASS;
 
