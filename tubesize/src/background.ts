@@ -163,7 +163,7 @@ async function handleYoutube(
         });
     } catch (err) {
         console.error(
-            `Couldn't use local, ${err instanceof Error ? err.message : "unknown error"}.`,
+            `YouTube data extraction failed: ${err instanceof Error ? err.message : "unknown error"}`,
             err,
         );
         clearBadge(message.tabId);
@@ -181,7 +181,7 @@ chrome.runtime.onInstalled.addListener((details) => {
         clearLocalCache()
             .then(() => clearSyncCache())
             .catch((err) => {
-                console.error("Failed to clear local cache on install/update", err);
+                console.error("Failed to clear cache on install/update", err);
             });
     }
 });

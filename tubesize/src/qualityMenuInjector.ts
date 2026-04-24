@@ -49,7 +49,6 @@ export async function injectQualityMenu(
         settingsBtnEl = await waitForElement(SETTINGS_BTN_SELECTOR);
         if (!settingsBtnEl) return;
 
-        settingsBtnEl.removeEventListener("click", settingsBtnHandler);
         settingsBtnEl.addEventListener("click", settingsBtnHandler);
     } catch (err) {
         console.error("Error in qualityMenuInjector:", err);
@@ -126,7 +125,7 @@ async function renderQualityLabels() {
         const ytMenuItemLabel = ytMenuItem.querySelector(MENU_ITEM_LABEL_SELECTOR);
         const innerDiv = ytMenuItemLabel?.querySelector(INNER_DIV_SELECTOR);
         const qualityText = innerDiv?.querySelector(SPAN_SELECTOR)?.textContent;
-        if (!qualityText || qualityText.includes("Auto") || qualityText?.includes("Premium"))
+        if (!qualityText || qualityText.includes("Auto") || qualityText.includes("Premium"))
             continue;
 
         const newDiv = document.createElement("div");

@@ -40,7 +40,7 @@ type ContentScriptResponseMap = {
 export async function sendMessageToContentScript<T extends ContentScriptMessage>(
     tabId: number,
     message: T,
-): Promise<ContentScriptResponseMap[T["type"]]> {
+): Promise<ContentScriptResponseMap[T["type"]] | undefined> {
     return new Promise((resolve, reject) => {
         chrome.tabs.sendMessage(tabId, message, (response: ContentScriptResponseMap[T["type"]]) => {
             if (chrome.runtime.lastError) {
