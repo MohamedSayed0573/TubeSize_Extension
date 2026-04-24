@@ -8,7 +8,7 @@ import {
 } from "@lib/utils";
 import { getFromSyncCache } from "@lib/cache";
 import CONFIG from "@lib/constants";
-import { injectQualityMenu, removeEventListeners } from "@/quality-menu-injector";
+import { injectQualityMenu, removeEventListeners } from "@/qualityMenuInjector";
 import { sendMessageToBackground } from "./runtime";
 import {
     getCurrentResolution,
@@ -21,7 +21,7 @@ let lastYoutubeTag: string | undefined;
 let lastTwitchTag: string | undefined;
 
 function getCurrentUrl() {
-    return window.location.href;
+    return globalThis.location.href;
 }
 
 async function handlePageNavigation() {
@@ -51,14 +51,17 @@ async function handlePageNavigation() {
             const qualityMenuEnabled =
                 (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
             if (qualityMenuEnabled && youtubeResponse && youtubeResponse.data) {
-                injectQualityMenu(youtubeResponse.data?.videoFormats, youtubeResponse.data?.isLive);
+                await injectQualityMenu(
+                    youtubeResponse.data?.videoFormats,
+                    youtubeResponse.data?.isLive,
+                );
             }
 
             const toasterEnabled =
                 (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
             if (toasterEnabled) {
                 const toasterThresholdMbpm = await getToasterThreshold();
-                startYoutubeToastTracking(youtubeResponse, toasterThresholdMbpm);
+                await startYoutubeToastTracking(youtubeResponse, toasterThresholdMbpm);
             }
         } else if (isTwitchPage(url)) {
             const isLive = !isTwitchVod(url);
@@ -83,13 +86,14 @@ async function handlePageNavigation() {
     }
 }
 
-if (isYoutubePage(window.location.href)) {
-    window.addEventListener("yt-navigate-finish", () => {
-        handlePageNavigation();
+if (isYoutubePage(globalThis.location.href)) {
+    globalThis.addEventListener("yt-navigate-finish", () => {
+        void handlePageNavigation();
     });
 }
 
-handlePageNavigation();
+// eslint-disable-next-line unicorn/prefer-top-level-await
+void handlePageNavigation();
 
 chrome.runtime.onMessage.addListener(
     (message: { type: string }, _sender: chrome.runtime.MessageSender, sendResponse) => {
@@ -123,7 +127,7 @@ async function getToasterThreshold() {
 }
 
 async function initYoutube(videoTag: string) {
-    const scriptsArray = Array.from(document.scripts);
+    const scriptsArray = [...document.scripts];
     const ytInitialPlayerResponse = scriptsArray.find((script) => {
         return script.textContent?.includes("ytInitialPlayerResponse");
     });
@@ -138,15 +142,13 @@ async function initYoutube(videoTag: string) {
 }
 
 async function initTwitch(tag: string, isLive: boolean) {
-    if (isLive) {
-        return await sendMessageToBackground({
-            type: "twitchLive",
-            channelName: tag,
-        });
-    } else {
-        return await sendMessageToBackground({
-            type: "twitchVod",
-            vodId: tag,
-        });
-    }
+    return isLive
+        ? await sendMessageToBackground({
+              type: "twitchLive",
+              channelName: tag,
+          })
+        : await sendMessageToBackground({
+              type: "twitchVod",
+              vodId: tag,
+          });
 }

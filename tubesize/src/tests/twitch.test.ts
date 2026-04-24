@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { filterM3U8Data, getClientId, getM3U8Data, getTwitchToken } from "@lib/twitch";
-import path from "path";
-import fs from "fs";
+import path from "node:path";
+import fs from "node:fs";
 
 afterEach(() => {
     jest.resetAllMocks();
@@ -10,9 +11,9 @@ describe("getClientId", () => {
     test("should extract client ID from Twitch page", async () => {
         const channelName = "hivise";
         const htmlPath = path.join(process.cwd(), "src", "tests", "assets", "twitch.html");
-        global.fetch = jest.fn().mockResolvedValue({
+        globalThis.fetch = jest.fn().mockResolvedValue({
             ok: true,
-            text: async () => fs.readFileSync(htmlPath, "utf-8"),
+            text: () => fs.readFileSync(htmlPath, "utf8"),
         });
         const clientId = await getClientId({ channelName, type: "twitchLive" });
         expect(clientId).toBe("kimne78kx3ncx6brgo4mv6wki5et0ko");
@@ -25,11 +26,11 @@ describe("getTwitchToken", () => {
             .fn()
             .mockResolvedValueOnce({
                 ok: true,
-                text: async () => 'clientId = "live-client-id"',
+                text: () => 'clientId = "live-client-id"',
             })
             .mockResolvedValueOnce({
                 ok: true,
-                json: async () => ({
+                json: () => ({
                     data: {
                         streamPlaybackAccessToken: {
                             value: '{"foo":"bar"}',
@@ -39,7 +40,7 @@ describe("getTwitchToken", () => {
                 }),
             });
 
-        global.fetch = fetchMock;
+        globalThis.fetch = fetchMock;
 
         const token = await getTwitchToken({ type: "twitchLive", channelName: "hivise" });
 
@@ -51,8 +52,13 @@ describe("getTwitchToken", () => {
         expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(fetchMock.mock.calls[1]?.[0]).toBe("https://gql.twitch.tv/gql");
 
-        const request = fetchMock.mock.calls[1]?.[1] as RequestInit;
-        const body = JSON.parse(request.body as string);
+        const request = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
+        if (!request) {
+            throw new Error("Expected gql request options");
+        }
+        const body = JSON.parse(request.body as string) as unknown as {
+            variables: Record<string, unknown>;
+        };
 
         expect(request.method).toBe("POST");
         expect(request.headers).toEqual({
@@ -74,11 +80,11 @@ describe("getTwitchToken", () => {
             .fn()
             .mockResolvedValueOnce({
                 ok: true,
-                text: async () => 'clientId = "vod-client-id"',
+                text: () => 'clientId = "vod-client-id"',
             })
             .mockResolvedValueOnce({
                 ok: true,
-                json: async () => ({
+                json: () => ({
                     data: {
                         videoPlaybackAccessToken: {
                             value: '{"vod":true}',
@@ -88,7 +94,7 @@ describe("getTwitchToken", () => {
                 }),
             });
 
-        global.fetch = fetchMock;
+        globalThis.fetch = fetchMock;
 
         const token = await getTwitchToken({ type: "twitchVod", vodId: "2748008198" });
 
@@ -98,8 +104,13 @@ describe("getTwitchToken", () => {
         });
         expect(fetchMock).toHaveBeenNthCalledWith(1, "https://www.twitch.tv/videos/2748008198");
 
-        const request = fetchMock.mock.calls[1]?.[1] as RequestInit;
-        const body = JSON.parse(request.body as string);
+        const request = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
+        if (!request) {
+            throw new Error("Expected gql request options");
+        }
+        const body = JSON.parse(request.body as string) as {
+            variables: Record<string, unknown>;
+        };
 
         expect(body.variables).toEqual({
             login: "",
@@ -116,10 +127,10 @@ describe("getM3U8Data", () => {
     test("should request live m3u8 data with token and signature", async () => {
         const fetchMock = jest.fn().mockResolvedValue({
             ok: true,
-            text: async () => "#EXTM3U\n",
+            text: () => "#EXTM3U\n",
         });
 
-        global.fetch = fetchMock;
+        globalThis.fetch = fetchMock;
 
         const data = await getM3U8Data(
             { value: '{"token":"live"}', signature: "live-signature" },
@@ -128,9 +139,9 @@ describe("getM3U8Data", () => {
 
         expect(data).toBe("#EXTM3U\n");
 
-        const requestUrl = fetchMock.mock.calls[0]?.[0] as URL;
+        const requestUrl = fetchMock.mock.calls[0]?.[0] as URL | undefined;
 
-        expect(requestUrl.toString()).toBe(
+        expect(requestUrl?.toString()).toBe(
             "https://usher.ttvnw.net/api/v2/channel/hls/hivise.m3u8?token=%7B%22token%22%3A%22live%22%7D&sig=live-signature",
         );
     });
@@ -138,10 +149,10 @@ describe("getM3U8Data", () => {
     test("should request vod m3u8 data with token and signature", async () => {
         const fetchMock = jest.fn().mockResolvedValue({
             ok: true,
-            text: async () => "#EXTM3U\n#EXT-X-ENDLIST\n",
+            text: () => "#EXTM3U\n#EXT-X-ENDLIST\n",
         });
 
-        global.fetch = fetchMock;
+        globalThis.fetch = fetchMock;
 
         const data = await getM3U8Data(
             { value: '{"token":"vod"}', signature: "vod-signature" },
@@ -150,9 +161,9 @@ describe("getM3U8Data", () => {
 
         expect(data).toBe("#EXTM3U\n#EXT-X-ENDLIST\n");
 
-        const requestUrl = fetchMock.mock.calls[0]?.[0] as URL;
+        const requestUrl = fetchMock.mock.calls[0]?.[0] as URL | undefined;
 
-        expect(requestUrl.toString()).toBe(
+        expect(requestUrl?.toString()).toBe(
             "https://usher.ttvnw.net/vod/v2/2748008198.m3u8?token=%7B%22token%22%3A%22vod%22%7D&sig=vod-signature",
         );
     });
@@ -172,12 +183,12 @@ describe("filterM3U8Data", () => {
 
         expect(filterM3U8Data(m3u8Data)).toEqual([
             {
-                bandwidth: 2602418,
+                bandwidth: 2_602_418,
                 resolution: 720,
                 codec: "avc1.64001F,mp4a.40.2",
             },
             {
-                bandwidth: 1627418,
+                bandwidth: 1_627_418,
                 resolution: 480,
                 codec: "avc1.4D401F,mp4a.40.2",
             },

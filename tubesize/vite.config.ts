@@ -1,7 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import webExtension from "vite-plugin-web-extension";
-import path from "path";
+import path from "node:path";
+
+const __dirname = import.meta.dirname;
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -17,14 +19,7 @@ export default defineConfig(({ mode }) => ({
             "@app-types": path.resolve(__dirname, "src/types"),
         },
     },
-    plugins: [
-        react({
-            babel: {
-                plugins: [["babel-plugin-react-compiler"]],
-            },
-        }),
-        [webExtension({ disableAutoLaunch: true })],
-    ],
+    plugins: [react(), webExtension({ disableAutoLaunch: true })],
     build: {
         sourcemap: mode === "development",
     },

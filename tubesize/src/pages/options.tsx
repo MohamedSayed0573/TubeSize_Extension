@@ -41,13 +41,13 @@ export default function Options() {
             <div className="section-divider"></div>
             <div className="footer">
                 <div className="author">
-                    <a href="https://github.com/MohamedSayed0573" target="_blank">
+                    <a href="https://github.com/MohamedSayed0573" target="_blank" rel="noreferrer">
                         <img src="icons/github.svg" alt="" width="14" height="14" />
                         @Mohamed Sayed
                     </a>
                 </div>
                 <div>
-                    <a href="https://ko-fi.com/mohamedsayed253" target="_blank">
+                    <a href="https://ko-fi.com/mohamedsayed253" target="_blank" rel="noreferrer">
                         <img src="icons/support.svg" alt="" width="14" height="14" />
                         Support Me
                     </a>

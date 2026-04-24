@@ -1,10 +1,10 @@
 export function addBadge(tabId: number | undefined) {
     if (!tabId) return;
-    chrome.action.setBadgeText({
+    void chrome.action.setBadgeText({
         tabId: tabId,
         text: "✓",
     });
-    chrome.action.setBadgeBackgroundColor({
+    void chrome.action.setBadgeBackgroundColor({
         tabId: tabId,
         color: "#28a745",
     });
@@ -12,5 +12,5 @@ export function addBadge(tabId: number | undefined) {
 
 export function clearBadge(tabId: number | undefined) {
     if (!tabId) return;
-    chrome.action.setBadgeText({ tabId, text: "" });
+    void chrome.action.setBadgeText({ tabId, text: "" });
 }

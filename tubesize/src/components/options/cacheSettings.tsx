@@ -28,12 +28,12 @@ export default function CacheSettings() {
                         convertSecondsToDays(optionsState?.cacheTTL ?? CONFIG.DEFAULT_CACHE_TTL) ||
                         "3"
                     } // Fallback to "3" days if undefined
-                    onChange={async (event) => {
+                    onChange={(event) => {
                         const days = event.target.value;
                         const ttlInSeconds = convertDaysToSeconds(days);
-                        await setToSyncCache({
+                        setToSyncCache({
                             cacheTTL: ttlInSeconds,
-                        });
+                        }).catch(() => {});
                         setOptionsState((prev) => ({
                             ...prev,
                             cacheTTL: ttlInSeconds,
@@ -49,19 +49,21 @@ export default function CacheSettings() {
                 id="resetCache"
                 className={`reset-cache-btn ${clearCache}`}
                 disabled={disableClearCache}
-                onClick={async () => {
+                onClick={() => {
                     setDisableClearCache(true);
-                    try {
-                        await clearLocalCache();
-                        setClearCache("success");
-                        setTimeout(() => {
-                            setClearCache("idle");
+                    clearLocalCache()
+                        .then(() => {
+                            setClearCache("success");
+                            setTimeout(() => {
+                                setClearCache("idle");
+                                setDisableClearCache(false);
+                            }, 2000);
+                            return;
+                        })
+                        .catch(() => {
+                            setClearCache("fail");
                             setDisableClearCache(false);
-                        }, 2000);
-                    } catch {
-                        setClearCache("fail");
-                        setDisableClearCache(false);
-                    }
+                        });
                 }}
             >
                 {clearCache === "idle" && "Clear Cache"}

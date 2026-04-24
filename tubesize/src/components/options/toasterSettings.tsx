@@ -14,36 +14,30 @@ export default function ToasterSettings() {
     const [toasterEnabled, setToasterEnabled] = useState<boolean>(CONFIG.DEFAULT_TOASTER_ENABLED);
     useEffect(() => {
         (async () => {
-            try {
-                const toasterThreshold =
-                    (await getFromSyncCache("toasterThreshold")) ??
-                    CONFIG.DEFAULT_TOASTER_THRESHOLD;
-                const toasterThresholdUnit =
-                    ((await getFromSyncCache("toasterThresholdUnit")) as
-                        | "mbPerMinute"
-                        | "mbPerHour") ?? CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
+            const toasterThreshold =
+                (await getFromSyncCache("toasterThreshold")) ?? CONFIG.DEFAULT_TOASTER_THRESHOLD;
+            const toasterThresholdUnit =
+                ((await getFromSyncCache("toasterThresholdUnit")) as "mbPerMinute" | "mbPerHour") ??
+                CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
 
-                if (typeof toasterThreshold === "number") {
-                    setToasterThreshold(toasterThreshold);
-                }
+            if (typeof toasterThreshold === "number") {
+                setToasterThreshold(toasterThreshold);
+            }
 
-                if (toasterThresholdUnit) {
-                    setThresholdUnit(toasterThresholdUnit);
-                }
-            } catch {}
-        })();
+            if (toasterThresholdUnit) {
+                setThresholdUnit(toasterThresholdUnit);
+            }
+        })().catch(() => {});
     }, []);
 
     useEffect(() => {
         (async () => {
-            try {
-                const toasterEnabled =
-                    (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
-                if (typeof toasterEnabled === "boolean") {
-                    setToasterEnabled(toasterEnabled);
-                }
-            } catch {}
-        })();
+            const toasterEnabled =
+                (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
+            if (typeof toasterEnabled === "boolean") {
+                setToasterEnabled(toasterEnabled);
+            }
+        })().catch(() => {});
     }, []);
 
     return (
@@ -61,12 +55,11 @@ export default function ToasterSettings() {
                         type="checkbox"
                         id="toasterThresholdToggle"
                         checked={toasterEnabled}
-                        onChange={async (event) => {
-                            const { checked } = event.target as HTMLInputElement;
-                            await setToSyncCache({
+                        onChange={(event) => {
+                            const { checked } = event.target;
+                            void setToSyncCache({
                                 toasterEnabled: checked,
-                            });
-                            setToasterEnabled(checked);
+                            }).then(() => setToasterEnabled(checked));
                         }}
                     />
                 </div>
@@ -83,15 +76,12 @@ export default function ToasterSettings() {
                             min="1"
                             id="toasterThreshold"
                             value={toasterThreshold}
-                            onChange={async (event) => {
-                                try {
-                                    const value = parseInt(event.target.value);
-                                    if (value < 1 || value > 10000 || isNaN(value)) return;
-                                    await setToSyncCache({
-                                        toasterThreshold: value,
-                                    });
-                                    setToasterThreshold(value);
-                                } catch {}
+                            onChange={(event) => {
+                                const value = Number.parseInt(event.target.value, 10);
+                                if (value < 1 || value > 10_000 || Number.isNaN(value)) return;
+                                void setToSyncCache({
+                                    toasterThreshold: value,
+                                }).then(() => setToasterThreshold(value));
                             }}
                             disabled={!toasterEnabled}
                         />
@@ -102,11 +92,10 @@ export default function ToasterSettings() {
                             id="toasterThresholdType1"
                             name="toasterThresholdType"
                             value="mbPerHour"
-                            onChange={async () => {
-                                await setToSyncCache({
+                            onChange={() => {
+                                void setToSyncCache({
                                     toasterThresholdUnit: "mbPerHour",
-                                });
-                                setThresholdUnit("mbPerHour");
+                                }).then(() => setThresholdUnit("mbPerHour"));
                             }}
                             checked={thresholdUnit === "mbPerHour"}
                             disabled={!toasterEnabled}
@@ -122,11 +111,10 @@ export default function ToasterSettings() {
                             id="toasterThresholdType2"
                             name="toasterThresholdType"
                             value="mbPerMinute"
-                            onChange={async () => {
-                                await setToSyncCache({
+                            onChange={() => {
+                                void setToSyncCache({
                                     toasterThresholdUnit: "mbPerMinute",
-                                });
-                                setThresholdUnit("mbPerMinute");
+                                }).then(() => setThresholdUnit("mbPerMinute"));
                             }}
                             checked={thresholdUnit === "mbPerMinute"}
                             disabled={!toasterEnabled}

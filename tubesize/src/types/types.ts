@@ -71,6 +71,22 @@ export type YoutubeBackgroundResponse = {
     message?: string;
 };
 
+export type TwitchGqlResponse = {
+    data: {
+        streamPlaybackAccessToken?: {
+            value: string;
+            signature: string;
+        };
+        videoPlaybackAccessToken?: {
+            value: string;
+            signature: string;
+        };
+        video?: {
+            lengthSeconds: number;
+        };
+    };
+};
+
 export type TwitchTokenData = {
     value: string;
     signature: string;

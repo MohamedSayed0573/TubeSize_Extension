@@ -29,15 +29,16 @@ export async function getCurrentResolution() {
 
         const timeout = setTimeout(() => {
             observer.disconnect();
+            // eslint-disable-next-line unicorn/no-useless-undefined
             return resolve(undefined);
-        }, 10000);
+        }, 10_000);
     });
 }
 
 let currentQuality: number | undefined;
 
 let videoResizeListener: (() => void) | undefined;
-let currentVideoElement: HTMLVideoElement | null = null;
+let currentVideoElement: HTMLVideoElement | undefined;
 
 /**
  * Starts polling for resolution changes and shows toasts for YouTube videos.
@@ -53,7 +54,7 @@ export async function startYoutubeToastTracking(
     if (videoResizeListener) {
         currentVideoElement?.removeEventListener("resize", videoResizeListener);
     }
-    currentVideoElement = video;
+    currentVideoElement = video ?? undefined;
     videoResizeListener = () => {
         const resolution = currentVideoElement?.videoHeight;
         if (!resolution || !youtubeResponse.data || resolution === currentQuality) return;
@@ -83,7 +84,7 @@ export async function startToastTwitchPolling(
     if (videoResizeListener) {
         currentVideoElement?.removeEventListener("resize", videoResizeListener);
     }
-    currentVideoElement = video;
+    currentVideoElement = video ?? undefined;
     videoResizeListener = () => {
         const resolution = currentVideoElement?.videoHeight;
         if (!resolution || !twitchData?.data || resolution === currentQuality) return;
@@ -105,6 +106,6 @@ export function stopResolutionTracking() {
         currentVideoElement?.removeEventListener("resize", videoResizeListener);
     }
     currentQuality = undefined;
-    currentVideoElement = null;
+    currentVideoElement = undefined;
     videoResizeListener = undefined;
 }

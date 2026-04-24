@@ -7,11 +7,11 @@ interface Props {
 }
 
 interface State {
-    error: Error | null;
+    error: Error | undefined;
 }
 
 class ErrorBoundary extends Component<Props, State> {
-    state: State = { error: null };
+    state: State = { error: undefined };
 
     static getDerivedStateFromError(error: Error): State {
         return { error };

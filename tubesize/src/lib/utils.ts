@@ -133,7 +133,9 @@ export async function fetchAndRetry(
             }
         }
     }
-    throw new Error(`Failed after ${maxRetries} tries, last error: ${lastError}`);
+    throw new Error(
+        `Failed after ${maxRetries} tries, last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+    );
 }
 
 const baseHumanizeDuration = humanize.humanizer({
