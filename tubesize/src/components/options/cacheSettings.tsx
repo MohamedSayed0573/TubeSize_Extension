@@ -58,6 +58,7 @@ export default function CacheSettings() {
                                 setClearCache("idle");
                                 setDisableClearCache(false);
                             }, 2000);
+                            return;
                         })
                         .catch(() => {
                             setClearCache("fail");

@@ -31,6 +31,7 @@
         "jest": true
     },
     "dependencies": {
+        "eslint-plugin-promise": "^7.2.1",
         "filesize": "^11.0.16",
         "humanize-duration": "^3.33.2",
         "m3u8-parser": "^7.2.0",

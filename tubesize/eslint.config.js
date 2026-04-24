@@ -4,6 +4,7 @@ import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import unicorn from "eslint-plugin-unicorn";
+import promises from "eslint-plugin-promise";
 import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
@@ -19,6 +20,7 @@ export default defineConfig([
             reactHooks.configs.flat.recommended,
             reactRefresh.configs.vite,
             unicorn.configs["flat/recommended"],
+            promises.configs["flat/recommended"],
         ],
         languageOptions: {
             ecmaVersion: "latest",
