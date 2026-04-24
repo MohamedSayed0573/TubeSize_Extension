@@ -26,6 +26,7 @@ export default {
                         "@options/*": ["src/options/*"],
                         "@tests/*": ["src/tests/*"],
                         "@assets/*": ["src/assets/*"],
+                        "@hooks/*": ["src/hooks/*"],
                         "@app-types/*": ["src/types/*"],
                     },
                 },
@@ -43,6 +44,7 @@ export default {
         "^@tests/(.*)$": "<rootDir>/src/tests/$1",
         "^@assets/(.*)$": "<rootDir>/src/assets/$1",
         "^@lib/(.*)$": "<rootDir>/src/lib/$1",
+        "^@hooks/(.*)$": "<rootDir>/src/hooks/$1",
         "^@app-types/(.*)$": "<rootDir>/src/types/$1",
     },
 };

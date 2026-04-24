@@ -1,3 +1,4 @@
+import type { OptionsMap } from "@/types/types";
 import { setToSyncCache } from "@lib/cache";
 
 export default function OptionItem({
@@ -6,8 +7,8 @@ export default function OptionItem({
     setOptionsState,
 }: {
     option: string;
-    optionsState: Record<any, any> | undefined;
-    setOptionsState: (optionsState: Record<any, any>) => void;
+    optionsState: OptionsMap;
+    setOptionsState: (optionsState: OptionsMap) => void;
 }) {
     return (
         <div className="option-item">
