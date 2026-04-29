@@ -1,5 +1,6 @@
 import type {
     FrontEndMessage,
+    KickBackgroundResponse,
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
 } from "@app-types/types";
@@ -8,6 +9,7 @@ type MessageResponseMap = {
     youtubeVideo: YoutubeBackgroundResponse;
     twitchVod: TwitchBackgroundResponse;
     twitchLive: TwitchBackgroundResponse;
+    kickLive: KickBackgroundResponse;
     clearBadge: { success: boolean };
     setBadge: { success: boolean };
 };
@@ -33,9 +35,10 @@ export async function sendMessageToBackground<T extends FrontEndMessage>(
     });
 }
 
-type ContentScriptMessage = { type: "getCurrentResolution" };
+type ContentScriptMessage = { type: "getCurrentResolution" } | { type: "getKick" };
 type ContentScriptResponseMap = {
     getCurrentResolution: number | undefined;
+    getKick: KickBackgroundResponse | undefined;
 };
 export async function sendMessageToContentScript<T extends ContentScriptMessage>(
     tabId: number,

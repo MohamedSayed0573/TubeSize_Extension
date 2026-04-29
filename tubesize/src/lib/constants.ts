@@ -37,6 +37,7 @@ const CONFIG = {
     TOASTER_POLLING_INTERVAL: 5000,
     DEFAULT_TOASTER_ENABLED: true,
     DEFAULT_QUALITY_MENU_ENABLED: true,
+    NUMBER_OF_KICK_SEGMENTS_TO_CHECK: 5,
     TWITCH_GQL_GRAPHQL_QUERY: `
         query PlaybackAccessToken_Template(
         $login: String!,

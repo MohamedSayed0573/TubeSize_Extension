@@ -5,6 +5,7 @@ import type {
     YoutubeMessage,
     FrontEndMessage,
     TwitchMessage,
+    KickBackgroundResponse,
 } from "@app-types/types";
 import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
@@ -15,6 +16,7 @@ import {
     humanizeData,
 } from "@lib/youtube";
 import { filterM3U8Data, getM3U8Data, getTwitchToken } from "./lib/twitch";
+import { calculateStreamSizes, getMasterM3U8, mediaPlaylistUrlByHeight } from "./lib/kick";
 
 chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
     void handleMessage(message, sender, sendResponse);
@@ -43,6 +45,9 @@ async function handleMessage(
         case "twitchVod":
         case "twitchLive": {
             return await handleTwitch(message, sendResponse);
+        }
+        case "kickLive": {
+            return await handleKick(message, sendResponse);
         }
         default: {
             console.error("Unknown message type:", message);
@@ -171,6 +176,34 @@ async function handleYoutube(
             success: false,
             data: undefined,
             cached: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        });
+    }
+}
+
+async function handleKick(
+    message: FrontEndMessage,
+    sendResponse: (response: KickBackgroundResponse) => void,
+) {
+    try {
+        if (message.type !== "kickLive") {
+            throw new Error("Invalid message type for handleKick");
+        }
+        const masterM3U8Data = await getMasterM3U8(message.streamId);
+        const parsedMasterM3U8 = mediaPlaylistUrlByHeight(masterM3U8Data);
+        const kickData = await calculateStreamSizes(parsedMasterM3U8, masterM3U8Data);
+
+        sendResponse({
+            success: true,
+            kickData,
+        });
+    } catch (err) {
+        console.error(
+            `Kick data extraction failed: ${err instanceof Error ? err.message : "unknown error"}`,
+            err,
+        );
+        return sendResponse({
+            success: false,
             message: err instanceof Error ? err.message : "Unknown error",
         });
     }

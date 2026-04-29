@@ -111,10 +111,23 @@ export type TwitchBackgroundResponse = {
     createdAt?: string;
 };
 
+export type KickStreamInfo = {
+    resolution: number;
+    sizePerSecondBytes: number;
+};
+
+export type KickBackgroundResponse = {
+    success: boolean;
+    kickData?: KickStreamInfo[];
+    message?: string;
+    channelName?: string;
+};
+
 export type FrontEndMessage =
     | YoutubeMessage
     | TwitchVodMessage
     | TwitchLiveMessage
+    | KickLiveMessage
     | { type: "clearBadge" }
     | { type: "setBadge" };
 
@@ -134,4 +147,9 @@ export type TwitchVodMessage = {
 export type TwitchLiveMessage = {
     type: "twitchLive";
     channelName: string;
+};
+
+export type KickLiveMessage = {
+    type: "kickLive";
+    streamId: string;
 };

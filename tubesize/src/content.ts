@@ -9,13 +9,14 @@ import {
 import { getFromSyncCache } from "@lib/cache";
 import CONFIG from "@lib/constants";
 import { injectQualityMenu, removeEventListeners } from "@/qualityMenuInjector";
-import { sendMessageToBackground } from "./runtime";
+import { sendMessageToBackground } from "@/runtime";
 import {
     getCurrentResolution,
     startToastTwitchPolling,
     startYoutubeToastTracking,
     stopResolutionTracking,
-} from "./resolution";
+} from "@/resolution";
+import { getStreamId } from "@lib/kick";
 
 let lastYoutubeTag: string | undefined;
 let lastTwitchTag: string | undefined;
@@ -102,6 +103,23 @@ chrome.runtime.onMessage.addListener(
                 const resolution = await getCurrentResolution();
                 sendResponse(resolution);
             })();
+            return true;
+        } else if (message.type === "getKick") {
+            void (async () => {
+                const html = document.querySelector("body")?.outerHTML!;
+                const kickData = await sendMessageToBackground({
+                    type: "kickLive",
+                    streamId: getStreamId(html),
+                });
+                kickData.channelName = document.querySelector("title")?.textContent?.split(" ")[0];
+                sendResponse(kickData);
+            })().catch((err) => {
+                console.error("Error handling getKick message: ", err);
+                sendResponse({
+                    success: false,
+                    message: err instanceof Error ? err.message : "Unknown error",
+                });
+            });
             return true;
         }
     },
