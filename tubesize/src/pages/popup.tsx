@@ -156,7 +156,7 @@ export default function Popup() {
                 setPageType("kick");
                 setIsLoading(false);
             } else {
-                setMessage("TubeSize works on Youtube, Twitch and Kick.");
+                setMessage("TubeSize works on YouTube, Twitch and Kick.");
                 setIsLoading(false);
             }
         })().catch((err) => {
@@ -235,10 +235,10 @@ export default function Popup() {
                             );
                         })}
                 {kickData?.kickData &&
-                    kickData.kickData.map((item, index) => {
+                    kickData.kickData.map((item) => {
                         return (
                             <KickFormat
-                                key={index}
+                                key={item.resolution}
                                 item={item}
                                 currentQuality={currentQuality}
                                 isLive={isLive}

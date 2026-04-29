@@ -95,41 +95,51 @@ export async function calculateStreamSizes(
     const result = await Promise.allSettled(
         Object.keys(mediaPlaylistUrlByHeight).map(async (height) => {
             const url = mediaPlaylistUrlByHeight[Number(height)];
+            const resolution = Number(height);
 
-            const segmentUrls = await getSegmentUrls(url);
-            // Limit the number of segments to save fetch time and avoid unnecessary requests.
-            const segments = segmentUrls.slice(0, CONFIG.NUMBER_OF_KICK_SEGMENTS_TO_CHECK);
+            try {
+                const segmentUrls = await getSegmentUrls(url);
+                // Limit the number of segments to save fetch time and avoid unnecessary requests.
+                const segments = segmentUrls.slice(0, CONFIG.NUMBER_OF_KICK_SEGMENTS_TO_CHECK);
 
-            let totalSize = 0;
-            let segmentsNum = 0;
-            const results = await Promise.allSettled(
-                segments.map(async (segment) => {
-                    const res = await fetch(segment.url, {
-                        method: "GET",
-                        headers: {
-                            Range: "bytes=0-0",
-                        },
-                    });
-                    return { segment, res };
-                }),
-            );
+                let totalSize = 0;
+                let segmentsNum = 0;
+                const results = await Promise.allSettled(
+                    segments.map(async (segment) => {
+                        const res = await fetch(segment.url, {
+                            method: "GET",
+                            headers: {
+                                Range: "bytes=0-0",
+                            },
+                        });
+                        return { segment, res };
+                    }),
+                );
 
-            for (const result of results) {
-                if (result.status === "rejected") continue;
+                for (const result of results) {
+                    if (result.status === "rejected") continue;
 
-                const { segment, res } = result.value;
-                const fullSize = res.headers.get("content-range")?.split("/")[1];
-                await res.body?.cancel();
+                    const { segment, res } = result.value;
+                    const fullSize = res.headers.get("content-range")?.split("/")[1];
+                    await res.body?.cancel();
 
-                if (!fullSize || fullSize === "*" || fullSize === "0") continue;
-                totalSize += Number.parseInt(fullSize, 10) / segment.duration;
-                segmentsNum++;
+                    if (!fullSize || fullSize === "*" || fullSize === "0") continue;
+                    totalSize += Number.parseInt(fullSize, 10) / segment.duration;
+                    segmentsNum++;
+                }
+
+                return {
+                    resolution,
+                    sizePerSecondBytes: segmentsNum > 0 ? totalSize / segmentsNum : 0,
+                };
+            } catch {
+                // Instead of ignoring the rejected promise, we return an object with size set to 0.
+                // This way, we can still fallback to bitrate-based estimation for this resolution in the next step.
+                return {
+                    resolution,
+                    sizePerSecondBytes: 0,
+                };
             }
-
-            return {
-                resolution: Number(height),
-                sizePerSecondBytes: segmentsNum > 0 ? totalSize / segmentsNum : 0,
-            };
         }),
     );
 
