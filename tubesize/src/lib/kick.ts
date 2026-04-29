@@ -124,7 +124,9 @@ export async function calculateStreamSizes(
                     await res.body?.cancel();
 
                     if (!fullSize || fullSize === "*" || fullSize === "0") continue;
-                    totalSize += Number.parseInt(fullSize, 10) / segment.duration;
+                    if (segment.duration > 0) {
+                        totalSize += Number.parseInt(fullSize, 10) / segment.duration;
+                    }
                     segmentsNum++;
                 }
 
