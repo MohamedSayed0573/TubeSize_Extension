@@ -27,7 +27,7 @@ chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResp
 async function handleMessage(
     message: FrontEndMessage,
     sender: chrome.runtime.MessageSender,
-    sendResponse: (response: YoutubeBackgroundResponse | TwitchBackgroundResponse) => void,
+    sendResponse: (response: any) => void,
 ): Promise<void> {
     // If the message is sent from the content script, use sender.tab.id, otherwise use message.tabId (sent from popup)
     const tabId = sender.tab?.id ?? (message.type === "youtubeVideo" ? message.tabId : undefined);

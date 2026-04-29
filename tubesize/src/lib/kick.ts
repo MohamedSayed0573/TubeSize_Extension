@@ -92,7 +92,7 @@ export async function calculateStreamSizes(
     mediaPlaylistUrlByHeight: Record<number, string>,
     masterM3U8Data: PlaylistItem[],
 ): Promise<KickStreamInfo[]> {
-    const result = await Promise.all(
+    const result = await Promise.allSettled(
         Object.keys(mediaPlaylistUrlByHeight).map(async (height) => {
             const url = mediaPlaylistUrlByHeight[Number(height)];
 
@@ -102,7 +102,7 @@ export async function calculateStreamSizes(
 
             let totalSize = 0;
             let segmentsNum = 0;
-            const results = await Promise.all(
+            const results = await Promise.allSettled(
                 segments.map(async (segment) => {
                     const res = await fetch(segment.url, {
                         method: "GET",
@@ -114,9 +114,13 @@ export async function calculateStreamSizes(
                 }),
             );
 
-            for (const { segment, res } of results) {
+            for (const result of results) {
+                if (result.status === "rejected") continue;
+
+                const { segment, res } = result.value;
                 const fullSize = res.headers.get("content-range")?.split("/")[1];
                 await res.body?.cancel();
+
                 if (!fullSize || fullSize === "*" || fullSize === "0") continue;
                 totalSize += Number.parseInt(fullSize, 10) / segment.duration;
                 segmentsNum++;
@@ -131,6 +135,8 @@ export async function calculateStreamSizes(
 
     return (
         result
+            .filter((item) => item.status === "fulfilled")
+            .map((item) => item.value)
             .map((item) => {
                 if (item.sizePerSecondBytes > 0) {
                     return item;
@@ -149,10 +155,11 @@ export async function calculateStreamSizes(
     );
 }
 
-export async function getSegmentUrls(
-    m3u8Url: string,
-): Promise<{ url: string; duration: number }[]> {
+async function getSegmentUrls(m3u8Url: string): Promise<{ url: string; duration: number }[]> {
     const res = await fetch(m3u8Url);
+    if (!res.ok) {
+        throw new Error(`Error fetching media playlist M3U8: ${res.statusText}`);
+    }
     const m3u8Data = await res.text();
 
     const manifest = parseM3U8(m3u8Data);
