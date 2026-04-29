@@ -50,8 +50,11 @@ export async function getMasterM3U8(streamId: string) {
         throw new Error(`Error fetching playback info: ${playbackRes.statusText}`);
     }
 
-    const playback = await playbackRes.json();
+    const playback = (await playbackRes.json()) as { playback_url?: { live?: string } };
     const m3u8Url = playback?.playback_url?.live;
+    if (!m3u8Url) {
+        throw new Error("Master M3U8 URL not found in playback response");
+    }
 
     const masterM3u8Res = await fetch(m3u8Url);
     if (!masterM3u8Res.ok) {
@@ -75,7 +78,7 @@ function parseM3U8(m3u8Data: string): Manifest {
 }
 export function mediaPlaylistUrlByHeight(m3u8Data: PlaylistItem[]): Record<number, string> {
     const mediaPlaylistUrlByHeight: Record<number, string> = {};
-    for (let item of m3u8Data) {
+    for (const item of m3u8Data) {
         const height = item.attributes.RESOLUTION?.height;
         const url = item.uri;
         if (!height || !url) continue;
@@ -93,10 +96,9 @@ export async function calculateStreamSizes(
         Object.keys(mediaPlaylistUrlByHeight).map(async (height) => {
             const url = mediaPlaylistUrlByHeight[Number(height)];
 
-            const segments = (await getSegmentUrls(url)).slice(
-                0,
-                CONFIG.NUMBER_OF_KICK_SEGMENTS_TO_CHECK,
-            ); // Limit to first 6 segments to avoid long processing times
+            const segmentUrls = await getSegmentUrls(url);
+            // Limit the number of segments to save fetch time and avoid unnecessary requests.
+            const segments = segmentUrls.slice(0, CONFIG.NUMBER_OF_KICK_SEGMENTS_TO_CHECK);
 
             let totalSize = 0;
             let segmentsNum = 0;
@@ -114,7 +116,7 @@ export async function calculateStreamSizes(
 
             for (const { segment, res } of results) {
                 const fullSize = res.headers.get("content-range")?.split("/")[1];
-                res.body?.cancel();
+                await res.body?.cancel();
                 if (!fullSize || fullSize === "*" || fullSize === "0") continue;
                 totalSize += Number.parseInt(fullSize, 10) / segment.duration;
                 segmentsNum++;
@@ -127,28 +129,24 @@ export async function calculateStreamSizes(
         }),
     );
 
-    return result
-        .map((item) => {
-            if (item.sizePerSecondBytes > 0) {
-                console.log(
-                    "Calculated size for resolution ",
-                    item.resolution,
-                    ": ",
-                    item.sizePerSecondBytes,
+    return (
+        result
+            .map((item) => {
+                if (item.sizePerSecondBytes > 0) {
+                    return item;
+                }
+                const masterItem = masterM3U8Data.find(
+                    (masterItem) => masterItem.attributes.RESOLUTION?.height === item.resolution,
                 );
-                return item;
-            }
-            console.log("Falling back to bitrate for resolution ", item.resolution);
-            const masterItem = masterM3U8Data.find(
-                (masterItem) => masterItem.attributes.RESOLUTION?.height === item.resolution,
-            );
-            const bitrate = masterItem?.attributes.BANDWIDTH;
-            return {
-                ...item,
-                sizePerSecondBytes: bitrate ? bitrate / 8 : 0,
-            };
-        })
-        .sort((a, b) => b.sizePerSecondBytes - a.sizePerSecondBytes);
+                const bitrate = masterItem?.attributes.BANDWIDTH;
+                return {
+                    ...item,
+                    sizePerSecondBytes: bitrate ? bitrate / 8 : 0,
+                };
+            })
+            // eslint-disable-next-line unicorn/no-array-sort
+            .sort((a, b) => b.sizePerSecondBytes - a.sizePerSecondBytes)
+    );
 }
 
 export async function getSegmentUrls(

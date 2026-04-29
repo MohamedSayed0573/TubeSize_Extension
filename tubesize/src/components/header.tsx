@@ -63,17 +63,27 @@ export default function Header({
             "channelName" in twitchData.twitchData) ||
         pageType === "kick";
 
-    let title = "TubeSize";
+    let title: string;
     let duration: string | undefined;
 
-    if (pageType === "youtube") {
-        title = getYoutubeTitle(youtubeData);
-        duration = getYoutubeDuration(youtubeData);
-    } else if (pageType === "twitch") {
-        title = getTwitchTitle(twitchData);
-        duration = getTwitchDuration(twitchData);
-    } else if (pageType === "kick") {
-        title = kickData?.channelName || "Kick Stream";
+    switch (pageType) {
+        case "youtube": {
+            title = getYoutubeTitle(youtubeData);
+            duration = getYoutubeDuration(youtubeData);
+            break;
+        }
+        case "twitch": {
+            title = getTwitchTitle(twitchData);
+            duration = getTwitchDuration(twitchData);
+            break;
+        }
+        case "kick": {
+            title = kickData?.channelName || "Kick Stream";
+            break;
+        }
+        default: {
+            title = "TubeSize";
+        }
     }
 
     return (

@@ -106,7 +106,7 @@ chrome.runtime.onMessage.addListener(
             return true;
         } else if (message.type === "getKick") {
             void (async () => {
-                const html = document.querySelector("body")?.outerHTML!;
+                const html = document.querySelector("body")!.outerHTML;
                 const kickData = await sendMessageToBackground({
                     type: "kickLive",
                     streamId: getStreamId(html),
@@ -114,7 +114,7 @@ chrome.runtime.onMessage.addListener(
                 kickData.channelName = document.querySelector("title")?.textContent?.split(" ")[0];
                 sendResponse(kickData);
             })().catch((err) => {
-                console.error("Error handling getKick message: ", err);
+                console.error("Error handling getKick message:", err);
                 sendResponse({
                     success: false,
                     message: err instanceof Error ? err.message : "Unknown error",
