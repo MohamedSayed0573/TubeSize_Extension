@@ -9,24 +9,32 @@ async function fetchActualSegments(
         url: string;
     }[],
 ) {
-    return await Promise.allSettled(
+    return Promise.allSettled(
         segments.map(async (segment) => {
-            const res = await fetch(segment.url, {
-                method: "GET",
-                headers: {
-                    Range: "bytes=0-0",
-                },
-            });
-            if (!res.ok || !res.headers.get("content-range") || res.status !== 206) {
-                await res.body?.cancel();
-                throw new Error(`Error fetching segment: ${res.statusText}`);
+            const abortController = new AbortController();
+            const timeout = setTimeout(() => abortController.abort(), 5000);
+            let res: Response | undefined;
+            try {
+                res = await fetch(segment.url, {
+                    method: "GET",
+                    headers: {
+                        Range: "bytes=0-0",
+                    },
+                    signal: abortController.signal,
+                });
+
+                if (!res.ok || !res.headers.get("content-range") || res.status !== 206) {
+                    throw new Error(`Error fetching segment: ${res.statusText}`);
+                }
+                const fullSize = res.headers.get("content-range")?.split("/")[1];
+                return {
+                    duration: segment.duration,
+                    fullSize,
+                };
+            } finally {
+                clearTimeout(timeout);
+                await res?.body?.cancel();
             }
-            const fullSize = res.headers.get("content-range")?.split("/")[1];
-            await res.body?.cancel();
-            return {
-                duration: segment.duration,
-                fullSize,
-            };
         }),
     );
 }

@@ -1,8 +1,9 @@
 import { parseM3U8 } from "@lib/m3u8";
 import type { PlaylistItem } from "m3u8-parser";
+import { fetchAndRetry } from "./utils";
 
 export async function getKickHtml(url: string): Promise<string> {
-    const res = await fetch(url, {
+    const res = await fetchAndRetry(url, {
         method: "GET",
         credentials: "include",
     });
@@ -46,7 +47,7 @@ export async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[
         },
     };
 
-    const playbackRes = await fetch(url, {
+    const playbackRes = await fetchAndRetry(url, {
         method: "POST",
         body: JSON.stringify(payload),
         credentials: "include",
@@ -66,7 +67,7 @@ export async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[
         throw new Error("Master M3U8 URL not found in playback response");
     }
 
-    const masterM3u8Res = await fetch(m3u8Url);
+    const masterM3u8Res = await fetchAndRetry(m3u8Url);
     if (!masterM3u8Res.ok) {
         throw new Error(`Error fetching master M3U8: ${masterM3u8Res.statusText}`);
     }

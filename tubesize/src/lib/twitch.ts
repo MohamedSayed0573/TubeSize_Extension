@@ -12,13 +12,14 @@ import CONFIG from "@lib/constants";
 import { estimateHlsStreamSizes } from "./hlsSize";
 import { parseM3U8 } from "@lib/m3u8";
 import { getFromStorage, saveToStorage } from "./cache";
+import { fetchAndRetry } from "./utils";
 
 export async function getTwitchClientId(message: TwitchMessage): Promise<string> {
     const url =
         message.type === "twitchVod"
             ? `https://www.twitch.tv/videos/${message.vodId}`
             : `https://www.twitch.tv/${message.channelName}`;
-    const res = await fetch(url);
+    const res = await fetchAndRetry(url);
     if (!res.ok) {
         throw new Error("Failed to fetch Twitch page");
     }
@@ -51,7 +52,7 @@ export async function getTwitchToken(message: TwitchMessage): Promise<TwitchToke
             },
         };
 
-        const res = await fetch("https://gql.twitch.tv/gql", {
+        const res = await fetchAndRetry("https://gql.twitch.tv/gql", {
             method: "POST",
             headers,
             body: JSON.stringify(body),
@@ -97,7 +98,7 @@ export async function getTwitchMasterM3u8(
     url.searchParams.set("sig", tokenData.signature);
     url.searchParams.set("allow_source", "true");
 
-    const res = await fetch(url);
+    const res = await fetchAndRetry(url);
     if (!res.ok) {
         throw new Error("Failed to fetch Twitch m3u8 data");
     }

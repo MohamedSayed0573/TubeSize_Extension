@@ -133,7 +133,7 @@ export function extractVideoTag(ytUrl: string): string | undefined {
 }
 
 export async function fetchAndRetry(
-    url: string,
+    url: string | URL,
     options: RequestInit = {},
     maxRetries = CONFIG.DEFAULT_MAX_RETRIES,
 ): Promise<Response> {

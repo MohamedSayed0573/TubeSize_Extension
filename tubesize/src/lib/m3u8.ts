@@ -1,5 +1,6 @@
 import { Parser } from "m3u8-parser";
 import type { Manifest, PlaylistItem } from "m3u8-parser";
+import { fetchAndRetry } from "./utils";
 
 export function parseM3U8(m3u8Data: string): Manifest {
     const parser = new Parser();
@@ -21,7 +22,7 @@ export function mediaPlaylistUrlByHeight(m3u8Data: PlaylistItem[]): Record<numbe
 }
 
 export async function fetchMediaM3u8(m3u8MediaUrl: string) {
-    const res = await fetch(m3u8MediaUrl);
+    const res = await fetchAndRetry(m3u8MediaUrl);
     if (!res.ok) {
         console.log("Failed to fetch media playlist M3U8:", res.statusText);
         throw new Error(`Error fetching media playlist M3U8: ${res.statusText}`);
