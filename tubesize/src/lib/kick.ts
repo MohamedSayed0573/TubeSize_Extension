@@ -1,9 +1,9 @@
-import type { KickStreamInfo } from "@/types/types";
-import { Parser, type Manifest, type PlaylistItem } from "m3u8-parser";
-import CONFIG from "./constants";
+import { parseM3U8 } from "@lib/m3u8";
+import type { PlaylistItem } from "m3u8-parser";
+import { fetchAndRetry } from "./utils";
 
 export async function getKickHtml(url: string): Promise<string> {
-    const res = await fetch(url, {
+    const res = await fetchAndRetry(url, {
         method: "GET",
         credentials: "include",
     });
@@ -13,14 +13,14 @@ export async function getKickHtml(url: string): Promise<string> {
     return await res.text();
 }
 
-export function getStreamId(html: string): string | undefined {
+export function getKickStreamId(html: string): string | undefined {
     const match =
         String(html).match(/vod_id\\":\\"([^\\]+)/) || String(html).match(/vod_id":"([^"]+)"}/);
     if (!match?.[1]) return;
     return match[1];
 }
 
-export async function getMasterM3U8(streamId: string) {
+export async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
     const url = `https://web.kick.com/api/v1/stream/${streamId}/playback`;
     const payload = {
         video_player: {
@@ -47,7 +47,7 @@ export async function getMasterM3U8(streamId: string) {
         },
     };
 
-    const playbackRes = await fetch(url, {
+    const playbackRes = await fetchAndRetry(url, {
         method: "POST",
         body: JSON.stringify(payload),
         credentials: "include",
@@ -67,7 +67,7 @@ export async function getMasterM3U8(streamId: string) {
         throw new Error("Master M3U8 URL not found in playback response");
     }
 
-    const masterM3u8Res = await fetch(m3u8Url);
+    const masterM3u8Res = await fetchAndRetry(m3u8Url);
     if (!masterM3u8Res.ok) {
         throw new Error(`Error fetching master M3U8: ${masterM3u8Res.statusText}`);
     }
@@ -79,120 +79,4 @@ export async function getMasterM3U8(streamId: string) {
     }
 
     return playlists;
-}
-
-function parseM3U8(m3u8Data: string): Manifest {
-    const parser = new Parser();
-    parser.push(m3u8Data);
-    parser.end();
-    return parser.manifest;
-}
-export function mediaPlaylistUrlByHeight(m3u8Data: PlaylistItem[]): Record<number, string> {
-    const mediaPlaylistUrlByHeight: Record<number, string> = {};
-    for (const item of m3u8Data) {
-        const height = item.attributes.RESOLUTION?.height;
-        const url = item.uri;
-        if (!height || !url) continue;
-        mediaPlaylistUrlByHeight[height] = url;
-    }
-
-    return mediaPlaylistUrlByHeight;
-}
-
-export async function calculateStreamSizes(
-    mediaPlaylistUrlByHeight: Record<number, string>,
-    masterM3U8Data: PlaylistItem[],
-): Promise<KickStreamInfo[]> {
-    const result = await Promise.allSettled(
-        Object.keys(mediaPlaylistUrlByHeight).map(async (height) => {
-            const url = mediaPlaylistUrlByHeight[Number(height)];
-            const resolution = Number(height);
-
-            try {
-                const segmentUrls = await getSegmentUrls(url);
-                // Limit the number of segments to save fetch time and avoid unnecessary requests.
-                const segments = segmentUrls.slice(0, CONFIG.NUMBER_OF_KICK_SEGMENTS_TO_CHECK);
-
-                let totalBytes = 0;
-                let totalDuration = 0;
-                const results = await Promise.allSettled(
-                    segments.map(async (segment) => {
-                        const res = await fetch(segment.url, {
-                            method: "GET",
-                            headers: {
-                                Range: "bytes=0-0",
-                            },
-                        });
-                        if (!res.ok || !res.headers.get("content-range") || res.status !== 206) {
-                            throw new Error(`Error fetching segment: ${res.statusText}`);
-                        }
-                        return { segment, res };
-                    }),
-                );
-
-                for (const result of results) {
-                    if (result.status === "rejected") continue;
-
-                    const { segment, res } = result.value;
-                    const fullSize = res.headers.get("content-range")?.split("/")[1];
-                    await res.body?.cancel();
-
-                    if (!fullSize || fullSize === "*" || fullSize === "0") continue;
-                    if (segment.duration > 0) {
-                        totalBytes += Number.parseInt(fullSize, 10);
-                        totalDuration += segment.duration;
-                    }
-                }
-
-                return {
-                    resolution,
-                    // Only calculate size per second if we have a reasonable total duration to avoid inaccurate results from very short segments.
-                    sizePerSecondBytes: totalDuration >= 4 ? totalBytes / totalDuration : 0,
-                };
-            } catch {
-                // Instead of ignoring the rejected promise, we return an object with size set to 0.
-                // This way, we can still fallback to bitrate-based estimation for this resolution in the next step.
-                return {
-                    resolution,
-                    sizePerSecondBytes: 0,
-                };
-            }
-        }),
-    );
-
-    return (
-        result
-            .filter((item) => item.status === "fulfilled")
-            .map((item) => item.value)
-            .map((item) => {
-                if (item.sizePerSecondBytes > 0) {
-                    return item;
-                }
-                const masterItem = masterM3U8Data.find(
-                    (masterItem) => masterItem.attributes.RESOLUTION?.height === item.resolution,
-                );
-                const bitrate = masterItem?.attributes.BANDWIDTH;
-                return {
-                    ...item,
-                    sizePerSecondBytes: bitrate ? bitrate / 8 : 0,
-                };
-            })
-            // eslint-disable-next-line unicorn/no-array-sort
-            .sort((a, b) => b.sizePerSecondBytes - a.sizePerSecondBytes)
-    );
-}
-
-async function getSegmentUrls(m3u8Url: string): Promise<{ url: string; duration: number }[]> {
-    const res = await fetch(m3u8Url);
-    if (!res.ok) {
-        throw new Error(`Error fetching media playlist M3U8: ${res.statusText}`);
-    }
-    const m3u8Data = await res.text();
-
-    const manifest = parseM3U8(m3u8Data);
-    const segments = manifest.segments;
-    return segments.map((segment) => ({
-        duration: segment.duration,
-        url: segment.uri,
-    }));
 }

@@ -1,13 +1,25 @@
-import type { TwitchData, TwitchGqlResponse, TwitchMessage, TwitchTokenData } from "@/types/types";
-import { Parser } from "m3u8-parser";
+import type {
+    TwitchBackgroundResponse,
+    TwitchData,
+    TwitchGqlResponse,
+    TwitchLiveMessage,
+    TwitchMessage,
+    TwitchTokenData,
+    TwitchVodMessage,
+} from "@app-types/types";
+import type { PlaylistItem } from "m3u8-parser";
 import CONFIG from "@lib/constants";
+import { estimateHlsStreamSizes } from "./hlsSize";
+import { parseM3U8 } from "@lib/m3u8";
+import { getFromStorage, saveToStorage } from "./cache";
+import { fetchAndRetry } from "./utils";
 
-export async function getClientId(message: TwitchMessage): Promise<string> {
+export async function getTwitchClientId(message: TwitchMessage): Promise<string> {
     const url =
         message.type === "twitchVod"
             ? `https://www.twitch.tv/videos/${message.vodId}`
             : `https://www.twitch.tv/${message.channelName}`;
-    const res = await fetch(url);
+    const res = await fetchAndRetry(url);
     if (!res.ok) {
         throw new Error("Failed to fetch Twitch page");
     }
@@ -23,7 +35,7 @@ export async function getClientId(message: TwitchMessage): Promise<string> {
 
 export async function getTwitchToken(message: TwitchMessage): Promise<TwitchTokenData> {
     try {
-        const clientId = await getClientId(message);
+        const clientId = await getTwitchClientId(message);
         const headers = {
             "Client-Id": clientId,
             "Content-Type": "application/json",
@@ -40,7 +52,7 @@ export async function getTwitchToken(message: TwitchMessage): Promise<TwitchToke
             },
         };
 
-        const res = await fetch("https://gql.twitch.tv/gql", {
+        const res = await fetchAndRetry("https://gql.twitch.tv/gql", {
             method: "POST",
             headers,
             body: JSON.stringify(body),
@@ -73,10 +85,10 @@ export async function getTwitchToken(message: TwitchMessage): Promise<TwitchToke
     }
 }
 
-export async function getM3U8Data(
+export async function getTwitchMasterM3u8(
     tokenData: TwitchTokenData,
     message: TwitchMessage,
-): Promise<string> {
+): Promise<PlaylistItem[]> {
     const url =
         message.type === "twitchLive"
             ? new URL(`https://usher.ttvnw.net/api/v2/channel/hls/${message.channelName}.m3u8`)
@@ -84,34 +96,86 @@ export async function getM3U8Data(
 
     url.searchParams.set("token", tokenData.value);
     url.searchParams.set("sig", tokenData.signature);
+    url.searchParams.set("allow_source", "true");
 
-    const res = await fetch(url);
+    const res = await fetchAndRetry(url);
     if (!res.ok) {
         throw new Error("Failed to fetch Twitch m3u8 data");
     }
-    return await res.text();
+    const m3u8Data = await res.text();
+    const parsed = parseM3U8(m3u8Data);
+    const playlists = parsed.playlists;
+    if (!playlists || playlists.length === 0) {
+        throw new Error("No playlists found in Twitch m3u8 data");
+    }
+
+    return playlists;
 }
 
-export function filterM3U8Data(m3u8Data: string): TwitchData["data"] {
-    const parser = new Parser();
-    parser.push(m3u8Data);
-    parser.end();
-
-    const parsed = parser.manifest.playlists;
-    const result = parsed
-        ?.filter(
-            (item) =>
-                item.attributes.RESOLUTION?.height &&
-                item.attributes.BANDWIDTH &&
-                item.attributes.CODECS,
-        )
+export function filterTwitchM3u8(m3u8Data: PlaylistItem[]): TwitchData["data"] {
+    const result = m3u8Data
+        ?.filter((item) => item.attributes.RESOLUTION?.height && item.attributes.BANDWIDTH)
         .map((item) => {
             return {
-                bandwidth: item.attributes.BANDWIDTH!,
+                sizePerSecondBytes: item.attributes.BANDWIDTH! / 8,
                 resolution: item.attributes.RESOLUTION!.height,
-                codec: item.attributes.CODECS!,
             };
         });
 
     return result || [];
+}
+
+export async function getTwitchLiveResponse(
+    message: TwitchLiveMessage,
+    sendResponse: (response: TwitchBackgroundResponse) => void,
+) {
+    const twitchToken = await getTwitchToken(message);
+    const masterM3u8 = await getTwitchMasterM3u8(twitchToken, message);
+    const twitchData = await estimateHlsStreamSizes(masterM3u8);
+
+    return sendResponse({
+        success: true,
+        twitchData: {
+            type: "live",
+            data: twitchData,
+            channelName: message.channelName,
+        },
+    });
+}
+
+export async function getTwitchVodResponse(
+    message: TwitchVodMessage,
+    sendResponse: (response: TwitchBackgroundResponse) => void,
+) {
+    const cached = await getFromStorage("twitch", message.vodId);
+    if (cached) {
+        return sendResponse({
+            success: true,
+            twitchData: cached.response,
+            cached: true,
+            createdAt: cached.createdAt,
+        });
+    }
+
+    const twitchToken = await getTwitchToken(message);
+    if (!twitchToken) {
+        throw new Error("Failed to retrieve Twitch token");
+    }
+    const m3u8Data = await getTwitchMasterM3u8(twitchToken, message);
+    const filteredM3U8Data = filterTwitchM3u8(m3u8Data);
+
+    const response: TwitchData = {
+        type: "vod",
+        data: filteredM3U8Data,
+        vodId: message.vodId,
+        durationSeconds: twitchToken.durationSeconds,
+    };
+    if (filteredM3U8Data.length > 0) {
+        await saveToStorage(message.vodId, response);
+    }
+
+    return sendResponse({
+        success: true,
+        twitchData: response,
+    });
 }

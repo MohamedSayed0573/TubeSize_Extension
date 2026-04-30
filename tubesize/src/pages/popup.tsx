@@ -216,24 +216,21 @@ export default function Popup() {
                         // eslint-disable-next-line unicorn/no-array-reverse
                         .reverse()}
                 {twitchData?.twitchData?.data &&
-                    twitchData?.twitchData?.data
-                        // eslint-disable-next-line unicorn/no-array-sort
-                        .sort((a, b) => b.bandwidth - a.bandwidth)
-                        .map((item) => {
-                            return (
-                                <TwitchFormat
-                                    key={item.resolution}
-                                    item={item}
-                                    currentQuality={currentQuality}
-                                    isLive={isLive}
-                                    durationSeconds={
-                                        twitchData.twitchData?.type === "vod"
-                                            ? twitchData.twitchData.durationSeconds
-                                            : undefined
-                                    }
-                                />
-                            );
-                        })}
+                    twitchData?.twitchData?.data.map((item) => {
+                        return (
+                            <TwitchFormat
+                                key={item.resolution}
+                                item={item}
+                                currentQuality={currentQuality}
+                                isLive={isLive}
+                                durationSeconds={
+                                    twitchData.twitchData?.type === "vod"
+                                        ? twitchData.twitchData.durationSeconds
+                                        : undefined
+                                }
+                            />
+                        );
+                    })}
                 {kickData?.kickData &&
                     kickData.kickData.map((item) => {
                         return (

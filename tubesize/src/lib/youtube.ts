@@ -1,6 +1,6 @@
 import { filesize } from "filesize";
 import type { HumanizedFormat, RawData, RawFormat } from "@app-types/types";
-import { fetchAndRetry, humanizeDuration } from "@lib/utils";
+import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
 
 export function sizePerMinute(
@@ -17,6 +17,24 @@ export function sizePerMinute(
     return Number((sizeInMB / durationInMinutes).toFixed(2));
 }
 
+export async function extractRawData(videoTag: string, html: string | undefined): Promise<RawData> {
+    let rawData: RawData | undefined;
+    try {
+        if (!html) throw new Error("No HTML");
+        rawData = extractYtInitial(html);
+        if (rawData.videoDetails.videoId !== videoTag) {
+            throw new Error("Video ID mismatch");
+        }
+    } catch {
+        const pageHtml = await fetchHTMLPage(videoTag);
+        rawData = extractYtInitial(pageHtml);
+    }
+    if (!rawData) {
+        throw new Error("Failed to extract raw data");
+    }
+    return rawData;
+}
+
 export function humanizeData(formats: RawFormat): HumanizedFormat {
     const audioSize = getAverageAudioSize(formats.audioFormats);
     const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);
@@ -29,7 +47,7 @@ export function humanizeData(formats: RawFormat): HumanizedFormat {
     return {
         id: formats.id,
         title: formats.title,
-        durationMinutes: humanizeDuration(formats.durationSeconds * 1000),
+        durationSeconds: formats.durationSeconds,
         videoFormats: humanizedVideoFormats,
         isLive: formats.isLive,
     };
@@ -76,7 +94,7 @@ export function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSiz
     });
 }
 
-export async function fetchHTMLPage(videoTag: string) {
+async function fetchHTMLPage(videoTag: string) {
     const res = await fetchAndRetry(`https://www.youtube.com/watch?v=${videoTag}`, {
         method: "GET",
         signal: AbortSignal.timeout(CONFIG.FETCH_HTML_TIMEOUT),

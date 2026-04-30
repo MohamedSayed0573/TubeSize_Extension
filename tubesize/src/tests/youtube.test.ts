@@ -1,4 +1,4 @@
-import type { HumanizedFormat, RawData, RawFormat } from "@/types/types";
+import type { HumanizedFormat, RawData, RawFormat } from "@app-types/types";
 import fs from "node:fs";
 import path from "node:path";
 import {

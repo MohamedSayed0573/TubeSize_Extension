@@ -1,4 +1,4 @@
-import type { OptionsMap } from "@/types/types";
+import type { OptionsMap } from "@app-types/types";
 import { setToSyncCache } from "@lib/cache";
 
 export default function OptionItem({

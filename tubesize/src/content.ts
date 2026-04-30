@@ -16,7 +16,7 @@ import {
     startYoutubeToastTracking,
     stopResolutionTracking,
 } from "@/resolution";
-import { getKickHtml, getStreamId } from "@lib/kick";
+import { getKickHtml, getKickStreamId } from "@lib/kick";
 
 let lastYoutubeTag: string | undefined;
 let lastTwitchTag: string | undefined;
@@ -108,7 +108,8 @@ chrome.runtime.onMessage.addListener(
             void (async () => {
                 const html = document.querySelector("body")!.outerHTML;
                 const streamId =
-                    getStreamId(html) ?? getStreamId(await getKickHtml(globalThis.location.href));
+                    getKickStreamId(html) ??
+                    getKickStreamId(await getKickHtml(globalThis.location.href));
 
                 if (!streamId) {
                     throw new Error("Failed to extract stream ID from the page");

@@ -18,7 +18,9 @@ function getYoutubeTitle(youtubeData?: YoutubeBackgroundResponse | null): string
 }
 
 function getYoutubeDuration(youtubeData?: YoutubeBackgroundResponse | null): string | undefined {
-    return youtubeData?.data?.durationMinutes;
+    console.log("YouTube duration in seconds:", youtubeData?.data?.durationSeconds);
+    if (!youtubeData?.data?.durationSeconds) return undefined;
+    return humanizeDuration(youtubeData?.data?.durationSeconds * 1000) || undefined;
 }
 
 function getTwitchTitle(twitchData?: TwitchBackgroundResponse | null): string {

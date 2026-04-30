@@ -1,4 +1,4 @@
-import type { KickBackgroundResponse } from "@/types/types";
+import type { KickBackgroundResponse } from "@app-types/types";
 
 interface Props {
     item: NonNullable<KickBackgroundResponse["kickData"]>[number];

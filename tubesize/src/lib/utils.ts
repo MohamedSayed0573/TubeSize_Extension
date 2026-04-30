@@ -133,7 +133,7 @@ export function extractVideoTag(ytUrl: string): string | undefined {
 }
 
 export async function fetchAndRetry(
-    url: string,
+    url: string | URL,
     options: RequestInit = {},
     maxRetries = CONFIG.DEFAULT_MAX_RETRIES,
 ): Promise<Response> {
@@ -191,11 +191,4 @@ export function humanizeDuration(ms: number) {
         return baseHumanizeDuration(Math.floor(ms / 60_000) * 60_000);
     }
     return baseHumanizeDuration(ms);
-}
-
-export function bandwidthToSizePerMinuteMB(bandwidth: number): number {
-    return (bandwidth / 8 / 1_000_000) * 60;
-}
-export function bandwidthToSizePerHourMB(bandwidth: number): number {
-    return (bandwidth / 8 / 1_000_000) * 60 * 60;
 }

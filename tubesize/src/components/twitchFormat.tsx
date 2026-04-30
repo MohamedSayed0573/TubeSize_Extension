@@ -1,5 +1,4 @@
-import { bandwidthToSizePerHourMB, bandwidthToSizePerMinuteMB } from "@/lib/utils";
-import type { TwitchData } from "@/types/types";
+import type { TwitchData } from "@app-types/types";
 
 interface Props {
     item: NonNullable<TwitchData["data"]>[number];
@@ -12,22 +11,22 @@ function totalSizeDisplay(sizePerMinuteMB: number, durationSeconds?: number): st
     if (!durationSeconds) return "";
     const totalSizeMB = (sizePerMinuteMB / 60) * durationSeconds;
     if (totalSizeMB >= 1000) {
-        return `${(totalSizeMB / 1000).toFixed(1)} GB`;
+        return `${(totalSizeMB / 1000).toFixed(2)} GB`;
     }
-    return `${totalSizeMB.toFixed(1)} MB`;
+    return `${totalSizeMB.toFixed(2)} MB`;
 }
 
 function perHourDisplay(sizePerHourMB: number): string {
     if (sizePerHourMB >= 1000) {
-        return `${(sizePerHourMB / 1000).toFixed(1)} GB/hour`;
+        return `${(sizePerHourMB / 1000).toFixed(2)} GB/hour`;
     }
-    return `${sizePerHourMB.toFixed(1)} MB/hour`;
+    return `${sizePerHourMB.toFixed(2)} MB/hour`;
 }
 
 export default function TwitchFormat({ item, currentQuality, isLive, durationSeconds }: Props) {
     const className = item.resolution === currentQuality ? "format-item current" : "format-item";
-    const sizePerHourMB = bandwidthToSizePerHourMB(item.bandwidth);
-    const sizePerMinuteMB = bandwidthToSizePerMinuteMB(item.bandwidth);
+    const sizePerMinuteMB = (item.sizePerSecondBytes * 60) / 1_000_000;
+    const sizePerHourMB = sizePerMinuteMB * 60;
 
     return (
         <div className={className}>
