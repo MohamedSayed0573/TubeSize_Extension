@@ -31,7 +31,7 @@
         "jest": true
     },
     "dependencies": {
-        "filesize": "^11.0.16",
+        "filesize": "^11.0.17",
         "humanize-duration": "^3.33.2",
         "m3u8-parser": "^7.2.0",
         "react": "^19.2.5",
@@ -52,15 +52,15 @@
         "eslint-plugin-react-hooks": "^7.1.1",
         "eslint-plugin-react-refresh": "^0.5.2",
         "eslint-plugin-unicorn": "^64.0.0",
-        "eslint-plugin-promise": "^7.2.1",
+        "eslint-plugin-promise": "^7.3.0",
         "globals": "^17.5.0",
         "jest": "^30.3.0",
         "jest-extended": "^7.0.0",
-        "knip": "^6.6.1",
+        "knip": "^6.9.0",
         "prettier": "^3.8.3",
         "ts-jest": "^29.4.9",
         "typescript": "~6.0.3",
-        "typescript-eslint": "^8.59.0",
+        "typescript-eslint": "^8.59.1",
         "vite": "^8.0.10",
         "vite-plugin-web-extension": "^4.5.1"
     }
