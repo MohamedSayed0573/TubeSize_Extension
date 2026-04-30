@@ -23,10 +23,14 @@ async function fetchActualSegments(
                     signal: abortController.signal,
                 });
 
-                if (!res.ok || !res.headers.get("content-range") || res.status !== 206) {
+                if (!res.ok) {
                     throw new Error(`Error fetching segment: ${res.statusText}`);
                 }
-                const fullSize = res.headers.get("content-range")?.split("/")[1];
+
+                const fullSize =
+                    res.status === 206
+                        ? res.headers.get("content-range")?.split("/")[1]
+                        : res.headers.get("content-length");
                 return {
                     duration: segment.duration,
                     fullSize,
