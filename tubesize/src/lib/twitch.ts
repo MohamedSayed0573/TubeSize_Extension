@@ -95,6 +95,7 @@ export async function getTwitchMasterM3u8(
 
     url.searchParams.set("token", tokenData.value);
     url.searchParams.set("sig", tokenData.signature);
+    url.searchParams.set("allow_source", "true");
 
     const res = await fetch(url);
     if (!res.ok) {
