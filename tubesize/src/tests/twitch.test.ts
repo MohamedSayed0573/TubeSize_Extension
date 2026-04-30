@@ -54,7 +54,7 @@ describe("getTwitchToken", () => {
             value: '{"foo":"bar"}',
             signature: "live-signature",
         });
-        expect(fetchMock).toHaveBeenNthCalledWith(1, "https://www.twitch.tv/hivise");
+        expect(fetchMock).toHaveBeenNthCalledWith(1, "https://www.twitch.tv/hivise", {});
         expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(fetchMock.mock.calls[1]?.[0]).toBe("https://gql.twitch.tv/gql");
 
@@ -108,7 +108,7 @@ describe("getTwitchToken", () => {
             value: '{"vod":true}',
             signature: "vod-signature",
         });
-        expect(fetchMock).toHaveBeenNthCalledWith(1, "https://www.twitch.tv/videos/2748008198");
+        expect(fetchMock).toHaveBeenNthCalledWith(1, "https://www.twitch.tv/videos/2748008198", {});
 
         const request = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
         if (!request) {
@@ -154,7 +154,7 @@ describe("getTwitchMasterM3u8", () => {
         const requestUrl = fetchMock.mock.calls[0]?.[0] as URL | undefined;
 
         expect(requestUrl?.toString()).toBe(
-            "https://usher.ttvnw.net/api/v2/channel/hls/hivise.m3u8?token=%7B%22token%22%3A%22live%22%7D&sig=live-signature",
+            "https://usher.ttvnw.net/api/v2/channel/hls/hivise.m3u8?token=%7B%22token%22%3A%22live%22%7D&sig=live-signature&allow_source=true",
         );
     });
 
@@ -183,7 +183,7 @@ describe("getTwitchMasterM3u8", () => {
         const requestUrl = fetchMock.mock.calls[0]?.[0] as URL | undefined;
 
         expect(requestUrl?.toString()).toBe(
-            "https://usher.ttvnw.net/vod/v2/2748008198.m3u8?token=%7B%22token%22%3A%22vod%22%7D&sig=vod-signature",
+            "https://usher.ttvnw.net/vod/v2/2748008198.m3u8?token=%7B%22token%22%3A%22vod%22%7D&sig=vod-signature&allow_source=true",
         );
     });
 });
