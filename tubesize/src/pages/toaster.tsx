@@ -1,7 +1,6 @@
 import { createRoot } from "react-dom/client";
 import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
 import Toast from "@components/toast";
-import { bandwidthToSizePerMinuteMB } from "@/lib/utils";
 
 const HOST_ID = "TubeSize-Toast-Host";
 
@@ -53,7 +52,7 @@ export function showTwitchToast(
 
     const format = videoFormats.find((format) => format.resolution === currentQuality);
     if (!format) return;
-    const sizePerMinuteMB = bandwidthToSizePerMinuteMB(format.bandwidth);
+    const sizePerMinuteMB = (format.sizePerSecondBytes / 1000 / 1000) * 60;
     if (sizePerMinuteMB > toasterThresholdMbpm) {
         const sizeMB =
             !isLive && durationSeconds

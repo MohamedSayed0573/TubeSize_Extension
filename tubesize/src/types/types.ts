@@ -93,15 +93,14 @@ export type TwitchTokenData = {
     durationSeconds?: number;
 };
 
-type TwitchStreamInfo = {
-    bandwidth: number;
+export type StreamInfo = {
+    sizePerSecondBytes: number;
     resolution: number;
-    codec: string;
 };
 
 export type TwitchData =
-    | { type: "live"; data: TwitchStreamInfo[]; channelName: string }
-    | { type: "vod"; data: TwitchStreamInfo[]; vodId: string; durationSeconds: number | undefined };
+    | { type: "live"; data: StreamInfo[]; channelName: string }
+    | { type: "vod"; data: StreamInfo[]; vodId: string; durationSeconds: number | undefined };
 
 export type TwitchBackgroundResponse = {
     success: boolean;
@@ -111,14 +110,9 @@ export type TwitchBackgroundResponse = {
     createdAt?: string;
 };
 
-export type KickStreamInfo = {
-    resolution: number;
-    sizePerSecondBytes: number;
-};
-
 export type KickBackgroundResponse = {
     success: boolean;
-    kickData?: KickStreamInfo[];
+    kickData?: StreamInfo[];
     message?: string;
     channelName?: string;
 };

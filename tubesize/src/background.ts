@@ -15,8 +15,9 @@ import {
     parseDataFromYtInitial,
     humanizeData,
 } from "@lib/youtube";
-import { filterM3U8Data, getM3U8Data, getTwitchToken } from "./lib/twitch";
-import { calculateStreamSizes, getMasterM3U8, mediaPlaylistUrlByHeight } from "./lib/kick";
+import { getTwitchMasterM3u8, getTwitchToken, filterTwitchM3u8 } from "@lib/twitch";
+import { getKickMasterM3u8 } from "@lib/kick";
+import { estimateHlsStreamSizes } from "@lib/hlsSize";
 
 chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
     void handleMessage(message, sender, sendResponse);
@@ -63,14 +64,14 @@ async function handleTwitch(
     try {
         if (message.type === "twitchLive") {
             const twitchToken = await getTwitchToken(message);
-            const m3u8Data = await getM3U8Data(twitchToken, message);
-            const filteredM3U8Data = filterM3U8Data(m3u8Data);
+            const masterM3u8 = await getTwitchMasterM3u8(twitchToken, message);
+            const twitchData = await estimateHlsStreamSizes(masterM3u8);
 
             return sendResponse({
                 success: true,
                 twitchData: {
                     type: "live",
-                    data: filteredM3U8Data,
+                    data: twitchData,
                     channelName: message.channelName,
                 },
             });
@@ -89,8 +90,8 @@ async function handleTwitch(
             if (!twitchToken) {
                 throw new Error("Failed to retrieve Twitch token");
             }
-            const m3u8Data = await getM3U8Data(twitchToken, message);
-            const filteredM3U8Data = filterM3U8Data(m3u8Data);
+            const m3u8Data = await getTwitchMasterM3u8(twitchToken, message);
+            const filteredM3U8Data = filterTwitchM3u8(m3u8Data);
 
             const response: TwitchData = {
                 type: "vod",
@@ -189,9 +190,8 @@ async function handleKick(
         if (message.type !== "kickLive") {
             throw new Error("Invalid message type for handleKick");
         }
-        const masterM3U8Data = await getMasterM3U8(message.streamId);
-        const parsedMasterM3U8 = mediaPlaylistUrlByHeight(masterM3U8Data);
-        const kickData = await calculateStreamSizes(parsedMasterM3U8, masterM3U8Data);
+        const masterM3U8Data = await getKickMasterM3u8(message.streamId);
+        const kickData = await estimateHlsStreamSizes(masterM3U8Data);
 
         sendResponse({
             success: true,
