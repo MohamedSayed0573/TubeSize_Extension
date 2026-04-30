@@ -1,7 +1,6 @@
 import type {
     YoutubeBackgroundResponse,
     TwitchBackgroundResponse,
-    TwitchData,
     YoutubeMessage,
     FrontEndMessage,
     TwitchMessage,
@@ -9,13 +8,8 @@ import type {
 } from "@app-types/types";
 import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
-import {
-    extractYtInitial,
-    fetchHTMLPage,
-    parseDataFromYtInitial,
-    humanizeData,
-} from "@lib/youtube";
-import { getTwitchMasterM3u8, getTwitchToken, filterTwitchM3u8 } from "@lib/twitch";
+import { parseDataFromYtInitial, humanizeData, extractRawData } from "@lib/youtube";
+import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickMasterM3u8 } from "@lib/kick";
 import { estimateHlsStreamSizes } from "@lib/hlsSize";
 
@@ -25,13 +19,20 @@ chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResp
     return true;
 });
 
+function getTabId(
+    sender: chrome.runtime.MessageSender,
+    message: FrontEndMessage,
+): number | undefined {
+    // If the message is sent from the content script, use sender.tab.id, otherwise use message.tabId (sent from popup)
+    return sender.tab?.id ?? (message.type === "youtubeVideo" ? message.tabId : undefined);
+}
+
 async function handleMessage(
     message: FrontEndMessage,
     sender: chrome.runtime.MessageSender,
     sendResponse: (response: any) => void,
 ): Promise<void> {
-    // If the message is sent from the content script, use sender.tab.id, otherwise use message.tabId (sent from popup)
-    const tabId = sender.tab?.id ?? (message.type === "youtubeVideo" ? message.tabId : undefined);
+    const tabId = getTabId(sender, message);
 
     switch (message.type) {
         case "clearBadge": {
@@ -57,103 +58,29 @@ async function handleMessage(
     }
 }
 
-async function handleTwitch(
-    message: TwitchMessage,
-    sendResponse: (response: TwitchBackgroundResponse) => void,
-) {
-    try {
-        if (message.type === "twitchLive") {
-            const twitchToken = await getTwitchToken(message);
-            const masterM3u8 = await getTwitchMasterM3u8(twitchToken, message);
-            const twitchData = await estimateHlsStreamSizes(masterM3u8);
-
-            return sendResponse({
-                success: true,
-                twitchData: {
-                    type: "live",
-                    data: twitchData,
-                    channelName: message.channelName,
-                },
-            });
-        } else if (message.type === "twitchVod") {
-            const cached = await getFromStorage("twitch", message.vodId);
-            if (cached) {
-                return sendResponse({
-                    success: true,
-                    twitchData: cached.response,
-                    cached: true,
-                    createdAt: cached.createdAt,
-                });
-            }
-
-            const twitchToken = await getTwitchToken(message);
-            if (!twitchToken) {
-                throw new Error("Failed to retrieve Twitch token");
-            }
-            const m3u8Data = await getTwitchMasterM3u8(twitchToken, message);
-            const filteredM3U8Data = filterTwitchM3u8(m3u8Data);
-
-            const response: TwitchData = {
-                type: "vod",
-                data: filteredM3U8Data,
-                vodId: message.vodId,
-                durationSeconds: twitchToken.durationSeconds,
-            };
-            if (filteredM3U8Data.length > 0) {
-                await saveToStorage(message.vodId, response);
-            }
-
-            return sendResponse({
-                success: true,
-                twitchData: response,
-            });
-        }
-    } catch (err) {
-        return sendResponse({
-            success: false,
-            message: err instanceof Error ? err.message : "Unknown error",
-        });
-    }
-}
-
 async function handleYoutube(
     message: YoutubeMessage,
     sendResponse: (response: YoutubeBackgroundResponse) => void,
 ) {
-    const { videoTag, html } = message;
-    if (!videoTag) {
-        return sendResponse({
-            success: false,
-            message: "No video tag provided",
-        });
-    }
-    clearBadge(message.tabId);
-
-    const cached = await getFromStorage("youtube", videoTag);
-    if (cached) {
-        addBadge(message.tabId);
-        return sendResponse({
-            success: true,
-            data: cached.response,
-            cached: true,
-            createdAt: cached.createdAt,
-        });
-    }
-
     try {
-        let rawData;
-        try {
-            if (!html) throw new Error("No HTML");
-            rawData = extractYtInitial(html);
-            if (rawData.videoDetails.videoId !== videoTag) {
-                throw new Error("Video ID mismatch");
-            }
-        } catch {
-            if (html) console.warn("Local HTML extraction failed, falling back to fetchHTMLPage");
-            const pageHtml = await fetchHTMLPage(videoTag);
-            rawData = extractYtInitial(pageHtml);
+        const { videoTag, html } = message;
+        if (!videoTag) {
+            throw new Error("No video tag provided");
+        }
+        clearBadge(message.tabId);
+
+        const cached = await getFromStorage("youtube", videoTag);
+        if (cached) {
+            addBadge(message.tabId);
+            return sendResponse({
+                success: true,
+                data: cached.response,
+                cached: true,
+                createdAt: cached.createdAt,
+            });
         }
 
+        const rawData = await extractRawData(videoTag, html);
         const rawFormats = parseDataFromYtInitial(rawData);
         const humanizedFormats = humanizeData(rawFormats);
 
@@ -168,15 +95,25 @@ async function handleYoutube(
             data: humanizedFormats,
         });
     } catch (err) {
-        console.error(
-            `YouTube data extraction failed: ${err instanceof Error ? err.message : "unknown error"}`,
-            err,
-        );
         clearBadge(message.tabId);
         return sendResponse({
             success: false,
-            data: undefined,
-            cached: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        });
+    }
+}
+
+async function handleTwitch(
+    message: TwitchMessage,
+    sendResponse: (response: TwitchBackgroundResponse) => void,
+) {
+    try {
+        return message.type === "twitchLive"
+            ? await getTwitchLiveResponse(message, sendResponse)
+            : await getTwitchVodResponse(message, sendResponse);
+    } catch (err) {
+        return sendResponse({
+            success: false,
             message: err instanceof Error ? err.message : "Unknown error",
         });
     }
@@ -198,10 +135,6 @@ async function handleKick(
             kickData,
         });
     } catch (err) {
-        console.error(
-            `Kick data extraction failed: ${err instanceof Error ? err.message : "unknown error"}`,
-            err,
-        );
         return sendResponse({
             success: false,
             message: err instanceof Error ? err.message : "Unknown error",

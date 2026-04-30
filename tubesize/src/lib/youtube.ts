@@ -17,6 +17,24 @@ export function sizePerMinute(
     return Number((sizeInMB / durationInMinutes).toFixed(2));
 }
 
+export async function extractRawData(videoTag: string, html: string | undefined): Promise<RawData> {
+    let rawData: RawData | undefined;
+    try {
+        if (!html) throw new Error("No HTML");
+        rawData = extractYtInitial(html);
+        if (rawData.videoDetails.videoId !== videoTag) {
+            throw new Error("Video ID mismatch");
+        }
+    } catch {
+        const pageHtml = await fetchHTMLPage(videoTag);
+        rawData = extractYtInitial(pageHtml);
+    }
+    if (!rawData) {
+        throw new Error("Failed to extract raw data");
+    }
+    return rawData;
+}
+
 export function humanizeData(formats: RawFormat): HumanizedFormat {
     const audioSize = getAverageAudioSize(formats.audioFormats);
     const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);

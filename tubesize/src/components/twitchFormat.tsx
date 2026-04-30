@@ -1,4 +1,4 @@
-import type { TwitchData } from "@/types/types";
+import type { TwitchData } from "@app-types/types";
 
 interface Props {
     item: NonNullable<TwitchData["data"]>[number];

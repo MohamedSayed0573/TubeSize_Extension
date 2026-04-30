@@ -1,7 +1,17 @@
-import type { TwitchData, TwitchGqlResponse, TwitchMessage, TwitchTokenData } from "@/types/types";
+import type {
+    TwitchBackgroundResponse,
+    TwitchData,
+    TwitchGqlResponse,
+    TwitchLiveMessage,
+    TwitchMessage,
+    TwitchTokenData,
+    TwitchVodMessage,
+} from "@app-types/types";
 import type { PlaylistItem } from "m3u8-parser";
 import CONFIG from "@lib/constants";
+import { estimateHlsStreamSizes } from "./hlsSize";
 import { parseM3U8 } from "@lib/m3u8";
+import { getFromStorage, saveToStorage } from "./cache";
 
 export async function getTwitchClientId(message: TwitchMessage): Promise<string> {
     const url =
@@ -111,4 +121,59 @@ export function filterTwitchM3u8(m3u8Data: PlaylistItem[]): TwitchData["data"] {
         });
 
     return result || [];
+}
+
+export async function getTwitchLiveResponse(
+    message: TwitchLiveMessage,
+    sendResponse: (response: TwitchBackgroundResponse) => void,
+) {
+    const twitchToken = await getTwitchToken(message);
+    const masterM3u8 = await getTwitchMasterM3u8(twitchToken, message);
+    const twitchData = await estimateHlsStreamSizes(masterM3u8);
+
+    return sendResponse({
+        success: true,
+        twitchData: {
+            type: "live",
+            data: twitchData,
+            channelName: message.channelName,
+        },
+    });
+}
+
+export async function getTwitchVodResponse(
+    message: TwitchVodMessage,
+    sendResponse: (response: TwitchBackgroundResponse) => void,
+) {
+    const cached = await getFromStorage("twitch", message.vodId);
+    if (cached) {
+        return sendResponse({
+            success: true,
+            twitchData: cached.response,
+            cached: true,
+            createdAt: cached.createdAt,
+        });
+    }
+
+    const twitchToken = await getTwitchToken(message);
+    if (!twitchToken) {
+        throw new Error("Failed to retrieve Twitch token");
+    }
+    const m3u8Data = await getTwitchMasterM3u8(twitchToken, message);
+    const filteredM3U8Data = filterTwitchM3u8(m3u8Data);
+
+    const response: TwitchData = {
+        type: "vod",
+        data: filteredM3U8Data,
+        vodId: message.vodId,
+        durationSeconds: twitchToken.durationSeconds,
+    };
+    if (filteredM3U8Data.length > 0) {
+        await saveToStorage(message.vodId, response);
+    }
+
+    return sendResponse({
+        success: true,
+        twitchData: response,
+    });
 }
