@@ -1,6 +1,6 @@
 import { filesize } from "filesize";
 import type { HumanizedFormat, RawData, RawFormat } from "@app-types/types";
-import { fetchAndRetry, humanizeDuration } from "@lib/utils";
+import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
 
 export function sizePerMinute(
@@ -47,7 +47,7 @@ export function humanizeData(formats: RawFormat): HumanizedFormat {
     return {
         id: formats.id,
         title: formats.title,
-        durationMinutes: humanizeDuration(formats.durationSeconds * 1000),
+        durationSeconds: formats.durationSeconds,
         videoFormats: humanizedVideoFormats,
         isLive: formats.isLive,
     };

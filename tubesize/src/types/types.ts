@@ -37,7 +37,7 @@ export type HumanizedFormat = {
     id: string;
     title: string;
     isLive: boolean;
-    durationMinutes: string;
+    durationSeconds: number;
     videoFormats: {
         formatId: number;
         height: number;
