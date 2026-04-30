@@ -59,6 +59,36 @@ export function isTwitchVod(url: string): boolean {
     }
 }
 
+export function isKickPage(url: string): boolean {
+    try {
+        const parsedUrl = new URL(url);
+        return parsedUrl.hostname === "www.kick.com" || parsedUrl.hostname === "kick.com";
+    } catch {
+        return false;
+    }
+}
+
+export function isKickStream(url: string): boolean {
+    if (!isKickPage(url)) return false;
+    try {
+        const parsedUrl = new URL(url);
+        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+        const notStreamPath = new Set([
+            "about",
+            "contact",
+            "terms",
+            "privacy",
+            "videos",
+            "search",
+            "following",
+            "browse",
+        ]);
+        return pathSegments.length === 1 && !notStreamPath.has(pathSegments[0]); // Assuming kick.com/channelName format for streams
+    } catch {
+        return false;
+    }
+}
+
 export function extractTwitchVodId(url: string): string | undefined {
     try {
         const parsedUrl = new URL(url);

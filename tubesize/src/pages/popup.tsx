@@ -1,11 +1,12 @@
 import "@styles/popup.css";
 import "@styles/global.css";
 import type {
+    KickBackgroundResponse,
     OptionsMap,
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
 } from "@app-types/types";
-import { sendMessageToBackground } from "@/runtime";
+import { sendMessageToBackground, sendMessageToContentScript } from "@/runtime";
 import { useEffect, useState } from "react";
 import {
     extractVideoTag,
@@ -14,8 +15,10 @@ import {
     isTwitchPage,
     extractTwitchChannelName,
     isTwitchVod,
+    isKickPage,
     extractTwitchVodId,
     humanizeDuration,
+    isKickStream,
 } from "@lib/utils";
 import Options from "@pages/options";
 import CONFIG from "@lib/constants";
@@ -25,6 +28,7 @@ import TwitchFormat from "@/components/twitchFormat";
 import useTab from "@/hooks/useTab";
 import useCurrentQuality from "@/hooks/useCurrentQuality";
 import useOptions from "@/hooks/useOptions";
+import KickFormat from "@/components/kickFormat";
 
 function getCachedAgo(createdAt: string | undefined) {
     if (!createdAt) return;
@@ -47,9 +51,10 @@ export default function Popup() {
     const [isLoading, setIsLoading] = useState(true);
 
     const { tabId, tabUrl, error: tabError } = useTab();
-    const [pageType, setPageType] = useState<"youtube" | "twitch" | "default">("default");
+    const [pageType, setPageType] = useState<"youtube" | "twitch" | "kick" | "default">("default");
     const [youtubeData, setYoutubeData] = useState<YoutubeBackgroundResponse | undefined>();
     const [twitchData, setTwitchData] = useState<TwitchBackgroundResponse | undefined>();
+    const [kickData, setKickData] = useState<KickBackgroundResponse | undefined>();
     const [cache, setCache] = useState<string | undefined>();
     const [useOptionsPage, setUseOptionsPage] = useState(false);
     const [error, setError] = useState<Error | undefined>();
@@ -133,8 +138,25 @@ export default function Popup() {
                     setIsLive(true);
                     setIsLoading(false);
                 }
+            } else if (isKickPage(tabUrl)) {
+                if (!tabId) return;
+                if (!isKickStream(tabUrl)) {
+                    setMessage("Open a Kick stream");
+                    setIsLoading(false);
+                    return;
+                }
+                const response = await sendMessageToContentScript(tabId, {
+                    type: "getKick",
+                });
+                if (!response?.success) {
+                    throw new Error(response?.message || "Failed to retrieve Kick data");
+                }
+                setKickData(response);
+                setIsLive(true);
+                setPageType("kick");
+                setIsLoading(false);
             } else {
-                setMessage("TubeSize works on YouTube and Twitch only.");
+                setMessage("TubeSize works on YouTube, Twitch and Kick.");
                 setIsLoading(false);
             }
         })().catch((err) => {
@@ -159,6 +181,7 @@ export default function Popup() {
                 pageType={pageType}
                 youtubeData={youtubeData}
                 twitchData={twitchData}
+                kickData={kickData}
                 setUseOptionsPage={setUseOptionsPage}
             />
             <div id="container">
@@ -211,6 +234,17 @@ export default function Popup() {
                                 />
                             );
                         })}
+                {kickData?.kickData &&
+                    kickData.kickData.map((item) => {
+                        return (
+                            <KickFormat
+                                key={item.resolution}
+                                item={item}
+                                currentQuality={currentQuality}
+                                isLive={isLive}
+                            />
+                        );
+                    })}
             </div>
         </div>
     );

@@ -1,10 +1,15 @@
-import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
+import type {
+    KickBackgroundResponse,
+    TwitchBackgroundResponse,
+    YoutubeBackgroundResponse,
+} from "@app-types/types";
 import { humanizeDuration } from "@lib/utils";
 
 interface Props {
-    pageType?: "youtube" | "twitch" | "default";
+    pageType?: "youtube" | "twitch" | "kick" | "default";
     youtubeData?: YoutubeBackgroundResponse | null;
     twitchData?: TwitchBackgroundResponse | null;
+    kickData?: KickBackgroundResponse | null;
     setUseOptionsPage: (useOptionsPage: boolean) => void;
 }
 
@@ -48,21 +53,37 @@ export default function Header({
     pageType = "default",
     youtubeData,
     twitchData,
+    kickData,
     setUseOptionsPage,
 }: Props) {
     const isLive =
         (pageType === "youtube" && youtubeData?.data?.isLive) ||
-        (pageType === "twitch" && twitchData?.twitchData && "channelName" in twitchData.twitchData);
+        (pageType === "twitch" &&
+            twitchData?.twitchData &&
+            "channelName" in twitchData.twitchData) ||
+        pageType === "kick";
 
-    let title = "TubeSize";
+    let title: string;
     let duration: string | undefined;
 
-    if (pageType === "youtube") {
-        title = getYoutubeTitle(youtubeData);
-        duration = getYoutubeDuration(youtubeData);
-    } else if (pageType === "twitch") {
-        title = getTwitchTitle(twitchData);
-        duration = getTwitchDuration(twitchData);
+    switch (pageType) {
+        case "youtube": {
+            title = getYoutubeTitle(youtubeData);
+            duration = getYoutubeDuration(youtubeData);
+            break;
+        }
+        case "twitch": {
+            title = getTwitchTitle(twitchData);
+            duration = getTwitchDuration(twitchData);
+            break;
+        }
+        case "kick": {
+            title = kickData?.channelName || "Kick Stream";
+            break;
+        }
+        default: {
+            title = "TubeSize";
+        }
     }
 
     return (

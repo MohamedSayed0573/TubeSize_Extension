@@ -21,11 +21,14 @@
         "https://*.youtube.com/*",
         "https://*.twitch.tv/*",
         "https://usher.ttvnw.net/api/v2/channel/hls/*",
-        "https://gql.twitch.tv/gql/*"
+        "https://gql.twitch.tv/gql/*",
+        "https://*.kick.com/*",
+        "https://*.playback.live-video.net/*",
+        "https://*.cloudfront.hls.live-video.net/v1/*"
     ],
     "content_scripts": [
         {
-            "matches": ["https://*.youtube.com/*", "https://*.twitch.tv/*"],
+            "matches": ["https://*.youtube.com/*", "https://*.twitch.tv/*", "https://*.kick.com/*"],
             "js": ["src/content.ts"]
         }
     ],
