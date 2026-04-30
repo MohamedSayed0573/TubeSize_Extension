@@ -16,7 +16,7 @@ import {
     startYoutubeToastTracking,
     stopResolutionTracking,
 } from "@/resolution";
-import { getStreamId } from "@lib/kick";
+import { getKickHtml, getStreamId } from "@lib/kick";
 
 let lastYoutubeTag: string | undefined;
 let lastTwitchTag: string | undefined;
@@ -107,9 +107,16 @@ chrome.runtime.onMessage.addListener(
         } else if (message.type === "getKick") {
             void (async () => {
                 const html = document.querySelector("body")!.outerHTML;
+                const streamId =
+                    getStreamId(html) ?? getStreamId(await getKickHtml(globalThis.location.href));
+
+                if (!streamId) {
+                    throw new Error("Failed to extract stream ID from the page");
+                }
+
                 const kickData = await sendMessageToBackground({
                     type: "kickLive",
-                    streamId: getStreamId(html),
+                    streamId,
                 });
                 kickData.channelName = document.querySelector("title")?.textContent?.split(" ")[0];
                 sendResponse(kickData);

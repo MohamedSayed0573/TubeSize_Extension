@@ -2,10 +2,21 @@ import type { KickStreamInfo } from "@/types/types";
 import { Parser, type Manifest, type PlaylistItem } from "m3u8-parser";
 import CONFIG from "./constants";
 
-export function getStreamId(html: string): string {
+export async function getKickHtml(url: string): Promise<string> {
+    const res = await fetch(url, {
+        method: "GET",
+        credentials: "include",
+    });
+    if (!res.ok) {
+        throw new Error(`Error fetching Kick page HTML: ${res.statusText}`);
+    }
+    return await res.text();
+}
+
+export function getStreamId(html: string): string | undefined {
     const match =
         String(html).match(/vod_id\\":\\"([^\\]+)/) || String(html).match(/vod_id":"([^"]+)"}/);
-    if (!match?.[1]) throw new Error("Failed to get the stream ID");
+    if (!match?.[1]) return;
     return match[1];
 }
 
@@ -102,8 +113,8 @@ export async function calculateStreamSizes(
                 // Limit the number of segments to save fetch time and avoid unnecessary requests.
                 const segments = segmentUrls.slice(0, CONFIG.NUMBER_OF_KICK_SEGMENTS_TO_CHECK);
 
-                let totalSize = 0;
-                let segmentsNum = 0;
+                let totalBytes = 0;
+                let totalDuration = 0;
                 const results = await Promise.allSettled(
                     segments.map(async (segment) => {
                         const res = await fetch(segment.url, {
@@ -112,6 +123,9 @@ export async function calculateStreamSizes(
                                 Range: "bytes=0-0",
                             },
                         });
+                        if (!res.ok || !res.headers.get("content-range") || res.status !== 206) {
+                            throw new Error(`Error fetching segment: ${res.statusText}`);
+                        }
                         return { segment, res };
                     }),
                 );
@@ -125,14 +139,15 @@ export async function calculateStreamSizes(
 
                     if (!fullSize || fullSize === "*" || fullSize === "0") continue;
                     if (segment.duration > 0) {
-                        totalSize += Number.parseInt(fullSize, 10) / segment.duration;
+                        totalBytes += Number.parseInt(fullSize, 10);
+                        totalDuration += segment.duration;
                     }
-                    segmentsNum++;
                 }
 
                 return {
                     resolution,
-                    sizePerSecondBytes: segmentsNum > 0 ? totalSize / segmentsNum : 0,
+                    // Only calculate size per second if we have a reasonable total duration to avoid inaccurate results from very short segments.
+                    sizePerSecondBytes: totalDuration >= 4 ? totalBytes / totalDuration : 0,
                 };
             } catch {
                 // Instead of ignoring the rejected promise, we return an object with size set to 0.
