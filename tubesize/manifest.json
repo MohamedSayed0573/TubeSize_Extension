@@ -20,9 +20,9 @@
     "host_permissions": [
         "https://*.youtube.com/*",
         "https://*.twitch.tv/*",
-        "https://usher.ttvnw.net/api/v2/channel/hls/*",
-        "https://gql.twitch.tv/gql/*",
-        "https://*.playlist.ttvnw.net/v1/playlist",
+        "https://gql.twitch.tv/*",
+        "https://usher.ttvnw.net/*",
+        "https://*.playlist.ttvnw.net/v1/playlist/*",
         "https://*.cloudfront.hls.ttvnw.net/v1/segment/*",
         "https://*.kick.com/*",
         "https://*.playback.live-video.net/*",
