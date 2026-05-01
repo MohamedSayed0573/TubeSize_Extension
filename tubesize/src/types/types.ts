@@ -63,7 +63,7 @@ export type YoutubeVideoData = {
     isShorts?: boolean;
 };
 
-export type YoutubeLiveData = {
+type YoutubeLiveData = {
     type: "live";
     formats: StreamInfo[];
     channelName: string;
@@ -165,7 +165,7 @@ export type TwitchLiveMessage = {
     channelName: string;
 };
 
-export type KickLiveMessage = {
+type KickLiveMessage = {
     type: "kickLive";
     streamId: string;
 };
