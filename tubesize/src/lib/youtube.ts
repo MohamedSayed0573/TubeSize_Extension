@@ -1,5 +1,5 @@
 import { filesize } from "filesize";
-import type { HumanizedFormat, RawData, RawFormat } from "@app-types/types";
+import type { RawData, RawFormat, StreamInfo, YoutubeVideoFormat } from "@app-types/types";
 import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
 
@@ -35,7 +35,7 @@ export async function extractRawData(videoTag: string, html: string | undefined)
     return rawData;
 }
 
-export function humanizeData(formats: RawFormat): HumanizedFormat {
+export function parseVideoFormats(formats: RawFormat): YoutubeVideoFormat[] {
     const audioSize = getAverageAudioSize(formats.audioFormats);
     const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);
     const humanizedVideoFormats = humanizeVideoFormats(
@@ -43,14 +43,7 @@ export function humanizeData(formats: RawFormat): HumanizedFormat {
         formats.durationSeconds,
         formats.isLive,
     );
-
-    return {
-        id: formats.id,
-        title: formats.title,
-        durationSeconds: formats.durationSeconds,
-        videoFormats: humanizedVideoFormats,
-        isLive: formats.isLive,
-    };
+    return humanizedVideoFormats;
 }
 
 export function humanizeVideoFormats(
@@ -92,6 +85,15 @@ export function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSiz
                 : undefined,
         };
     });
+}
+
+export function parseLiveStreamInfo(formats: RawFormat): StreamInfo[] {
+    const audioSizeBytes = getAverageAudioSize(formats.audioFormats);
+
+    return formats.formats.map((format) => ({
+        resolution: format.height,
+        sizePerSecondBytes: (format.sizeBytes + audioSizeBytes) / 3600,
+    }));
 }
 
 async function fetchHTMLPage(videoTag: string) {

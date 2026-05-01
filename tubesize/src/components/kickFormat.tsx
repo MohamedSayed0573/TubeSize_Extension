@@ -1,7 +1,7 @@
-import type { KickBackgroundResponse } from "@app-types/types";
+import type { KickData } from "@app-types/types";
 
 interface Props {
-    item: NonNullable<KickBackgroundResponse["kickData"]>[number];
+    item: KickData["data"][number];
     currentQuality?: number;
     isLive: boolean;
     durationSeconds?: number;

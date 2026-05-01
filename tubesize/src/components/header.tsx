@@ -1,30 +1,28 @@
-import type {
-    KickBackgroundResponse,
-    TwitchBackgroundResponse,
-    YoutubeBackgroundResponse,
-} from "@app-types/types";
+import type { KickData, TwitchData, YoutubeData } from "@app-types/types";
 import { humanizeDuration } from "@lib/utils";
 
 interface Props {
     pageType?: "youtube" | "twitch" | "kick" | "default";
-    youtubeData?: YoutubeBackgroundResponse | null;
-    twitchData?: TwitchBackgroundResponse | null;
-    kickData?: KickBackgroundResponse | null;
+    youtubeData?: YoutubeData | null;
+    twitchData?: TwitchData | null;
+    kickData?: KickData | null;
     setUseOptionsPage: (useOptionsPage: boolean) => void;
 }
 
-function getYoutubeTitle(youtubeData?: YoutubeBackgroundResponse | null): string {
-    return youtubeData?.data?.title || "YouTube Video";
+function getYoutubeTitle(youtubeData?: YoutubeData | null): string {
+    return youtubeData?.type === "video"
+        ? youtubeData.title || "YouTube Video"
+        : youtubeData?.channelName || "YouTube Live";
 }
 
-function getYoutubeDuration(youtubeData?: YoutubeBackgroundResponse | null): string | undefined {
-    console.log("YouTube duration in seconds:", youtubeData?.data?.durationSeconds);
-    if (!youtubeData?.data?.durationSeconds) return undefined;
-    return humanizeDuration(youtubeData?.data?.durationSeconds * 1000) || undefined;
+function getYoutubeDuration(youtubeData?: YoutubeData | null): string | undefined {
+    return youtubeData?.type === "video"
+        ? humanizeDuration(youtubeData?.durationSeconds * 1000)
+        : undefined;
 }
 
-function getTwitchTitle(twitchData?: TwitchBackgroundResponse | null): string {
-    const data = twitchData?.twitchData;
+function getTwitchTitle(twitchData?: TwitchData | null): string {
+    const data = twitchData;
 
     if (!data) {
         return "Twitch";
@@ -37,8 +35,8 @@ function getTwitchTitle(twitchData?: TwitchBackgroundResponse | null): string {
     return "Twitch Video";
 }
 
-function getTwitchDuration(twitchData?: TwitchBackgroundResponse | null): string | undefined {
-    const data = twitchData?.twitchData;
+function getTwitchDuration(twitchData?: TwitchData | null): string | undefined {
+    const data = twitchData;
 
     if (!data || data.type === "live") {
         return undefined;
@@ -59,10 +57,8 @@ export default function Header({
     setUseOptionsPage,
 }: Props) {
     const isLive =
-        (pageType === "youtube" && youtubeData?.data?.isLive) ||
-        (pageType === "twitch" &&
-            twitchData?.twitchData &&
-            "channelName" in twitchData.twitchData) ||
+        (pageType === "youtube" && youtubeData?.type === "live") ||
+        (pageType === "twitch" && twitchData?.type === "live") ||
         pageType === "kick";
 
     let title: string;
@@ -90,10 +86,7 @@ export default function Header({
 
     return (
         <div className="header">
-            <div
-                className="title"
-                title={pageType === "youtube" ? youtubeData?.data?.title : title}
-            >
+            <div className="title" title={title}>
                 {title}
             </div>
             {isLive && <span className="live-indicator">Live</span>}

@@ -1,5 +1,5 @@
 import "@styles/panel.css";
-import type { YoutubeBackgroundResponse } from "@app-types/types";
+import type { YoutubeData } from "@app-types/types";
 
 let settingsBtnEl: Element | undefined;
 let qualityBtnEl: Element | undefined;
@@ -39,17 +39,12 @@ const qualityBtnHandler = () => {
     });
 };
 
-let currentYoutubeData: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"] | undefined;
-let isCurrentVideoLive: boolean = false;
+let currentYoutubeData: YoutubeData | undefined;
 
-export async function injectQualityMenu(
-    youtubeData: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"],
-    isLive: boolean = false,
-) {
+export async function injectQualityMenu(youtubeData: YoutubeData) {
     try {
         removeEventListeners();
         currentYoutubeData = youtubeData;
-        isCurrentVideoLive = isLive;
         settingsBtnEl = await waitForElement(SETTINGS_BTN_SELECTOR);
         if (!settingsBtnEl) return;
 
@@ -102,10 +97,24 @@ function waitForElement(selector: string, timeout: number = 10_000): Promise<Ele
 
 function createQualitySizeLookup() {
     const lookup = new Map<number, string>();
-    for (const format of currentYoutubeData ?? []) {
-        lookup.set(format.height, format.sizeMB);
+    if (currentYoutubeData?.type === "video") {
+        for (const format of currentYoutubeData.formats) {
+            lookup.set(format.height, format.sizeMB);
+        }
+    } else {
+        for (const format of currentYoutubeData?.formats ?? []) {
+            lookup.set(format.resolution, perHourDisplay(format.sizePerSecondBytes));
+        }
     }
     return lookup;
+}
+
+function perHourDisplay(sizePerSecondBytes: number): string {
+    const sizePerHourMB = (sizePerSecondBytes * 3600) / 1_000_000;
+    if (sizePerHourMB >= 1000) {
+        return `${(sizePerHourMB / 1000).toFixed(2)} GB/hour`;
+    }
+    return `${sizePerHourMB.toFixed(2)} MB/hour`;
 }
 
 function clearInjectedQualityMenuSizes() {
@@ -135,7 +144,7 @@ async function renderQualityLabels() {
         const newDiv = document.createElement("div");
         const size = lookup.get(Number.parseInt(qualityText, 10));
         if (!size) continue;
-        newDiv.textContent = isCurrentVideoLive ? size + "/hour" : size;
+        newDiv.textContent = size;
         newDiv.className = TUBESIZE_QUALITY_MENU_CLASS;
 
         innerDiv?.append(newDiv);

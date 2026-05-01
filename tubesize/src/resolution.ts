@@ -1,8 +1,8 @@
 import { showTwitchToast, showYoutubeToast } from "@pages/toaster";
-import type { TwitchBackgroundResponse, YoutubeBackgroundResponse } from "@app-types/types";
+import type { TwitchData, YoutubeData } from "@app-types/types";
 
 /**
- * Get the current resolution of the video being played on the page by observing the DOM for video element.
+ * Get the current resolution of the video being played on thepage by observing the DOM for video element.
  * @returns The current resolution as a number or undefined
  */
 export async function getCurrentResolution() {
@@ -46,7 +46,7 @@ let currentVideoElement: HTMLVideoElement | undefined;
  * @param toasterThresholdMbpm The threshold for showing toasts in MB per minute.
  */
 export async function startYoutubeToastTracking(
-    youtubeResponse: YoutubeBackgroundResponse,
+    youtubeResponse: YoutubeData,
     toasterThresholdMbpm: number,
 ) {
     await getCurrentResolution();
@@ -57,14 +57,9 @@ export async function startYoutubeToastTracking(
     currentVideoElement = video ?? undefined;
     videoResizeListener = () => {
         const resolution = currentVideoElement?.videoHeight;
-        if (!resolution || !youtubeResponse.data || resolution === currentQuality) return;
+        if (!resolution || !youtubeResponse.formats || resolution === currentQuality) return;
         currentQuality = resolution;
-        showYoutubeToast(
-            resolution,
-            youtubeResponse.data?.videoFormats,
-            toasterThresholdMbpm,
-            youtubeResponse.data.isLive,
-        );
+        showYoutubeToast(resolution, youtubeResponse, toasterThresholdMbpm);
     };
     videoResizeListener();
     currentVideoElement?.addEventListener("resize", videoResizeListener);
@@ -76,7 +71,7 @@ export async function startYoutubeToastTracking(
  * @param toasterThresholdMbpm The threshold for showing toasts in MB per minute.
  */
 export async function startToastTwitchPolling(
-    twitchData: TwitchBackgroundResponse["twitchData"],
+    twitchData: TwitchData,
     toasterThresholdMbpm: number,
 ) {
     await getCurrentResolution();

@@ -3,7 +3,7 @@ import {
     getFromLocalCache,
     removeFromLocalCache,
     setToLocalCache,
-} from "@/lib/cache";
+} from "@lib/cache";
 
 const localGet = jest.fn<Promise<Record<string, unknown>>, [string | string[] | undefined]>();
 const syncGet = jest.fn<Promise<Record<string, unknown>>, [string | string[] | undefined]>();

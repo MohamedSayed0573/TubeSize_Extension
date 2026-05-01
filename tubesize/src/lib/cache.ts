@@ -1,5 +1,5 @@
 import CONFIG from "@lib/constants";
-import type { HumanizedFormat, OptionsMap, StorageData, TwitchData } from "@app-types/types";
+import type { OptionsMap, StorageData, TwitchData, YoutubeVideoData } from "@app-types/types";
 
 async function getCacheTTLSetting(): Promise<number> {
     const cacheTTL = (await getFromSyncCache("cacheTTL")) as number;
@@ -69,16 +69,16 @@ export function clearSyncCache() {
     return removeAllFromCache("sync");
 }
 
-export async function saveToStorage(tag: string, response: HumanizedFormat | TwitchData) {
+export async function saveToStorage(tag: string, response: YoutubeVideoData | TwitchData) {
     const ttlInSecondsOptions = await getCacheTTLSetting();
     const expiry = Date.now() + ttlInSecondsOptions * 1000;
 
     // If any of the formats have null sizes, we don't want to cache the response as it might be incomplete.
     const hasNullSizes =
-        "videoFormats" in response &&
-        response.videoFormats.some((f) => !f.sizeMB || f.sizeMB === "0 B");
+        response.type === "video" &&
+        response.formats.some((format) => !format.sizeMB || format.sizeMB === "0 B");
     if (hasNullSizes) return;
-    if ("videoFormats" in response && response.videoFormats.length === 0) return;
+    if (response.type === "video" && response.formats.length === 0) return;
 
     const dataToStore = {
         response,
@@ -86,7 +86,7 @@ export async function saveToStorage(tag: string, response: HumanizedFormat | Twi
         createdAt: new Date().toISOString(),
     };
 
-    const prefix = "videoFormats" in response ? "youtube" : "twitch";
+    const prefix = response.type === "video" ? "youtube" : "twitch";
 
     await setToLocalCache({
         [`${prefix}:${tag}`]: dataToStore,
@@ -96,7 +96,7 @@ export async function saveToStorage(tag: string, response: HumanizedFormat | Twi
 export async function getFromStorage(
     target: "youtube",
     tag: string,
-): Promise<StorageData<HumanizedFormat> | undefined>;
+): Promise<StorageData<YoutubeVideoData> | undefined>;
 export async function getFromStorage(
     target: "twitch",
     tag: string,
@@ -105,9 +105,9 @@ export async function getFromStorage(
 export async function getFromStorage(
     target: "youtube" | "twitch",
     tag: string,
-): Promise<StorageData<HumanizedFormat | TwitchData> | undefined> {
+): Promise<StorageData<YoutubeVideoData | TwitchData> | undefined> {
     const data = await getFromLocalCache(`${target}:${tag}`);
-    const item = data as StorageData<HumanizedFormat | TwitchData> | undefined;
+    const item = data as StorageData<YoutubeVideoData | TwitchData> | undefined;
 
     if (!item) return undefined;
 

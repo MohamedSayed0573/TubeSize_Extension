@@ -112,6 +112,6 @@ export async function estimateHlsStreamSizes(
                 };
             })
             // eslint-disable-next-line unicorn/no-array-sort
-            .sort((a, b) => b.sizePerSecondBytes - a.sizePerSecondBytes)
+            .sort((a, b) => b.resolution - a.resolution)
     );
 }

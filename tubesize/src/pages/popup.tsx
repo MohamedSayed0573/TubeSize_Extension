@@ -1,11 +1,6 @@
 import "@styles/popup.css";
 import "@styles/global.css";
-import type {
-    KickBackgroundResponse,
-    OptionsMap,
-    TwitchBackgroundResponse,
-    YoutubeBackgroundResponse,
-} from "@app-types/types";
+import type { KickData, OptionsMap, TwitchData, YoutubeData } from "@app-types/types";
 import { sendMessageToBackground, sendMessageToContentScript } from "@/runtime";
 import { useEffect, useState } from "react";
 import {
@@ -23,12 +18,12 @@ import {
 import Options from "@pages/options";
 import CONFIG from "@lib/constants";
 import Header from "@components/header";
-import YoutubeFormat from "@/components/youtubeFormat";
-import TwitchFormat from "@/components/twitchFormat";
-import useTab from "@/hooks/useTab";
-import useCurrentQuality from "@/hooks/useCurrentQuality";
-import useOptions from "@/hooks/useOptions";
-import KickFormat from "@/components/kickFormat";
+import YoutubeFormat from "@components/youtubeFormat";
+import TwitchFormat from "@components/twitchFormat";
+import useTab from "@hooks/useTab";
+import useCurrentQuality from "@hooks/useCurrentQuality";
+import useOptions from "@hooks/useOptions";
+import KickFormat from "@components/kickFormat";
 
 function getCachedAgo(createdAt: string | undefined) {
     if (!createdAt) return;
@@ -52,9 +47,9 @@ export default function Popup() {
 
     const { tabId, tabUrl, error: tabError } = useTab();
     const [pageType, setPageType] = useState<"youtube" | "twitch" | "kick" | "default">("default");
-    const [youtubeData, setYoutubeData] = useState<YoutubeBackgroundResponse | undefined>();
-    const [twitchData, setTwitchData] = useState<TwitchBackgroundResponse | undefined>();
-    const [kickData, setKickData] = useState<KickBackgroundResponse | undefined>();
+    const [youtubeData, setYoutubeData] = useState<YoutubeData | undefined>();
+    const [twitchData, setTwitchData] = useState<TwitchData | undefined>();
+    const [kickData, setKickData] = useState<KickData | undefined>();
     const [cache, setCache] = useState<string | undefined>();
     const [useOptionsPage, setUseOptionsPage] = useState(false);
     const [error, setError] = useState<Error | undefined>();
@@ -84,14 +79,16 @@ export default function Popup() {
                     tabId,
                 });
                 if (!response.success) throw new Error(response?.message);
-                if (response.data?.videoFormats?.length === 0) {
+                if (response.data.formats?.length === 0) {
                     setError(new Error("No video formats found for this video"));
                     setIsLoading(false);
                     return;
                 }
-                if (isShortsVideo(tabUrl)) response.isShorts = true;
-                setYoutubeData(response);
-                setIsLive(response.data?.isLive || false);
+                if (response.data.type === "video" && isShortsVideo(tabUrl)) {
+                    response.data.isShorts = true;
+                }
+                setYoutubeData(response.data);
+                setIsLive(response.data.type === "live");
                 setCache(
                     response.cached
                         ? getCachedAgo(response.createdAt) || "Cached just now"
@@ -113,7 +110,7 @@ export default function Popup() {
                         vodId: vodId,
                     });
                     if (!response.success) throw new Error(response.message);
-                    setTwitchData(response);
+                    setTwitchData(response.data);
                     setCache(
                         response.cached
                             ? getCachedAgo(response.createdAt) || "Cached just now"
@@ -134,7 +131,7 @@ export default function Popup() {
                         channelName: channelName,
                     });
                     if (!response.success) throw new Error(response.message);
-                    setTwitchData(response);
+                    setTwitchData(response.data);
                     setIsLive(true);
                     setIsLoading(false);
                 }
@@ -151,7 +148,7 @@ export default function Popup() {
                 if (!response?.success) {
                     throw new Error(response?.message || "Failed to retrieve Kick data");
                 }
-                setKickData(response);
+                setKickData(response.data);
                 setIsLive(true);
                 setPageType("kick");
                 setIsLoading(false);
@@ -197,8 +194,8 @@ export default function Popup() {
                 {youtubeData && enabledOptions.length === 0 && (
                     <span className="error">All Resolutions Disabled. Enable in options</span>
                 )}
-                {youtubeData?.data?.videoFormats &&
-                    youtubeData?.data?.videoFormats
+                {youtubeData?.type === "video" &&
+                    youtubeData.formats
                         ?.filter((item) => {
                             return enabledOptions.includes("p" + item.height);
                         })
@@ -208,15 +205,30 @@ export default function Popup() {
                                     key={item.formatId}
                                     item={item}
                                     isLive={isLive}
-                                    isShorts={youtubeData.isShorts}
+                                    isShorts={youtubeData.type === "video" && youtubeData.isShorts}
                                     currentQuality={currentQuality}
                                 />
                             );
                         })
                         // eslint-disable-next-line unicorn/no-array-reverse
                         .reverse()}
-                {twitchData?.twitchData?.data &&
-                    twitchData?.twitchData?.data.map((item) => {
+                {youtubeData?.type === "live" &&
+                    youtubeData.formats
+                        ?.filter((item) => {
+                            return enabledOptions.includes("p" + item.resolution);
+                        })
+                        ?.map((item) => {
+                            return (
+                                <YoutubeFormat
+                                    key={item.resolution}
+                                    item={item}
+                                    isLive={isLive}
+                                    currentQuality={currentQuality}
+                                />
+                            );
+                        })}
+                {twitchData?.data &&
+                    twitchData?.data.map((item) => {
                         return (
                             <TwitchFormat
                                 key={item.resolution}
@@ -224,15 +236,15 @@ export default function Popup() {
                                 currentQuality={currentQuality}
                                 isLive={isLive}
                                 durationSeconds={
-                                    twitchData.twitchData?.type === "vod"
-                                        ? twitchData.twitchData.durationSeconds
+                                    twitchData?.type === "vod"
+                                        ? twitchData.durationSeconds
                                         : undefined
                                 }
                             />
                         );
                     })}
-                {kickData?.kickData &&
-                    kickData.kickData.map((item) => {
+                {kickData?.data &&
+                    kickData.data.map((item) => {
                         return (
                             <KickFormat
                                 key={item.resolution}

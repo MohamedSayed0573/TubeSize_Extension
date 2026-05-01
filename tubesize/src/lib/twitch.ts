@@ -135,7 +135,7 @@ export async function getTwitchLiveResponse(
 
     return sendResponse({
         success: true,
-        twitchData: {
+        data: {
             type: "live",
             data: twitchData,
             channelName: message.channelName,
@@ -151,7 +151,7 @@ export async function getTwitchVodResponse(
     if (cached) {
         return sendResponse({
             success: true,
-            twitchData: cached.response,
+            data: cached.response,
             cached: true,
             createdAt: cached.createdAt,
         });
@@ -176,6 +176,6 @@ export async function getTwitchVodResponse(
 
     return sendResponse({
         success: true,
-        twitchData: response,
+        data: response,
     });
 }

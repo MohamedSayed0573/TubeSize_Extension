@@ -1,26 +1,35 @@
-import type { YoutubeBackgroundResponse } from "@app-types/types";
+import type { StreamInfo, YoutubeVideoFormat } from "@app-types/types";
 
 interface Props {
-    item: NonNullable<YoutubeBackgroundResponse["data"]>["videoFormats"][number];
+    item: YoutubeVideoFormat | StreamInfo;
     isLive: boolean | undefined;
-    isShorts: boolean | undefined;
+    isShorts?: boolean;
     currentQuality: number | undefined;
 }
 
-export default function YoutubeFormat({
-    item,
-    isLive = false,
-    isShorts = false,
-    currentQuality,
-}: Props) {
-    const className = item?.height === currentQuality ? "format-item current" : "format-item";
+function perHourDisplay(sizePerHourMB: number): string {
+    if (sizePerHourMB >= 1000) {
+        return `${(sizePerHourMB / 1000).toFixed(2)} GB/hour`;
+    }
+    return `${sizePerHourMB.toFixed(2)} MB/hour`;
+}
+
+export default function YoutubeFormat({ item, isShorts = false, currentQuality }: Props) {
+    const resolution = "height" in item ? item.height : item.resolution;
+    const sizePerMinuteMB =
+        "sizePerMinuteMB" in item
+            ? item.sizePerMinuteMB
+            : (item.sizePerSecondBytes * 60) / 1_000_000;
+    const sizeDisplay = "sizeMB" in item ? item.sizeMB : perHourDisplay(sizePerMinuteMB * 60);
+    const className = resolution === currentQuality ? "format-item current" : "format-item";
+
     return (
         <div className={className}>
-            <div className="format-height"> {item.height} </div>
+            <div className="format-height">{resolution}p</div>
             <div className="format-size">
-                <span>{isLive ? item.sizeMB + "/hour" : item.sizeMB}</span>
+                <span>{sizeDisplay}</span>
                 <span className="format-size-per-minute">
-                    {!isShorts && item.sizePerMinuteMB + "MB/min "}
+                    {!isShorts && `${sizePerMinuteMB.toFixed(1)} MB/min`}
                 </span>
             </div>
         </div>

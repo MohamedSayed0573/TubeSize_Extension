@@ -4,6 +4,7 @@ export type RawData = {
         title: string;
         lengthSeconds: string;
         isLive: boolean;
+        author: string;
     };
     streamingData: {
         adaptiveFormats: {
@@ -11,6 +12,7 @@ export type RawData = {
             height: number;
             contentLength?: string;
             bitrate?: number;
+            mimeType?: string;
         }[];
     };
 };
@@ -33,21 +35,52 @@ export type RawFormat = {
     }[];
 };
 
+type SuccessResponse<T> = {
+    success: true;
+    data: T;
+    cached?: boolean;
+    createdAt?: string;
+};
+type ErrorResponse = {
+    success: false;
+    message: string;
+};
+
+export type YoutubeVideoFormat = {
+    formatId: number;
+    height: number;
+    sizeMB: string;
+    sizePerMinuteMB: number;
+    maxSizeMB?: string;
+};
+
+export type YoutubeVideoData = {
+    type: "video";
+    formats: YoutubeVideoFormat[];
+    title: string;
+    durationSeconds: number;
+    id: string;
+    isShorts?: boolean;
+};
+
+export type YoutubeLiveData = {
+    type: "live";
+    formats: StreamInfo[];
+    channelName: string;
+};
+
+export type YoutubeData = YoutubeVideoData | YoutubeLiveData;
+export type YoutubeBackgroundResponse = SuccessResponse<YoutubeData> | ErrorResponse;
+
 export type HumanizedFormat = {
     id: string;
     title: string;
     isLive: boolean;
     durationSeconds: number;
-    videoFormats: {
-        formatId: number;
-        height: number;
-        sizeMB: string;
-        sizePerMinuteMB: number;
-        maxSizeMB?: string;
-    }[];
+    videoFormats: YoutubeVideoFormat[];
 };
 
-export type StorageData<T extends HumanizedFormat | TwitchData> = {
+export type StorageData<T extends YoutubeVideoData | TwitchData> = {
     response: T;
     expiry?: number;
     createdAt?: string;
@@ -62,14 +95,21 @@ export type OptionsMap = {
     qualityMenu?: boolean;
 };
 
-export type YoutubeBackgroundResponse = {
-    success: boolean;
-    data?: HumanizedFormat | null;
-    cached?: boolean;
-    isShorts?: boolean;
-    createdAt?: string; // Only when we use cached
-    message?: string;
+export type StreamInfo = {
+    sizePerSecondBytes: number;
+    resolution: number;
 };
+
+type TwitchLiveData = { type: "live"; data: StreamInfo[]; channelName: string };
+type TwitchVodData = {
+    type: "vod";
+    data: StreamInfo[];
+    vodId: string;
+    durationSeconds: number | undefined;
+};
+
+export type TwitchData = TwitchLiveData | TwitchVodData;
+export type TwitchBackgroundResponse = SuccessResponse<TwitchData> | ErrorResponse;
 
 export type TwitchGqlResponse = {
     data: {
@@ -93,30 +133,12 @@ export type TwitchTokenData = {
     durationSeconds?: number;
 };
 
-export type StreamInfo = {
-    sizePerSecondBytes: number;
-    resolution: number;
+export type KickData = {
+    data: StreamInfo[];
+    channelName: string;
 };
 
-export type TwitchData =
-    | { type: "live"; data: StreamInfo[]; channelName: string }
-    | { type: "vod"; data: StreamInfo[]; vodId: string; durationSeconds: number | undefined };
-
-export type TwitchBackgroundResponse = {
-    success: boolean;
-    twitchData?: TwitchData;
-    message?: string;
-    cached?: boolean;
-    createdAt?: string;
-};
-
-export type KickBackgroundResponse = {
-    success: boolean;
-    kickData?: StreamInfo[];
-    message?: string;
-    channelName?: string;
-};
-
+export type KickBackgroundResponse = SuccessResponse<KickData> | ErrorResponse;
 export type FrontEndMessage =
     | YoutubeMessage
     | TwitchVodMessage

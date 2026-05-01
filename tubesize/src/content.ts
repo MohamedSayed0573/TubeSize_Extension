@@ -51,11 +51,8 @@ async function handlePageNavigation() {
             lastYoutubeTag = tag;
             const qualityMenuEnabled =
                 (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
-            if (qualityMenuEnabled && youtubeResponse && youtubeResponse.data) {
-                await injectQualityMenu(
-                    youtubeResponse.data?.videoFormats,
-                    youtubeResponse.data?.isLive,
-                );
+            if (qualityMenuEnabled && youtubeResponse) {
+                await injectQualityMenu(youtubeResponse);
             }
 
             const toasterEnabled =
@@ -79,7 +76,7 @@ async function handlePageNavigation() {
                 (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
             if (toasterEnabled) {
                 const toasterThresholdMbpm = await getToasterThreshold();
-                await startToastTwitchPolling(twitchResponse.twitchData, toasterThresholdMbpm);
+                await startToastTwitchPolling(twitchResponse, toasterThresholdMbpm);
             }
         }
     } catch (err) {
@@ -119,7 +116,14 @@ chrome.runtime.onMessage.addListener(
                     type: "kickLive",
                     streamId,
                 });
-                kickData.channelName = document.querySelector("title")?.textContent?.split(" ")[0];
+                if (!kickData.success) {
+                    throw new Error(
+                        kickData.message || "Failed to retrieve Kick data from background",
+                    );
+                }
+                const channelName = document.querySelector("title")?.textContent?.split(" ")[0];
+                if (channelName) kickData.data.channelName = channelName;
+
                 sendResponse(kickData);
             })().catch((err) => {
                 console.error("Error handling getKick message:", err);
@@ -160,15 +164,20 @@ async function initYoutube(videoTag: string) {
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    return await sendMessageToBackground({
+    const youtubeResponse = await sendMessageToBackground({
         type: "youtubeVideo",
         videoTag: videoTag,
         html: scriptContent,
     });
+
+    if (!youtubeResponse.success) {
+        throw new Error("No response from background for YouTube video");
+    }
+    return youtubeResponse.data;
 }
 
 async function initTwitch(tag: string, isLive: boolean) {
-    return isLive
+    const twitchData = isLive
         ? await sendMessageToBackground({
               type: "twitchLive",
               channelName: tag,
@@ -177,4 +186,8 @@ async function initTwitch(tag: string, isLive: boolean) {
               type: "twitchVod",
               vodId: tag,
           });
+    if (!twitchData.success) {
+        throw new Error("No response from background for Twitch stream");
+    }
+    return twitchData.data;
 }

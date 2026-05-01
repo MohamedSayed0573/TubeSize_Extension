@@ -8,7 +8,12 @@ import type {
 } from "@app-types/types";
 import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
-import { parseDataFromYtInitial, humanizeData, extractRawData } from "@lib/youtube";
+import {
+    parseDataFromYtInitial,
+    parseVideoFormats,
+    extractRawData,
+    parseLiveStreamInfo,
+} from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickMasterM3u8 } from "@lib/kick";
 import { estimateHlsStreamSizes } from "@lib/hlsSize";
@@ -74,26 +79,53 @@ async function handleYoutube(
             addBadge(message.tabId);
             return sendResponse({
                 success: true,
-                data: cached.response,
+                data: {
+                    formats: cached.response.formats,
+                    type: "video",
+                    durationSeconds: cached.response.durationSeconds,
+                    title: cached.response.title,
+                    id: cached.response.id,
+                },
                 cached: true,
                 createdAt: cached.createdAt,
             });
         }
 
         const rawData = await extractRawData(videoTag, html);
-        const rawFormats = parseDataFromYtInitial(rawData);
-        const humanizedFormats = humanizeData(rawFormats);
+        const isLive = rawData.videoDetails.isLive;
 
-        // Don't cache live video data, as it might change frequently.
-        if (!humanizedFormats.isLive) {
-            await saveToStorage(videoTag, humanizedFormats);
+        if (isLive) {
+            const rawFormats = parseDataFromYtInitial(rawData);
+            const youtubeData = parseLiveStreamInfo(rawFormats);
+
+            sendResponse({
+                success: true,
+                data: {
+                    // eslint-disable-next-line unicorn/no-array-sort
+                    formats: youtubeData.sort((a, b) => b.resolution - a.resolution),
+                    type: "live",
+                    channelName: rawData.videoDetails.author,
+                },
+            });
+        } else {
+            const rawFormats = parseDataFromYtInitial(rawData);
+            const videoFormats = parseVideoFormats(rawFormats);
+            const youtubeData = {
+                formats: videoFormats,
+                type: "video" as const,
+                durationSeconds: Number(rawData.videoDetails.lengthSeconds),
+                title: rawData.videoDetails.title,
+                id: rawData.videoDetails.videoId,
+            };
+            await saveToStorage(videoTag, youtubeData);
+            addBadge(message.tabId);
+            return sendResponse({
+                success: true,
+                data: youtubeData,
+            });
         }
 
         addBadge(message.tabId);
-        return sendResponse({
-            success: true,
-            data: humanizedFormats,
-        });
     } catch (err) {
         clearBadge(message.tabId);
         return sendResponse({
@@ -132,7 +164,10 @@ async function handleKick(
 
         sendResponse({
             success: true,
-            kickData,
+            data: {
+                data: kickData,
+                channelName: message.streamId, // Kick doesn't provide channel name in the same way, using streamId as a placeholder
+            },
         });
     } catch (err) {
         return sendResponse({

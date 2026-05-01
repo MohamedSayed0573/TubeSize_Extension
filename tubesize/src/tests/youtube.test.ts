@@ -154,6 +154,7 @@ describe("parseDataFromYtInitial", () => {
                 title: "Test Video",
                 lengthSeconds: "300",
                 isLive: false,
+                author: "Test Author",
             },
             streamingData: undefined as unknown as RawData["streamingData"],
         };
