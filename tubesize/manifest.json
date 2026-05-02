@@ -32,6 +32,11 @@
         {
             "matches": ["https://*.youtube.com/*", "https://*.twitch.tv/*", "https://*.kick.com/*"],
             "js": ["src/content.ts"]
+        },
+        {
+            "matches": ["https://*.youtube.com/*"],
+            "js": ["src/lib/youtubeMainWorld.ts"],
+            "world": "MAIN"
         }
     ],
     "commands": {

@@ -35,6 +35,9 @@ export type RawFormat = {
     }[];
 };
 
+export type VideoCodecFamilies = "AV1" | "VP9" | "H.264" | "VP8";
+export type AudioCodecFamilies = "OPUS" | "MP4A";
+
 type SuccessResponse<T> = {
     success: true;
     data: T;
@@ -49,9 +52,7 @@ type ErrorResponse = {
 export type YoutubeVideoFormat = {
     formatId: number;
     height: number;
-    sizeMB: string;
-    sizePerMinuteMB: number;
-    maxSizeMB?: string;
+    sizeBytes: number;
 };
 
 export type YoutubeVideoData = {
@@ -60,10 +61,9 @@ export type YoutubeVideoData = {
     title: string;
     durationSeconds: number;
     id: string;
-    isShorts?: boolean;
 };
 
-type YoutubeLiveData = {
+export type YoutubeLiveData = {
     type: "live";
     formats: StreamInfo[];
     channelName: string;
@@ -152,6 +152,7 @@ export type YoutubeMessage = {
     videoTag: string;
     tabId?: number;
     html?: string;
+    currentVideoItags: { videoItag: number; audioItag: number };
 };
 export type TwitchMessage = TwitchVodMessage | TwitchLiveMessage;
 
@@ -168,4 +169,17 @@ export type TwitchLiveMessage = {
 type KickLiveMessage = {
     type: "kickLive";
     streamId: string;
+};
+
+export type ContentScriptMessage =
+    | { type: "ping" }
+    | { type: "getCurrentResolution" }
+    | { type: "getKick" }
+    | { type: "getCurrentVideoData" };
+
+export type ContentScriptResponseMap = {
+    ping: "pong";
+    getCurrentResolution: number | undefined;
+    getKick: KickBackgroundResponse | undefined;
+    getCurrentVideoData: { videoItag: number; audioItag: number };
 };

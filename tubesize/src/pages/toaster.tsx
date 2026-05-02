@@ -5,6 +5,15 @@ import Toast from "@components/toast";
 const HOST_ID = "TubeSize-Toast-Host";
 
 let root: ReturnType<typeof createRoot> | undefined;
+
+function sizeDisplay(sizeBytes: number): string {
+    const sizeMB = sizeBytes / 1_000_000;
+    if (sizeMB >= 1000) {
+        return `${(sizeMB / 1000).toFixed(2)} GB`;
+    }
+    return `${sizeMB.toFixed(2)} MB`;
+}
+
 function ensureRoot() {
     let host = document.querySelector(`#${HOST_ID}`);
     if (!host) {
@@ -29,12 +38,13 @@ export function showYoutubeToast(
         const format = youtubeData.formats.find((format) => format.height === currentQuality);
         if (!format) return;
 
-        if (format.sizePerMinuteMB > toasterThresholdMbpm) {
+        const sizePerMinuteMB = format.sizeBytes / 1_000_000 / (youtubeData.durationSeconds / 60);
+        if (sizePerMinuteMB > toasterThresholdMbpm) {
             ensureRoot().render(
                 <Toast
                     currentQuality={currentQuality}
-                    sizePerMinuteMB={format.sizePerMinuteMB}
-                    sizeMB={format.sizeMB}
+                    sizePerMinuteMB={sizePerMinuteMB}
+                    sizeMB={sizeDisplay(format.sizeBytes)}
                     isLive={false}
                     okOnClick={okOnClick}
                     dontShowAgainOnClick={dontShowAgainOnClick}

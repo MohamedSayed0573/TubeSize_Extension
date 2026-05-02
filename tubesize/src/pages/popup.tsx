@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import {
     extractVideoTag,
     isYoutubePage,
-    isShortsVideo,
     isTwitchPage,
     extractTwitchChannelName,
     isTwitchVod,
@@ -66,6 +65,8 @@ export default function Popup() {
 
             if (isYoutubePage(tabUrl)) {
                 setPageType("youtube");
+                if (!tabId) return;
+
                 const videoTag = extractVideoTag(tabUrl);
                 if (!videoTag) {
                     setMessage("Open a Youtube video");
@@ -73,10 +74,20 @@ export default function Popup() {
                     return;
                 }
 
+                const currentVideoItags = await sendMessageToContentScript(tabId, {
+                    type: "getCurrentVideoData",
+                });
+                console.log("Current video itags from content script:", currentVideoItags);
+
+                if (!currentVideoItags) {
+                    throw new Error("Failed to retrieve current video itags from content script");
+                }
+
                 const response = await sendMessageToBackground({
                     type: "youtubeVideo",
                     videoTag,
                     tabId,
+                    currentVideoItags,
                 });
                 if (!response.success) throw new Error(response?.message);
                 if (response.data.formats?.length === 0) {
@@ -84,9 +95,7 @@ export default function Popup() {
                     setIsLoading(false);
                     return;
                 }
-                if (response.data.type === "video" && isShortsVideo(tabUrl)) {
-                    response.data.isShorts = true;
-                }
+
                 setYoutubeData(response.data);
                 setIsLive(response.data.type === "live");
                 setCache(
@@ -202,16 +211,14 @@ export default function Popup() {
                         ?.map((item) => {
                             return (
                                 <YoutubeFormat
+                                    type="video"
                                     key={item.formatId}
                                     item={item}
-                                    isLive={isLive}
-                                    isShorts={youtubeData.type === "video" && youtubeData.isShorts}
+                                    durationSeconds={youtubeData.durationSeconds}
                                     currentQuality={currentQuality}
                                 />
                             );
-                        })
-                        // eslint-disable-next-line unicorn/no-array-reverse
-                        .reverse()}
+                        })}
                 {youtubeData?.type === "live" &&
                     youtubeData.formats
                         ?.filter((item) => {
@@ -220,9 +227,9 @@ export default function Popup() {
                         ?.map((item) => {
                             return (
                                 <YoutubeFormat
+                                    type="live"
                                     key={item.resolution}
                                     item={item}
-                                    isLive={isLive}
                                     currentQuality={currentQuality}
                                 />
                             );

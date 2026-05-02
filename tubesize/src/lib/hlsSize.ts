@@ -94,24 +94,21 @@ export async function estimateHlsStreamSizes(
     );
 
     // Fallback to bitrate from master M3U8 if we failed to fetch actual segments.
-    return (
-        result
-            .filter((item) => item.status === "fulfilled")
-            .map((item) => item.value)
-            .map((item) => {
-                if (item.sizePerSecondBytes > 0) {
-                    return item;
-                }
-                const masterItem = masterM3U8Data.find(
-                    (masterItem) => masterItem.attributes.RESOLUTION?.height === item.resolution,
-                );
-                const bitrate = masterItem?.attributes.BANDWIDTH;
-                return {
-                    ...item,
-                    sizePerSecondBytes: bitrate ? bitrate / 8 : 0,
-                };
-            })
-            // eslint-disable-next-line unicorn/no-array-sort
-            .sort((a, b) => b.resolution - a.resolution)
-    );
+    return result
+        .filter((item) => item.status === "fulfilled")
+        .map((item) => item.value)
+        .map((item) => {
+            if (item.sizePerSecondBytes > 0) {
+                return item;
+            }
+            const masterItem = masterM3U8Data.find(
+                (masterItem) => masterItem.attributes.RESOLUTION?.height === item.resolution,
+            );
+            const bitrate = masterItem?.attributes.BANDWIDTH;
+            return {
+                ...item,
+                sizePerSecondBytes: bitrate ? bitrate / 8 : 0,
+            };
+        })
+        .sort((a, b) => b.resolution - a.resolution);
 }

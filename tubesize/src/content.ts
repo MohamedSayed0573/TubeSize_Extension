@@ -17,6 +17,8 @@ import {
     stopResolutionTracking,
 } from "@/resolution";
 import { getKickHtml, getKickStreamId } from "@lib/kick";
+import type { ContentScriptMessage, ContentScriptResponseMap } from "./types/types";
+import { getCurrentItag } from "./lib/youtube";
 
 let lastYoutubeTag: string | undefined;
 let lastTwitchTag: string | undefined;
@@ -94,45 +96,73 @@ if (isYoutubePage(globalThis.location.href)) {
 void handlePageNavigation();
 
 chrome.runtime.onMessage.addListener(
-    (message: { type: string }, _sender: chrome.runtime.MessageSender, sendResponse) => {
-        if (message.type === "getCurrentResolution") {
-            void (async () => {
-                const resolution = await getCurrentResolution();
-                sendResponse(resolution);
-            })();
-            return true;
-        } else if (message.type === "getKick") {
-            void (async () => {
-                const html = document.querySelector("body")!.outerHTML;
-                const streamId =
-                    getKickStreamId(html) ??
-                    getKickStreamId(await getKickHtml(globalThis.location.href));
+    (
+        message: ContentScriptMessage,
+        _sender: chrome.runtime.MessageSender,
+        sendResponse: (response?: ContentScriptResponseMap[typeof message.type]) => void,
+    ) => {
+        switch (message.type) {
+            case "ping": {
+                sendResponse("pong");
+                return;
+            }
+            case "getCurrentResolution": {
+                void (async () => {
+                    const resolution = await getCurrentResolution();
+                    sendResponse(resolution);
+                })();
+                return true;
+            }
+            case "getKick": {
+                void (async () => {
+                    const html = document.querySelector("body")!.outerHTML;
+                    const streamId =
+                        getKickStreamId(html) ??
+                        getKickStreamId(await getKickHtml(globalThis.location.href));
 
-                if (!streamId) {
-                    throw new Error("Failed to extract stream ID from the page");
-                }
+                    if (!streamId) {
+                        throw new Error("Failed to extract stream ID from the page");
+                    }
 
-                const kickData = await sendMessageToBackground({
-                    type: "kickLive",
-                    streamId,
+                    const kickData = await sendMessageToBackground({
+                        type: "kickLive",
+                        streamId,
+                    });
+                    if (!kickData.success) {
+                        throw new Error(
+                            kickData.message || "Failed to retrieve Kick data from background",
+                        );
+                    }
+                    const channelName = document.querySelector("title")?.textContent?.split(" ")[0];
+                    if (channelName) kickData.data.channelName = channelName;
+
+                    sendResponse(kickData);
+                })().catch((err) => {
+                    console.error("Error handling getKick message:", err);
+                    sendResponse({
+                        success: false,
+                        message: err instanceof Error ? err.message : "Unknown error",
+                    });
                 });
-                if (!kickData.success) {
-                    throw new Error(
-                        kickData.message || "Failed to retrieve Kick data from background",
+                return true;
+            }
+            case "getCurrentVideoData": {
+                void (async () => {
+                    const currentVideoData = await getCurrentItag();
+                    console.log(
+                        "Current video data retrieved in content script:",
+                        currentVideoData,
                     );
-                }
-                const channelName = document.querySelector("title")?.textContent?.split(" ")[0];
-                if (channelName) kickData.data.channelName = channelName;
-
-                sendResponse(kickData);
-            })().catch((err) => {
-                console.error("Error handling getKick message:", err);
-                sendResponse({
-                    success: false,
-                    message: err instanceof Error ? err.message : "Unknown error",
+                    if (!currentVideoData) {
+                        throw new Error("Failed to retrieve current video data");
+                    }
+                    sendResponse(currentVideoData);
+                })().catch((err) => {
+                    console.error("Error handling getCurrentVideoData message:", err);
+                    sendResponse();
                 });
-            });
-            return true;
+                return true;
+            }
         }
     },
 );
@@ -163,12 +193,19 @@ async function initYoutube(videoTag: string) {
     });
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
+    const currentVideoItags = await getCurrentItag();
+    console.log("Current video itags retrieved in initYoutube:", currentVideoItags);
+    if (!currentVideoItags) {
+        throw new Error("Failed to retrieve current video itags");
+    }
 
     const youtubeResponse = await sendMessageToBackground({
         type: "youtubeVideo",
         videoTag: videoTag,
         html: scriptContent,
+        currentVideoItags,
     });
+    console.log("Response from background for YouTube video:", youtubeResponse);
 
     if (!youtubeResponse.success) {
         throw new Error("No response from background for YouTube video");

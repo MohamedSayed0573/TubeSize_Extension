@@ -5,15 +5,12 @@ import type {
     FrontEndMessage,
     TwitchMessage,
     KickBackgroundResponse,
+    YoutubeVideoData,
+    YoutubeLiveData,
 } from "@app-types/types";
 import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
-import {
-    parseDataFromYtInitial,
-    parseVideoFormats,
-    extractRawData,
-    parseLiveStreamInfo,
-} from "@lib/youtube";
+import { extractRawData, getYoutubeLiveData, getYoutubeVideoData } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickMasterM3u8 } from "@lib/kick";
 import { estimateHlsStreamSizes } from "@lib/hlsSize";
@@ -93,39 +90,33 @@ async function handleYoutube(
 
         const rawData = await extractRawData(videoTag, html);
         const isLive = rawData.videoDetails.isLive;
+        const currentVideoData = message.currentVideoItags;
 
+        let youtubeData: YoutubeVideoData | YoutubeLiveData;
         if (isLive) {
-            const rawFormats = parseDataFromYtInitial(rawData);
-            const youtubeData = parseLiveStreamInfo(rawFormats);
-
-            sendResponse({
-                success: true,
-                data: {
-                    // eslint-disable-next-line unicorn/no-array-sort
-                    formats: youtubeData.sort((a, b) => b.resolution - a.resolution),
-                    type: "live",
-                    channelName: rawData.videoDetails.author,
-                },
-            });
+            const formats = getYoutubeLiveData(rawData, currentVideoData);
+            youtubeData = {
+                type: "live",
+                formats,
+                channelName: rawData.videoDetails.author,
+            } satisfies YoutubeLiveData;
         } else {
-            const rawFormats = parseDataFromYtInitial(rawData);
-            const videoFormats = parseVideoFormats(rawFormats);
-            const youtubeData = {
-                formats: videoFormats,
-                type: "video" as const,
+            const formats = getYoutubeVideoData(rawData, currentVideoData);
+            youtubeData = {
+                type: "video",
+                formats,
                 durationSeconds: Number(rawData.videoDetails.lengthSeconds),
                 title: rawData.videoDetails.title,
                 id: rawData.videoDetails.videoId,
-            };
+            } satisfies YoutubeVideoData;
             await saveToStorage(videoTag, youtubeData);
-            addBadge(message.tabId);
-            return sendResponse({
-                success: true,
-                data: youtubeData,
-            });
         }
 
         addBadge(message.tabId);
+        sendResponse({
+            success: true,
+            data: youtubeData,
+        });
     } catch (err) {
         clearBadge(message.tabId);
         return sendResponse({

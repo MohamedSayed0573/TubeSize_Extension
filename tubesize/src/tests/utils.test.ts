@@ -1,6 +1,5 @@
 import {
     isYoutubePage,
-    isShortsVideo,
     extractVideoTag,
     fetchAndRetry,
     isTwitchPage,
@@ -28,24 +27,6 @@ describe("isYoutubePage", () => {
 
     test("should return false for a wrong hostname", () => {
         expect(isYoutubePage("https://www.youtubex.com/watch?v=dQw4w9WgXcQ")).toBe(false);
-    });
-});
-
-describe("isShortsVideo", () => {
-    test("should return true for a valid shorts URL", () => {
-        expect(isShortsVideo("https://www.youtube.com/shorts/dQw4w9WgXcQ")).toBe(true);
-    });
-
-    test("should return false if video tag isn't present", () => {
-        expect(isShortsVideo("https://youtube.com")).toBe(false);
-    });
-
-    test("should return false for an empty string", () => {
-        expect(isShortsVideo("")).toBe(false);
-    });
-
-    test("should return false for a wrong hostname", () => {
-        expect(isShortsVideo("https://www.youtubex.com/shorts/dQw4w9WgXcQ")).toBe(false);
     });
 });
 

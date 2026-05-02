@@ -1,37 +1,79 @@
 import type { StreamInfo, YoutubeVideoFormat } from "@app-types/types";
 
-interface Props {
-    item: YoutubeVideoFormat | StreamInfo;
-    isLive: boolean | undefined;
-    isShorts?: boolean;
-    currentQuality: number | undefined;
-}
-
-function perHourDisplay(sizePerHourMB: number): string {
-    if (sizePerHourMB >= 1000) {
-        return `${(sizePerHourMB / 1000).toFixed(2)} GB/hour`;
+function sizeDisplay(sizeBytes: number): string {
+    const sizeMB = sizeBytes / 1_000_000;
+    if (sizeMB >= 1000) {
+        return `${(sizeMB / 1000).toFixed(2)} GB`;
     }
-    return `${sizePerHourMB.toFixed(2)} MB/hour`;
+    return `${sizeMB.toFixed(2)} MB`;
 }
 
-export default function YoutubeFormat({ item, isShorts = false, currentQuality }: Props) {
-    const resolution = "height" in item ? item.height : item.resolution;
-    const sizePerMinuteMB =
-        "sizePerMinuteMB" in item
-            ? item.sizePerMinuteMB
-            : (item.sizePerSecondBytes * 60) / 1_000_000;
-    const sizeDisplay = "sizeMB" in item ? item.sizeMB : perHourDisplay(sizePerMinuteMB * 60);
-    const className = resolution === currentQuality ? "format-item current" : "format-item";
+function perMinuteDisplay(sizeBytesPerMinute: number): string {
+    const sizeMB = sizeBytesPerMinute / 1_000_000;
+    if (sizeMB >= 1000) {
+        return `${(sizeMB / 1000).toFixed(2)} GB/min`;
+    }
+    return `${sizeMB.toFixed(2)} MB/min`;
+}
 
-    return (
-        <div className={className}>
-            <div className="format-height">{resolution}p</div>
-            <div className="format-size">
-                <span>{sizeDisplay}</span>
-                <span className="format-size-per-minute">
-                    {!isShorts && `${sizePerMinuteMB.toFixed(1)} MB/min`}
-                </span>
+function perHourDisplay(sizeBytesPerHour: number): string {
+    const sizeMB = sizeBytesPerHour / 1_000_000;
+    if (sizeMB >= 1000) {
+        return `${(sizeMB / 1000).toFixed(2)} GB/hour`;
+    }
+    return `${sizeMB.toFixed(2)} MB/hour`;
+}
+
+type Props =
+    | {
+          type: "video";
+          item: YoutubeVideoFormat;
+          durationSeconds: number;
+          currentQuality: number | undefined;
+      }
+    | {
+          type: "live";
+          item: StreamInfo;
+          currentQuality: number | undefined;
+      };
+
+export default function YoutubeFormat(props: Props) {
+    if (props.type === "video") {
+        const { item, durationSeconds, currentQuality } = props;
+        const sizePerMinuteBytes = item.sizeBytes / (durationSeconds / 60);
+        const className = item.height === currentQuality ? "format-item current" : "format-item";
+
+        return (
+            <div className={className}>
+                <div className="format-height">
+                    {" "}
+                    {item.height} | {item.formatId}{" "}
+                </div>
+                <div className="format-size">
+                    <span>{sizeDisplay(item.sizeBytes)}</span>
+                    <span className="format-size-per-minute">
+                        {perMinuteDisplay(sizePerMinuteBytes)}
+                    </span>
+                </div>
             </div>
-        </div>
-    );
+        );
+    } else {
+        const { item, currentQuality } = props;
+        const sizePerMinuteBytes = item.sizePerSecondBytes * 60;
+        const sizePerHourBytes = item.sizePerSecondBytes * 3600;
+        const className =
+            item.resolution === currentQuality ? "format-item current" : "format-item";
+
+        return (
+            <div className={className}>
+                <div className="format-height"> {item.resolution} </div>
+                <div className="format-size">
+                    <span>{perHourDisplay(sizePerHourBytes)}</span>
+                    <span className="format-size-per-minute">
+                        {perMinuteDisplay(sizePerMinuteBytes)}
+                    </span>
+                </div>
+            </div>
+        );
+    }
 }

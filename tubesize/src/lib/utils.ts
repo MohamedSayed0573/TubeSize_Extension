@@ -10,16 +10,6 @@ export function isYoutubePage(url: string): boolean {
     }
 }
 
-export function isShortsVideo(url: string): boolean {
-    if (!isYoutubePage(url)) return false;
-    try {
-        const parsedUrl = new URL(url);
-        return parsedUrl.pathname.startsWith("/shorts");
-    } catch {
-        return false;
-    }
-}
-
 export function isTwitchPage(url: string): boolean {
     try {
         const parsedUrl = new URL(url);

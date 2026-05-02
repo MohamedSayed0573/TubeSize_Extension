@@ -1,4 +1,6 @@
 import type {
+    ContentScriptMessage,
+    ContentScriptResponseMap,
     FrontEndMessage,
     KickBackgroundResponse,
     TwitchBackgroundResponse,
@@ -13,6 +15,9 @@ type MessageResponseMap = {
     clearBadge: { success: boolean };
     setBadge: { success: boolean };
 };
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function sendMessageToBackground<T extends FrontEndMessage>(
     message: T,
 ): Promise<MessageResponseMap[T["type"]]> {
@@ -35,28 +40,56 @@ export async function sendMessageToBackground<T extends FrontEndMessage>(
     });
 }
 
-type ContentScriptMessage = { type: "getCurrentResolution" } | { type: "getKick" };
-type ContentScriptResponseMap = {
-    getCurrentResolution: number | undefined;
-    getKick: KickBackgroundResponse | undefined;
-};
+async function confirmContentScriptExists(tabId: number): Promise<void> {
+    const timeoutMs = 10_000;
+    const intervalMs = 250;
+    const start = Date.now();
+
+    while (Date.now() - start < timeoutMs) {
+        const response = await new Promise((resolve, reject) => {
+            chrome.tabs.sendMessage(tabId, { type: "ping" }, (response: "pong" | undefined) => {
+                if (chrome.runtime.lastError) {
+                    const errorMessage = chrome.runtime.lastError.message || "";
+
+                    if (errorMessage.includes("Receiving end does not exist")) {
+                        return resolve(void 0);
+                    }
+
+                    return reject(new Error(errorMessage || "Failed to ping content script"));
+                }
+
+                resolve(response);
+            });
+        });
+
+        if (response === "pong") return;
+
+        await sleep(intervalMs);
+    }
+
+    console.error(`Content script did not respond within ${timeoutMs}ms`);
+    throw new Error("Error communicating with content script: Try refreshing the page");
+}
+
 export async function sendMessageToContentScript<T extends ContentScriptMessage>(
     tabId: number,
     message: T,
 ): Promise<ContentScriptResponseMap[T["type"]] | undefined> {
+    await confirmContentScriptExists(tabId);
+
     return new Promise((resolve, reject) => {
         chrome.tabs.sendMessage(tabId, message, (response: ContentScriptResponseMap[T["type"]]) => {
             if (chrome.runtime.lastError) {
                 const errorMessage = chrome.runtime.lastError.message || "";
 
                 if (errorMessage.includes("Receiving end does not exist")) {
-                    // eslint-disable-next-line unicorn/no-useless-undefined
-                    resolve(undefined);
+                    resolve(void 0);
                     return;
                 }
                 return reject(new Error(errorMessage || "Failed to get current resolution"));
             }
-            resolve(response);
+            console.log("Response received from content script:", response);
+            return resolve(response);
         });
     });
 }

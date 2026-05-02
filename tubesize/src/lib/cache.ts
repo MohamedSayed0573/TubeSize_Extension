@@ -75,8 +75,7 @@ export async function saveToStorage(tag: string, response: YoutubeVideoData | Tw
 
     // If any of the formats have null sizes, we don't want to cache the response as it might be incomplete.
     const hasNullSizes =
-        response.type === "video" &&
-        response.formats.some((format) => !format.sizeMB || format.sizeMB === "0 B");
+        response.type === "video" && response.formats.some((format) => !format.sizeBytes);
     if (hasNullSizes) return;
     if (response.type === "video" && response.formats.length === 0) return;
 

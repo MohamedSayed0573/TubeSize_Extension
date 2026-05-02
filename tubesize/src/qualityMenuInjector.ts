@@ -67,7 +67,10 @@ async function settingsBtnClickListener() {
     qualityBtnEl.addEventListener("click", qualityBtnHandler);
 }
 
-function waitForElement(selector: string, timeout: number = 10_000): Promise<Element | undefined> {
+export function waitForElement(
+    selector: string,
+    timeout: number = 10_000,
+): Promise<Element | undefined> {
     return new Promise<Element | undefined>((resolve) => {
         const element = document.querySelector(selector);
         if (element) {
@@ -95,11 +98,19 @@ function waitForElement(selector: string, timeout: number = 10_000): Promise<Ele
     });
 }
 
+function sizeDisplay(sizeBytes: number): string {
+    const sizeMB = sizeBytes / 1_000_000;
+    if (sizeMB >= 1000) {
+        return `${(sizeMB / 1000).toFixed(2)} GB`;
+    }
+    return `${sizeMB.toFixed(2)} MB`;
+}
+
 function createQualitySizeLookup() {
     const lookup = new Map<number, string>();
     if (currentYoutubeData?.type === "video") {
         for (const format of currentYoutubeData.formats) {
-            lookup.set(format.height, format.sizeMB);
+            lookup.set(format.height, sizeDisplay(format.sizeBytes));
         }
     } else {
         for (const format of currentYoutubeData?.formats ?? []) {
