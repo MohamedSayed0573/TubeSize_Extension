@@ -121,14 +121,14 @@ chrome.runtime.onMessage.addListener(
                 const kickData = await sendMessageToBackground({
                     type: "kickLive",
                     streamId,
-                    fromPopup: false,
+                    fromPopup: true,
                 });
                 if (!kickData.success) {
                     throw new Error(
                         kickData.message || "Failed to retrieve Kick data from background",
                     );
                 }
-                const channelName = document.querySelector("title")?.textContent?.split(" ")[0];
+                const channelName = extractChannelName(globalThis.location.href);
                 if (channelName) kickData.data.channelName = channelName;
 
                 sendResponse(kickData);

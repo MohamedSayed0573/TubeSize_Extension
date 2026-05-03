@@ -39,8 +39,6 @@ async function handleMessage(
     sendResponse: (response: any) => void,
 ): Promise<void> {
     const tabId = getTabId(sender, message);
-    console.log("Sender:", sender);
-    console.log("Message:", message);
 
     switch (message.type) {
         case "clearBadge": {
@@ -54,18 +52,10 @@ async function handleMessage(
         }
         case "twitchVod":
         case "twitchLive": {
-            return await handleTwitch(
-                message,
-                sendResponse,
-                sender.origin!.includes("chrome-extension://"),
-            );
+            return await handleTwitch(message, sendResponse);
         }
         case "kickLive": {
-            return await handleKick(
-                message,
-                sendResponse,
-                sender.origin!.includes("chrome-extension://"),
-            );
+            return await handleKick(message, sendResponse);
         }
         default: {
             console.error("Unknown message type:", message);
@@ -148,11 +138,10 @@ async function handleYoutube(
 async function handleTwitch(
     message: TwitchMessage,
     sendResponse: (response: TwitchBackgroundResponse) => void,
-    fromPopup: boolean,
 ) {
     try {
         return message.type === "twitchLive"
-            ? await getTwitchLiveResponse(message, sendResponse, fromPopup)
+            ? await getTwitchLiveResponse(message, sendResponse)
             : await getTwitchVodResponse(message, sendResponse);
     } catch (err) {
         return sendResponse({
@@ -165,11 +154,10 @@ async function handleTwitch(
 async function handleKick(
     message: KickLiveMessage,
     sendResponse: (response: KickBackgroundResponse) => void,
-    fromPopup: boolean,
 ) {
     try {
         const masterM3U8Data = await getKickMasterM3u8(message.streamId);
-        const kickData = fromPopup
+        const kickData = message.fromPopup
             ? await estimateHlsStreamSizes(masterM3U8Data)
             : filterM3u8(masterM3U8Data);
         sendResponse({

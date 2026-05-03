@@ -130,14 +130,10 @@ export function filterM3u8(m3u8Data: PlaylistItem[]): StreamInfo[] {
 export async function getTwitchLiveResponse(
     message: TwitchLiveMessage,
     sendResponse: (response: TwitchBackgroundResponse) => void,
-    allowSegmentEstimates: boolean,
 ) {
-    console.log(
-        `Getting a message from ${allowSegmentEstimates ? "popup with segment estimates" : "content script without segment estimates"}`,
-    );
     const twitchToken = await getTwitchToken(message);
     const masterM3u8 = await getTwitchMasterM3u8(twitchToken, message);
-    const twitchData = allowSegmentEstimates
+    const twitchData = message.fromPopup
         ? await estimateHlsStreamSizes(masterM3u8)
         : filterM3u8(masterM3u8);
 
