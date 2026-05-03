@@ -1,5 +1,7 @@
 import { showTwitchToast, showYoutubeToast } from "@pages/toaster";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/types";
+import CONFIG from "./lib/constants";
+import { getFromSyncCache } from "./lib/cache";
 
 /**
  * Get the current resolution of the video being played on thepage by observing the DOM for video element.
@@ -45,11 +47,9 @@ let currentVideoElement: HTMLVideoElement | undefined;
  * @param youtubeResponse The response from the YouTube background script.
  * @param toasterThresholdMbpm The threshold for showing toasts in MB per minute.
  */
-export async function startYoutubeToastTracking(
-    youtubeResponse: YoutubeData,
-    toasterThresholdMbpm: number,
-) {
+export async function startYoutubeToastTracking(youtubeResponse: YoutubeData) {
     await getCurrentResolution();
+    const toasterThresholdMbpm = await getToasterThresholdMbPm();
     const video = document.querySelector("video");
     if (videoResizeListener) {
         currentVideoElement?.removeEventListener("resize", videoResizeListener);
@@ -65,16 +65,34 @@ export async function startYoutubeToastTracking(
     currentVideoElement?.addEventListener("resize", videoResizeListener);
 }
 
+async function getToasterThreshold() {
+    return (
+        ((await getFromSyncCache("toasterThreshold")) as number) || CONFIG.DEFAULT_TOASTER_THRESHOLD
+    );
+}
+
+async function getToasterThresholdUnit() {
+    return (
+        ((await getFromSyncCache("toasterThresholdUnit")) as "mbPerMinute" | "mbPerHour") ||
+        CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT
+    );
+}
+
+async function getToasterThresholdMbPm(): Promise<number> {
+    const threshold = await getToasterThreshold();
+    const thresholdUnit = await getToasterThresholdUnit();
+    return thresholdUnit === "mbPerMinute" ? threshold : threshold / 60;
+}
+
 /**
  * Starts polling for resolution changes and shows toasts for Twitch videos.
  * @param twitchData The Twitch data from the background script.
  * @param toasterThresholdMbpm The threshold for showing toasts in MB per minute.
  */
-export async function startToastTwitchPolling(
-    twitchData: TwitchData,
-    toasterThresholdMbpm: number,
-) {
+export async function startToastTwitchPolling(twitchData: TwitchData) {
     await getCurrentResolution();
+    const toasterThresholdMbpm = await getToasterThresholdMbPm();
+
     const video = document.querySelector("video");
     if (videoResizeListener) {
         currentVideoElement?.removeEventListener("resize", videoResizeListener);
@@ -96,8 +114,9 @@ export async function startToastTwitchPolling(
     currentVideoElement?.addEventListener("resize", videoResizeListener);
 }
 
-export async function startToastKickPolling(kickData: KickData, toasterThresholdMbpm: number) {
+export async function startToastKickPolling(kickData: KickData) {
     await getCurrentResolution();
+    const toasterThresholdMbpm = await getToasterThresholdMbPm();
     const video = document.querySelector("video");
     if (videoResizeListener) {
         currentVideoElement?.removeEventListener("resize", videoResizeListener);

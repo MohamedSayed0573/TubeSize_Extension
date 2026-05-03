@@ -53,7 +53,6 @@ async function mediaPlaylistHasAds(url: string | URL | undefined): Promise<boole
     if (!url) return false;
     const manifest = await fetchMediaM3u8(url);
     const hasAds = hasNonLiveSegments(manifest);
-    console.log(`Media Manifest ${url} has ads: ${hasAds}}`);
     return hasAds;
 }
 
@@ -132,9 +131,6 @@ export async function estimateHlsStreamSizes(
             if (item.sizePerSecondBytes > 0) {
                 return item;
             }
-            console.log(
-                `Falling back to master M3U8 bitrate for resolution ${item.resolution}p due to insufficient segment data`,
-            );
             const masterItem = masterM3U8Data.find(
                 (masterItem) => masterItem.attributes.RESOLUTION?.height === item.resolution,
             );

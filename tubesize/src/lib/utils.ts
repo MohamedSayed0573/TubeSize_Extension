@@ -103,7 +103,7 @@ export function extractTwitchVodId(url: string): string | undefined {
     }
 }
 
-export function extractTwitchChannelName(url: string): string | undefined {
+export function extractChannelName(url: string): string | undefined {
     try {
         const parsedUrl = new URL(url);
         return parsedUrl.pathname.split("/")[1] || undefined;

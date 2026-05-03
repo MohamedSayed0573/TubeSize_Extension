@@ -1,5 +1,5 @@
 import {
-    extractTwitchChannelName,
+    extractChannelName,
     extractTwitchVodId,
     extractVideoTag,
     isKickPage,
@@ -52,12 +52,11 @@ async function handlePageNavigation() {
 
             const toasterEnabled = await isToasterEnabled();
             if (toasterEnabled) {
-                const toasterThresholdMbpm = await getToasterThresholdMbPm();
-                await startYoutubeToastTracking(youtubeResponse, toasterThresholdMbpm);
+                await startYoutubeToastTracking(youtubeResponse);
             }
         } else if (isTwitchPage(url)) {
             const isLive = !isTwitchVod(url);
-            const tag = isLive ? extractTwitchChannelName(url) : extractTwitchVodId(url);
+            const tag = isLive ? extractChannelName(url) : extractTwitchVodId(url);
 
             stopResolutionTracking();
             if (!tag) return;
@@ -65,16 +64,14 @@ async function handlePageNavigation() {
             const twitchResponse = await initTwitch(tag, isLive);
             const toasterEnabled = await isToasterEnabled();
             if (toasterEnabled) {
-                const toasterThresholdMbpm = await getToasterThresholdMbPm();
-                await startToastTwitchPolling(twitchResponse, toasterThresholdMbpm);
+                await startToastTwitchPolling(twitchResponse);
             }
         } else if (isKickPage(url)) {
             stopResolutionTracking();
-            const kickData = await initKick();
             const toasterEnabled = await isToasterEnabled();
-            if (toasterEnabled && kickData) {
-                const toasterThresholdMbpm = await getToasterThresholdMbPm();
-                await startToastKickPolling(kickData, toasterThresholdMbpm);
+            if (toasterEnabled) {
+                const kickData = await initKick();
+                await startToastKickPolling(kickData);
             }
         }
     } catch (err) {
@@ -93,17 +90,6 @@ async function isToasterEnabled() {
 }
 async function isQualityMenuEnabled() {
     return (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
-}
-async function getToasterThreshold() {
-    return (
-        ((await getFromSyncCache("toasterThreshold")) as number) || CONFIG.DEFAULT_TOASTER_THRESHOLD
-    );
-}
-async function getToasterThresholdUnit() {
-    return (
-        ((await getFromSyncCache("toasterThresholdUnit")) as "mbPerMinute" | "mbPerHour") ||
-        CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT
-    );
 }
 
 // eslint-disable-next-line unicorn/prefer-top-level-await
@@ -163,11 +149,6 @@ chrome.runtime.onMessage.addListener(
  * @returns {number} The toaster threshold in MB per minute.
  * @throws Will throw an error if there is an issue retrieving the setting from cache.
  */
-async function getToasterThresholdMbPm(): Promise<number> {
-    const threshold = await getToasterThreshold();
-    const thresholdUnit = await getToasterThresholdUnit();
-    return thresholdUnit === "mbPerMinute" ? threshold : threshold / 60;
-}
 
 async function initYoutube(videoTag: string) {
     const scriptsArray = [...document.scripts];
@@ -224,7 +205,8 @@ async function initKick(): Promise<KickData> {
     if (!kickData.success) {
         throw new Error(kickData.message || "Failed to retrieve Kick data from background");
     }
-    const channelName = document.querySelector("title")?.textContent?.split(" ")[0];
+
+    const channelName = extractChannelName(globalThis.location.href);
     if (channelName) kickData.data.channelName = channelName;
 
     return kickData.data;
