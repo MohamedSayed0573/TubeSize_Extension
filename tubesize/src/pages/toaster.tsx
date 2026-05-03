@@ -64,7 +64,7 @@ export function showTwitchToast(
     currentQuality: number,
     videoFormats: TwitchData["data"],
     toasterThresholdMbpm: number,
-    isLive: boolean,
+    isLive: boolean = true,
     durationSeconds?: number,
 ) {
     if (DONT_SHOW_AGAIN) return;

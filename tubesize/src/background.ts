@@ -5,6 +5,7 @@ import type {
     FrontEndMessage,
     TwitchMessage,
     KickBackgroundResponse,
+    KickLiveMessage,
 } from "@app-types/types";
 import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
@@ -101,7 +102,6 @@ async function handleYoutube(
             sendResponse({
                 success: true,
                 data: {
-                    // eslint-disable-next-line unicorn/no-array-sort
                     formats: youtubeData.sort((a, b) => b.resolution - a.resolution),
                     type: "live",
                     channelName: rawData.videoDetails.author,
@@ -141,7 +141,7 @@ async function handleTwitch(
 ) {
     try {
         return message.type === "twitchLive"
-            ? await getTwitchLiveResponse(message, sendResponse)
+            ? await getTwitchLiveResponse(message, sendResponse, message.fromPopup === true)
             : await getTwitchVodResponse(message, sendResponse);
     } catch (err) {
         return sendResponse({
@@ -152,16 +152,29 @@ async function handleTwitch(
 }
 
 async function handleKick(
-    message: FrontEndMessage,
+    message: KickLiveMessage,
     sendResponse: (response: KickBackgroundResponse) => void,
 ) {
     try {
         if (message.type !== "kickLive") {
             throw new Error("Invalid message type for handleKick");
         }
-        const masterM3U8Data = await getKickMasterM3u8(message.streamId);
-        const kickData = await estimateHlsStreamSizes(masterM3U8Data);
 
+        console.log(
+            `Getting a message from ${message.fromPopup ? "popup with segment estimates" : "content script without segment estimates"}`,
+        );
+        const masterM3U8Data = await getKickMasterM3u8(message.streamId);
+        const kickData = message.fromPopup
+            ? await estimateHlsStreamSizes(masterM3U8Data)
+            : masterM3U8Data
+                  .filter((item) => item.attributes.RESOLUTION?.height && item.attributes.BANDWIDTH)
+                  .map((item) => ({
+                      resolution: item.attributes.RESOLUTION!.height,
+                      sizePerSecondBytes: item.attributes.BANDWIDTH! / 8,
+                  }))
+                  .sort((a, b) => b.resolution - a.resolution);
+
+        console.log("Kick live data:", kickData);
         sendResponse({
             success: true,
             data: {

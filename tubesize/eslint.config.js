@@ -52,6 +52,7 @@ export default defineConfig([
                     case: "camelCase",
                 },
             ],
+            "unicorn/no-array-sort": "off",
         },
     },
     {

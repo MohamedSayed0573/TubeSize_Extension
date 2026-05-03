@@ -1,4 +1,5 @@
 import type {
+    StreamInfo,
     TwitchBackgroundResponse,
     TwitchData,
     TwitchGqlResponse,
@@ -112,15 +113,16 @@ export async function getTwitchMasterM3u8(
     return playlists;
 }
 
-export function filterTwitchM3u8(m3u8Data: PlaylistItem[]): TwitchData["data"] {
+export function filterM3u8(m3u8Data: PlaylistItem[]): StreamInfo[] {
     const result = m3u8Data
         ?.filter((item) => item.attributes.RESOLUTION?.height && item.attributes.BANDWIDTH)
         .map((item) => {
             return {
-                sizePerSecondBytes: item.attributes.BANDWIDTH! / 8,
                 resolution: item.attributes.RESOLUTION!.height,
+                sizePerSecondBytes: item.attributes.BANDWIDTH! / 8,
             };
-        });
+        })
+        .sort((a, b) => b.resolution - a.resolution);
 
     return result || [];
 }
@@ -128,10 +130,18 @@ export function filterTwitchM3u8(m3u8Data: PlaylistItem[]): TwitchData["data"] {
 export async function getTwitchLiveResponse(
     message: TwitchLiveMessage,
     sendResponse: (response: TwitchBackgroundResponse) => void,
+    allowSegmentEstimates: boolean,
 ) {
+    console.log(
+        `Getting a message from ${allowSegmentEstimates ? "popup with segment estimates" : "content script without segment estimates"}`,
+    );
     const twitchToken = await getTwitchToken(message);
     const masterM3u8 = await getTwitchMasterM3u8(twitchToken, message);
-    const twitchData = await estimateHlsStreamSizes(masterM3u8);
+    const twitchData = allowSegmentEstimates
+        ? await estimateHlsStreamSizes(masterM3u8)
+        : filterM3u8(masterM3u8);
+
+    console.log("Twitch live data:", twitchData);
 
     return sendResponse({
         success: true,
@@ -162,7 +172,7 @@ export async function getTwitchVodResponse(
         throw new Error("Failed to retrieve Twitch token");
     }
     const m3u8Data = await getTwitchMasterM3u8(twitchToken, message);
-    const filteredM3U8Data = filterTwitchM3u8(m3u8Data);
+    const filteredM3U8Data = filterM3u8(m3u8Data);
 
     const response: TwitchData = {
         type: "vod",

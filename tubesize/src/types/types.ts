@@ -163,9 +163,13 @@ export type TwitchVodMessage = {
 export type TwitchLiveMessage = {
     type: "twitchLive";
     channelName: string;
+    fromPopup?: boolean;
 };
 
-type KickLiveMessage = {
+export type KickLiveMessage = {
     type: "kickLive";
     streamId: string;
+    fromPopup?: boolean;
 };
+
+export type GetKickMessage = { type: "getKick"; fromPopup?: boolean };

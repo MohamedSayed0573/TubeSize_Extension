@@ -1,10 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import {
-    filterTwitchM3u8,
-    getTwitchClientId,
-    getTwitchMasterM3u8,
-    getTwitchToken,
-} from "@lib/twitch";
+import { filterM3u8, getTwitchClientId, getTwitchMasterM3u8, getTwitchToken } from "@lib/twitch";
 import { parseM3U8 } from "@lib/m3u8";
 import path from "node:path";
 import fs from "node:fs";
@@ -188,7 +183,7 @@ describe("getTwitchMasterM3u8", () => {
     });
 });
 
-describe("filterTwitchM3u8", () => {
+describe("filterM3u8", () => {
     test("should keep only m3u8 variants with resolution and bandwidth", () => {
         const m3u8Data = `#EXTM3U
 #EXT-X-VERSION:3
@@ -200,7 +195,7 @@ describe("filterTwitchM3u8", () => {
 360p.m3u8
 `;
 
-        expect(filterTwitchM3u8(parseM3U8(m3u8Data).playlists ?? [])).toEqual([
+        expect(filterM3u8(parseM3U8(m3u8Data).playlists ?? [])).toEqual([
             {
                 sizePerSecondBytes: 325_302.25,
                 resolution: 720,
@@ -219,6 +214,6 @@ describe("filterTwitchM3u8", () => {
 audio-only.m3u8
 `;
 
-        expect(filterTwitchM3u8(parseM3U8(m3u8Data).playlists ?? [])).toEqual([]);
+        expect(filterM3u8(parseM3U8(m3u8Data).playlists ?? [])).toEqual([]);
     });
 });

@@ -1,5 +1,5 @@
 import { showTwitchToast, showYoutubeToast } from "@pages/toaster";
-import type { TwitchData, YoutubeData } from "@app-types/types";
+import type { KickData, TwitchData, YoutubeData } from "@app-types/types";
 
 /**
  * Get the current resolution of the video being played on thepage by observing the DOM for video element.
@@ -90,6 +90,29 @@ export async function startToastTwitchPolling(
             toasterThresholdMbpm,
             twitchData?.type === "live",
             twitchData.type === "vod" ? twitchData.durationSeconds : undefined,
+        );
+    };
+    videoResizeListener();
+    currentVideoElement?.addEventListener("resize", videoResizeListener);
+}
+
+export async function startToastKickPolling(kickData: KickData, toasterThresholdMbpm: number) {
+    await getCurrentResolution();
+    const video = document.querySelector("video");
+    if (videoResizeListener) {
+        currentVideoElement?.removeEventListener("resize", videoResizeListener);
+    }
+    currentVideoElement = video ?? undefined;
+    videoResizeListener = () => {
+        const resolution = currentVideoElement?.videoHeight;
+        if (!resolution || !kickData?.data || resolution === currentQuality) return;
+        currentQuality = resolution;
+        showTwitchToast(
+            resolution,
+            kickData.data,
+            toasterThresholdMbpm,
+            // kickData?.type === "live",
+            // kickData.type === "vod" ? kickData.durationSeconds : undefined,
         );
     };
     videoResizeListener();
