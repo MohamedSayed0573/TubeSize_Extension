@@ -15,7 +15,7 @@ import {
     extractRawData,
     parseLiveStreamInfo,
 } from "@lib/youtube";
-import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
+import { filterM3u8, getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickMasterM3u8 } from "@lib/kick";
 import { estimateHlsStreamSizes } from "@lib/hlsSize";
 
@@ -39,6 +39,8 @@ async function handleMessage(
     sendResponse: (response: any) => void,
 ): Promise<void> {
     const tabId = getTabId(sender, message);
+    console.log("Sender:", sender);
+    console.log("Message:", message);
 
     switch (message.type) {
         case "clearBadge": {
@@ -52,10 +54,18 @@ async function handleMessage(
         }
         case "twitchVod":
         case "twitchLive": {
-            return await handleTwitch(message, sendResponse);
+            return await handleTwitch(
+                message,
+                sendResponse,
+                sender.origin!.includes("chrome-extension://"),
+            );
         }
         case "kickLive": {
-            return await handleKick(message, sendResponse);
+            return await handleKick(
+                message,
+                sendResponse,
+                sender.origin!.includes("chrome-extension://"),
+            );
         }
         default: {
             console.error("Unknown message type:", message);
@@ -138,10 +148,11 @@ async function handleYoutube(
 async function handleTwitch(
     message: TwitchMessage,
     sendResponse: (response: TwitchBackgroundResponse) => void,
+    fromPopup: boolean,
 ) {
     try {
         return message.type === "twitchLive"
-            ? await getTwitchLiveResponse(message, sendResponse, message.fromPopup === true)
+            ? await getTwitchLiveResponse(message, sendResponse, fromPopup)
             : await getTwitchVodResponse(message, sendResponse);
     } catch (err) {
         return sendResponse({
@@ -154,32 +165,18 @@ async function handleTwitch(
 async function handleKick(
     message: KickLiveMessage,
     sendResponse: (response: KickBackgroundResponse) => void,
+    fromPopup: boolean,
 ) {
     try {
-        if (message.type !== "kickLive") {
-            throw new Error("Invalid message type for handleKick");
-        }
-
-        console.log(
-            `Getting a message from ${message.fromPopup ? "popup with segment estimates" : "content script without segment estimates"}`,
-        );
         const masterM3U8Data = await getKickMasterM3u8(message.streamId);
-        const kickData = message.fromPopup
+        const kickData = fromPopup
             ? await estimateHlsStreamSizes(masterM3U8Data)
-            : masterM3U8Data
-                  .filter((item) => item.attributes.RESOLUTION?.height && item.attributes.BANDWIDTH)
-                  .map((item) => ({
-                      resolution: item.attributes.RESOLUTION!.height,
-                      sizePerSecondBytes: item.attributes.BANDWIDTH! / 8,
-                  }))
-                  .sort((a, b) => b.resolution - a.resolution);
-
-        console.log("Kick live data:", kickData);
+            : filterM3u8(masterM3U8Data);
         sendResponse({
             success: true,
             data: {
                 data: kickData,
-                channelName: message.streamId, // Kick doesn't provide channel name in the same way, using streamId as a placeholder
+                channelName: message.streamId,
             },
         });
     } catch (err) {
