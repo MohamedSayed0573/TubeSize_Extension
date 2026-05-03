@@ -70,7 +70,7 @@ async function handlePageNavigation() {
             }
         } else if (isKickPage(url)) {
             stopResolutionTracking();
-            const kickData = await initKick(false);
+            const kickData = await initKick();
             const toasterEnabled = await isToasterEnabled();
             if (toasterEnabled && kickData) {
                 const toasterThresholdMbpm = await getToasterThresholdMbPm();
@@ -135,6 +135,7 @@ chrome.runtime.onMessage.addListener(
                 const kickData = await sendMessageToBackground({
                     type: "kickLive",
                     streamId,
+                    fromPopup: false,
                 });
                 if (!kickData.success) {
                     throw new Error(
@@ -193,6 +194,7 @@ async function initTwitch(tag: string, isLive: boolean) {
         ? await sendMessageToBackground({
               type: "twitchLive",
               channelName: tag,
+              fromPopup: false,
           })
         : await sendMessageToBackground({
               type: "twitchVod",
@@ -204,7 +206,7 @@ async function initTwitch(tag: string, isLive: boolean) {
     return twitchData.data;
 }
 
-async function initKick(fromPopup?: boolean): Promise<KickData> {
+async function initKick(): Promise<KickData> {
     const html = document.querySelector("body")!.outerHTML;
     const streamId =
         getKickStreamId(html) ?? getKickStreamId(await getKickHtml(globalThis.location.href));
@@ -216,7 +218,7 @@ async function initKick(fromPopup?: boolean): Promise<KickData> {
     const kickData = await sendMessageToBackground({
         type: "kickLive",
         streamId,
-        fromPopup,
+        fromPopup: false,
     });
     console.log("Kick data received in content script from background:", kickData);
     if (!kickData.success) {
