@@ -66,20 +66,13 @@ export async function estimateHlsStreamSizes(
         return filterM3u8(masterM3U8Data);
     }
 
-    type FormatSize = {
-        resolution: number;
-        sizePerSecondBytes: number;
-    };
-
-    const formatSizes: FormatSize[] = [];
-    await Promise.allSettled(
-        // eslint-disable-next-line unicorn/prefer-spread
-        Array.from(mediaUrlByHeight.entries()).map(async ([height, url]) => {
+    const streamResults = await Promise.allSettled(
+        [...mediaUrlByHeight.entries()].map(async ([height, url]) => {
             const resolution = Number(height);
 
             const manifest = await fetchMediaM3u8(url);
 
-            const segments = manifest.segments
+            const liveSegments = manifest.segments
                 .filter((segment) => segment.title === "live")
                 .slice(0, CONFIG.NUMBER_OF_SEGMENTS_TO_CHECK)
                 .map((segment) => ({
@@ -87,15 +80,15 @@ export async function estimateHlsStreamSizes(
                     url: segment.uri,
                 }));
 
-            const results = await fetchActualSegments(segments);
+            const fetchedSegments = await fetchActualSegments(liveSegments);
 
             let totalBytes = 0;
             let totalDuration = 0;
 
-            for (const result of results) {
-                if (result.status === "rejected") continue;
+            for (const segment of fetchedSegments) {
+                if (segment.status === "rejected") continue;
 
-                const { duration, fullSize } = result.value;
+                const { duration, fullSize } = segment.value;
 
                 if (!fullSize || fullSize === "*" || fullSize === "0") continue;
 
@@ -108,16 +101,34 @@ export async function estimateHlsStreamSizes(
                 }
             }
 
-            formatSizes.push({
+            return {
                 resolution,
                 sizePerSecondBytes: totalDuration >= 4 ? totalBytes / totalDuration : 0,
-            });
+            };
         }),
     );
 
+    const isValidData = streamResults.every(
+        (result) => result.status === "fulfilled" && result.value.sizePerSecondBytes > 0,
+    );
+    if (isValidData) {
+        return streamResults
+            .filter((item) => item.status === "fulfilled")
+            .map((result) => result.value)
+            .sort((a, b) => b.resolution - a.resolution);
+    }
+
     // Fallback to bitrate from master M3U8 if we failed to fetch actual segments.
-    return formatSizes
-        .map((item) => {
+    return streamResults
+        .map((result) => {
+            if (result.status === "rejected") {
+                return {
+                    resolution: 0,
+                    sizePerSecondBytes: 0,
+                };
+            }
+
+            const item = result.value;
             if (item.sizePerSecondBytes > 0) {
                 return item;
             }
