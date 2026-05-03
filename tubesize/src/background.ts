@@ -5,6 +5,7 @@ import type {
     FrontEndMessage,
     TwitchMessage,
     KickBackgroundResponse,
+    KickLiveMessage,
 } from "@app-types/types";
 import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
@@ -14,7 +15,7 @@ import {
     extractRawData,
     parseLiveStreamInfo,
 } from "@lib/youtube";
-import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
+import { filterM3u8, getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickMasterM3u8 } from "@lib/kick";
 import { estimateHlsStreamSizes } from "@lib/hlsSize";
 
@@ -101,7 +102,6 @@ async function handleYoutube(
             sendResponse({
                 success: true,
                 data: {
-                    // eslint-disable-next-line unicorn/no-array-sort
                     formats: youtubeData.sort((a, b) => b.resolution - a.resolution),
                     type: "live",
                     channelName: rawData.videoDetails.author,
@@ -152,21 +152,19 @@ async function handleTwitch(
 }
 
 async function handleKick(
-    message: FrontEndMessage,
+    message: KickLiveMessage,
     sendResponse: (response: KickBackgroundResponse) => void,
 ) {
     try {
-        if (message.type !== "kickLive") {
-            throw new Error("Invalid message type for handleKick");
-        }
         const masterM3U8Data = await getKickMasterM3u8(message.streamId);
-        const kickData = await estimateHlsStreamSizes(masterM3U8Data);
-
+        const kickData = message.fromPopup
+            ? await estimateHlsStreamSizes(masterM3U8Data)
+            : filterM3u8(masterM3U8Data);
         sendResponse({
             success: true,
             data: {
                 data: kickData,
-                channelName: message.streamId, // Kick doesn't provide channel name in the same way, using streamId as a placeholder
+                channelName: message.streamId,
             },
         });
     } catch (err) {

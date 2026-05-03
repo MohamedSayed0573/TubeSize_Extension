@@ -8,7 +8,7 @@ import {
     isYoutubePage,
     isShortsVideo,
     isTwitchPage,
-    extractTwitchChannelName,
+    extractChannelName,
     isTwitchVod,
     isKickPage,
     extractTwitchVodId,
@@ -119,7 +119,7 @@ export default function Popup() {
                     setIsLive(false);
                     setIsLoading(false);
                 } else {
-                    const channelName = extractTwitchChannelName(tabUrl);
+                    const channelName = extractChannelName(tabUrl);
                     if (!channelName) {
                         setMessage("Open a Twitch stream");
                         setIsLoading(false);
@@ -129,6 +129,7 @@ export default function Popup() {
                     const response = await sendMessageToBackground({
                         type: "twitchLive",
                         channelName: channelName,
+                        fromPopup: true,
                     });
                     if (!response.success) throw new Error(response.message);
                     setTwitchData(response.data);
@@ -142,9 +143,13 @@ export default function Popup() {
                     setIsLoading(false);
                     return;
                 }
+
+                console.log("Sending message to content script to get Kick data...");
                 const response = await sendMessageToContentScript(tabId, {
                     type: "getKick",
+                    fromPopup: true,
                 });
+                console.log("Response from content script for Kick data:", response);
                 if (!response?.success) {
                     throw new Error(response?.message || "Failed to retrieve Kick data");
                 }
