@@ -8,7 +8,7 @@ import {
     isYoutubePage,
     isShortsVideo,
     isTwitchPage,
-    extractTwitchChannelName,
+    extractChannelName,
     isTwitchVod,
     isKickPage,
     extractTwitchVodId,
@@ -120,7 +120,7 @@ export default function Popup() {
                     setIsLive(false);
                     setIsLoading(false);
                 } else {
-                    const channelName = extractTwitchChannelName(tabUrl);
+                    const channelName = extractChannelName(tabUrl);
                     if (!channelName) {
                         setMessage("Open a Twitch stream");
                         setIsLoading(false);

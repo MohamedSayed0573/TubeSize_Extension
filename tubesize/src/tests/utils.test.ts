@@ -6,7 +6,7 @@ import {
     isTwitchPage,
     isTwitchVod,
     extractTwitchVodId,
-    extractTwitchChannelName,
+    extractChannelName,
 } from "@lib/utils";
 
 describe("isYoutubePage", () => {
@@ -73,23 +73,21 @@ describe("isTwitchPage", () => {
     });
 });
 
-describe("extractTwitchChannelName", () => {
+describe("extractChannelName", () => {
     test("should return the channel name from a valid Twitch URL", () => {
-        expect(extractTwitchChannelName("https://www.twitch.tv/somechannel")).toBe("somechannel");
+        expect(extractChannelName("https://www.twitch.tv/somechannel")).toBe("somechannel");
     });
 
     test("should return the channel name when URL has trailing slash", () => {
-        expect(extractTwitchChannelName("https://www.twitch.tv/somechannel/")).toBe("somechannel");
+        expect(extractChannelName("https://www.twitch.tv/somechannel/")).toBe("somechannel");
     });
 
     test("should return undefined for root Twitch URL", () => {
-        expect(extractTwitchChannelName("https://www.twitch.tv/")).toBeUndefined();
+        expect(extractChannelName("https://www.twitch.tv/")).toBeUndefined();
     });
 
     test("should return first path segment when there are additional path segments", () => {
-        expect(extractTwitchChannelName("https://www.twitch.tv/somechannel/videos")).toBe(
-            "somechannel",
-        );
+        expect(extractChannelName("https://www.twitch.tv/somechannel/videos")).toBe("somechannel");
     });
 });
 

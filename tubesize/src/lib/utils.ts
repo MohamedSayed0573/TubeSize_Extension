@@ -94,7 +94,7 @@ export function isKickVod(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
-        return pathSegments.length === 3 && pathSegments[1] === "videos"; // Assuming kick.com/videos/videoId format for VODs
+        return pathSegments.length === 3 && pathSegments[1] === "videos"; // kick.com/channelName/videos/videoId
     } catch {
         return false;
     }
@@ -128,7 +128,7 @@ export function extractTwitchVodId(url: string): string | undefined {
     }
 }
 
-export function extractTwitchChannelName(url: string): string | undefined {
+export function extractChannelName(url: string): string | undefined {
     try {
         const parsedUrl = new URL(url);
         return parsedUrl.pathname.split("/")[1] || undefined;

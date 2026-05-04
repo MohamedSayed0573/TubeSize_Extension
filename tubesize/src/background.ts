@@ -156,7 +156,6 @@ async function handleKick(
     message: KickMessage,
     sendResponse: (response: KickBackgroundResponse) => void,
 ) {
-    console.log(`Handling Kick message of type ${message.type}`);
     try {
         return message.type === "kickLive"
             ? await getKickLiveResponse(message, sendResponse)

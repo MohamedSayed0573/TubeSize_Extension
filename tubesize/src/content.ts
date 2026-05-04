@@ -1,6 +1,6 @@
 import {
     extractKickVodId,
-    extractTwitchChannelName,
+    extractChannelName,
     extractTwitchVodId,
     extractVideoTag,
     isKickPage,
@@ -22,9 +22,6 @@ import {
 import { extractKickVodDurationSeconds, getKickHtml, getKickStreamId } from "@lib/kick";
 import type { KickBackgroundResponse } from "./types/types";
 
-let lastYoutubeTag: string | undefined;
-let lastTwitchTag: string | undefined;
-
 function getCurrentUrl() {
     return globalThis.location.href;
 }
@@ -36,8 +33,6 @@ async function handlePageNavigation() {
 
         if (!isYoutubePage(url) && !isTwitchPage(url) && !isKickPage(url)) {
             removeEventListeners();
-            lastYoutubeTag = undefined;
-            lastTwitchTag = undefined;
             stopResolutionTracking();
             return;
         }
@@ -45,14 +40,11 @@ async function handlePageNavigation() {
         if (isYoutubePage(url)) {
             const tag = extractVideoTag(url);
 
-            if (lastYoutubeTag === tag) return;
-
             stopResolutionTracking();
             removeEventListeners();
             if (!tag) return;
 
             const youtubeResponse = await initYoutube(tag);
-            lastYoutubeTag = tag;
             const qualityMenuEnabled =
                 (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
             if (qualityMenuEnabled && youtubeResponse) {
@@ -67,10 +59,7 @@ async function handlePageNavigation() {
             }
         } else if (isTwitchPage(url)) {
             const isLive = !isTwitchVod(url);
-            const tag = isLive ? extractTwitchChannelName(url) : extractTwitchVodId(url);
-
-            if (lastTwitchTag === tag) return;
-            lastTwitchTag = tag;
+            const tag = isLive ? extractChannelName(url) : extractTwitchVodId(url);
 
             stopResolutionTracking();
             if (!tag) return;
@@ -99,7 +88,7 @@ async function handlePageNavigation() {
     }
 }
 
-if (isYoutubePage(globalThis.location.href)) {
+if (isYoutubePage(getCurrentUrl())) {
     globalThis.addEventListener("yt-navigate-finish", () => {
         void handlePageNavigation();
     });
@@ -113,7 +102,7 @@ chrome.runtime.onMessage.addListener(
     (
         message: { type: string },
         _sender: chrome.runtime.MessageSender,
-        sendResponse: (repsonse: ResponseMessage) => void,
+        sendResponse: (response: ResponseMessage) => void,
     ) => {
         if (message.type === "getCurrentResolution") {
             void (async () => {
@@ -124,7 +113,6 @@ chrome.runtime.onMessage.addListener(
         } else if (message.type === "getKick") {
             void (async () => {
                 const kickData = await initKick();
-                console.log(`Sending Kick data from content to background:`, kickData);
                 sendResponse(kickData);
             })().catch((err) => {
                 console.error("Error handling getKick message:", err);
@@ -195,7 +183,10 @@ async function initTwitch(tag: string, isLive: boolean) {
 
 async function initKick(): Promise<KickBackgroundResponse> {
     try {
-        const videoTag = extractKickVodId(globalThis.location.href);
+        const url = getCurrentUrl();
+        const isLive = !isKickVod(url);
+        const videoTag = isLive ? extractChannelName(url) : extractKickVodId(url);
+
         if (!videoTag) {
             throw new Error("Failed to extract Kick video tag from URL");
         }
@@ -209,14 +200,12 @@ async function initKick(): Promise<KickBackgroundResponse> {
             };
         }
         const html = document.querySelector("body")!.outerHTML;
-        const streamId =
-            getKickStreamId(html) ?? getKickStreamId(await getKickHtml(globalThis.location.href));
+        const streamId = getKickStreamId(html) ?? getKickStreamId(await getKickHtml(url));
 
         if (!streamId) {
             throw new Error("Failed to extract stream ID from the page");
         }
 
-        const isLive = !isKickVod(globalThis.location.href);
         let kickData: KickBackgroundResponse;
         if (isLive) {
             kickData = await sendMessageToBackground({
@@ -244,7 +233,6 @@ async function initKick(): Promise<KickBackgroundResponse> {
                 document.documentElement.outerHTML,
             );
 
-            console.log("Extracted Kick VOD duration (seconds):", durationSeconds);
             if (kickData.data.type === "vod" && durationSeconds) {
                 kickData.data.durationSeconds = durationSeconds;
             }

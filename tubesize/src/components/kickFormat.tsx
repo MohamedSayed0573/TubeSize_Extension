@@ -24,12 +24,6 @@ function perHourDisplay(sizePerHourMB: number): string {
 }
 
 export default function KickFormat({ item, currentQuality, isLive, durationSeconds }: Props) {
-    console.log(
-        "Duration",
-        durationSeconds,
-        "Size per minute MB:",
-        (item.sizePerSecondBytes * 60) / 1_000_000,
-    );
     const className = item.resolution === currentQuality ? "format-item current" : "format-item";
     const sizePerMinuteMB = (item.sizePerSecondBytes * 60) / 1_000_000;
     const sizePerHourMB = sizePerMinuteMB * 60;

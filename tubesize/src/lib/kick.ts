@@ -6,7 +6,6 @@ import type { KickBackgroundResponse, KickLiveMessage, KickVodMessage } from "@/
 import { filterM3u8 } from "./twitch";
 
 export async function getKickHtml(url: string): Promise<string> {
-    console.log(`Fetching Kick page HTML for URL: ${url}`);
     const res = await fetchAndRetry(url, {
         method: "GET",
         credentials: "include",
@@ -20,7 +19,6 @@ export async function getKickHtml(url: string): Promise<string> {
 export function getKickStreamId(html: string): string | undefined {
     const match =
         String(html).match(/vod_id\\":\\"([^\\]+)/) || String(html).match(/vod_id":"([^"]+)"}/);
-    console.log("Extracted Kick stream ID:", match);
     if (!match?.[1]) return;
     return match[1];
 }
@@ -44,7 +42,6 @@ export function extractKickVodDurationSeconds(html: string): number | undefined 
 
 export async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
     const url = `https://web.kick.com/api/v1/stream/${streamId}/playback`;
-    console.log(`Fetching Kick playback info from URL: ${url}`);
     const payload = {
         video_player: {
             player: {
@@ -80,7 +77,6 @@ export async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[
             "x-app-platform": "web",
         },
     });
-    console.log("Kick playback response:", playbackRes);
     if (!playbackRes.ok) {
         throw new Error(`Error fetching playback info: ${playbackRes.statusText}`);
     }
@@ -98,7 +94,6 @@ export async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[
     const masterM3u8Data = await masterM3u8Res.text();
 
     const playlists = parseM3U8(masterM3u8Data).playlists;
-    console.log("Kick master M3U8 playlists:", parseM3U8(masterM3u8Data));
 
     if (!playlists || playlists.length === 0) {
         throw new Error("No playlists found in master M3U8");
@@ -137,9 +132,7 @@ export async function getKickVodResponse(
 ) {
     try {
         const masterM3U8Data = await getKickMasterM3u8(message.vodId);
-        console.log("Kick VOD master M3U8 data:", masterM3U8Data);
         const kickData = filterM3u8(masterM3U8Data);
-        console.log("Filtered Kick VOD stream info:", kickData);
 
         sendResponse({
             success: true,
