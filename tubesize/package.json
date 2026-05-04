@@ -1,7 +1,7 @@
 {
     "name": "tubesize",
     "private": true,
-    "version": "2.2.11",
+    "version": "2.2.2",
     "type": "module",
     "scripts": {
         "dev": "vite build --watch --mode development",
