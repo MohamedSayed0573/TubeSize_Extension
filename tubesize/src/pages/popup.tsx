@@ -14,6 +14,7 @@ import {
     extractTwitchVodId,
     humanizeDuration,
     isKickStream,
+    isKickVod,
 } from "@lib/utils";
 import Options from "@pages/options";
 import CONFIG from "@lib/constants";
@@ -137,7 +138,7 @@ export default function Popup() {
                 }
             } else if (isKickPage(tabUrl)) {
                 if (!tabId) return;
-                if (!isKickStream(tabUrl)) {
+                if (!isKickStream(tabUrl) && !isKickVod(tabUrl)) {
                     setMessage("Open a Kick stream");
                     setIsLoading(false);
                     return;
@@ -149,7 +150,7 @@ export default function Popup() {
                     throw new Error(response?.message || "Failed to retrieve Kick data");
                 }
                 setKickData(response.data);
-                setIsLive(true);
+                setIsLive(response.data.type === "live");
                 setPageType("kick");
                 setIsLoading(false);
             } else {
@@ -249,6 +250,9 @@ export default function Popup() {
                             <KickFormat
                                 key={item.resolution}
                                 item={item}
+                                durationSeconds={
+                                    kickData.type === "vod" ? kickData.durationSeconds : undefined
+                                }
                                 currentQuality={currentQuality}
                                 isLive={isLive}
                             />

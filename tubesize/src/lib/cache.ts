@@ -1,5 +1,11 @@
 import CONFIG from "@lib/constants";
-import type { OptionsMap, StorageData, TwitchData, YoutubeVideoData } from "@app-types/types";
+import type {
+    KickData,
+    OptionsMap,
+    StorageData,
+    TwitchData,
+    YoutubeVideoData,
+} from "@app-types/types";
 
 async function getCacheTTLSetting(): Promise<number> {
     const cacheTTL = (await getFromSyncCache("cacheTTL")) as number;
@@ -101,9 +107,13 @@ export async function getFromStorage(
     target: "twitch",
     tag: string,
 ): Promise<StorageData<TwitchData> | undefined>;
+export async function getFromStorage(
+    target: "kick",
+    tag: string,
+): Promise<StorageData<KickData> | undefined>;
 
 export async function getFromStorage(
-    target: "youtube" | "twitch",
+    target: "youtube" | "twitch" | "kick",
     tag: string,
 ): Promise<StorageData<YoutubeVideoData | TwitchData> | undefined> {
     const data = await getFromLocalCache(`${target}:${tag}`);

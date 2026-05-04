@@ -5,6 +5,7 @@ import type {
     FrontEndMessage,
     TwitchMessage,
     KickBackgroundResponse,
+    KickMessage,
 } from "@app-types/types";
 import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
@@ -15,8 +16,7 @@ import {
     parseLiveStreamInfo,
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
-import { getKickMasterM3u8 } from "@lib/kick";
-import { estimateHlsStreamSizes } from "@lib/hlsSize";
+import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
 
 chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
     void handleMessage(message, sender, sendResponse);
@@ -53,7 +53,8 @@ async function handleMessage(
         case "twitchLive": {
             return await handleTwitch(message, sendResponse);
         }
-        case "kickLive": {
+        case "kickLive":
+        case "kickVod": {
             return await handleKick(message, sendResponse);
         }
         default: {
@@ -152,24 +153,16 @@ async function handleTwitch(
 }
 
 async function handleKick(
-    message: FrontEndMessage,
+    message: KickMessage,
     sendResponse: (response: KickBackgroundResponse) => void,
 ) {
+    console.log(`Handling Kick message of type ${message.type}`);
     try {
-        if (message.type !== "kickLive") {
-            throw new Error("Invalid message type for handleKick");
-        }
-        const masterM3U8Data = await getKickMasterM3u8(message.streamId);
-        const kickData = await estimateHlsStreamSizes(masterM3U8Data);
-
-        sendResponse({
-            success: true,
-            data: {
-                data: kickData,
-                channelName: message.streamId, // Kick doesn't provide channel name in the same way, using streamId as a placeholder
-            },
-        });
+        return message.type === "kickLive"
+            ? await getKickLiveResponse(message, sendResponse)
+            : await getKickVodResponse(message, sendResponse);
     } catch (err) {
+        console.error("Error handling Kick message:", err);
         return sendResponse({
             success: false,
             message: err instanceof Error ? err.message : "Unknown error",

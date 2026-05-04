@@ -1,4 +1,5 @@
 import type {
+    StreamInfo,
     TwitchBackgroundResponse,
     TwitchData,
     TwitchGqlResponse,
@@ -112,7 +113,7 @@ export async function getTwitchMasterM3u8(
     return playlists;
 }
 
-export function filterTwitchM3u8(m3u8Data: PlaylistItem[]): TwitchData["data"] {
+export function filterM3u8(m3u8Data: PlaylistItem[]): StreamInfo[] {
     const result = m3u8Data
         ?.filter((item) => item.attributes.RESOLUTION?.height && item.attributes.BANDWIDTH)
         .map((item) => {
@@ -162,7 +163,7 @@ export async function getTwitchVodResponse(
         throw new Error("Failed to retrieve Twitch token");
     }
     const m3u8Data = await getTwitchMasterM3u8(twitchToken, message);
-    const filteredM3U8Data = filterTwitchM3u8(m3u8Data);
+    const filteredM3U8Data = filterM3u8(m3u8Data);
 
     const response: TwitchData = {
         type: "vod",

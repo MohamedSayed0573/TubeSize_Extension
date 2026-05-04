@@ -89,6 +89,31 @@ export function isKickStream(url: string): boolean {
     }
 }
 
+export function isKickVod(url: string): boolean {
+    if (!isKickPage(url)) return false;
+    try {
+        const parsedUrl = new URL(url);
+        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+        return pathSegments.length === 3 && pathSegments[1] === "videos"; // Assuming kick.com/videos/videoId format for VODs
+    } catch {
+        return false;
+    }
+}
+
+export function extractKickVodId(url: string): string | undefined {
+    if (!isKickVod(url)) return;
+    try {
+        const parsedUrl = new URL(url);
+        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+        if (pathSegments.length === 3 && pathSegments[1] === "videos") {
+            return pathSegments[2];
+        }
+        return;
+    } catch {
+        return;
+    }
+}
+
 export function extractTwitchVodId(url: string): string | undefined {
     try {
         const parsedUrl = new URL(url);

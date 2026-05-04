@@ -133,17 +133,12 @@ export type TwitchTokenData = {
     durationSeconds?: number;
 };
 
-export type KickData = {
-    data: StreamInfo[];
-    channelName: string;
-};
-
-export type KickBackgroundResponse = SuccessResponse<KickData> | ErrorResponse;
 export type FrontEndMessage =
     | YoutubeMessage
     | TwitchVodMessage
     | TwitchLiveMessage
     | KickLiveMessage
+    | KickVodMessage
     | { type: "clearBadge" }
     | { type: "setBadge" };
 
@@ -165,7 +160,29 @@ export type TwitchLiveMessage = {
     channelName: string;
 };
 
-type KickLiveMessage = {
+export type KickLiveMessage = {
     type: "kickLive";
     streamId: string;
 };
+
+export type KickVodMessage = {
+    type: "kickVod";
+    vodId: string;
+};
+export type KickMessage = KickLiveMessage | KickVodMessage;
+
+type KickLiveData = {
+    type: "live";
+    data: StreamInfo[];
+    channelName: string;
+};
+
+type KickVodData = {
+    type: "vod";
+    data: StreamInfo[];
+    vodId: string;
+    durationSeconds: number | undefined;
+};
+
+export type KickData = KickLiveData | KickVodData;
+export type KickBackgroundResponse = SuccessResponse<KickData> | ErrorResponse;

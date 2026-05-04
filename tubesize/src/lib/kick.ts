@@ -1,8 +1,12 @@
 import { parseM3U8 } from "@lib/m3u8";
 import type { PlaylistItem } from "m3u8-parser";
 import { fetchAndRetry } from "./utils";
+import { estimateHlsStreamSizes } from "./hlsSize";
+import type { KickBackgroundResponse, KickLiveMessage, KickVodMessage } from "@/types/types";
+import { filterM3u8 } from "./twitch";
 
 export async function getKickHtml(url: string): Promise<string> {
+    console.log(`Fetching Kick page HTML for URL: ${url}`);
     const res = await fetchAndRetry(url, {
         method: "GET",
         credentials: "include",
@@ -16,12 +20,31 @@ export async function getKickHtml(url: string): Promise<string> {
 export function getKickStreamId(html: string): string | undefined {
     const match =
         String(html).match(/vod_id\\":\\"([^\\]+)/) || String(html).match(/vod_id":"([^"]+)"}/);
+    console.log("Extracted Kick stream ID:", match);
     if (!match?.[1]) return;
     return match[1];
 }
 
+export function extractKickVodDurationSeconds(html: string): number | undefined {
+    const pageHtml = String(html);
+    const durationMsCandidates = [
+        ...pageHtml.matchAll(/\\"duration\\":(\d+)/g),
+        ...pageHtml.matchAll(/"duration":(\d+)/g),
+        ...pageHtml.matchAll(/aria-valuemax="(\d{6,})"/g),
+    ].map((match) => Number.parseInt(match[1], 10));
+    const durationSecondsCandidates = [...pageHtml.matchAll(/data-max="(\d+\.\d+)"/g)].map(
+        (match) => Number.parseFloat(match[1]) * 1000,
+    );
+    const durationMs = Math.max(...durationMsCandidates, ...durationSecondsCandidates);
+
+    if (!Number.isFinite(durationMs)) return;
+
+    return durationMs / 1000;
+}
+
 export async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
     const url = `https://web.kick.com/api/v1/stream/${streamId}/playback`;
+    console.log(`Fetching Kick playback info from URL: ${url}`);
     const payload = {
         video_player: {
             player: {
@@ -57,6 +80,7 @@ export async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[
             "x-app-platform": "web",
         },
     });
+    console.log("Kick playback response:", playbackRes);
     if (!playbackRes.ok) {
         throw new Error(`Error fetching playback info: ${playbackRes.statusText}`);
     }
@@ -74,9 +98,62 @@ export async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[
     const masterM3u8Data = await masterM3u8Res.text();
 
     const playlists = parseM3U8(masterM3u8Data).playlists;
+    console.log("Kick master M3U8 playlists:", parseM3U8(masterM3u8Data));
+
     if (!playlists || playlists.length === 0) {
         throw new Error("No playlists found in master M3U8");
     }
 
     return playlists;
+}
+
+export async function getKickLiveResponse(
+    message: KickLiveMessage,
+    sendResponse: (response: KickBackgroundResponse) => void,
+) {
+    try {
+        const masterM3U8Data = await getKickMasterM3u8(message.streamId);
+        const kickData = await estimateHlsStreamSizes(masterM3U8Data);
+
+        sendResponse({
+            success: true,
+            data: {
+                type: "live",
+                data: kickData,
+                channelName: message.streamId, // Kick doesn't provide channel name in the same way, using streamId as a placeholder
+            },
+        });
+    } catch (err) {
+        return sendResponse({
+            success: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        });
+    }
+}
+
+export async function getKickVodResponse(
+    message: KickVodMessage,
+    sendResponse: (response: KickBackgroundResponse) => void,
+) {
+    try {
+        const masterM3U8Data = await getKickMasterM3u8(message.vodId);
+        console.log("Kick VOD master M3U8 data:", masterM3U8Data);
+        const kickData = filterM3u8(masterM3U8Data);
+        console.log("Filtered Kick VOD stream info:", kickData);
+
+        sendResponse({
+            success: true,
+            data: {
+                type: "vod",
+                data: kickData,
+                vodId: message.vodId,
+                durationSeconds: undefined,
+            },
+        });
+    } catch (err) {
+        return sendResponse({
+            success: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        });
+    }
 }
