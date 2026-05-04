@@ -115,7 +115,7 @@ export async function getKickVodResponse(
     sendResponse: (response: KickBackgroundResponse) => void,
 ) {
     try {
-        const masterM3U8Data = await getKickMasterM3u8(message.vodId);
+        const masterM3U8Data = await getKickMasterM3u8(message.streamId);
         const kickData = filterM3u8(masterM3U8Data);
 
         sendResponse({

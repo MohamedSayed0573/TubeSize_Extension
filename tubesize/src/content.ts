@@ -212,6 +212,7 @@ async function initKick(fromPopup: boolean): Promise<KickBackgroundResponse> {
             kickData = await sendMessageToBackground({
                 type: "kickVod",
                 vodId: videoTag,
+                streamId,
             });
 
             if (!kickData.success) {

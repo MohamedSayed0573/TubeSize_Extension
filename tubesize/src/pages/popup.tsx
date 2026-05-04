@@ -153,6 +153,11 @@ export default function Popup() {
                     throw new Error(response?.message || "Failed to retrieve Kick data");
                 }
                 setKickData(response.data);
+                setCache(
+                    response.cached
+                        ? getCachedAgo(response.createdAt) || "Cached just now"
+                        : undefined,
+                );
                 setIsLive(response.data.type === "live");
                 setPageType("kick");
                 setIsLoading(false);

@@ -170,6 +170,7 @@ export type KickLiveMessage = {
 export type KickVodMessage = {
     type: "kickVod";
     vodId: string;
+    streamId: string;
 };
 export type KickMessage = KickLiveMessage | KickVodMessage;
 
