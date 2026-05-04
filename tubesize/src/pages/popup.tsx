@@ -130,6 +130,7 @@ export default function Popup() {
                     const response = await sendMessageToBackground({
                         type: "twitchLive",
                         channelName: channelName,
+                        fromPopup: true,
                     });
                     if (!response.success) throw new Error(response.message);
                     setTwitchData(response.data);
@@ -143,8 +144,10 @@ export default function Popup() {
                     setIsLoading(false);
                     return;
                 }
+
                 const response = await sendMessageToContentScript(tabId, {
                     type: "getKick",
+                    fromPopup: true,
                 });
                 if (!response?.success) {
                     throw new Error(response?.message || "Failed to retrieve Kick data");

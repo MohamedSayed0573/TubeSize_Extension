@@ -36,7 +36,9 @@ export async function sendMessageToBackground<T extends FrontEndMessage>(
     });
 }
 
-type ContentScriptMessage = { type: "getCurrentResolution" } | { type: "getKick" };
+type ContentScriptMessage =
+    | { type: "getCurrentResolution" }
+    | { type: "getKick"; fromPopup?: boolean };
 type ContentScriptResponseMap = {
     getCurrentResolution: number | undefined;
     getKick: KickBackgroundResponse | undefined;

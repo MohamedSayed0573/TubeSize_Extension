@@ -118,10 +118,11 @@ export function filterM3u8(m3u8Data: PlaylistItem[]): StreamInfo[] {
         ?.filter((item) => item.attributes.RESOLUTION?.height && item.attributes.BANDWIDTH)
         .map((item) => {
             return {
-                sizePerSecondBytes: item.attributes.BANDWIDTH! / 8,
                 resolution: item.attributes.RESOLUTION!.height,
+                sizePerSecondBytes: item.attributes.BANDWIDTH! / 8,
             };
-        });
+        })
+        .sort((a, b) => b.resolution - a.resolution);
 
     return result || [];
 }
@@ -132,7 +133,9 @@ export async function getTwitchLiveResponse(
 ) {
     const twitchToken = await getTwitchToken(message);
     const masterM3u8 = await getTwitchMasterM3u8(twitchToken, message);
-    const twitchData = await estimateHlsStreamSizes(masterM3u8);
+    const twitchData = message.fromPopup
+        ? await estimateHlsStreamSizes(masterM3u8)
+        : filterM3u8(masterM3u8);
 
     return sendResponse({
         success: true,

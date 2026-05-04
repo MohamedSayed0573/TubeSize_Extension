@@ -15,6 +15,7 @@ import { injectQualityMenu, removeEventListeners } from "@/qualityMenuInjector";
 import { sendMessageToBackground } from "@/runtime";
 import {
     getCurrentResolution,
+    startToastKickPolling,
     startToastTwitchPolling,
     startYoutubeToastTracking,
     stopResolutionTracking,
@@ -29,7 +30,7 @@ function getCurrentUrl() {
 async function handlePageNavigation() {
     try {
         const url = getCurrentUrl();
-        await sendMessageToBackground({ type: "clearBadge" });
+        void sendMessageToBackground({ type: "clearBadge" });
 
         if (!isYoutubePage(url) && !isTwitchPage(url) && !isKickPage(url)) {
             removeEventListeners();
@@ -51,11 +52,9 @@ async function handlePageNavigation() {
                 await injectQualityMenu(youtubeResponse);
             }
 
-            const toasterEnabled =
-                (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
+            const toasterEnabled = await isToasterEnabled();
             if (toasterEnabled) {
-                const toasterThresholdMbpm = await getToasterThreshold();
-                await startYoutubeToastTracking(youtubeResponse, toasterThresholdMbpm);
+                await startYoutubeToastTracking(youtubeResponse);
             }
         } else if (isTwitchPage(url)) {
             const isLive = !isTwitchVod(url);
@@ -65,22 +64,19 @@ async function handlePageNavigation() {
             if (!tag) return;
 
             const twitchResponse = await initTwitch(tag, isLive);
-            const toasterEnabled =
-                (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
+            const toasterEnabled = await isToasterEnabled();
             if (toasterEnabled) {
-                const toasterThresholdMbpm = await getToasterThreshold();
-                await startToastTwitchPolling(twitchResponse, toasterThresholdMbpm);
+                await startToastTwitchPolling(twitchResponse);
             }
         } else if (isKickPage(url)) {
-            const kickResponse = await initKick();
-            if (!kickResponse.success) {
-                throw new Error(kickResponse.message || "Failed to initialize Kick data");
-            }
-            const toasterEnabled =
-                (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
+            stopResolutionTracking();
+            const toasterEnabled = await isToasterEnabled();
             if (toasterEnabled) {
-                const toasterThresholdMbpm = await getToasterThreshold();
-                await startToastTwitchPolling(kickResponse.data, toasterThresholdMbpm);
+                const kickData = await initKick();
+                if (!kickData.success) {
+                    throw new Error(kickData.message || "Failed to initialize Kick data");
+                }
+                await startToastKickPolling(kickData.data);
             }
         }
     } catch (err) {
@@ -92,6 +88,10 @@ if (isYoutubePage(getCurrentUrl())) {
     globalThis.addEventListener("yt-navigate-finish", () => {
         void handlePageNavigation();
     });
+}
+
+async function isToasterEnabled() {
+    return (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
 }
 
 // eslint-disable-next-line unicorn/prefer-top-level-await
@@ -125,25 +125,12 @@ chrome.runtime.onMessage.addListener(
         }
     },
 );
-
 /**
  * Returns the setting for the toaster threshold in MB per minute.
  * If the setting is not found or is invalid, it returns the default threshold defined in CONFIG.
  * @returns {number} The toaster threshold in MB per minute.
  * @throws Will throw an error if there is an issue retrieving the setting from cache.
  */
-async function getToasterThreshold() {
-    const threshold = (await getFromSyncCache("toasterThreshold")) as number;
-    const thresholdUnit =
-        ((await getFromSyncCache("toasterThresholdUnit")) as "mbPerMinute" | "mbPerHour") ||
-        CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
-    if (!threshold)
-        return thresholdUnit === "mbPerHour"
-            ? CONFIG.DEFAULT_TOASTER_THRESHOLD / 60
-            : CONFIG.DEFAULT_TOASTER_THRESHOLD;
-
-    return thresholdUnit === "mbPerMinute" ? threshold : threshold / 60;
-}
 
 async function initYoutube(videoTag: string) {
     const scriptsArray = [...document.scripts];
@@ -170,6 +157,7 @@ async function initTwitch(tag: string, isLive: boolean) {
         ? await sendMessageToBackground({
               type: "twitchLive",
               channelName: tag,
+              fromPopup: false,
           })
         : await sendMessageToBackground({
               type: "twitchVod",
@@ -211,6 +199,7 @@ async function initKick(): Promise<KickBackgroundResponse> {
             kickData = await sendMessageToBackground({
                 type: "kickLive",
                 streamId: streamId,
+                fromPopup: false,
             });
 
             if (!kickData.success) {
@@ -237,7 +226,7 @@ async function initKick(): Promise<KickBackgroundResponse> {
                 kickData.data.durationSeconds = durationSeconds;
             }
         }
-        await saveToStorage(videoTag, kickData.data);
+        await saveToStorage(videoTag, kickData.data, "kick");
         return {
             success: true,
             data: kickData.data,

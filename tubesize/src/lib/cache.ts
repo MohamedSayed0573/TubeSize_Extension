@@ -75,7 +75,11 @@ export function clearSyncCache() {
     return removeAllFromCache("sync");
 }
 
-export async function saveToStorage(tag: string, response: YoutubeVideoData | TwitchData) {
+export async function saveToStorage(
+    tag: string,
+    response: YoutubeVideoData | TwitchData | KickData,
+    target?: "youtube" | "twitch" | "kick",
+) {
     const ttlInSecondsOptions = await getCacheTTLSetting();
     const expiry = Date.now() + ttlInSecondsOptions * 1000;
 
@@ -92,7 +96,7 @@ export async function saveToStorage(tag: string, response: YoutubeVideoData | Tw
         createdAt: new Date().toISOString(),
     };
 
-    const prefix = response.type === "video" ? "youtube" : "twitch";
+    const prefix = target ?? (response.type === "video" ? "youtube" : "twitch");
 
     await setToLocalCache({
         [`${prefix}:${tag}`]: dataToStore,
@@ -115,9 +119,9 @@ export async function getFromStorage(
 export async function getFromStorage(
     target: "youtube" | "twitch" | "kick",
     tag: string,
-): Promise<StorageData<YoutubeVideoData | TwitchData> | undefined> {
+): Promise<StorageData<YoutubeVideoData | TwitchData | KickData> | undefined> {
     const data = await getFromLocalCache(`${target}:${tag}`);
-    const item = data as StorageData<YoutubeVideoData | TwitchData> | undefined;
+    const item = data as StorageData<YoutubeVideoData | TwitchData | KickData> | undefined;
 
     if (!item) return undefined;
 

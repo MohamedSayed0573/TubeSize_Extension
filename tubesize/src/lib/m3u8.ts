@@ -9,20 +9,20 @@ export function parseM3U8(m3u8Data: string): Manifest {
     return parser.manifest;
 }
 
-export function mediaPlaylistUrlByHeight(m3u8Data: PlaylistItem[]): Record<number, string> {
-    const mediaPlaylistUrlByHeight: Record<number, string> = {};
+export function mediaPlaylistUrlByHeight(m3u8Data: PlaylistItem[]) {
+    const mediaUrlHeightMap = new Map<number, string>();
     for (const item of m3u8Data) {
         const height = item.attributes.RESOLUTION?.height;
         const url = item.uri;
         if (!height || !url) continue;
-        mediaPlaylistUrlByHeight[height] = url;
+        mediaUrlHeightMap.set(height, url);
     }
 
-    return mediaPlaylistUrlByHeight;
+    return mediaUrlHeightMap;
 }
 
-export async function fetchMediaM3u8(m3u8MediaUrl: string) {
-    const res = await fetchAndRetry(m3u8MediaUrl);
+export async function fetchMediaM3u8(m3u8MediaUrl: string | URL) {
+    const res = await fetchAndRetry(m3u8MediaUrl, { cache: "no-store" });
     if (!res.ok) {
         console.error("Failed to fetch media playlist M3U8:", res.statusText);
         throw new Error(`Error fetching media playlist M3U8: ${res.statusText}`);

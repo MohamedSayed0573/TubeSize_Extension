@@ -102,7 +102,6 @@ async function handleYoutube(
             sendResponse({
                 success: true,
                 data: {
-                    // eslint-disable-next-line unicorn/no-array-sort
                     formats: youtubeData.sort((a, b) => b.resolution - a.resolution),
                     type: "live",
                     channelName: rawData.videoDetails.author,

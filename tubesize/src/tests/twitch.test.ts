@@ -16,7 +16,11 @@ describe("getTwitchClientId", () => {
             ok: true,
             text: () => fs.readFileSync(htmlPath, "utf8"),
         });
-        const clientId = await getTwitchClientId({ channelName, type: "twitchLive" });
+        const clientId = await getTwitchClientId({
+            channelName,
+            type: "twitchLive",
+            fromPopup: true,
+        });
         expect(clientId).toBe("kimne78kx3ncx6brgo4mv6wki5et0ko");
     });
 });
@@ -43,7 +47,11 @@ describe("getTwitchToken", () => {
 
         globalThis.fetch = fetchMock;
 
-        const token = await getTwitchToken({ type: "twitchLive", channelName: "hivise" });
+        const token = await getTwitchToken({
+            type: "twitchLive",
+            channelName: "hivise",
+            fromPopup: true,
+        });
 
         expect(token).toEqual({
             value: '{"foo":"bar"}',
@@ -138,7 +146,7 @@ describe("getTwitchMasterM3u8", () => {
 
         const data = await getTwitchMasterM3u8(
             { value: '{"token":"live"}', signature: "live-signature" },
-            { type: "twitchLive", channelName: "hivise" },
+            { type: "twitchLive", channelName: "hivise", fromPopup: true },
         );
 
         expect(data).toHaveLength(1);

@@ -80,7 +80,7 @@ export type HumanizedFormat = {
     videoFormats: YoutubeVideoFormat[];
 };
 
-export type StorageData<T extends YoutubeVideoData | TwitchData> = {
+export type StorageData<T extends YoutubeVideoData | TwitchData | KickData> = {
     response: T;
     expiry?: number;
     createdAt?: string;
@@ -158,11 +158,13 @@ export type TwitchVodMessage = {
 export type TwitchLiveMessage = {
     type: "twitchLive";
     channelName: string;
+    fromPopup: boolean;
 };
 
 export type KickLiveMessage = {
     type: "kickLive";
     streamId: string;
+    fromPopup: boolean;
 };
 
 export type KickVodMessage = {
