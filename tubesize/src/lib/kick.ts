@@ -124,6 +124,7 @@ export async function getKickVodResponse(
                 type: "vod",
                 data: kickData,
                 vodId: message.vodId,
+                channelName: undefined,
                 durationSeconds: undefined,
             },
         });

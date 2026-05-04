@@ -172,19 +172,23 @@ async function initKick(fromPopup: boolean): Promise<KickBackgroundResponse> {
     try {
         const url = getCurrentUrl();
         const isLive = !isKickVod(url);
-        const videoTag = isLive ? extractChannelName(url) : extractKickVodId(url);
+        const channelName = extractChannelName(url);
+        const videoId = extractKickVodId(url);
 
-        if (!videoTag) {
-            throw new Error("Failed to extract Kick video tag from URL");
+        if (!channelName) {
+            throw new Error("Failed to extract Kick channel name from URL");
         }
-        const cached = await getFromStorage("kick", videoTag);
-        if (cached) {
-            return {
-                success: true,
-                data: cached.response,
-                cached: true,
-                createdAt: cached.createdAt,
-            };
+
+        if (!isLive && videoId) {
+            const cached = await getFromStorage("kick", videoId);
+            if (cached) {
+                return {
+                    success: true,
+                    data: cached.data,
+                    cached: true,
+                    createdAt: cached.createdAt,
+                };
+            }
         }
         const html = document.querySelector("body")!.outerHTML;
         const streamId = getKickStreamId(html) ?? getKickStreamId(await getKickHtml(url));
@@ -193,49 +197,52 @@ async function initKick(fromPopup: boolean): Promise<KickBackgroundResponse> {
             throw new Error("Failed to extract stream ID from the page");
         }
 
-        let kickData: KickBackgroundResponse;
-        if (isLive) {
-            kickData = await sendMessageToBackground({
-                type: "kickLive",
-                streamId: streamId,
-                fromPopup,
-            });
+        const kickData: KickBackgroundResponse = isLive
+            ? await sendMessageToBackground({
+                  type: "kickLive",
+                  streamId,
+                  fromPopup,
+              })
+            : await sendMessageToBackground({
+                  type: "kickVod",
+                  streamId,
+                  vodId: videoId!,
+                  fromPopup,
+              });
 
-            if (!kickData.success) {
-                throw new Error("No response from background for Kick stream");
-            }
-            const channelName = document.querySelector("title")?.textContent?.split(" ")[0];
-            if (kickData.data.type === "live" && channelName) {
-                kickData.data.channelName = channelName;
-            }
-        } else {
-            kickData = await sendMessageToBackground({
-                type: "kickVod",
-                vodId: videoTag,
-                streamId,
-            });
-
-            if (!kickData.success) {
-                throw new Error("No response from background for Kick stream");
-            }
-
-            const videoEl = (await waitForElement("video")) as HTMLVideoElement | undefined;
-            const durationSeconds = videoEl?.duration ? Math.floor(videoEl.duration) : undefined;
-
-            if (kickData.data.type === "vod" && durationSeconds) {
-                kickData.data.durationSeconds = durationSeconds;
-            }
-            await saveToStorage(videoTag, kickData.data, "kick");
+        if (!kickData.success) {
+            throw new Error("No response from background for Kick stream");
         }
-        return {
-            success: true,
-            data: kickData.data,
-        };
+
+        kickData.data.channelName = channelName;
+        const durationSeconds = await getVideoDuration();
+        console.log("Estimated video duration (seconds):", durationSeconds);
+
+        if (kickData.data.type === "vod") {
+            kickData.data.durationSeconds = durationSeconds;
+            await saveToStorage(videoId!, kickData.data, "kick");
+        }
+        return kickData;
     } catch (err) {
         console.error("Error initializing Kick data:", err);
         return {
             success: false,
             message: err instanceof Error ? err.message : "Unknown error",
         };
+    }
+}
+
+async function getVideoDuration() {
+    const time = Date.now();
+    let counter = 0;
+    while (true) {
+        console.log(`Attempt ${++counter}: Checking for video duration...`);
+        if (Date.now() - time > 10_000) return;
+
+        const videoEl = (await waitForElement("video")) as HTMLVideoElement;
+        if (!Number.isNaN(videoEl?.duration)) {
+            return videoEl.duration;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
     }
 }

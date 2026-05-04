@@ -76,23 +76,22 @@ export function clearSyncCache() {
 }
 
 export async function saveToStorage(
-    tag: string,
-    response: YoutubeVideoData | TwitchData | KickData,
+    key: string,
+    data: YoutubeVideoData | TwitchData | KickData,
     target: "youtube" | "twitch" | "kick",
 ) {
     const ttlInSecondsOptions = await getCacheTTLSetting();
     const expiry = Date.now() + ttlInSecondsOptions * 1000;
 
     // If any of the formats have null sizes, we don't want to cache the response as it might be incomplete.
-    const hasNullSizes =
-        (response.type === "video" &&
-            response.formats.some((format) => !format.sizeMB || format.sizeMB === "0 B")) ||
-        (response.type === "vod" && response.data.some((stream) => !stream.sizePerSecondBytes));
-    if (hasNullSizes) return;
-    if (response.type === "video" && response.formats.length === 0) return;
+    if (data.type === "vod" && data.data.length === 0) return;
+    if (data.type === "video" && data.formats.length === 0) return;
 
-    const dataToStore = {
-        response,
+    if (data.type === "vod" && data.data.some((stream) => stream.sizePerSecondBytes === 0)) return;
+    if (data.type === "video" && data.formats.some((format) => format.sizeMB === "0 B")) return;
+
+    const dataToStore: StorageData<YoutubeVideoData | TwitchData | KickData> = {
+        data,
         expiry,
         createdAt: new Date().toISOString(),
     };
@@ -100,7 +99,7 @@ export async function saveToStorage(
     const prefix = target;
 
     await setToLocalCache({
-        [`${prefix}:${tag}`]: dataToStore,
+        [`${prefix}:${key}`]: dataToStore,
     });
 }
 

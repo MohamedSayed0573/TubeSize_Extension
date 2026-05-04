@@ -1,10 +1,11 @@
 import type {
     TwitchBackgroundResponse,
-    TwitchData,
     TwitchGqlResponse,
+    TwitchLiveData,
     TwitchLiveMessage,
     TwitchMessage,
     TwitchTokenData,
+    TwitchVodData,
     TwitchVodMessage,
 } from "@app-types/types";
 import type { PlaylistItem } from "m3u8-parser";
@@ -122,13 +123,14 @@ export async function getTwitchLiveResponse(
         ? await estimateHlsStreamSizes(masterM3u8)
         : filterM3u8(masterM3u8);
 
+    const response: TwitchLiveData = {
+        type: "live",
+        data: twitchData,
+        channelName: message.channelName,
+    };
     return sendResponse({
         success: true,
-        data: {
-            type: "live",
-            data: twitchData,
-            channelName: message.channelName,
-        },
+        data: response,
     });
 }
 
@@ -140,7 +142,7 @@ export async function getTwitchVodResponse(
     if (cached) {
         return sendResponse({
             success: true,
-            data: cached.response,
+            data: cached.data,
             cached: true,
             createdAt: cached.createdAt,
         });
@@ -153,15 +155,13 @@ export async function getTwitchVodResponse(
     const m3u8Data = await getTwitchMasterM3u8(twitchToken, message);
     const filteredM3U8Data = filterM3u8(m3u8Data);
 
-    const response: TwitchData = {
+    const response: TwitchVodData = {
         type: "vod",
         data: filteredM3U8Data,
         vodId: message.vodId,
         durationSeconds: twitchToken.durationSeconds,
     };
-    if (filteredM3U8Data.length > 0) {
-        await saveToStorage(message.vodId, response, "twitch");
-    }
+    await saveToStorage(message.vodId, response, "twitch");
 
     return sendResponse({
         success: true,

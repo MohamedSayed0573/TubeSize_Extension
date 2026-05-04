@@ -81,11 +81,11 @@ async function handleYoutube(
             return sendResponse({
                 success: true,
                 data: {
-                    formats: cached.response.formats,
+                    formats: cached.data.formats,
                     type: "video",
-                    durationSeconds: cached.response.durationSeconds,
-                    title: cached.response.title,
-                    id: cached.response.id,
+                    durationSeconds: cached.data.durationSeconds,
+                    title: cached.data.title,
+                    id: cached.data.id,
                 },
                 cached: true,
                 createdAt: cached.createdAt,

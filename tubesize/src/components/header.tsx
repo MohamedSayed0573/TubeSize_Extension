@@ -22,14 +22,12 @@ function getYoutubeDuration(youtubeData?: YoutubeData | null): string | undefine
 }
 
 function getTwitchTitle(twitchData?: TwitchData | null): string {
-    const data = twitchData;
-
-    if (!data) {
+    if (!twitchData) {
         return "Twitch";
     }
 
-    if (data.type === "live") {
-        return data.channelName;
+    if (twitchData.type === "live") {
+        return twitchData.channelName;
     }
 
     return "Twitch Video";
@@ -50,9 +48,7 @@ function getTwitchDuration(twitchData?: TwitchData | null): string | undefined {
 }
 
 function getKickTitle(kickData?: KickData | null): string {
-    if (!kickData) return "Kick";
-
-    return kickData.type === "live" ? kickData.channelName : "Kick Video";
+    return kickData?.channelName ?? "Kick";
 }
 
 function getKickDuration(kickData?: KickData | null): string | undefined {
