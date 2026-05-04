@@ -225,8 +225,8 @@ async function initKick(fromPopup: boolean): Promise<KickBackgroundResponse> {
             if (kickData.data.type === "vod" && durationSeconds) {
                 kickData.data.durationSeconds = durationSeconds;
             }
+            await saveToStorage(videoTag, kickData.data, "kick");
         }
-        await saveToStorage(videoTag, kickData.data, "kick");
         return {
             success: true,
             data: kickData.data,
