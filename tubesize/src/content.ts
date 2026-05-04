@@ -11,7 +11,7 @@ import {
 } from "@lib/utils";
 import { getFromStorage, getFromSyncCache, saveToStorage } from "@lib/cache";
 import CONFIG from "@lib/constants";
-import { injectQualityMenu, removeEventListeners } from "@/qualityMenuInjector";
+import { injectQualityMenu, removeEventListeners, waitForElement } from "@/qualityMenuInjector";
 import { sendMessageToBackground } from "@/runtime";
 import {
     getCurrentResolution,
@@ -20,7 +20,7 @@ import {
     startYoutubeToastTracking,
     stopResolutionTracking,
 } from "@/resolution";
-import { extractKickVodDurationSeconds, getKickHtml, getKickStreamId } from "@lib/kick";
+import { getKickHtml, getKickStreamId } from "@lib/kick";
 import type { KickBackgroundResponse } from "./types/types";
 
 function getCurrentUrl() {
@@ -72,7 +72,7 @@ async function handlePageNavigation() {
             stopResolutionTracking();
             const toasterEnabled = await isToasterEnabled();
             if (toasterEnabled) {
-                const kickData = await initKick();
+                const kickData = await initKick(false);
                 if (!kickData.success) {
                     throw new Error(kickData.message || "Failed to initialize Kick data");
                 }
@@ -94,7 +94,6 @@ async function isToasterEnabled() {
     return (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
 }
 
-// eslint-disable-next-line unicorn/prefer-top-level-await
 void handlePageNavigation();
 
 type ResponseMessage = (number | undefined) | KickBackgroundResponse;
@@ -112,7 +111,7 @@ chrome.runtime.onMessage.addListener(
             return true;
         } else if (message.type === "getKick") {
             void (async () => {
-                const kickData = await initKick();
+                const kickData = await initKick(true);
                 sendResponse(kickData);
             })().catch((err) => {
                 console.error("Error handling getKick message:", err);
@@ -169,7 +168,7 @@ async function initTwitch(tag: string, isLive: boolean) {
     return twitchData.data;
 }
 
-async function initKick(): Promise<KickBackgroundResponse> {
+async function initKick(fromPopup: boolean): Promise<KickBackgroundResponse> {
     try {
         const url = getCurrentUrl();
         const isLive = !isKickVod(url);
@@ -199,7 +198,7 @@ async function initKick(): Promise<KickBackgroundResponse> {
             kickData = await sendMessageToBackground({
                 type: "kickLive",
                 streamId: streamId,
-                fromPopup: false,
+                fromPopup,
             });
 
             if (!kickData.success) {
@@ -218,9 +217,9 @@ async function initKick(): Promise<KickBackgroundResponse> {
             if (!kickData.success) {
                 throw new Error("No response from background for Kick stream");
             }
-            const durationSeconds = extractKickVodDurationSeconds(
-                document.documentElement.outerHTML,
-            );
+
+            const videoEl = (await waitForElement("video")) as HTMLVideoElement | undefined;
+            const durationSeconds = videoEl?.duration ? Math.floor(videoEl.duration) : undefined;
 
             if (kickData.data.type === "vod" && durationSeconds) {
                 kickData.data.durationSeconds = durationSeconds;

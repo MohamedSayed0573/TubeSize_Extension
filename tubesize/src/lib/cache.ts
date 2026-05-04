@@ -85,8 +85,9 @@ export async function saveToStorage(
 
     // If any of the formats have null sizes, we don't want to cache the response as it might be incomplete.
     const hasNullSizes =
-        response.type === "video" &&
-        response.formats.some((format) => !format.sizeMB || format.sizeMB === "0 B");
+        (response.type === "video" &&
+            response.formats.some((format) => !format.sizeMB || format.sizeMB === "0 B")) ||
+        (response.type === "vod" && response.data.some((stream) => !stream.sizePerSecondBytes));
     if (hasNullSizes) return;
     if (response.type === "video" && response.formats.length === 0) return;
 
@@ -96,7 +97,7 @@ export async function saveToStorage(
         createdAt: new Date().toISOString(),
     };
 
-    const prefix = target ?? (response.type === "video" ? "youtube" : "twitch");
+    const prefix = target;
 
     await setToLocalCache({
         [`${prefix}:${tag}`]: dataToStore,

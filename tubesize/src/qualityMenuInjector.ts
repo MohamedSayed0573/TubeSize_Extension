@@ -67,7 +67,10 @@ async function settingsBtnClickListener() {
     qualityBtnEl.addEventListener("click", qualityBtnHandler);
 }
 
-function waitForElement(selector: string, timeout: number = 10_000): Promise<Element | undefined> {
+export function waitForElement(
+    selector: string,
+    timeout: number = 10_000,
+): Promise<Element | undefined> {
     return new Promise<Element | undefined>((resolve) => {
         const element = document.querySelector(selector);
         if (element) {

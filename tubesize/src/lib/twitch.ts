@@ -1,5 +1,4 @@
 import type {
-    StreamInfo,
     TwitchBackgroundResponse,
     TwitchData,
     TwitchGqlResponse,
@@ -11,7 +10,7 @@ import type {
 import type { PlaylistItem } from "m3u8-parser";
 import CONFIG from "@lib/constants";
 import { estimateHlsStreamSizes } from "./hlsSize";
-import { parseM3U8 } from "@lib/m3u8";
+import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import { getFromStorage, saveToStorage } from "./cache";
 import { fetchAndRetry } from "./utils";
 
@@ -111,20 +110,6 @@ export async function getTwitchMasterM3u8(
     }
 
     return playlists;
-}
-
-export function filterM3u8(m3u8Data: PlaylistItem[]): StreamInfo[] {
-    const result = m3u8Data
-        ?.filter((item) => item.attributes.RESOLUTION?.height && item.attributes.BANDWIDTH)
-        .map((item) => {
-            return {
-                resolution: item.attributes.RESOLUTION!.height,
-                sizePerSecondBytes: item.attributes.BANDWIDTH! / 8,
-            };
-        })
-        .sort((a, b) => b.resolution - a.resolution);
-
-    return result || [];
 }
 
 export async function getTwitchLiveResponse(

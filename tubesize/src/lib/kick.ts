@@ -1,9 +1,8 @@
-import { parseM3U8 } from "@lib/m3u8";
+import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import type { PlaylistItem } from "m3u8-parser";
 import { fetchAndRetry } from "./utils";
 import { estimateHlsStreamSizes } from "./hlsSize";
 import type { KickBackgroundResponse, KickLiveMessage, KickVodMessage } from "@/types/types";
-import { filterM3u8 } from "./twitch";
 
 export async function getKickHtml(url: string): Promise<string> {
     const res = await fetchAndRetry(url, {
@@ -23,24 +22,7 @@ export function getKickStreamId(html: string): string | undefined {
     return match[1];
 }
 
-export function extractKickVodDurationSeconds(html: string): number | undefined {
-    const pageHtml = String(html);
-    const durationMsCandidates = [
-        ...pageHtml.matchAll(/\\"duration\\":(\d+)/g),
-        ...pageHtml.matchAll(/"duration":(\d+)/g),
-        ...pageHtml.matchAll(/aria-valuemax="(\d{6,})"/g),
-    ].map((match) => Number.parseInt(match[1], 10));
-    const durationSecondsCandidates = [...pageHtml.matchAll(/data-max="(\d+\.\d+)"/g)].map(
-        (match) => Number.parseFloat(match[1]) * 1000,
-    );
-    const durationMs = Math.max(...durationMsCandidates, ...durationSecondsCandidates);
-
-    if (!Number.isFinite(durationMs)) return;
-
-    return durationMs / 1000;
-}
-
-export async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
+async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
     const url = `https://web.kick.com/api/v1/stream/${streamId}/playback`;
     const payload = {
         video_player: {
@@ -108,7 +90,9 @@ export async function getKickLiveResponse(
 ) {
     try {
         const masterM3U8Data = await getKickMasterM3u8(message.streamId);
-        const kickData = await estimateHlsStreamSizes(masterM3U8Data);
+        const kickData = message.fromPopup
+            ? await estimateHlsStreamSizes(masterM3U8Data)
+            : filterM3u8(masterM3U8Data);
 
         sendResponse({
             success: true,
