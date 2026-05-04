@@ -80,7 +80,7 @@ export type HumanizedFormat = {
     videoFormats: YoutubeVideoFormat[];
 };
 
-export type StorageData<T extends YoutubeVideoData | TwitchData> = {
+export type StorageData<T extends YoutubeVideoData | TwitchData | KickData> = {
     response: T;
     expiry?: number;
     createdAt?: string;
@@ -133,17 +133,12 @@ export type TwitchTokenData = {
     durationSeconds?: number;
 };
 
-export type KickData = {
-    data: StreamInfo[];
-    channelName: string;
-};
-
-export type KickBackgroundResponse = SuccessResponse<KickData> | ErrorResponse;
 export type FrontEndMessage =
     | YoutubeMessage
     | TwitchVodMessage
     | TwitchLiveMessage
     | KickLiveMessage
+    | KickVodMessage
     | { type: "clearBadge" }
     | { type: "setBadge" };
 
@@ -171,3 +166,25 @@ export type KickLiveMessage = {
     streamId: string;
     fromPopup: boolean;
 };
+
+export type KickVodMessage = {
+    type: "kickVod";
+    vodId: string;
+};
+export type KickMessage = KickLiveMessage | KickVodMessage;
+
+type KickLiveData = {
+    type: "live";
+    data: StreamInfo[];
+    channelName: string;
+};
+
+type KickVodData = {
+    type: "vod";
+    data: StreamInfo[];
+    vodId: string;
+    durationSeconds: number | undefined;
+};
+
+export type KickData = KickLiveData | KickVodData;
+export type KickBackgroundResponse = SuccessResponse<KickData> | ErrorResponse;

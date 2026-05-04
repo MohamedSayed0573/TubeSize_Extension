@@ -5,7 +5,7 @@ import type {
     FrontEndMessage,
     TwitchMessage,
     KickBackgroundResponse,
-    KickLiveMessage,
+    KickMessage,
 } from "@app-types/types";
 import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
@@ -15,9 +15,8 @@ import {
     extractRawData,
     parseLiveStreamInfo,
 } from "@lib/youtube";
-import { filterM3u8, getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
-import { getKickMasterM3u8 } from "@lib/kick";
-import { estimateHlsStreamSizes } from "@lib/hlsSize";
+import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
+import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
 
 chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
     void handleMessage(message, sender, sendResponse);
@@ -54,7 +53,8 @@ async function handleMessage(
         case "twitchLive": {
             return await handleTwitch(message, sendResponse);
         }
-        case "kickLive": {
+        case "kickLive":
+        case "kickVod": {
             return await handleKick(message, sendResponse);
         }
         default: {
@@ -117,7 +117,7 @@ async function handleYoutube(
                 title: rawData.videoDetails.title,
                 id: rawData.videoDetails.videoId,
             };
-            await saveToStorage(videoTag, youtubeData);
+            await saveToStorage(videoTag, youtubeData, "youtube");
             addBadge(message.tabId);
             return sendResponse({
                 success: true,
@@ -152,22 +152,15 @@ async function handleTwitch(
 }
 
 async function handleKick(
-    message: KickLiveMessage,
+    message: KickMessage,
     sendResponse: (response: KickBackgroundResponse) => void,
 ) {
     try {
-        const masterM3U8Data = await getKickMasterM3u8(message.streamId);
-        const kickData = message.fromPopup
-            ? await estimateHlsStreamSizes(masterM3U8Data)
-            : filterM3u8(masterM3U8Data);
-        sendResponse({
-            success: true,
-            data: {
-                data: kickData,
-                channelName: message.streamId,
-            },
-        });
+        return message.type === "kickLive"
+            ? await getKickLiveResponse(message, sendResponse)
+            : await getKickVodResponse(message, sendResponse);
     } catch (err) {
+        console.error("Error handling Kick message:", err);
         return sendResponse({
             success: false,
             message: err instanceof Error ? err.message : "Unknown error",

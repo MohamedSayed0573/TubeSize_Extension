@@ -10,6 +10,7 @@ type MessageResponseMap = {
     twitchVod: TwitchBackgroundResponse;
     twitchLive: TwitchBackgroundResponse;
     kickLive: KickBackgroundResponse;
+    kickVod: KickBackgroundResponse;
     clearBadge: { success: boolean };
     setBadge: { success: boolean };
 };

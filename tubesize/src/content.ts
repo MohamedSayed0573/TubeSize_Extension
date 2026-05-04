@@ -1,15 +1,17 @@
 import {
+    extractKickVodId,
     extractChannelName,
     extractTwitchVodId,
     extractVideoTag,
     isKickPage,
+    isKickVod,
     isTwitchPage,
     isTwitchVod,
     isYoutubePage,
 } from "@lib/utils";
-import { getFromSyncCache } from "@lib/cache";
+import { getFromStorage, getFromSyncCache, saveToStorage } from "@lib/cache";
 import CONFIG from "@lib/constants";
-import { injectQualityMenu, removeEventListeners } from "@/qualityMenuInjector";
+import { injectQualityMenu, removeEventListeners, waitForElement } from "@/qualityMenuInjector";
 import { sendMessageToBackground } from "@/runtime";
 import {
     getCurrentResolution,
@@ -19,7 +21,7 @@ import {
     stopResolutionTracking,
 } from "@/resolution";
 import { getKickHtml, getKickStreamId } from "@lib/kick";
-import type { KickBackgroundResponse, KickData } from "./types/types";
+import type { KickBackgroundResponse } from "./types/types";
 
 function getCurrentUrl() {
     return globalThis.location.href;
@@ -28,7 +30,6 @@ function getCurrentUrl() {
 async function handlePageNavigation() {
     try {
         const url = getCurrentUrl();
-        console.log("Handling page navigation for URL:", url);
         void sendMessageToBackground({ type: "clearBadge" });
 
         if (!isYoutubePage(url) && !isTwitchPage(url) && !isKickPage(url)) {
@@ -45,7 +46,8 @@ async function handlePageNavigation() {
             if (!tag) return;
 
             const youtubeResponse = await initYoutube(tag);
-            const qualityMenuEnabled = await isQualityMenuEnabled();
+            const qualityMenuEnabled =
+                (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
             if (qualityMenuEnabled && youtubeResponse) {
                 await injectQualityMenu(youtubeResponse);
             }
@@ -70,8 +72,11 @@ async function handlePageNavigation() {
             stopResolutionTracking();
             const toasterEnabled = await isToasterEnabled();
             if (toasterEnabled) {
-                const kickData = await initKick();
-                await startToastKickPolling(kickData);
+                const kickData = await initKick(false);
+                if (!kickData.success) {
+                    throw new Error(kickData.message || "Failed to initialize Kick data");
+                }
+                await startToastKickPolling(kickData.data);
             }
         }
     } catch (err) {
@@ -79,7 +84,7 @@ async function handlePageNavigation() {
     }
 }
 
-if (isYoutubePage(globalThis.location.href)) {
+if (isYoutubePage(getCurrentUrl())) {
     globalThis.addEventListener("yt-navigate-finish", () => {
         void handlePageNavigation();
     });
@@ -88,18 +93,15 @@ if (isYoutubePage(globalThis.location.href)) {
 async function isToasterEnabled() {
     return (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
 }
-async function isQualityMenuEnabled() {
-    return (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
-}
 
-// eslint-disable-next-line unicorn/prefer-top-level-await
 void handlePageNavigation();
 
+type ResponseMessage = (number | undefined) | KickBackgroundResponse;
 chrome.runtime.onMessage.addListener(
     (
         message: { type: string },
         _sender: chrome.runtime.MessageSender,
-        sendResponse: (response: KickBackgroundResponse | (number | undefined)) => void,
+        sendResponse: (response: ResponseMessage) => void,
     ) => {
         if (message.type === "getCurrentResolution") {
             void (async () => {
@@ -109,28 +111,7 @@ chrome.runtime.onMessage.addListener(
             return true;
         } else if (message.type === "getKick") {
             void (async () => {
-                const html = document.querySelector("body")!.outerHTML;
-                const streamId =
-                    getKickStreamId(html) ??
-                    getKickStreamId(await getKickHtml(globalThis.location.href));
-
-                if (!streamId) {
-                    throw new Error("Failed to extract stream ID from the page");
-                }
-
-                const kickData = await sendMessageToBackground({
-                    type: "kickLive",
-                    streamId,
-                    fromPopup: true,
-                });
-                if (!kickData.success) {
-                    throw new Error(
-                        kickData.message || "Failed to retrieve Kick data from background",
-                    );
-                }
-                const channelName = extractChannelName(globalThis.location.href);
-                if (channelName) kickData.data.channelName = channelName;
-
+                const kickData = await initKick(true);
                 sendResponse(kickData);
             })().catch((err) => {
                 console.error("Error handling getKick message:", err);
@@ -187,27 +168,73 @@ async function initTwitch(tag: string, isLive: boolean) {
     return twitchData.data;
 }
 
-async function initKick(): Promise<KickData> {
-    const html = document.querySelector("body")!.outerHTML;
-    const streamId =
-        getKickStreamId(html) ?? getKickStreamId(await getKickHtml(globalThis.location.href));
+async function initKick(fromPopup: boolean): Promise<KickBackgroundResponse> {
+    try {
+        const url = getCurrentUrl();
+        const isLive = !isKickVod(url);
+        const videoTag = isLive ? extractChannelName(url) : extractKickVodId(url);
 
-    if (!streamId) {
-        throw new Error("Failed to extract stream ID from the page");
+        if (!videoTag) {
+            throw new Error("Failed to extract Kick video tag from URL");
+        }
+        const cached = await getFromStorage("kick", videoTag);
+        if (cached) {
+            return {
+                success: true,
+                data: cached.response,
+                cached: true,
+                createdAt: cached.createdAt,
+            };
+        }
+        const html = document.querySelector("body")!.outerHTML;
+        const streamId = getKickStreamId(html) ?? getKickStreamId(await getKickHtml(url));
+
+        if (!streamId) {
+            throw new Error("Failed to extract stream ID from the page");
+        }
+
+        let kickData: KickBackgroundResponse;
+        if (isLive) {
+            kickData = await sendMessageToBackground({
+                type: "kickLive",
+                streamId: streamId,
+                fromPopup,
+            });
+
+            if (!kickData.success) {
+                throw new Error("No response from background for Kick stream");
+            }
+            const channelName = document.querySelector("title")?.textContent?.split(" ")[0];
+            if (kickData.data.type === "live" && channelName) {
+                kickData.data.channelName = channelName;
+            }
+        } else {
+            kickData = await sendMessageToBackground({
+                type: "kickVod",
+                vodId: videoTag,
+            });
+
+            if (!kickData.success) {
+                throw new Error("No response from background for Kick stream");
+            }
+
+            const videoEl = (await waitForElement("video")) as HTMLVideoElement | undefined;
+            const durationSeconds = videoEl?.duration ? Math.floor(videoEl.duration) : undefined;
+
+            if (kickData.data.type === "vod" && durationSeconds) {
+                kickData.data.durationSeconds = durationSeconds;
+            }
+        }
+        await saveToStorage(videoTag, kickData.data, "kick");
+        return {
+            success: true,
+            data: kickData.data,
+        };
+    } catch (err) {
+        console.error("Error initializing Kick data:", err);
+        return {
+            success: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        };
     }
-
-    const kickData = await sendMessageToBackground({
-        type: "kickLive",
-        streamId,
-        fromPopup: false,
-    });
-    console.log("Kick data received in content script from background:", kickData);
-    if (!kickData.success) {
-        throw new Error(kickData.message || "Failed to retrieve Kick data from background");
-    }
-
-    const channelName = extractChannelName(globalThis.location.href);
-    if (channelName) kickData.data.channelName = channelName;
-
-    return kickData.data;
 }

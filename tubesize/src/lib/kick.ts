@@ -1,6 +1,8 @@
-import { parseM3U8 } from "@lib/m3u8";
+import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import type { PlaylistItem } from "m3u8-parser";
 import { fetchAndRetry } from "./utils";
+import { estimateHlsStreamSizes } from "./hlsSize";
+import type { KickBackgroundResponse, KickLiveMessage, KickVodMessage } from "@/types/types";
 
 export async function getKickHtml(url: string): Promise<string> {
     const res = await fetchAndRetry(url, {
@@ -20,7 +22,7 @@ export function getKickStreamId(html: string): string | undefined {
     return match[1];
 }
 
-export async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
+async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
     const url = `https://web.kick.com/api/v1/stream/${streamId}/playback`;
     const payload = {
         video_player: {
@@ -74,9 +76,61 @@ export async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[
     const masterM3u8Data = await masterM3u8Res.text();
 
     const playlists = parseM3U8(masterM3u8Data).playlists;
+
     if (!playlists || playlists.length === 0) {
         throw new Error("No playlists found in master M3U8");
     }
 
     return playlists;
+}
+
+export async function getKickLiveResponse(
+    message: KickLiveMessage,
+    sendResponse: (response: KickBackgroundResponse) => void,
+) {
+    try {
+        const masterM3U8Data = await getKickMasterM3u8(message.streamId);
+        const kickData = message.fromPopup
+            ? await estimateHlsStreamSizes(masterM3U8Data)
+            : filterM3u8(masterM3U8Data);
+
+        sendResponse({
+            success: true,
+            data: {
+                type: "live",
+                data: kickData,
+                channelName: message.streamId, // Kick doesn't provide channel name in the same way, using streamId as a placeholder
+            },
+        });
+    } catch (err) {
+        return sendResponse({
+            success: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        });
+    }
+}
+
+export async function getKickVodResponse(
+    message: KickVodMessage,
+    sendResponse: (response: KickBackgroundResponse) => void,
+) {
+    try {
+        const masterM3U8Data = await getKickMasterM3u8(message.vodId);
+        const kickData = filterM3u8(masterM3U8Data);
+
+        sendResponse({
+            success: true,
+            data: {
+                type: "vod",
+                data: kickData,
+                vodId: message.vodId,
+                durationSeconds: undefined,
+            },
+        });
+    } catch (err) {
+        return sendResponse({
+            success: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        });
+    }
 }

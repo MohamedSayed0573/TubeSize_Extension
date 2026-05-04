@@ -49,6 +49,20 @@ function getTwitchDuration(twitchData?: TwitchData | null): string | undefined {
     return undefined;
 }
 
+function getKickTitle(kickData?: KickData | null): string {
+    if (!kickData) return "Kick";
+
+    return kickData.type === "live" ? kickData.channelName : "Kick Video";
+}
+
+function getKickDuration(kickData?: KickData | null): string | undefined {
+    if (kickData?.type === "vod" && kickData.durationSeconds) {
+        return humanizeDuration(kickData.durationSeconds * 1000);
+    }
+
+    return undefined;
+}
+
 export default function Header({
     pageType = "default",
     youtubeData,
@@ -59,7 +73,7 @@ export default function Header({
     const isLive =
         (pageType === "youtube" && youtubeData?.type === "live") ||
         (pageType === "twitch" && twitchData?.type === "live") ||
-        pageType === "kick";
+        (pageType === "kick" && kickData?.type === "live");
 
     let title: string;
     let duration: string | undefined;
@@ -76,7 +90,8 @@ export default function Header({
             break;
         }
         case "kick": {
-            title = kickData?.channelName || "Kick Stream";
+            title = getKickTitle(kickData);
+            duration = getKickDuration(kickData);
             break;
         }
         default: {
