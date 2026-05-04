@@ -117,7 +117,7 @@ async function handleYoutube(
                 title: rawData.videoDetails.title,
                 id: rawData.videoDetails.videoId,
             };
-            await saveToStorage(videoTag, youtubeData);
+            await saveToStorage(videoTag, youtubeData, "youtube");
             addBadge(message.tabId);
             return sendResponse({
                 success: true,

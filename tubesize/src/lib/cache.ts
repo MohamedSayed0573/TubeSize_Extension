@@ -78,7 +78,7 @@ export function clearSyncCache() {
 export async function saveToStorage(
     tag: string,
     response: YoutubeVideoData | TwitchData | KickData,
-    target?: "youtube" | "twitch" | "kick",
+    target: "youtube" | "twitch" | "kick",
 ) {
     const ttlInSecondsOptions = await getCacheTTLSetting();
     const expiry = Date.now() + ttlInSecondsOptions * 1000;

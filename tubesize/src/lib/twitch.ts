@@ -160,7 +160,7 @@ export async function getTwitchVodResponse(
         durationSeconds: twitchToken.durationSeconds,
     };
     if (filteredM3U8Data.length > 0) {
-        await saveToStorage(message.vodId, response);
+        await saveToStorage(message.vodId, response, "twitch");
     }
 
     return sendResponse({
