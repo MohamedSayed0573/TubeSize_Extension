@@ -18,30 +18,39 @@ export async function sendMessageToBackground<T extends FrontEndMessage>(
     message: T,
 ): Promise<MessageResponseMap[T["type"]]> {
     return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ ...message }, (response: MessageResponseMap[T["type"]]) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
-            if (!response?.success) {
-                const responseMessage =
-                    response && "message" in response && typeof response.message === "string"
-                        ? response.message
-                        : undefined;
-                reject(new Error(responseMessage || "Unknown error from background script"));
-                return;
-            }
-            resolve(response);
-        });
+        chrome.runtime.sendMessage(
+            { ...message },
+            (response: MessageResponseMap[T["type"]] | undefined) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                }
+                if (!response?.success) {
+                    const responseMessage =
+                        response && "message" in response && typeof response.message === "string"
+                            ? response.message
+                            : undefined;
+                    reject(new Error(responseMessage || "Unknown error from background script"));
+                    return;
+                }
+                resolve(response);
+            },
+        );
     });
 }
 
 type ContentScriptMessage =
     | { type: "getCurrentResolution" }
-    | { type: "getKick"; fromPopup?: boolean };
+    | { type: "getKick"; fromPopup?: boolean }
+    | { type: "totalUsage" }
+    | { type: "deleteSessionData" }
+    | { type: "deleteTotalData" };
 type ContentScriptResponseMap = {
     getCurrentResolution: number | undefined;
     getKick: KickBackgroundResponse | undefined;
+    totalUsage: { sessionUsage: number; totalUsage: number };
+    deleteSessionData: void;
+    deleteTotalData: void;
 };
 export async function sendMessageToContentScript<T extends ContentScriptMessage>(
     tabId: number,

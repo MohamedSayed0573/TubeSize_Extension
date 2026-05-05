@@ -184,7 +184,7 @@ export async function fetchAndRetry(
             // Skip the timeout if the last attempt
             if (attempt < maxRetries) {
                 // Exponential backoff before retry
-                await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+                await delay(Math.pow(2, attempt) * 1000);
             }
         }
     }
@@ -216,4 +216,8 @@ export function humanizeDuration(ms: number) {
         return baseHumanizeDuration(Math.floor(ms / 60_000) * 60_000);
     }
     return baseHumanizeDuration(ms);
+}
+
+export async function delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }

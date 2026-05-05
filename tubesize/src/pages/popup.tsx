@@ -25,6 +25,8 @@ import useTab from "@hooks/useTab";
 import useCurrentQuality from "@hooks/useCurrentQuality";
 import useOptions from "@hooks/useOptions";
 import KickFormat from "@components/kickFormat";
+import { filesize } from "filesize";
+import { setToLocalCache } from "@/lib/cache";
 
 function getCachedAgo(createdAt: string | undefined) {
     if (!createdAt) return;
@@ -58,6 +60,9 @@ export default function Popup() {
     const { currentQuality } = useCurrentQuality(tabId, tabUrl);
     const { optionsState, error: optionsError } = useOptions();
     const enabledOptions = getEnabledOptions(optionsState);
+    const [totalUsage, setTotalUsage] = useState<
+        { sessionUsage: number; totalUsage: number } | undefined
+    >();
 
     useEffect(() => {
         (async () => {
@@ -66,6 +71,11 @@ export default function Popup() {
             setIsLoading(true);
 
             if (isYoutubePage(tabUrl)) {
+                const totalUsageResponse = await sendMessageToContentScript(tabId!, {
+                    type: "totalUsage",
+                });
+                console.log("Received total usage response in popup:", totalUsageResponse);
+                setTotalUsage(totalUsageResponse);
                 setPageType("youtube");
                 const videoTag = extractVideoTag(tabUrl);
                 if (!videoTag) {
@@ -196,6 +206,57 @@ export default function Popup() {
                     <div className="loading-state">
                         <span className="spinner" />
                     </div>
+                )}
+                {!isLoading && pageType === "youtube" && (
+                    <>
+                        <span>
+                            Total Youtube Usage:
+                            {totalUsage?.totalUsage === 0
+                                ? 0
+                                : filesize(totalUsage?.totalUsage || 0)}
+                        </span>
+
+                        <button
+                            onClick={() => {
+                                void (async () => {
+                                    await sendMessageToContentScript(tabId!, {
+                                        type: "deleteTotalData",
+                                    });
+                                    await setToLocalCache({ totalUsage: 0 });
+
+                                    setTotalUsage((prev) =>
+                                        prev ? { ...prev, totalUsage: 0 } : undefined,
+                                    );
+                                })();
+                            }}
+                            style={{ marginLeft: "8px", padding: "4px 8px", cursor: "pointer" }}
+                        >
+                            Clear Total
+                        </button>
+
+                        <span>
+                            Session Youtube Usage:
+                            {totalUsage?.sessionUsage === 0
+                                ? 0
+                                : filesize(totalUsage?.sessionUsage || 0)}
+                        </span>
+
+                        <button
+                            onClick={() => {
+                                void (async () => {
+                                    await sendMessageToContentScript(tabId!, {
+                                        type: "deleteSessionData",
+                                    });
+                                    setTotalUsage((prev) =>
+                                        prev ? { ...prev, sessionUsage: 0 } : undefined,
+                                    );
+                                })();
+                            }}
+                            style={{ marginLeft: "8px", padding: "4px 8px", cursor: "pointer" }}
+                        >
+                            Clear Session
+                        </button>
+                    </>
                 )}
                 {!youtubeData && !twitchData && !isLoading && message && (
                     <span className="info">{message}</span>
