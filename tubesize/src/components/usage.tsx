@@ -1,13 +1,14 @@
-import { setToLocalCache } from "@/lib/cache";
+import { setToLocalCache } from "@lib/cache";
+import { totalSizeVideoDisplay } from "@lib/formatting";
 import { sendMessageToContentScript } from "@/runtime";
-import type { TotalUsageData } from "@/types/types";
-import { filesize } from "filesize";
+import type { TotalUsageData } from "@app-types/types";
 import { useEffect, useState } from "react";
 
 export default function TotalUsage({ tabId }: { tabId: number | undefined }) {
     const [totalUsage, setTotalUsage] = useState<TotalUsageData | undefined>();
 
     useEffect(() => {
+        let interval: NodeJS.Timeout;
         void (async () => {
             if (!tabId) return;
             const totalUsageResponse = await sendMessageToContentScript(tabId, {
@@ -16,7 +17,7 @@ export default function TotalUsage({ tabId }: { tabId: number | undefined }) {
             console.log("Received total usage from content script:", totalUsageResponse);
             setTotalUsage(totalUsageResponse);
 
-            const interval = setInterval(() => {
+            interval = setInterval(() => {
                 void (async () => {
                     if (!tabId) return;
                     const totalUsageResponse = await sendMessageToContentScript(tabId, {
@@ -26,9 +27,8 @@ export default function TotalUsage({ tabId }: { tabId: number | undefined }) {
                     setTotalUsage(totalUsageResponse);
                 })();
             }, 5000);
-
-            return () => clearInterval(interval);
         })();
+        return () => clearInterval(interval);
     }, [tabId]);
 
     return (
@@ -37,7 +37,7 @@ export default function TotalUsage({ tabId }: { tabId: number | undefined }) {
                 <div>
                     <span>
                         Total Youtube Usage:
-                        {totalUsage.totalUsage === 0 ? 0 : filesize(totalUsage.totalUsage || 0)}
+                        {totalSizeVideoDisplay(totalUsage.totalUsage || 0)}
                     </span>
 
                     <button
@@ -65,7 +65,7 @@ export default function TotalUsage({ tabId }: { tabId: number | undefined }) {
                 <div>
                     <span>
                         Session Youtube Usage:
-                        {totalUsage.sessionUsage === 0 ? 0 : filesize(totalUsage.sessionUsage || 0)}
+                        {totalSizeVideoDisplay(totalUsage.sessionUsage || 0)}
                     </span>
 
                     <button

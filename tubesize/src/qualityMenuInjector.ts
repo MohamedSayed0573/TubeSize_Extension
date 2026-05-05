@@ -1,18 +1,19 @@
 import "@styles/panel.css";
 import type { YoutubeData } from "@app-types/types";
 import { totalSizeVideoDisplay } from "./lib/formatting";
+import { waitForElement } from "./lib/dom";
 
 let settingsBtnEl: Element | undefined;
 let qualityBtnEl: Element | undefined;
 
-const TUBESIZE_QUALITY_MENU_CLASS = "tubesize-quality-menu-panel";
-const SETTINGS_BTN_SELECTOR = ".ytp-button.ytp-settings-button";
-const PANEL_MENU_SELECTOR = ".ytp-panel-menu";
-const MENU_ITEM_SELECTOR = ".ytp-menuitem";
-const QUALITY_MENU_BTN_SELECTOR = ".ytp-panel.ytp-quality-menu";
-const MENU_ITEM_LABEL_SELECTOR = ".ytp-menuitem-label";
-const INNER_DIV_SELECTOR = "div";
-const SPAN_SELECTOR = "span";
+export const TUBESIZE_QUALITY_MENU_CLASS = "tubesize-quality-menu-panel";
+export const SETTINGS_BTN_SELECTOR = ".ytp-button.ytp-settings-button";
+export const PANEL_MENU_SELECTOR = ".ytp-panel-menu";
+export const MENU_ITEM_SELECTOR = ".ytp-menuitem";
+export const QUALITY_MENU_BTN_SELECTOR = ".ytp-panel.ytp-quality-menu";
+export const MENU_ITEM_LABEL_SELECTOR = ".ytp-menuitem-label";
+export const INNER_DIV_SELECTOR = "div";
+export const SPAN_SELECTOR = "span";
 
 export function removeEventListeners() {
     clearInjectedQualityMenuSizes();
@@ -66,37 +67,6 @@ async function settingsBtnClickListener() {
 
     qualityBtnEl.removeEventListener("click", qualityBtnHandler);
     qualityBtnEl.addEventListener("click", qualityBtnHandler);
-}
-
-export async function waitForElement(
-    selector: string,
-    timeout: number = 10_000,
-): Promise<Element | undefined> {
-    return new Promise<Element | undefined>((resolve) => {
-        const element = document.querySelector(selector);
-        if (element) {
-            return resolve(element);
-        }
-
-        const observer = new MutationObserver(() => {
-            const element = document.querySelector(selector);
-            if (element) {
-                observer.disconnect();
-                clearTimeout(timeoutId);
-                return resolve(element);
-            }
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-        });
-
-        const timeoutId = setTimeout(() => {
-            observer.disconnect();
-            return resolve(document.querySelector(selector) ?? undefined);
-        }, timeout);
-    });
 }
 
 function createQualitySizeLookup() {
