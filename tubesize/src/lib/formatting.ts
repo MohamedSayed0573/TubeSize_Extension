@@ -28,7 +28,7 @@ export function perMinuteDisplay(sizePerSecondBytes: number): string {
     return `${sizePerMinuteMB.toFixed(1)} MB/min`;
 }
 
-function sizePerMinute(sizePerSecondBytes: number): number {
+export function sizePerMinute(sizePerSecondBytes: number): number {
     return (sizePerSecondBytes * 60) / 1_000_000;
 }
 

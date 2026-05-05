@@ -1,5 +1,6 @@
 import "@styles/panel.css";
 import type { YoutubeData } from "@app-types/types";
+import { totalSizeVideoDisplay } from "./lib/formatting";
 
 let settingsBtnEl: Element | undefined;
 let qualityBtnEl: Element | undefined;
@@ -102,7 +103,7 @@ function createQualitySizeLookup() {
     const lookup = new Map<number, string>();
     if (currentYoutubeData?.type === "video") {
         for (const format of currentYoutubeData.formats) {
-            lookup.set(format.height, format.sizeMB);
+            lookup.set(format.height, totalSizeVideoDisplay(format.sizeBytes));
         }
     } else {
         for (const format of currentYoutubeData?.formats ?? []) {

@@ -84,11 +84,9 @@ export async function saveToStorage(
     const expiry = Date.now() + ttlInSecondsOptions * 1000;
 
     // If any of the formats have null sizes, we don't want to cache the response as it might be incomplete.
-    if (data.type === "vod" && data.data.length === 0) return;
-    if (data.type === "video" && data.formats.length === 0) return;
-
+    if ((data.type === "vod" || data.type === "live") && data.data.length === 0) return;
     if (data.type === "vod" && data.data.some((stream) => stream.sizePerSecondBytes === 0)) return;
-    if (data.type === "video" && data.formats.some((format) => format.sizeMB === "0 B")) return;
+    if (data.type === "video" && data.formats.some((format) => format.sizeBytes === 0)) return;
 
     const dataToStore: StorageData<YoutubeVideoData | TwitchData | KickData> = {
         data,

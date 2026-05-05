@@ -109,7 +109,6 @@ export async function startToastTwitchPolling(twitchData: TwitchData) {
             twitchData.data,
             toasterThresholdMbpm,
             twitchData.type === "live",
-            twitchData.type === "vod" ? twitchData.durationSeconds : undefined,
         );
     };
     videoResizeListener();

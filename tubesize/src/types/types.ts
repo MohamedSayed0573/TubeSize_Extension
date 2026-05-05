@@ -58,14 +58,6 @@ type YoutubeLiveData = {
 export type YoutubeData = YoutubeVideoData | YoutubeLiveData;
 export type YoutubeBackgroundResponse = SuccessResponse<YoutubeData> | ErrorResponse;
 
-export type HumanizedFormat = {
-    id: string;
-    title: string;
-    isLive: boolean;
-    durationSeconds: number;
-    videoFormats: YoutubeVideoFormat[];
-};
-
 export type StorageData<T extends YoutubeVideoData | TwitchData | KickData> = {
     data: T;
     expiry?: number;

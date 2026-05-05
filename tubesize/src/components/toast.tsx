@@ -1,24 +1,17 @@
+import { perHourDisplay, totalSizeVideoDisplay } from "@/lib/formatting";
 import "@styles/toast.css";
-
-function perHourFormat(sizePerMinuteMB: number) {
-    const perHourMB = sizePerMinuteMB * 60;
-    if (perHourMB > 1000) {
-        return (perHourMB / 1000).toFixed(1) + " GB/hour";
-    }
-    return perHourMB.toFixed(1) + " MB/hour";
-}
 
 export default function Toast({
     currentQuality,
-    sizePerMinuteMB,
-    sizeMB,
+    sizePerSecondBytes,
+    sizeBytes,
     isLive,
     okOnClick,
     dontShowAgainOnClick,
 }: {
     currentQuality: number;
-    sizePerMinuteMB: number;
-    sizeMB: string | undefined;
+    sizePerSecondBytes: number;
+    sizeBytes?: number;
     isLive: boolean;
     okOnClick: () => void;
     dontShowAgainOnClick: () => void;
@@ -32,8 +25,10 @@ export default function Toast({
                 <div>
                     <span className="current-quality">Current Quality: {currentQuality}p</span>
                     <div className="toast-inner">
-                        {!isLive && sizeMB && <span>Total Usage: {sizeMB}</span>}
-                        <span>Per Hour Usage: {perHourFormat(sizePerMinuteMB)}</span>
+                        {!isLive && sizeBytes && (
+                            <span>Total Usage: {totalSizeVideoDisplay(sizeBytes)}</span>
+                        )}
+                        <span>Per Hour Usage: {perHourDisplay(sizePerSecondBytes)}</span>
                     </div>
                 </div>
             </div>
