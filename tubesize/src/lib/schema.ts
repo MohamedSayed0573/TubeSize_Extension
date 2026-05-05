@@ -42,3 +42,11 @@ export const twitchGqlResponseSchema = z.object({
             .optional(),
     }),
 });
+
+export const kickPlaybackResponseSchema = z.object({
+    playback_url: z
+        .object({
+            live: z.string().optional(),
+        })
+        .optional(),
+});
