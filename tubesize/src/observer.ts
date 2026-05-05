@@ -1,4 +1,5 @@
 import { getFromLocalCache, setToLocalCache } from "@lib/cache";
+import { delay } from "@lib/utils";
 
 let sessionUsage: number = 0;
 let pendingUsage: number = 0;
@@ -59,13 +60,10 @@ chrome.runtime.onMessage.addListener(
                 sendResponse({ success: true });
             }
         }
+        return true;
     },
 );
 
 async function getTotalUsage() {
     return getFromLocalCache("totalUsage") as Promise<number | undefined>;
-}
-
-async function delay(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
 }

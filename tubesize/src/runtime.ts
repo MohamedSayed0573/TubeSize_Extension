@@ -1,6 +1,7 @@
 import type {
     FrontEndMessage,
     KickBackgroundResponse,
+    TotalUsageData,
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
 } from "@app-types/types";
@@ -48,7 +49,7 @@ type ContentScriptMessage =
 type ContentScriptResponseMap = {
     getCurrentResolution: number | undefined;
     getKick: KickBackgroundResponse | undefined;
-    totalUsage: { sessionUsage: number; totalUsage: number };
+    totalUsage: TotalUsageData;
     deleteSessionData: void;
     deleteTotalData: void;
 };

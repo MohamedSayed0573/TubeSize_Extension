@@ -160,3 +160,8 @@ type KickVodData = {
 
 export type KickData = KickLiveData | KickVodData;
 export type KickBackgroundResponse = SuccessResponse<KickData> | ErrorResponse;
+
+export type TotalUsageData = {
+    sessionUsage: number;
+    totalUsage: number;
+};
