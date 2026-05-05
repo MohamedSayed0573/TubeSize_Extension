@@ -1,4 +1,3 @@
-import { filesize } from "filesize";
 import type {
     RawFormat,
     StreamInfo,
@@ -35,24 +34,6 @@ export function parseVideoFormats(formats: RawFormat): YoutubeVideoFormat[] {
         };
     });
     return parsedFormats;
-}
-
-export function humanizeVideoFormats(
-    videoFormats: RawFormat["formats"],
-    durationInSeconds: number,
-    isLive = false,
-) {
-    return videoFormats.map((format) => {
-        return {
-            formatId: format.formatId,
-            height: format.height,
-            sizeMB: format.maxSizeBytes
-                ? `${filesize(format.sizeBytes)} - ${filesize(format.maxSizeBytes)}`
-                : filesize(format.sizeBytes),
-            maxSizeMB: format.maxSizeBytes ? filesize(format.maxSizeBytes) : undefined,
-            sizePerMinuteMB: sizePerMinute(format.sizeBytes, durationInSeconds, isLive),
-        };
-    });
 }
 
 export function getAverageAudioSize(audioFormatArray: RawFormat["audioFormats"]) {

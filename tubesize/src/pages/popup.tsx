@@ -275,7 +275,7 @@ export default function Popup() {
                                     key={item.formatId}
                                     item={item}
                                     isLive={isLive}
-                                    isShorts={youtubeData.isShorts}
+                                    isShorts={youtubeData.isShorts ?? false}
                                     currentQuality={currentQuality}
                                 />
                             );
@@ -292,6 +292,7 @@ export default function Popup() {
                                 <YoutubeFormat
                                     key={item.resolution}
                                     item={item}
+                                    isShorts={false}
                                     isLive={isLive}
                                     currentQuality={currentQuality}
                                 />

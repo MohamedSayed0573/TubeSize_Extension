@@ -1,10 +1,9 @@
-import type { HumanizedFormat, ytInitialPlayerResponse, RawFormat } from "@app-types/types";
+import type { ytInitialPlayerResponse, RawFormat } from "@app-types/types";
 import fs from "node:fs";
 import path from "node:path";
 import {
     extractYtInitialResponse,
     sizePerMinute,
-    humanizeVideoFormats,
     getAverageAudioSize,
     mergeAudioWithVideo,
     parseDataFromYtInitial,
@@ -38,57 +37,6 @@ describe("sizePerMinute", () => {
     });
     test("returns the size per minute for live streams from the hourly estimate", () => {
         expect(sizePerMinute(60_000_000, 0, true)).toBe(1);
-    });
-});
-
-describe("humanizeVideoFormats", () => {
-    test("humanizes a format with a single size", () => {
-        const formats: RawFormat["formats"] = [
-            { formatId: 18, height: 360, sizeBytes: 60_000_000 },
-        ];
-        const expected: HumanizedFormat["videoFormats"] = [
-            {
-                formatId: 18,
-                height: 360,
-                sizeMB: "60 MB",
-                maxSizeMB: undefined,
-                sizePerMinuteMB: 6,
-            },
-        ];
-        expect(humanizeVideoFormats(formats, 600)).toEqual(expected);
-    });
-
-    test("humanizes a format size range and keeps the max size separately", () => {
-        const formats: RawFormat["formats"] = [
-            { formatId: 137, height: 1080, sizeBytes: 120_000_000, maxSizeBytes: 180_000_000 },
-        ];
-        const expected: HumanizedFormat["videoFormats"] = [
-            {
-                formatId: 137,
-                height: 1080,
-                sizeMB: "120 MB - 180 MB",
-                maxSizeMB: "180 MB",
-                sizePerMinuteMB: 12,
-            },
-        ];
-        expect(humanizeVideoFormats(formats, 600)).toEqual(expected);
-    });
-
-    test("humanizes live formats using the hourly estimate for size per minute", () => {
-        const formats: RawFormat["formats"] = [
-            { formatId: 18, height: 360, sizeBytes: 60_000_000 },
-        ];
-        const expected: HumanizedFormat["videoFormats"] = [
-            {
-                formatId: 18,
-                height: 360,
-                sizeMB: "60 MB",
-                maxSizeMB: undefined,
-                sizePerMinuteMB: 1,
-            },
-        ];
-
-        expect(humanizeVideoFormats(formats, 0, true)).toEqual(expected);
     });
 });
 
