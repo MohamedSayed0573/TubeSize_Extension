@@ -24,11 +24,10 @@ export function mediaPlaylistUrlByHeight(m3u8Data: PlaylistItem[]) {
 
 export async function fetchMediaM3u8(m3u8MediaUrl: string | URL) {
     const res = await fetchAndRetry(m3u8MediaUrl, { cache: "no-store" });
-    if (!res.ok) {
-        console.error("Failed to fetch media playlist M3U8:", res.statusText);
-        throw new Error(`Error fetching media playlist M3U8: ${res.statusText}`);
+    if (!res.success) {
+        throw new Error(`Error fetching media playlist M3U8: ${res.error.message}`);
     }
-    const m3u8Data = await res.text();
+    const m3u8Data = await res.response.text();
 
     return parseM3U8(m3u8Data);
 }

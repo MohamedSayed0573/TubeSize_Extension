@@ -21,11 +21,11 @@ export async function getTwitchClientId(message: TwitchMessage): Promise<string>
             ? `https://www.twitch.tv/videos/${message.vodId}`
             : `https://www.twitch.tv/${message.channelName}`;
     const res = await fetchAndRetry(url);
-    if (!res.ok) {
+    if (!res.success) {
         throw new Error("Failed to fetch Twitch page");
     }
 
-    const data = await res.text();
+    const data = await res.response.text();
     const clientId = data.match(/clientId\s*=\s*"(.*?)"/);
 
     if (!clientId?.[1]) {
@@ -58,12 +58,10 @@ export async function getTwitchToken(message: TwitchMessage): Promise<TwitchToke
             headers,
             body: JSON.stringify(body),
         });
-        if (!res.ok) {
-            throw new Error(
-                `Failed to fetch Twitch token from GQL: ${res.status}, ${res.statusText}`,
-            );
+        if (!res.success) {
+            throw new Error(`Failed to fetch Twitch token from GQL: ${res.error.message}`);
         }
-        const data = (await res.json()) as unknown;
+        const data = (await res.response.json()) as unknown;
         const parsedData = twitchGqlResponseSchema.parse(data);
         if (
             !parsedData.data.streamPlaybackAccessToken &&
@@ -105,10 +103,10 @@ export async function getTwitchMasterM3u8(
     url.searchParams.set("allow_source", "true");
 
     const res = await fetchAndRetry(url);
-    if (!res.ok) {
+    if (!res.success) {
         throw new Error("Failed to fetch Twitch m3u8 data");
     }
-    const m3u8Data = await res.text();
+    const m3u8Data = await res.response.text();
     const playlists = parseM3U8(m3u8Data).playlists;
     if (!playlists || playlists.length === 0) {
         throw new Error("No playlists found in Twitch m3u8 data");

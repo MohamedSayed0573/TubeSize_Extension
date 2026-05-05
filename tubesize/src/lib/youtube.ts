@@ -89,8 +89,8 @@ async function fetchYoutubeHtml(videoTag: string) {
         method: "GET",
         signal: AbortSignal.timeout(CONFIG.FETCH_HTML_TIMEOUT),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const fetchedHtml = await res.text();
+    if (!res.success) throw new Error(`HTTP ${res.error.message}`);
+    const fetchedHtml = await res.response.text();
     return fetchedHtml;
 }
 

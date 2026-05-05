@@ -157,40 +157,38 @@ export function extractVideoTag(ytUrl: string): string | undefined {
     }
 }
 
+type FetchReponse = { success: true; response: Response } | { success: false; error: Error };
 export async function fetchAndRetry(
     url: string | URL,
     options: RequestInit = {},
     maxRetries = CONFIG.DEFAULT_MAX_RETRIES,
-): Promise<Response> {
-    let lastError: unknown;
+): Promise<FetchReponse> {
+    let lastError: Error | undefined;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
             const response = await fetch(url, options);
-            if (response.ok) return response;
+            if (response.ok) return { success: true, response };
 
             // Don't retry client errors (4xx)
             if (response.status >= 400 && response.status < 500) {
-                throw new Error(`Client Error: ${response.status}, won't retry`);
+                return {
+                    success: false,
+                    error: new Error(`Client Error: ${response.status}, won't retry`),
+                };
             }
 
             // Server error (5xx) — will retry
             throw new Error(`Server Error: ${response.status}`);
         } catch (err) {
-            lastError = err;
-
-            if (err instanceof Error && err.name === "AbortError") throw err;
-            if (err instanceof Error && err.message.includes("Client Error")) throw err;
-
+            lastError = err instanceof Error ? err : new Error(String(err));
             // Skip the timeout if the last attempt
-            if (attempt < maxRetries) {
+            if (maxRetries - attempt > 0) {
                 // Exponential backoff before retry
                 await delay(Math.pow(2, attempt) * 1000);
             }
         }
     }
-    throw new Error(
-        `Failed after ${maxRetries} tries, last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
-    );
+    return { success: false, error: lastError || new Error("Unknown error") };
 }
 
 const baseHumanizeDuration = humanize.humanizer({

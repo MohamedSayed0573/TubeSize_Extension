@@ -10,10 +10,11 @@ export async function getKickHtml(url: string): Promise<string> {
         method: "GET",
         credentials: "include",
     });
-    if (!res.ok) {
-        throw new Error(`Error fetching Kick page HTML: ${res.statusText}`);
+
+    if (!res.success) {
+        throw new Error(`Error fetching Kick page HTML: ${res.error.message}`);
     }
-    return await res.text();
+    return await res.response.text();
 }
 
 export function getKickStreamId(html: string): string | undefined {
@@ -60,11 +61,11 @@ async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
             "x-app-platform": "web",
         },
     });
-    if (!playbackRes.ok) {
-        throw new Error(`Error fetching playback info: ${playbackRes.statusText}`);
+    if (!playbackRes.success) {
+        throw new Error(`Error fetching playback info: ${playbackRes.error.message}`);
     }
 
-    const playback = (await playbackRes.json()) as unknown;
+    const playback = (await playbackRes.response.json()) as unknown;
     const parsedPlayback = kickPlaybackResponseSchema.parse(playback);
     const m3u8Url = parsedPlayback.playback_url?.live;
     if (!m3u8Url) {
@@ -72,10 +73,10 @@ async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
     }
 
     const masterM3u8Res = await fetchAndRetry(m3u8Url);
-    if (!masterM3u8Res.ok) {
-        throw new Error(`Error fetching master M3U8: ${masterM3u8Res.statusText}`);
+    if (!masterM3u8Res.success) {
+        throw new Error(`Error fetching master M3U8: ${masterM3u8Res.error.message}`);
     }
-    const masterM3u8Data = await masterM3u8Res.text();
+    const masterM3u8Data = await masterM3u8Res.response.text();
 
     const playlists = parseM3U8(masterM3u8Data).playlists;
 

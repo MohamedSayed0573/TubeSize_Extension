@@ -20,7 +20,9 @@ describe("extractYtInitialResponse", () => {
             .trim();
         const html = `<script>var ytInitialPlayerResponse = ${ytInitialPlayerResponse};</script>`;
 
-        expect(extractYtInitialResponse(html)).toEqual(JSON.parse(ytInitialPlayerResponse));
+        expect(extractYtInitialResponse("I82j7AzMU80", html)).toEqual(
+            JSON.parse(ytInitialPlayerResponse),
+        );
     });
 });
 

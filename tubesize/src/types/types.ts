@@ -1,4 +1,4 @@
-import type { twitchGqlResponseSchema, ytInitialSchema } from "@lib/schema";
+import type { ytInitialSchema } from "@lib/schema";
 import { z } from "zod";
 
 export type ytInitialPlayerResponse = z.infer<typeof ytInitialSchema>;
@@ -96,8 +96,6 @@ export type TwitchVodData = {
 
 export type TwitchData = TwitchLiveData | TwitchVodData;
 export type TwitchBackgroundResponse = SuccessResponse<TwitchData> | ErrorResponse;
-
-export type TwitchGqlResponse = z.infer<typeof twitchGqlResponseSchema>;
 
 export type TwitchTokenData = {
     value: string;
