@@ -26,12 +26,15 @@ export function sizePerMinute(
 export function parseVideoFormats(formats: RawFormat): YoutubeVideoFormat[] {
     const audioSize = getAverageAudioSize(formats.audioFormats);
     const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);
-    const humanizedVideoFormats = humanizeVideoFormats(
-        mergedFormats,
-        formats.durationSeconds,
-        formats.isLive,
-    );
-    return humanizedVideoFormats;
+    const parsedFormats = mergedFormats.map((format) => {
+        const data = format;
+        delete data.bitrateBitsPerSecond;
+        return {
+            ...data,
+            sizePerSecondBytes: format.sizeBytes / formats.durationSeconds,
+        };
+    });
+    return parsedFormats;
 }
 
 export function humanizeVideoFormats(

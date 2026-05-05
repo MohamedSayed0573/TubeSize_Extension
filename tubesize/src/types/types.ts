@@ -35,9 +35,9 @@ type ErrorResponse = {
 export type YoutubeVideoFormat = {
     formatId: number;
     height: number;
-    sizeMB: string;
-    sizePerMinuteMB: number;
-    maxSizeMB?: string;
+    sizeBytes: number;
+    maxSizeBytes?: number;
+    sizePerSecondBytes: number;
 };
 
 export type YoutubeVideoData = {
