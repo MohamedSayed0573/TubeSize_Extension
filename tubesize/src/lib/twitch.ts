@@ -1,6 +1,5 @@
 import type {
     TwitchBackgroundResponse,
-    TwitchGqlResponse,
     TwitchLiveData,
     TwitchLiveMessage,
     TwitchMessage,
@@ -14,6 +13,7 @@ import { estimateHlsStreamSizes } from "./hlsSize";
 import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import { getFromStorage, saveToStorage } from "./cache";
 import { fetchAndRetry } from "./utils";
+import { twitchGqlResponseSchema } from "./schema";
 
 export async function getTwitchClientId(message: TwitchMessage): Promise<string> {
     const url =
@@ -31,7 +31,7 @@ export async function getTwitchClientId(message: TwitchMessage): Promise<string>
     if (!clientId?.[1]) {
         throw new Error("Failed to extract client ID from Twitch page");
     }
-    return clientId?.[1];
+    return clientId[1];
 }
 
 export async function getTwitchToken(message: TwitchMessage): Promise<TwitchTokenData> {
@@ -63,22 +63,27 @@ export async function getTwitchToken(message: TwitchMessage): Promise<TwitchToke
                 `Failed to fetch Twitch token from GQL: ${res.status}, ${res.statusText}`,
             );
         }
-        const data = (await res.json()) as TwitchGqlResponse;
-        if (!data?.data?.streamPlaybackAccessToken && !data?.data?.videoPlaybackAccessToken) {
+        const data = (await res.json()) as unknown;
+        const parsedData = twitchGqlResponseSchema.parse(data);
+        if (
+            !parsedData.data.streamPlaybackAccessToken &&
+            !parsedData.data.videoPlaybackAccessToken
+        ) {
             throw new Error("Failed to get stream playback access token");
         }
         const value =
-            data.data.streamPlaybackAccessToken?.value ?? data.data.videoPlaybackAccessToken?.value;
+            parsedData.data.streamPlaybackAccessToken?.value ??
+            parsedData.data.videoPlaybackAccessToken?.value;
         const signature =
-            data.data.streamPlaybackAccessToken?.signature ??
-            data.data.videoPlaybackAccessToken?.signature;
+            parsedData.data.streamPlaybackAccessToken?.signature ??
+            parsedData.data.videoPlaybackAccessToken?.signature;
         if (!value || !signature) {
             throw new Error("Failed to retrieve Twitch token");
         }
         return {
             value,
             signature,
-            durationSeconds: data.data.video?.lengthSeconds,
+            durationSeconds: parsedData.data.video?.lengthSeconds,
         };
     } catch (err) {
         console.error("Failed to get Twitch token:", err);
@@ -104,8 +109,7 @@ export async function getTwitchMasterM3u8(
         throw new Error("Failed to fetch Twitch m3u8 data");
     }
     const m3u8Data = await res.text();
-    const parsed = parseM3U8(m3u8Data);
-    const playlists = parsed.playlists;
+    const playlists = parseM3U8(m3u8Data).playlists;
     if (!playlists || playlists.length === 0) {
         throw new Error("No playlists found in Twitch m3u8 data");
     }
@@ -149,9 +153,6 @@ export async function getTwitchVodResponse(
     }
 
     const twitchToken = await getTwitchToken(message);
-    if (!twitchToken) {
-        throw new Error("Failed to retrieve Twitch token");
-    }
     const m3u8Data = await getTwitchMasterM3u8(twitchToken, message);
     const filteredM3U8Data = filterM3u8(m3u8Data);
 

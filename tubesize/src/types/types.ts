@@ -1,21 +1,7 @@
-export type RawData = {
-    videoDetails: {
-        videoId: string;
-        title: string;
-        lengthSeconds: string;
-        isLive: boolean;
-        author: string;
-    };
-    streamingData: {
-        adaptiveFormats: {
-            itag: number;
-            height: number;
-            contentLength?: string;
-            bitrate?: number;
-            mimeType?: string;
-        }[];
-    };
-};
+import type { twitchGqlResponseSchema, ytInitialSchema } from "@lib/schema";
+import { z } from "zod";
+
+export type ytInitialPlayerResponse = z.infer<typeof ytInitialSchema>;
 
 export type RawFormat = {
     id: string;
@@ -111,21 +97,7 @@ export type TwitchVodData = {
 export type TwitchData = TwitchLiveData | TwitchVodData;
 export type TwitchBackgroundResponse = SuccessResponse<TwitchData> | ErrorResponse;
 
-export type TwitchGqlResponse = {
-    data: {
-        streamPlaybackAccessToken?: {
-            value: string;
-            signature: string;
-        };
-        videoPlaybackAccessToken?: {
-            value: string;
-            signature: string;
-        };
-        video?: {
-            lengthSeconds: number;
-        };
-    };
-};
+export type TwitchGqlResponse = z.infer<typeof twitchGqlResponseSchema>;
 
 export type TwitchTokenData = {
     value: string;

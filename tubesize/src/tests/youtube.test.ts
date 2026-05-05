@@ -1,8 +1,8 @@
-import type { HumanizedFormat, RawData, RawFormat } from "@app-types/types";
+import type { HumanizedFormat, ytInitialPlayerResponse, RawFormat } from "@app-types/types";
 import fs from "node:fs";
 import path from "node:path";
 import {
-    extractYtInitial,
+    extractYtInitialResponse,
     sizePerMinute,
     humanizeVideoFormats,
     getAverageAudioSize,
@@ -10,7 +10,7 @@ import {
     parseDataFromYtInitial,
 } from "@lib/youtube";
 
-describe("extractYtInitial", () => {
+describe("extractYtInitialResponse", () => {
     test("should extract YtInitialPlayerResponse from html page", () => {
         const ytInitialPlayerResponse = fs
             .readFileSync(
@@ -20,7 +20,7 @@ describe("extractYtInitial", () => {
             .trim();
         const html = `<script>var ytInitialPlayerResponse = ${ytInitialPlayerResponse};</script>`;
 
-        expect(extractYtInitial(html)).toEqual(JSON.parse(ytInitialPlayerResponse));
+        expect(extractYtInitialResponse(html)).toEqual(JSON.parse(ytInitialPlayerResponse));
     });
 });
 
@@ -137,8 +137,8 @@ describe("mergeAudioWithVideo", () => {
 
 describe("parseDataFromYtInitial", () => {
     test("should throw an error if videoDetails is missing", () => {
-        const rawData: RawData = {
-            videoDetails: undefined as unknown as RawData["videoDetails"],
+        const rawData: ytInitialPlayerResponse = {
+            videoDetails: undefined as unknown as ytInitialPlayerResponse["videoDetails"],
             streamingData: {
                 adaptiveFormats: [],
             },
@@ -148,7 +148,7 @@ describe("parseDataFromYtInitial", () => {
     });
 
     test("should throw an error if streamingData is missing", () => {
-        const rawData: RawData = {
+        const rawData: ytInitialPlayerResponse = {
             videoDetails: {
                 videoId: "123",
                 title: "Test Video",
@@ -156,7 +156,7 @@ describe("parseDataFromYtInitial", () => {
                 isLive: false,
                 author: "Test Author",
             },
-            streamingData: undefined as unknown as RawData["streamingData"],
+            streamingData: undefined as unknown as ytInitialPlayerResponse["streamingData"],
         };
 
         expect(() => parseDataFromYtInitial(rawData)).toThrow("No data found");
@@ -167,7 +167,7 @@ describe("parseDataFromYtInitial", () => {
             path.join(process.cwd(), "src", "tests", "assets", "ytInitialPlayerResponse.json"),
             "utf8",
         );
-        const jsonData = JSON.parse(ytInitialPlayerResponse) as RawData;
+        const jsonData = JSON.parse(ytInitialPlayerResponse) as ytInitialPlayerResponse;
 
         const expected: RawFormat = {
             id: "I82j7AzMU80",
@@ -199,7 +199,7 @@ describe("parseDataFromYtInitial", () => {
             path.join(process.cwd(), "src", "tests", "assets", "ytInitialPlayerResponseLive.json"),
             "utf8",
         );
-        const jsonData = JSON.parse(ytInitialPlayerResponse) as RawData;
+        const jsonData = JSON.parse(ytInitialPlayerResponse) as ytInitialPlayerResponse;
 
         const expected: RawFormat = {
             id: "feSFplc7tMY",

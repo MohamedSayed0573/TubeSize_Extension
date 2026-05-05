@@ -12,7 +12,7 @@ import { addBadge, clearBadge } from "@/badge";
 import {
     parseDataFromYtInitial,
     parseVideoFormats,
-    extractRawData,
+    extractYtInitialResponse,
     parseLiveStreamInfo,
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
@@ -92,7 +92,7 @@ async function handleYoutube(
             });
         }
 
-        const rawData = await extractRawData(videoTag, html);
+        const rawData = await extractYtInitialResponse(videoTag, html);
         const isLive = rawData.videoDetails.isLive;
 
         if (isLive) {

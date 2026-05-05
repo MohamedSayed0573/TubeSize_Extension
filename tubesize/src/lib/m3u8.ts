@@ -35,7 +35,7 @@ export async function fetchMediaM3u8(m3u8MediaUrl: string | URL) {
 
 export function filterM3u8(m3u8Data: PlaylistItem[]): StreamInfo[] {
     const result = m3u8Data
-        ?.filter((item) => item.attributes.RESOLUTION?.height && item.attributes.BANDWIDTH)
+        .filter((item) => item.attributes.RESOLUTION?.height && item.attributes.BANDWIDTH)
         .map((item) => {
             return {
                 resolution: item.attributes.RESOLUTION!.height,
@@ -44,5 +44,5 @@ export function filterM3u8(m3u8Data: PlaylistItem[]): StreamInfo[] {
         })
         .sort((a, b) => b.resolution - a.resolution);
 
-    return result || [];
+    return result;
 }

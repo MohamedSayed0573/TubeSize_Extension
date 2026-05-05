@@ -17,7 +17,7 @@ function getYoutubeTitle(youtubeData?: YoutubeData | null): string {
 
 function getYoutubeDuration(youtubeData?: YoutubeData | null): string | undefined {
     return youtubeData?.type === "video"
-        ? humanizeDuration(youtubeData?.durationSeconds * 1000)
+        ? humanizeDuration(youtubeData.durationSeconds * 1000)
         : undefined;
 }
 
@@ -40,7 +40,7 @@ function getTwitchDuration(twitchData?: TwitchData | null): string | undefined {
         return undefined;
     }
 
-    if (data.type === "vod" && data.durationSeconds) {
+    if (data.durationSeconds) {
         return humanizeDuration(data.durationSeconds * 1000);
     }
 

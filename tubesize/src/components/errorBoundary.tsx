@@ -21,7 +21,7 @@ class ErrorBoundary extends Component<Props, State> {
         console.error("[ErrorBoundary]:", error, info.componentStack);
     }
 
-    render() {
+    async render() {
         const { error } = this.state;
         if (error) {
             return this.props.errorComponent(error);

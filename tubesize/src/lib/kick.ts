@@ -64,7 +64,7 @@ async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
     }
 
     const playback = (await playbackRes.json()) as { playback_url?: { live?: string } };
-    const m3u8Url = playback?.playback_url?.live;
+    const m3u8Url = playback.playback_url?.live;
     if (!m3u8Url) {
         throw new Error("Master M3U8 URL not found in playback response");
     }

@@ -25,7 +25,7 @@ export default function CacheSettings() {
                     id="cacheTTL"
                     className="ttl-select"
                     value={
-                        convertSecondsToDays(optionsState?.cacheTTL ?? CONFIG.DEFAULT_CACHE_TTL) ||
+                        convertSecondsToDays(optionsState.cacheTTL ?? CONFIG.DEFAULT_CACHE_TTL) ||
                         "3"
                     } // Fallback to "3" days if undefined
                     onChange={(event) => {
