@@ -57,7 +57,7 @@ export async function startYoutubeToastTracking(youtubeResponse: YoutubeData) {
     currentVideoElement = video ?? undefined;
     videoResizeListener = () => {
         const resolution = currentVideoElement?.videoHeight;
-        if (!resolution || !youtubeResponse.formats || resolution === currentQuality) return;
+        if (!resolution || resolution === currentQuality) return;
         currentQuality = resolution;
         showYoutubeToast(resolution, youtubeResponse, toasterThresholdMbpm);
     };
@@ -73,8 +73,10 @@ async function getToasterThreshold() {
 
 async function getToasterThresholdUnit() {
     return (
-        ((await getFromSyncCache("toasterThresholdUnit")) as "mbPerMinute" | "mbPerHour") ||
-        CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT
+        ((await getFromSyncCache("toasterThresholdUnit")) as
+            | "mbPerMinute"
+            | "mbPerHour"
+            | undefined) || CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT
     );
 }
 
@@ -100,13 +102,13 @@ export async function startToastTwitchPolling(twitchData: TwitchData) {
     currentVideoElement = video ?? undefined;
     videoResizeListener = () => {
         const resolution = currentVideoElement?.videoHeight;
-        if (!resolution || !twitchData?.data || resolution === currentQuality) return;
+        if (!resolution || resolution === currentQuality) return;
         currentQuality = resolution;
         showTwitchToast(
             resolution,
             twitchData.data,
             toasterThresholdMbpm,
-            twitchData?.type === "live",
+            twitchData.type === "live",
             twitchData.type === "vod" ? twitchData.durationSeconds : undefined,
         );
     };
@@ -124,15 +126,9 @@ export async function startToastKickPolling(kickData: KickData) {
     currentVideoElement = video ?? undefined;
     videoResizeListener = () => {
         const resolution = currentVideoElement?.videoHeight;
-        if (!resolution || !kickData?.data || resolution === currentQuality) return;
+        if (!resolution || resolution === currentQuality) return;
         currentQuality = resolution;
-        showTwitchToast(
-            resolution,
-            kickData.data,
-            toasterThresholdMbpm,
-            // kickData?.type === "live",
-            // kickData.type === "vod" ? kickData.durationSeconds : undefined,
-        );
+        showTwitchToast(resolution, kickData.data, toasterThresholdMbpm);
     };
     videoResizeListener();
     currentVideoElement?.addEventListener("resize", videoResizeListener);

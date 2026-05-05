@@ -10,7 +10,7 @@ function ensureRoot() {
     if (!host) {
         host = document.createElement("div");
         host.id = HOST_ID;
-        document.body?.append(host);
+        document.body.append(host);
         root = createRoot(host);
     }
 

@@ -171,7 +171,7 @@ async function handleKick(
 chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === "install" || details.reason === "update") {
         clearLocalCache()
-            .then(() => clearSyncCache())
+            .then(async () => await clearSyncCache())
             .catch((err) => {
                 console.error("Failed to clear cache on install/update", err);
             });

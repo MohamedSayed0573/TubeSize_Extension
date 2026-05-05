@@ -1,4 +1,4 @@
-import { delay } from "@/lib/utils";
+import { delay } from "@lib/utils";
 import { sendMessageToContentScript } from "@/runtime";
 import { useEffect, useState } from "react";
 

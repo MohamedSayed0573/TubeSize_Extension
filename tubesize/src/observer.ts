@@ -18,6 +18,7 @@ const observer = new PerformanceObserver((list) => {
 });
 
 void (async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (true) {
         const totalUsage = (await getTotalUsage()) ?? 0;
         await setToLocalCache({ totalUsage: totalUsage + pendingUsage });

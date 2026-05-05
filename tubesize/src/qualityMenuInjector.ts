@@ -67,7 +67,7 @@ async function settingsBtnClickListener() {
     qualityBtnEl.addEventListener("click", qualityBtnHandler);
 }
 
-export function waitForElement(
+export async function waitForElement(
     selector: string,
     timeout: number = 10_000,
 ): Promise<Element | undefined> {
@@ -133,7 +133,7 @@ async function renderQualityLabels() {
     const ytpPanelMenu = await waitForElement(QUALITY_MENU_BTN_SELECTOR);
     if (!ytpPanelMenu) return;
 
-    const ytpMenuItems = ytpPanelMenu?.querySelectorAll(MENU_ITEM_SELECTOR);
+    const ytpMenuItems = ytpPanelMenu.querySelectorAll(MENU_ITEM_SELECTOR);
     if (ytpMenuItems.length === 0) return;
 
     const lookup = createQualitySizeLookup();
@@ -150,7 +150,7 @@ async function renderQualityLabels() {
         newDiv.textContent = size;
         newDiv.className = TUBESIZE_QUALITY_MENU_CLASS;
 
-        innerDiv?.append(newDiv);
+        innerDiv.append(newDiv);
     }
 }
 

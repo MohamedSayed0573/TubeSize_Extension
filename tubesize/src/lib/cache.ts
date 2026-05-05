@@ -15,11 +15,11 @@ async function getCacheTTLSetting(): Promise<number> {
 async function setToCache<T extends Record<string, unknown>>(storage: "local" | "sync", input: T) {
     await chrome.storage[storage].set(input);
 }
-export function setToLocalCache(input: Record<string, unknown>) {
+export async function setToLocalCache(input: Record<string, unknown>) {
     return setToCache("local", input);
 }
 
-export function setToSyncCache(input: OptionsMap) {
+export async function setToSyncCache(input: OptionsMap) {
     return setToCache<OptionsMap>("sync", input);
 }
 
@@ -30,15 +30,15 @@ async function getFromCache<T>(storage: "local" | "sync", key?: string | string[
     // If key is a single string/number, return just that value
     // If key is an array, return the object with all requested keys
     const data = await chrome.storage[storage].get(key);
-    return (Array.isArray(key) ? data : data?.[key]) as T;
+    return (Array.isArray(key) ? data : data[key]) as T;
 }
-export function getFromLocalCache(key?: string | string[]) {
+export async function getFromLocalCache(key?: string | string[]) {
     return getFromCache("local", key);
 }
-export function getAllFromSyncCache(): Promise<OptionsMap> {
+export async function getAllFromSyncCache(): Promise<OptionsMap> {
     return getFromCache<OptionsMap>("sync");
 }
-export function getFromSyncCache<T extends keyof OptionsMap>(
+export async function getFromSyncCache<T extends keyof OptionsMap>(
     key?: T | T[],
 ): Promise<OptionsMap[T]> {
     return getFromCache("sync", key);
@@ -55,7 +55,7 @@ async function removeAllFromCache(storage: "local" | "sync") {
  * Remove a key from local cache
  * @throws Will throw an error if the cache removal process fails
  */
-export function removeFromLocalCache(key: string | string[]) {
+export async function removeFromLocalCache(key: string | string[]) {
     return removeFromCache("local", key);
 }
 
@@ -63,7 +63,7 @@ export function removeFromLocalCache(key: string | string[]) {
  * Clear all keys from local cache
  * @throws Will throw an error if the cache clearing process fails
  */
-export function clearLocalCache() {
+export async function clearLocalCache() {
     return removeAllFromCache("local");
 }
 
@@ -71,7 +71,7 @@ export function clearLocalCache() {
  * Clear all keys from sync cache
  * @throws Will throw an error if the cache clearing process fails
  */
-export function clearSyncCache() {
+export async function clearSyncCache() {
     return removeAllFromCache("sync");
 }
 

@@ -48,7 +48,7 @@ async function handlePageNavigation() {
             const youtubeResponse = await initYoutube(tag);
             const qualityMenuEnabled =
                 (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
-            if (qualityMenuEnabled && youtubeResponse) {
+            if (qualityMenuEnabled) {
                 await injectQualityMenu(youtubeResponse);
             }
 
@@ -134,7 +134,7 @@ chrome.runtime.onMessage.addListener(
 async function initYoutube(videoTag: string) {
     const scriptsArray = [...document.scripts];
     const ytInitialPlayerResponse = scriptsArray.find((script) => {
-        return script.textContent?.includes("ytInitialPlayerResponse");
+        return script.textContent.includes("ytInitialPlayerResponse");
     });
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
@@ -235,12 +235,13 @@ async function initKick(fromPopup: boolean): Promise<KickBackgroundResponse> {
 async function getVideoDuration() {
     const time = Date.now();
     let counter = 0;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (true) {
         console.log(`Attempt ${++counter}: Checking for video duration...`);
         if (Date.now() - time > 10_000) return;
 
         const videoEl = (await waitForElement("video")) as HTMLVideoElement;
-        if (!Number.isNaN(videoEl?.duration)) {
+        if (!Number.isNaN(videoEl.duration)) {
             return videoEl.duration;
         }
         await new Promise((resolve) => setTimeout(resolve, 500));

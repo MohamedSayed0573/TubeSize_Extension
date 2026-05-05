@@ -89,8 +89,8 @@ export default function Popup() {
                     videoTag,
                     tabId,
                 });
-                if (!response.success) throw new Error(response?.message);
-                if (response.data.formats?.length === 0) {
+                if (!response.success) throw new Error(response.message);
+                if (response.data.formats.length === 0) {
                     setError(new Error("No video formats found for this video"));
                     setIsLoading(false);
                     return;
@@ -266,16 +266,16 @@ export default function Popup() {
                 )}
                 {youtubeData?.type === "video" &&
                     youtubeData.formats
-                        ?.filter((item) => {
+                        .filter((item) => {
                             return enabledOptions.includes("p" + item.height);
                         })
-                        ?.map((item) => {
+                        .map((item) => {
                             return (
                                 <YoutubeFormat
                                     key={item.formatId}
                                     item={item}
                                     isLive={isLive}
-                                    isShorts={youtubeData.type === "video" && youtubeData.isShorts}
+                                    isShorts={youtubeData.isShorts}
                                     currentQuality={currentQuality}
                                 />
                             );
@@ -284,10 +284,10 @@ export default function Popup() {
                         .reverse()}
                 {youtubeData?.type === "live" &&
                     youtubeData.formats
-                        ?.filter((item) => {
+                        .filter((item) => {
                             return enabledOptions.includes("p" + item.resolution);
                         })
-                        ?.map((item) => {
+                        .map((item) => {
                             return (
                                 <YoutubeFormat
                                     key={item.resolution}
@@ -298,7 +298,7 @@ export default function Popup() {
                             );
                         })}
                 {twitchData?.data &&
-                    twitchData?.data.map((item) => {
+                    twitchData.data.map((item) => {
                         return (
                             <TwitchFormat
                                 key={item.resolution}
@@ -306,7 +306,7 @@ export default function Popup() {
                                 currentQuality={currentQuality}
                                 isLive={isLive}
                                 durationSeconds={
-                                    twitchData?.type === "vod"
+                                    twitchData.type === "vod"
                                         ? twitchData.durationSeconds
                                         : undefined
                                 }
