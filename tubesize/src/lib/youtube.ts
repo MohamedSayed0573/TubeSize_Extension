@@ -111,7 +111,7 @@ function getFormatSizeBytes(
 function chooseVideoFormats(data: ytInitialPlayerResponse): RawFormat["formats"] {
     const chosenFormats: RawFormat["formats"] = [];
     const adaptiveFormats = data.streamingData.adaptiveFormats;
-    const isLive = data.videoDetails.isLive;
+    const isLive = data.videoDetails.isLive || false;
 
     for (const [resolution, itags] of CONFIG.VIDEO_ITAGS) {
         const matchingFormats = itags
@@ -182,6 +182,6 @@ export function parseDataFromYtInitial(data: ytInitialPlayerResponse): RawFormat
         durationSeconds: Number.parseInt(data.videoDetails.lengthSeconds || "0", 10),
         formats: chooseVideoFormats(data),
         audioFormats: chooseAudioFormats(data),
-        isLive: data.videoDetails.isLive,
+        isLive: data.videoDetails.isLive || false,
     };
 }

@@ -5,14 +5,14 @@ export const ytInitialSchema = z.object({
         videoId: z.string(),
         title: z.string(),
         lengthSeconds: z.string(),
-        isLive: z.boolean(),
+        isLive: z.boolean().optional(),
         author: z.string(),
     }),
     streamingData: z.object({
         adaptiveFormats: z.array(
             z.object({
                 itag: z.number(),
-                height: z.number(),
+                height: z.number().optional(),
                 contentLength: z.string().optional(),
                 bitrate: z.number().optional(),
                 mimeType: z.string().optional(),
