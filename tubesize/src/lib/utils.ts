@@ -157,12 +157,12 @@ export function extractVideoTag(ytUrl: string): string | undefined {
     }
 }
 
-type FetchReponse = { success: true; response: Response } | { success: false; error: Error };
+type FetchResponse = { success: true; response: Response } | { success: false; error: Error };
 export async function fetchAndRetry(
     url: string | URL,
     options: RequestInit = {},
     maxRetries = CONFIG.DEFAULT_MAX_RETRIES,
-): Promise<FetchReponse> {
+): Promise<FetchResponse> {
     let lastError: Error | undefined;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
@@ -181,6 +181,10 @@ export async function fetchAndRetry(
             throw new Error(`Server Error: ${response.status}`);
         } catch (err) {
             lastError = err instanceof Error ? err : new Error(String(err));
+
+            if (lastError.name === "AbortError") {
+                return { success: false, error: new Error("Request aborted") };
+            }
             // Skip the timeout if the last attempt
             if (maxRetries - attempt > 0) {
                 // Exponential backoff before retry

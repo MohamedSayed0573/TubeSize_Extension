@@ -56,7 +56,7 @@ chrome.runtime.onMessage.addListener(
             case "deleteTotalData": {
                 void (async () => {
                     await setToLocalCache({ totalUsage: 0 });
-                });
+                })();
                 sendResponse({ success: true });
             }
         }

@@ -50,8 +50,8 @@ type ContentScriptResponseMap = {
     getCurrentResolution: number | undefined;
     getKick: KickBackgroundResponse | undefined;
     totalUsage: TotalUsageData;
-    deleteSessionData: void;
-    deleteTotalData: void;
+    deleteSessionData: { success: boolean };
+    deleteTotalData: { success: boolean };
 };
 export async function sendMessageToContentScript<T extends ContentScriptMessage>(
     tabId: number,
