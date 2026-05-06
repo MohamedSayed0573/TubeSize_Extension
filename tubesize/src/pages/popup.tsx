@@ -43,12 +43,18 @@ function getEnabledOptions(optionsState: OptionsMap | null) {
     return CONFIG.optionIDs.filter((option) => qualityIds[option] ?? true);
 }
 
+function getPageType(tabUrl: string | undefined) {
+    if (!tabUrl) return "default";
+    if (isYoutubePage(tabUrl)) return "youtube";
+    if (isTwitchPage(tabUrl)) return "twitch";
+    if (isKickPage(tabUrl)) return "kick";
+    return "default";
+}
+
 export default function Popup() {
     const [message, setMessage] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
-
     const { tabId, tabUrl, error: tabError } = useTab();
-    const [pageType, setPageType] = useState<"youtube" | "twitch" | "kick" | "default">("default");
     const [youtubeData, setYoutubeData] = useState<YoutubeData | undefined>();
     const [twitchData, setTwitchData] = useState<TwitchData | undefined>();
     const [kickData, setKickData] = useState<KickData | undefined>();
@@ -60,6 +66,8 @@ export default function Popup() {
     const { optionsState, error: optionsError } = useOptions();
     const enabledOptions = getEnabledOptions(optionsState);
 
+    const pageType = getPageType(tabUrl);
+
     useEffect(() => {
         (async () => {
             if (!tabUrl) return;
@@ -67,7 +75,6 @@ export default function Popup() {
             setIsLoading(true);
 
             if (isYoutubePage(tabUrl)) {
-                setPageType("youtube");
                 const videoTag = extractVideoTag(tabUrl);
                 if (!videoTag) {
                     setMessage("Open a Youtube video");
@@ -98,7 +105,6 @@ export default function Popup() {
                 );
                 setIsLoading(false);
             } else if (isTwitchPage(tabUrl)) {
-                setPageType("twitch");
                 if (isTwitchVod(tabUrl)) {
                     const vodId = extractTwitchVodId(tabUrl);
                     if (!vodId) {
@@ -160,7 +166,6 @@ export default function Popup() {
                         : undefined,
                 );
                 setIsLive(response.data.type === "live");
-                setPageType("kick");
                 setIsLoading(false);
             } else {
                 setMessage("TubeSize works on YouTube, Twitch and Kick.");
