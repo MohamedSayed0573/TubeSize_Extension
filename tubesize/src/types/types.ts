@@ -24,7 +24,6 @@ export type RawFormat = {
 type SuccessResponse<T> = {
     success: true;
     data: T;
-    cached?: boolean;
     createdAt?: string;
 };
 type ErrorResponse = {

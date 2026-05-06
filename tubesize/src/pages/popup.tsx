@@ -1,6 +1,5 @@
 import "@styles/popup.css";
 import "@styles/global.css";
-import type { KickData, OptionsMap, TwitchData, YoutubeData } from "@app-types/types";
 import { sendMessageToBackground, sendMessageToContentScript } from "@/runtime";
 import { useEffect, useState } from "react";
 import {
@@ -19,13 +18,12 @@ import {
 import Options from "@pages/options";
 import CONFIG from "@lib/constants";
 import Header from "@components/header";
-import YoutubeFormat from "@components/youtubeFormat";
-import TwitchFormat from "@components/twitchFormat";
 import useTab from "@hooks/useTab";
-import useCurrentQuality from "@hooks/useCurrentQuality";
-import useOptions from "@hooks/useOptions";
-import KickFormat from "@components/kickFormat";
-import TotalUsage from "@/components/usage";
+import TotalUsage from "@components/usage";
+import YoutubeFormats from "@components/youtubeFormats";
+import TwitchFormats from "@components/twitchFormats";
+import KickFormats from "@components/kickFormats";
+import type { PopupData } from "@/types/uiTypes";
 
 function getCachedAgo(createdAt: string | undefined) {
     if (!createdAt) return;
@@ -38,35 +36,13 @@ function getCachedAgo(createdAt: string | undefined) {
     }
 }
 
-function getEnabledOptions(optionsState: OptionsMap | null) {
-    const qualityIds = optionsState?.["qualityIds"] ?? {};
-    return CONFIG.optionIDs.filter((option) => qualityIds[option] ?? true);
-}
-
-function getPageType(tabUrl: string | undefined) {
-    if (!tabUrl) return "default";
-    if (isYoutubePage(tabUrl)) return "youtube";
-    if (isTwitchPage(tabUrl)) return "twitch";
-    if (isKickPage(tabUrl)) return "kick";
-    return "default";
-}
-
 export default function Popup() {
     const [message, setMessage] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
     const { tabId, tabUrl, error: tabError } = useTab();
-    const [youtubeData, setYoutubeData] = useState<YoutubeData | undefined>();
-    const [twitchData, setTwitchData] = useState<TwitchData | undefined>();
-    const [kickData, setKickData] = useState<KickData | undefined>();
-    const [cache, setCache] = useState<string | undefined>();
+    const [data, setData] = useState<PopupData | undefined>();
     const [useOptionsPage, setUseOptionsPage] = useState(false);
     const [error, setError] = useState<Error | undefined>();
-    const [isLive, setIsLive] = useState<boolean>(false);
-    const { currentQuality } = useCurrentQuality(tabId, tabUrl);
-    const { optionsState, error: optionsError } = useOptions();
-    const enabledOptions = getEnabledOptions(optionsState);
-
-    const pageType = getPageType(tabUrl);
 
     useEffect(() => {
         (async () => {
@@ -96,13 +72,11 @@ export default function Popup() {
                 if (response.data.type === "video" && isShortsVideo(tabUrl)) {
                     response.data.isShorts = true;
                 }
-                setYoutubeData(response.data);
-                setIsLive(response.data.type === "live");
-                setCache(
-                    response.cached
-                        ? getCachedAgo(response.createdAt) || "Cached just now"
-                        : undefined,
-                );
+                setData({
+                    platform: "youtube",
+                    data: response.data,
+                    cacheCreatedAt: response.createdAt,
+                });
                 setIsLoading(false);
             } else if (isTwitchPage(tabUrl)) {
                 if (isTwitchVod(tabUrl)) {
@@ -118,13 +92,11 @@ export default function Popup() {
                         vodId: vodId,
                     });
                     if (!response.success) throw new Error(response.message);
-                    setTwitchData(response.data);
-                    setCache(
-                        response.cached
-                            ? getCachedAgo(response.createdAt) || "Cached just now"
-                            : undefined,
-                    );
-                    setIsLive(false);
+                    setData({
+                        platform: "twitch",
+                        data: response.data,
+                        cacheCreatedAt: response.createdAt,
+                    });
                     setIsLoading(false);
                 } else {
                     const channelName = extractChannelName(tabUrl);
@@ -140,8 +112,10 @@ export default function Popup() {
                         fromPopup: true,
                     });
                     if (!response.success) throw new Error(response.message);
-                    setTwitchData(response.data);
-                    setIsLive(true);
+                    setData({
+                        platform: "twitch",
+                        data: response.data,
+                    });
                     setIsLoading(false);
                 }
             } else if (isKickPage(tabUrl)) {
@@ -159,13 +133,11 @@ export default function Popup() {
                 if (!response?.success) {
                     throw new Error(response?.message || "Failed to retrieve Kick data");
                 }
-                setKickData(response.data);
-                setCache(
-                    response.cached
-                        ? getCachedAgo(response.createdAt) || "Cached just now"
-                        : undefined,
-                );
-                setIsLive(response.data.type === "live");
+                setData({
+                    platform: "kick",
+                    data: response.data,
+                    cacheCreatedAt: response.createdAt,
+                });
                 setIsLoading(false);
             } else {
                 setMessage("TubeSize works on YouTube, Twitch and Kick.");
@@ -178,7 +150,7 @@ export default function Popup() {
         });
     }, [tabId, tabUrl]);
 
-    const pageError = error || tabError || optionsError;
+    const pageError = error || tabError;
     if (pageError) {
         throw pageError;
     }
@@ -189,92 +161,22 @@ export default function Popup() {
 
     return (
         <div className="popup-page">
-            <Header
-                pageType={pageType}
-                youtubeData={youtubeData}
-                twitchData={twitchData}
-                kickData={kickData}
-                setUseOptionsPage={setUseOptionsPage}
-            />
+            <Header data={data} setUseOptionsPage={setUseOptionsPage} />
             <div id="container">
-                {cache && <div className="cached-note">{cache}</div>}
-                {!youtubeData && !twitchData && isLoading && (
+                {data?.cacheCreatedAt && (
+                    <div className="cached-note">{getCachedAgo(data.cacheCreatedAt)}</div>
+                )}
+                {!data && isLoading && (
                     <div className="loading-state">
                         <span className="spinner" />
                     </div>
                 )}
-                {!isLoading && pageType === "youtube" && <TotalUsage tabId={tabId} />}
+                {!isLoading && data?.platform === "youtube" && <TotalUsage tabId={tabId} />}
 
-                {!youtubeData && !twitchData && !isLoading && message && (
-                    <span className="info">{message}</span>
-                )}
-                {youtubeData && enabledOptions.length === 0 && (
-                    <span className="error">All Resolutions Disabled. Enable in options</span>
-                )}
-                {youtubeData?.type === "video" &&
-                    youtubeData.formats
-                        .filter((item) => {
-                            return enabledOptions.includes("p" + item.height);
-                        })
-                        .map((item) => {
-                            return (
-                                <YoutubeFormat
-                                    key={item.formatId}
-                                    item={item}
-                                    isLive={isLive}
-                                    isShorts={youtubeData.isShorts ?? false}
-                                    currentQuality={currentQuality}
-                                />
-                            );
-                        })
-                        // eslint-disable-next-line unicorn/no-array-reverse
-                        .reverse()}
-                {youtubeData?.type === "live" &&
-                    youtubeData.formats
-                        .filter((item) => {
-                            return enabledOptions.includes("p" + item.resolution);
-                        })
-                        .map((item) => {
-                            return (
-                                <YoutubeFormat
-                                    key={item.resolution}
-                                    item={item}
-                                    isShorts={false}
-                                    isLive={isLive}
-                                    currentQuality={currentQuality}
-                                />
-                            );
-                        })}
-                {twitchData?.data &&
-                    twitchData.data.map((item) => {
-                        return (
-                            <TwitchFormat
-                                key={item.resolution}
-                                item={item}
-                                currentQuality={currentQuality}
-                                isLive={isLive}
-                                durationSeconds={
-                                    twitchData.type === "vod"
-                                        ? twitchData.durationSeconds
-                                        : undefined
-                                }
-                            />
-                        );
-                    })}
-                {kickData?.data &&
-                    kickData.data.map((item) => {
-                        return (
-                            <KickFormat
-                                key={item.resolution}
-                                item={item}
-                                durationSeconds={
-                                    kickData.type === "vod" ? kickData.durationSeconds : undefined
-                                }
-                                currentQuality={currentQuality}
-                                isLive={isLive}
-                            />
-                        );
-                    })}
+                {!data && !isLoading && message && <span className="info">{message}</span>}
+                {data?.platform === "youtube" && <YoutubeFormats data={data.data} />}
+                {data?.platform === "twitch" && <TwitchFormats data={data.data} />}
+                {data?.platform === "kick" && <KickFormats data={data.data} />}
             </div>
         </div>
     );
