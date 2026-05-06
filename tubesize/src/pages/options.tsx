@@ -39,7 +39,7 @@ export default function Options() {
             <Divider />
             <QualityMenu />
 
-            <div className="section-divider"></div>
+            <Divider />
             <div className="footer">
                 <div className="author">
                     <a href="https://github.com/MohamedSayed0573" target="_blank" rel="noreferrer">
