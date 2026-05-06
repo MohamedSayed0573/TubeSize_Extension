@@ -1,4 +1,4 @@
-import type { PopupData } from "@/types/uiTypes";
+import type { PopupData } from "@app-types/uiTypes";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/types";
 import { humanizeDuration } from "@lib/utils";
 

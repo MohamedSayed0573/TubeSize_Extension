@@ -1,7 +1,7 @@
 import { Parser } from "m3u8-parser";
 import type { Manifest, PlaylistItem } from "m3u8-parser";
 import { fetchAndRetry } from "./utils";
-import type { StreamInfo } from "@/types/types";
+import type { StreamInfo } from "@app-types/types";
 
 export function parseM3U8(m3u8Data: string): Manifest {
     const parser = new Parser();

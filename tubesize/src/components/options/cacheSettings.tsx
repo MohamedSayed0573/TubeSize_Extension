@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { setToSyncCache, clearLocalCache } from "@lib/cache";
-import useOptions from "@/hooks/useOptions";
-import CONFIG from "@/lib/constants";
+import useOptions from "@hooks/useOptions";
+import CONFIG from "@lib/constants";
 
 function convertDaysToSeconds(days: number | string) {
     return Number(days) * 24 * 60 * 60;

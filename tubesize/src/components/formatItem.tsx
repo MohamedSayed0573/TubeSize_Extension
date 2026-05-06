@@ -3,7 +3,7 @@ import {
     perMinuteDisplay,
     totalSizeLiveDisplay,
     totalSizeVideoDisplay,
-} from "@/lib/formatting";
+} from "@lib/formatting";
 import type { StreamInfo, YoutubeData, YoutubeVideoFormat } from "@app-types/types";
 
 interface Props {

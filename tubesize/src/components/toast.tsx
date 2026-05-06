@@ -1,4 +1,4 @@
-import { perHourDisplay, totalSizeVideoDisplay } from "@/lib/formatting";
+import { perHourDisplay, totalSizeVideoDisplay } from "@lib/formatting";
 import "@styles/toast.css";
 
 export default function Toast({

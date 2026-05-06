@@ -1,17 +1,23 @@
-import type { OptionsMap, YoutubeData } from "@/types/types";
-import CONFIG from "@/lib/constants";
-import useOptions from "@/hooks/useOptions";
-import useCurrentQuality from "@/hooks/useCurrentQuality";
-import useTab from "@/hooks/useTab";
-import FormatItem from "./formatItem";
+import type { OptionsMap, YoutubeData } from "@app-types/types";
+import CONFIG from "@lib/constants";
+import useOptions from "@hooks/useOptions";
+import useCurrentQuality from "@hooks/useCurrentQuality";
+import FormatItem from "@components/formatItem";
 
 function getEnabledOptions(optionsState: OptionsMap | null) {
     const qualityIds = optionsState?.["qualityIds"] ?? {};
     return CONFIG.optionIDs.filter((option) => qualityIds[option] ?? true);
 }
 
-export default function YoutubeFormats({ data }: { data: YoutubeData }) {
-    const { tabId, tabUrl } = useTab();
+export default function YoutubeFormats({
+    data,
+    tabId,
+    tabUrl,
+}: {
+    data: YoutubeData;
+    tabId: number | undefined;
+    tabUrl: string | undefined;
+}) {
     const { currentQuality } = useCurrentQuality(tabId, tabUrl);
 
     const { optionsState, error: optionsError } = useOptions();

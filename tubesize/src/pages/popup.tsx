@@ -23,7 +23,7 @@ import TotalUsage from "@components/usage";
 import YoutubeFormats from "@components/youtubeFormats";
 import TwitchFormats from "@components/twitchFormats";
 import KickFormats from "@components/kickFormats";
-import type { PopupData } from "@/types/uiTypes";
+import type { PopupData } from "@app-types/uiTypes";
 
 function getCachedAgo(createdAt: string | undefined) {
     if (!createdAt) return;
@@ -174,7 +174,9 @@ export default function Popup() {
                 {!isLoading && data?.platform === "youtube" && <TotalUsage tabId={tabId} />}
 
                 {!data && !isLoading && message && <span className="info">{message}</span>}
-                {data?.platform === "youtube" && <YoutubeFormats data={data.data} />}
+                {data?.platform === "youtube" && (
+                    <YoutubeFormats data={data.data} tabId={tabId} tabUrl={tabUrl} />
+                )}
                 {data?.platform === "twitch" && <TwitchFormats data={data.data} />}
                 {data?.platform === "kick" && <KickFormats data={data.data} />}
             </div>
