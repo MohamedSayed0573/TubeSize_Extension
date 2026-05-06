@@ -6,7 +6,8 @@ import OptionItem from "@components/options/optionItem";
 import CacheSettings from "@components/options/cacheSettings";
 import ToasterSettings from "@components/options/toasterSettings";
 import QualityMenu from "@components/options/qualityMenu";
-import useOptions from "@/hooks/useOptions";
+import useOptions from "@hooks/useOptions";
+import Divider from "@/components/options/divider";
 
 export default function Options() {
     const { optionsState, setOptionsState } = useOptions();
@@ -29,16 +30,16 @@ export default function Options() {
                 </div>
             </div>
 
-            <div className="section-divider"></div>
+            <Divider />
             <CacheSettings />
 
-            <div className="section-divider"></div>
+            <Divider />
             <ToasterSettings />
 
-            <div className="section-divider"></div>
+            <Divider />
             <QualityMenu />
 
-            <div className="section-divider"></div>
+            <Divider />
             <div className="footer">
                 <div className="author">
                     <a href="https://github.com/MohamedSayed0573" target="_blank" rel="noreferrer">

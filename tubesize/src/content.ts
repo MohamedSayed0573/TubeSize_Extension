@@ -187,7 +187,6 @@ async function initKick(fromPopup: boolean): Promise<KickBackgroundResponse> {
                 return {
                     success: true,
                     data: cached.data,
-                    cached: true,
                     createdAt: cached.createdAt,
                 };
             }

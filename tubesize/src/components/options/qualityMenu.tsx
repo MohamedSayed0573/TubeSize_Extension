@@ -1,5 +1,5 @@
-import { getFromSyncCache, setToSyncCache } from "@/lib/cache";
-import CONFIG from "@/lib/constants";
+import { getFromSyncCache, setToSyncCache } from "@lib/cache";
+import CONFIG from "@lib/constants";
 import { useEffect, useState } from "react";
 
 export default function QualityMenu() {

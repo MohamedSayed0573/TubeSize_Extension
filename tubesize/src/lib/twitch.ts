@@ -145,7 +145,6 @@ export async function getTwitchVodResponse(
         return sendResponse({
             success: true,
             data: cached.data,
-            cached: true,
             createdAt: cached.createdAt,
         });
     }

@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import type { TwitchData, YoutubeData } from "@app-types/types";
 import Toast from "@components/toast";
-import { sizePerMinute } from "@/lib/formatting";
+import { sizePerMinute } from "@lib/formatting";
 
 const HOST_ID = "TubeSize-Toast-Host";
 

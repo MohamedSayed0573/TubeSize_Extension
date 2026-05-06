@@ -87,7 +87,6 @@ async function handleYoutube(
                     title: cached.data.title,
                     id: cached.data.id,
                 },
-                cached: true,
                 createdAt: cached.createdAt,
             });
         }
@@ -111,7 +110,7 @@ async function handleYoutube(
             const rawFormats = parseDataFromYtInitial(rawData);
             const videoFormats = parseVideoFormats(rawFormats);
             const youtubeData = {
-                formats: videoFormats,
+                formats: videoFormats.sort((a, b) => b.height - a.height),
                 type: "video" as const,
                 durationSeconds: Number(rawData.videoDetails.lengthSeconds),
                 title: rawData.videoDetails.title,

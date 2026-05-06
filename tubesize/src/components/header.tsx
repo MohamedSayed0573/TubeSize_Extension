@@ -1,13 +1,6 @@
+import type { PopupData } from "@app-types/uiTypes";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/types";
 import { humanizeDuration } from "@lib/utils";
-
-interface Props {
-    pageType?: "youtube" | "twitch" | "kick" | "default";
-    youtubeData?: YoutubeData | null;
-    twitchData?: TwitchData | null;
-    kickData?: KickData | null;
-    setUseOptionsPage: (useOptionsPage: boolean) => void;
-}
 
 function getYoutubeTitle(youtubeData?: YoutubeData | null): string {
     return youtubeData?.type === "video"
@@ -59,35 +52,30 @@ function getKickDuration(kickData?: KickData | null): string | undefined {
     return undefined;
 }
 
-export default function Header({
-    pageType = "default",
-    youtubeData,
-    twitchData,
-    kickData,
-    setUseOptionsPage,
-}: Props) {
-    const isLive =
-        (pageType === "youtube" && youtubeData?.type === "live") ||
-        (pageType === "twitch" && twitchData?.type === "live") ||
-        (pageType === "kick" && kickData?.type === "live");
+interface Props {
+    data?: PopupData;
+    setUseOptionsPage: (useOptionsPage: boolean) => void;
+}
 
+export default function Header({ data, setUseOptionsPage }: Props) {
+    const isLive = data?.data.type === "live";
     let title: string;
     let duration: string | undefined;
 
-    switch (pageType) {
+    switch (data?.platform) {
         case "youtube": {
-            title = getYoutubeTitle(youtubeData);
-            duration = getYoutubeDuration(youtubeData);
+            title = getYoutubeTitle(data.data);
+            duration = getYoutubeDuration(data.data);
             break;
         }
         case "twitch": {
-            title = getTwitchTitle(twitchData);
-            duration = getTwitchDuration(twitchData);
+            title = getTwitchTitle(data.data);
+            duration = getTwitchDuration(data.data);
             break;
         }
         case "kick": {
-            title = getKickTitle(kickData);
-            duration = getKickDuration(kickData);
+            title = getKickTitle(data.data);
+            duration = getKickDuration(data.data);
             break;
         }
         default: {

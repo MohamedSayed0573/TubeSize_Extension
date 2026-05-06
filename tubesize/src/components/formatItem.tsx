@@ -1,14 +1,35 @@
-import { perHourDisplay, perMinuteDisplay, totalSizeVideoDisplay } from "@/lib/formatting";
+import {
+    perHourDisplay,
+    perMinuteDisplay,
+    totalSizeLiveDisplay,
+    totalSizeVideoDisplay,
+} from "@lib/formatting";
 import type { StreamInfo, YoutubeData, YoutubeVideoFormat } from "@app-types/types";
 
 interface Props {
-    item: YoutubeData["formats"][number];
+    item: YoutubeData["formats"][number] | StreamInfo;
     isLive: boolean;
-    isShorts: boolean;
     currentQuality: number | undefined;
+    durationSeconds?: number;
+    isShorts?: boolean;
 }
 
-export default function YoutubeFormat({ item, isLive, isShorts, currentQuality }: Props) {
+function totalSizeDisplay(
+    item: YoutubeData["formats"][number] | StreamInfo,
+    durationSeconds: number | undefined,
+) {
+    return durationSeconds
+        ? totalSizeVideoDisplay((item as YoutubeVideoFormat).sizeBytes)
+        : totalSizeLiveDisplay(item.sizePerSecondBytes, durationSeconds);
+}
+
+export default function FormatItem({
+    item,
+    isLive,
+    isShorts,
+    currentQuality,
+    durationSeconds,
+}: Props) {
     const resolution = isLive
         ? (item as StreamInfo).resolution
         : (item as YoutubeVideoFormat).height;
@@ -22,7 +43,7 @@ export default function YoutubeFormat({ item, isLive, isShorts, currentQuality }
                 <span>
                     {isLive
                         ? perHourDisplay(item.sizePerSecondBytes)
-                        : totalSizeVideoDisplay((item as YoutubeVideoFormat).sizeBytes)}
+                        : totalSizeDisplay(item, durationSeconds)}
                 </span>
                 <span className="format-size-per-minute">
                     {!isShorts && perMinuteDisplay(item.sizePerSecondBytes)}
