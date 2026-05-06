@@ -8,9 +8,10 @@ import {
     mergeAudioWithVideo,
     parseDataFromYtInitial,
 } from "@lib/youtube";
+import { ytInitialSchema } from "@lib/schema";
 
 describe("extractYtInitialResponse", () => {
-    test("should extract YtInitialPlayerResponse from html page", () => {
+    test("should extract YtInitialPlayerResponse from html page", async () => {
         const ytInitialPlayerResponse = fs
             .readFileSync(
                 path.join(process.cwd(), "src", "tests", "assets", "ytInitialPlayerResponse.json"),
@@ -19,8 +20,8 @@ describe("extractYtInitialResponse", () => {
             .trim();
         const html = `<script>var ytInitialPlayerResponse = ${ytInitialPlayerResponse};</script>`;
 
-        expect(extractYtInitialResponse("I82j7AzMU80", html)).toEqual(
-            JSON.parse(ytInitialPlayerResponse),
+        await expect(extractYtInitialResponse("I82j7AzMU80", html)).resolves.toEqual(
+            ytInitialSchema.parse(JSON.parse(ytInitialPlayerResponse)),
         );
     });
 });

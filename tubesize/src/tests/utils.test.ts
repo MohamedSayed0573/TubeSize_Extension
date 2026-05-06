@@ -192,8 +192,11 @@ describe("fetchAndRetry", () => {
             ok: false,
         });
 
-        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).rejects.toThrow(
-            "Client Error: 400, won't retry",
+        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).resolves.toEqual(
+            {
+                success: false,
+                error: new Error("Client Error: 400, won't retry"),
+            },
         );
 
         expect(globalThis.fetch).toHaveBeenCalledTimes(1);
@@ -213,8 +216,11 @@ describe("fetchAndRetry", () => {
 
         await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).resolves.toEqual(
             {
-                status: 200,
-                ok: true,
+                success: true,
+                response: {
+                    status: 200,
+                    ok: true,
+                },
             },
         );
     });

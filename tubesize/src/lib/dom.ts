@@ -1,4 +1,4 @@
-import type {
+import {
     PANEL_MENU_SELECTOR,
     QUALITY_MENU_BTN_SELECTOR,
     SETTINGS_BTN_SELECTOR,
