@@ -58,6 +58,7 @@ export default function YoutubeFormats({
                     isLive={false}
                     isShorts={data.isShorts || false}
                     currentQuality={currentQuality}
+                    durationSeconds={data.durationSeconds}
                 />
             );
         });
