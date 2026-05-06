@@ -103,9 +103,9 @@ input[type="checkbox"]:checked {
     font-weight: 500;
     color: #fff;
 }
-.section-divider {
-    height: 1px;
-    background: #333;
+.divider {
+    border: none;
+    border-top: 1px solid #333;
 }
 .section-title {
     font-size: 11px;
