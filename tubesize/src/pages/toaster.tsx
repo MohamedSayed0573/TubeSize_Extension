@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import type { TwitchData, YoutubeData } from "@app-types/types";
 import Toast from "@components/toast";
+import { sizePerMinute } from "@/lib/formatting";
 
 const HOST_ID = "TubeSize-Toast-Host";
 
@@ -10,7 +11,7 @@ function ensureRoot() {
     if (!host) {
         host = document.createElement("div");
         host.id = HOST_ID;
-        document.body?.append(host);
+        document.body.append(host);
         root = createRoot(host);
     }
 
@@ -29,12 +30,12 @@ export function showYoutubeToast(
         const format = youtubeData.formats.find((format) => format.height === currentQuality);
         if (!format) return;
 
-        if (format.sizePerMinuteMB > toasterThresholdMbpm) {
+        if (sizePerMinute(format.sizePerSecondBytes) > toasterThresholdMbpm) {
             ensureRoot().render(
                 <Toast
                     currentQuality={currentQuality}
-                    sizePerMinuteMB={format.sizePerMinuteMB}
-                    sizeMB={format.sizeMB}
+                    sizePerSecondBytes={format.sizePerSecondBytes}
+                    sizeBytes={format.sizeBytes}
                     isLive={false}
                     okOnClick={okOnClick}
                     dontShowAgainOnClick={dontShowAgainOnClick}
@@ -50,8 +51,7 @@ export function showYoutubeToast(
             ensureRoot().render(
                 <Toast
                     currentQuality={currentQuality}
-                    sizePerMinuteMB={sizePerMinuteMB}
-                    sizeMB={undefined}
+                    sizePerSecondBytes={format.sizePerSecondBytes}
                     isLive={true}
                     okOnClick={okOnClick}
                     dontShowAgainOnClick={dontShowAgainOnClick}
@@ -65,7 +65,6 @@ export function showTwitchToast(
     videoFormats: TwitchData["data"],
     toasterThresholdMbpm: number,
     isLive: boolean = true,
-    durationSeconds?: number,
 ) {
     if (DONT_SHOW_AGAIN) return;
 
@@ -73,15 +72,10 @@ export function showTwitchToast(
     if (!format) return;
     const sizePerMinuteMB = (format.sizePerSecondBytes / 1000 / 1000) * 60;
     if (sizePerMinuteMB > toasterThresholdMbpm) {
-        const sizeMB =
-            !isLive && durationSeconds
-                ? ((sizePerMinuteMB * durationSeconds) / 60).toFixed(1) + " MB"
-                : undefined;
         ensureRoot().render(
             <Toast
                 currentQuality={currentQuality}
-                sizePerMinuteMB={sizePerMinuteMB}
-                sizeMB={sizeMB}
+                sizePerSecondBytes={format.sizePerSecondBytes}
                 isLive={isLive}
                 okOnClick={okOnClick}
                 dontShowAgainOnClick={dontShowAgainOnClick}

@@ -18,7 +18,7 @@ export default function OptionItem({
             <input
                 id={option}
                 type="checkbox"
-                checked={optionsState?.["qualityIds"]?.[option] ?? true}
+                checked={optionsState["qualityIds"]?.[option] ?? true}
                 onChange={(event) => {
                     const { checked } = event.target;
                     void handleOptionChange(option, checked, optionsState, setOptionsState);
@@ -36,14 +36,14 @@ async function handleOptionChange(
 ) {
     await setToSyncCache({
         qualityIds: {
-            ...optionsState?.["qualityIds"],
+            ...optionsState["qualityIds"],
             [option]: isChecked,
         },
     });
     setOptionsState({
         ...optionsState,
         qualityIds: {
-            ...optionsState?.["qualityIds"],
+            ...optionsState["qualityIds"],
             [option]: isChecked,
         },
     });

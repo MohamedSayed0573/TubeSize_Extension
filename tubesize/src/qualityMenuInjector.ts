@@ -1,15 +1,17 @@
 import "@styles/panel.css";
 import type { YoutubeData } from "@app-types/types";
+import { totalSizeVideoDisplay } from "./lib/formatting";
+import { waitForElement } from "./lib/dom";
 
 let settingsBtnEl: Element | undefined;
 let qualityBtnEl: Element | undefined;
 
-const TUBESIZE_QUALITY_MENU_CLASS = "tubesize-quality-menu-panel";
-const SETTINGS_BTN_SELECTOR = ".ytp-button.ytp-settings-button";
-const PANEL_MENU_SELECTOR = ".ytp-panel-menu";
+export const PANEL_MENU_SELECTOR = ".ytp-panel-menu";
+export const QUALITY_MENU_BTN_SELECTOR = ".ytp-panel.ytp-quality-menu";
+export const SETTINGS_BTN_SELECTOR = ".ytp-button.ytp-settings-button";
 const MENU_ITEM_SELECTOR = ".ytp-menuitem";
-const QUALITY_MENU_BTN_SELECTOR = ".ytp-panel.ytp-quality-menu";
 const MENU_ITEM_LABEL_SELECTOR = ".ytp-menuitem-label";
+const TUBESIZE_QUALITY_MENU_CLASS = "tubesize-quality-menu-panel";
 const INNER_DIV_SELECTOR = "div";
 const SPAN_SELECTOR = "span";
 
@@ -67,42 +69,11 @@ async function settingsBtnClickListener() {
     qualityBtnEl.addEventListener("click", qualityBtnHandler);
 }
 
-export function waitForElement(
-    selector: string,
-    timeout: number = 10_000,
-): Promise<Element | undefined> {
-    return new Promise<Element | undefined>((resolve) => {
-        const element = document.querySelector(selector);
-        if (element) {
-            return resolve(element);
-        }
-
-        const observer = new MutationObserver(() => {
-            const element = document.querySelector(selector);
-            if (element) {
-                observer.disconnect();
-                clearTimeout(timeoutId);
-                return resolve(element);
-            }
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-        });
-
-        const timeoutId = setTimeout(() => {
-            observer.disconnect();
-            return resolve(document.querySelector(selector) ?? undefined);
-        }, timeout);
-    });
-}
-
 function createQualitySizeLookup() {
     const lookup = new Map<number, string>();
     if (currentYoutubeData?.type === "video") {
         for (const format of currentYoutubeData.formats) {
-            lookup.set(format.height, format.sizeMB);
+            lookup.set(format.height, totalSizeVideoDisplay(format.sizeBytes));
         }
     } else {
         for (const format of currentYoutubeData?.formats ?? []) {
@@ -133,7 +104,7 @@ async function renderQualityLabels() {
     const ytpPanelMenu = await waitForElement(QUALITY_MENU_BTN_SELECTOR);
     if (!ytpPanelMenu) return;
 
-    const ytpMenuItems = ytpPanelMenu?.querySelectorAll(MENU_ITEM_SELECTOR);
+    const ytpMenuItems = ytpPanelMenu.querySelectorAll(MENU_ITEM_SELECTOR);
     if (ytpMenuItems.length === 0) return;
 
     const lookup = createQualitySizeLookup();
@@ -150,7 +121,7 @@ async function renderQualityLabels() {
         newDiv.textContent = size;
         newDiv.className = TUBESIZE_QUALITY_MENU_CLASS;
 
-        innerDiv?.append(newDiv);
+        innerDiv.append(newDiv);
     }
 }
 

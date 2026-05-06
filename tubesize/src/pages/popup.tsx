@@ -25,6 +25,7 @@ import useTab from "@hooks/useTab";
 import useCurrentQuality from "@hooks/useCurrentQuality";
 import useOptions from "@hooks/useOptions";
 import KickFormat from "@components/kickFormat";
+import TotalUsage from "@/components/usage";
 
 function getCachedAgo(createdAt: string | undefined) {
     if (!createdAt) return;
@@ -42,12 +43,18 @@ function getEnabledOptions(optionsState: OptionsMap | null) {
     return CONFIG.optionIDs.filter((option) => qualityIds[option] ?? true);
 }
 
+function getPageType(tabUrl: string | undefined) {
+    if (!tabUrl) return "default";
+    if (isYoutubePage(tabUrl)) return "youtube";
+    if (isTwitchPage(tabUrl)) return "twitch";
+    if (isKickPage(tabUrl)) return "kick";
+    return "default";
+}
+
 export default function Popup() {
     const [message, setMessage] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
-
     const { tabId, tabUrl, error: tabError } = useTab();
-    const [pageType, setPageType] = useState<"youtube" | "twitch" | "kick" | "default">("default");
     const [youtubeData, setYoutubeData] = useState<YoutubeData | undefined>();
     const [twitchData, setTwitchData] = useState<TwitchData | undefined>();
     const [kickData, setKickData] = useState<KickData | undefined>();
@@ -59,6 +66,8 @@ export default function Popup() {
     const { optionsState, error: optionsError } = useOptions();
     const enabledOptions = getEnabledOptions(optionsState);
 
+    const pageType = getPageType(tabUrl);
+
     useEffect(() => {
         (async () => {
             if (!tabUrl) return;
@@ -66,7 +75,6 @@ export default function Popup() {
             setIsLoading(true);
 
             if (isYoutubePage(tabUrl)) {
-                setPageType("youtube");
                 const videoTag = extractVideoTag(tabUrl);
                 if (!videoTag) {
                     setMessage("Open a Youtube video");
@@ -79,8 +87,8 @@ export default function Popup() {
                     videoTag,
                     tabId,
                 });
-                if (!response.success) throw new Error(response?.message);
-                if (response.data.formats?.length === 0) {
+                if (!response.success) throw new Error(response.message);
+                if (response.data.formats.length === 0) {
                     setError(new Error("No video formats found for this video"));
                     setIsLoading(false);
                     return;
@@ -97,7 +105,6 @@ export default function Popup() {
                 );
                 setIsLoading(false);
             } else if (isTwitchPage(tabUrl)) {
-                setPageType("twitch");
                 if (isTwitchVod(tabUrl)) {
                     const vodId = extractTwitchVodId(tabUrl);
                     if (!vodId) {
@@ -159,7 +166,6 @@ export default function Popup() {
                         : undefined,
                 );
                 setIsLive(response.data.type === "live");
-                setPageType("kick");
                 setIsLoading(false);
             } else {
                 setMessage("TubeSize works on YouTube, Twitch and Kick.");
@@ -197,6 +203,8 @@ export default function Popup() {
                         <span className="spinner" />
                     </div>
                 )}
+                {!isLoading && pageType === "youtube" && <TotalUsage tabId={tabId} />}
+
                 {!youtubeData && !twitchData && !isLoading && message && (
                     <span className="info">{message}</span>
                 )}
@@ -205,16 +213,16 @@ export default function Popup() {
                 )}
                 {youtubeData?.type === "video" &&
                     youtubeData.formats
-                        ?.filter((item) => {
+                        .filter((item) => {
                             return enabledOptions.includes("p" + item.height);
                         })
-                        ?.map((item) => {
+                        .map((item) => {
                             return (
                                 <YoutubeFormat
                                     key={item.formatId}
                                     item={item}
                                     isLive={isLive}
-                                    isShorts={youtubeData.type === "video" && youtubeData.isShorts}
+                                    isShorts={youtubeData.isShorts ?? false}
                                     currentQuality={currentQuality}
                                 />
                             );
@@ -223,21 +231,22 @@ export default function Popup() {
                         .reverse()}
                 {youtubeData?.type === "live" &&
                     youtubeData.formats
-                        ?.filter((item) => {
+                        .filter((item) => {
                             return enabledOptions.includes("p" + item.resolution);
                         })
-                        ?.map((item) => {
+                        .map((item) => {
                             return (
                                 <YoutubeFormat
                                     key={item.resolution}
                                     item={item}
+                                    isShorts={false}
                                     isLive={isLive}
                                     currentQuality={currentQuality}
                                 />
                             );
                         })}
                 {twitchData?.data &&
-                    twitchData?.data.map((item) => {
+                    twitchData.data.map((item) => {
                         return (
                             <TwitchFormat
                                 key={item.resolution}
@@ -245,7 +254,7 @@ export default function Popup() {
                                 currentQuality={currentQuality}
                                 isLive={isLive}
                                 durationSeconds={
-                                    twitchData?.type === "vod"
+                                    twitchData.type === "vod"
                                         ? twitchData.durationSeconds
                                         : undefined
                                 }

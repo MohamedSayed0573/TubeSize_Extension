@@ -8,10 +8,11 @@ import {
     isTwitchPage,
     isTwitchVod,
     isYoutubePage,
+    delay,
 } from "@lib/utils";
 import { getFromStorage, getFromSyncCache, saveToStorage } from "@lib/cache";
 import CONFIG from "@lib/constants";
-import { injectQualityMenu, removeEventListeners, waitForElement } from "@/qualityMenuInjector";
+import { injectQualityMenu, removeEventListeners } from "@/qualityMenuInjector";
 import { sendMessageToBackground } from "@/runtime";
 import {
     getCurrentResolution,
@@ -22,6 +23,7 @@ import {
 } from "@/resolution";
 import { getKickHtml, getKickStreamId } from "@lib/kick";
 import type { KickBackgroundResponse } from "./types/types";
+import { waitForElement } from "./lib/dom";
 
 function getCurrentUrl() {
     return globalThis.location.href;
@@ -48,7 +50,7 @@ async function handlePageNavigation() {
             const youtubeResponse = await initYoutube(tag);
             const qualityMenuEnabled =
                 (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
-            if (qualityMenuEnabled && youtubeResponse) {
+            if (qualityMenuEnabled) {
                 await injectQualityMenu(youtubeResponse);
             }
 
@@ -134,7 +136,7 @@ chrome.runtime.onMessage.addListener(
 async function initYoutube(videoTag: string) {
     const scriptsArray = [...document.scripts];
     const ytInitialPlayerResponse = scriptsArray.find((script) => {
-        return script.textContent?.includes("ytInitialPlayerResponse");
+        return script.textContent.includes("ytInitialPlayerResponse");
     });
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
@@ -216,7 +218,6 @@ async function initKick(fromPopup: boolean): Promise<KickBackgroundResponse> {
 
         kickData.data.channelName = channelName;
         const durationSeconds = await getVideoDuration();
-        console.log("Estimated video duration (seconds):", durationSeconds);
 
         if (kickData.data.type === "vod") {
             kickData.data.durationSeconds = durationSeconds;
@@ -233,16 +234,15 @@ async function initKick(fromPopup: boolean): Promise<KickBackgroundResponse> {
 }
 
 async function getVideoDuration() {
-    const time = Date.now();
-    let counter = 0;
+    const startTime = Date.now();
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (true) {
-        console.log(`Attempt ${++counter}: Checking for video duration...`);
-        if (Date.now() - time > 10_000) return;
+        if (Date.now() - startTime > 10_000) return;
 
-        const videoEl = (await waitForElement("video")) as HTMLVideoElement;
-        if (!Number.isNaN(videoEl?.duration)) {
+        const videoEl = await waitForElement("video");
+        if (videoEl && !Number.isNaN(videoEl.duration)) {
             return videoEl.duration;
         }
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await delay(500);
     }
 }

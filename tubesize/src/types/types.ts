@@ -1,21 +1,7 @@
-export type RawData = {
-    videoDetails: {
-        videoId: string;
-        title: string;
-        lengthSeconds: string;
-        isLive: boolean;
-        author: string;
-    };
-    streamingData: {
-        adaptiveFormats: {
-            itag: number;
-            height: number;
-            contentLength?: string;
-            bitrate?: number;
-            mimeType?: string;
-        }[];
-    };
-};
+import type { ytInitialSchema } from "@lib/schema";
+import { z } from "zod";
+
+export type ytInitialPlayerResponse = z.infer<typeof ytInitialSchema>;
 
 export type RawFormat = {
     id: string;
@@ -49,9 +35,9 @@ type ErrorResponse = {
 export type YoutubeVideoFormat = {
     formatId: number;
     height: number;
-    sizeMB: string;
-    sizePerMinuteMB: number;
-    maxSizeMB?: string;
+    sizeBytes: number;
+    maxSizeBytes?: number;
+    sizePerSecondBytes: number;
 };
 
 export type YoutubeVideoData = {
@@ -71,14 +57,6 @@ type YoutubeLiveData = {
 
 export type YoutubeData = YoutubeVideoData | YoutubeLiveData;
 export type YoutubeBackgroundResponse = SuccessResponse<YoutubeData> | ErrorResponse;
-
-export type HumanizedFormat = {
-    id: string;
-    title: string;
-    isLive: boolean;
-    durationSeconds: number;
-    videoFormats: YoutubeVideoFormat[];
-};
 
 export type StorageData<T extends YoutubeVideoData | TwitchData | KickData> = {
     data: T;
@@ -110,22 +88,6 @@ export type TwitchVodData = {
 
 export type TwitchData = TwitchLiveData | TwitchVodData;
 export type TwitchBackgroundResponse = SuccessResponse<TwitchData> | ErrorResponse;
-
-export type TwitchGqlResponse = {
-    data: {
-        streamPlaybackAccessToken?: {
-            value: string;
-            signature: string;
-        };
-        videoPlaybackAccessToken?: {
-            value: string;
-            signature: string;
-        };
-        video?: {
-            lengthSeconds: number;
-        };
-    };
-};
 
 export type TwitchTokenData = {
     value: string;
@@ -190,3 +152,8 @@ type KickVodData = {
 
 export type KickData = KickLiveData | KickVodData;
 export type KickBackgroundResponse = SuccessResponse<KickData> | ErrorResponse;
+
+export type TotalUsageData = {
+    sessionUsage: number;
+    totalUsage: number;
+};

@@ -1,17 +1,17 @@
-import type { HumanizedFormat, RawData, RawFormat } from "@app-types/types";
+import type { ytInitialPlayerResponse, RawFormat } from "@app-types/types";
 import fs from "node:fs";
 import path from "node:path";
 import {
-    extractYtInitial,
+    extractYtInitialResponse,
     sizePerMinute,
-    humanizeVideoFormats,
     getAverageAudioSize,
     mergeAudioWithVideo,
     parseDataFromYtInitial,
 } from "@lib/youtube";
+import { ytInitialSchema } from "@lib/schema";
 
-describe("extractYtInitial", () => {
-    test("should extract YtInitialPlayerResponse from html page", () => {
+describe("extractYtInitialResponse", () => {
+    test("should extract YtInitialPlayerResponse from html page", async () => {
         const ytInitialPlayerResponse = fs
             .readFileSync(
                 path.join(process.cwd(), "src", "tests", "assets", "ytInitialPlayerResponse.json"),
@@ -20,7 +20,9 @@ describe("extractYtInitial", () => {
             .trim();
         const html = `<script>var ytInitialPlayerResponse = ${ytInitialPlayerResponse};</script>`;
 
-        expect(extractYtInitial(html)).toEqual(JSON.parse(ytInitialPlayerResponse));
+        await expect(extractYtInitialResponse("I82j7AzMU80", html)).resolves.toEqual(
+            ytInitialSchema.parse(JSON.parse(ytInitialPlayerResponse)),
+        );
     });
 });
 
@@ -36,57 +38,6 @@ describe("sizePerMinute", () => {
     });
     test("returns the size per minute for live streams from the hourly estimate", () => {
         expect(sizePerMinute(60_000_000, 0, true)).toBe(1);
-    });
-});
-
-describe("humanizeVideoFormats", () => {
-    test("humanizes a format with a single size", () => {
-        const formats: RawFormat["formats"] = [
-            { formatId: 18, height: 360, sizeBytes: 60_000_000 },
-        ];
-        const expected: HumanizedFormat["videoFormats"] = [
-            {
-                formatId: 18,
-                height: 360,
-                sizeMB: "60 MB",
-                maxSizeMB: undefined,
-                sizePerMinuteMB: 6,
-            },
-        ];
-        expect(humanizeVideoFormats(formats, 600)).toEqual(expected);
-    });
-
-    test("humanizes a format size range and keeps the max size separately", () => {
-        const formats: RawFormat["formats"] = [
-            { formatId: 137, height: 1080, sizeBytes: 120_000_000, maxSizeBytes: 180_000_000 },
-        ];
-        const expected: HumanizedFormat["videoFormats"] = [
-            {
-                formatId: 137,
-                height: 1080,
-                sizeMB: "120 MB - 180 MB",
-                maxSizeMB: "180 MB",
-                sizePerMinuteMB: 12,
-            },
-        ];
-        expect(humanizeVideoFormats(formats, 600)).toEqual(expected);
-    });
-
-    test("humanizes live formats using the hourly estimate for size per minute", () => {
-        const formats: RawFormat["formats"] = [
-            { formatId: 18, height: 360, sizeBytes: 60_000_000 },
-        ];
-        const expected: HumanizedFormat["videoFormats"] = [
-            {
-                formatId: 18,
-                height: 360,
-                sizeMB: "60 MB",
-                maxSizeMB: undefined,
-                sizePerMinuteMB: 1,
-            },
-        ];
-
-        expect(humanizeVideoFormats(formats, 0, true)).toEqual(expected);
     });
 });
 
@@ -137,8 +88,8 @@ describe("mergeAudioWithVideo", () => {
 
 describe("parseDataFromYtInitial", () => {
     test("should throw an error if videoDetails is missing", () => {
-        const rawData: RawData = {
-            videoDetails: undefined as unknown as RawData["videoDetails"],
+        const rawData: ytInitialPlayerResponse = {
+            videoDetails: undefined as unknown as ytInitialPlayerResponse["videoDetails"],
             streamingData: {
                 adaptiveFormats: [],
             },
@@ -148,7 +99,7 @@ describe("parseDataFromYtInitial", () => {
     });
 
     test("should throw an error if streamingData is missing", () => {
-        const rawData: RawData = {
+        const rawData: ytInitialPlayerResponse = {
             videoDetails: {
                 videoId: "123",
                 title: "Test Video",
@@ -156,7 +107,7 @@ describe("parseDataFromYtInitial", () => {
                 isLive: false,
                 author: "Test Author",
             },
-            streamingData: undefined as unknown as RawData["streamingData"],
+            streamingData: undefined as unknown as ytInitialPlayerResponse["streamingData"],
         };
 
         expect(() => parseDataFromYtInitial(rawData)).toThrow("No data found");
@@ -167,7 +118,7 @@ describe("parseDataFromYtInitial", () => {
             path.join(process.cwd(), "src", "tests", "assets", "ytInitialPlayerResponse.json"),
             "utf8",
         );
-        const jsonData = JSON.parse(ytInitialPlayerResponse) as RawData;
+        const jsonData = JSON.parse(ytInitialPlayerResponse) as ytInitialPlayerResponse;
 
         const expected: RawFormat = {
             id: "I82j7AzMU80",
@@ -199,7 +150,7 @@ describe("parseDataFromYtInitial", () => {
             path.join(process.cwd(), "src", "tests", "assets", "ytInitialPlayerResponseLive.json"),
             "utf8",
         );
-        const jsonData = JSON.parse(ytInitialPlayerResponse) as RawData;
+        const jsonData = JSON.parse(ytInitialPlayerResponse) as ytInitialPlayerResponse;
 
         const expected: RawFormat = {
             id: "feSFplc7tMY",

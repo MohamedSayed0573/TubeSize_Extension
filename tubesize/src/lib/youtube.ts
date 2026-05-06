@@ -1,7 +1,12 @@
-import { filesize } from "filesize";
-import type { RawData, RawFormat, StreamInfo, YoutubeVideoFormat } from "@app-types/types";
+import type {
+    RawFormat,
+    StreamInfo,
+    YoutubeVideoFormat,
+    ytInitialPlayerResponse,
+} from "@app-types/types";
 import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
+import { ytInitialSchema } from "./schema";
 
 export function sizePerMinute(
     sizeInBytes: number,
@@ -17,51 +22,18 @@ export function sizePerMinute(
     return Number((sizeInMB / durationInMinutes).toFixed(2));
 }
 
-export async function extractRawData(videoTag: string, html: string | undefined): Promise<RawData> {
-    let rawData: RawData | undefined;
-    try {
-        if (!html) throw new Error("No HTML");
-        rawData = extractYtInitial(html);
-        if (rawData.videoDetails.videoId !== videoTag) {
-            throw new Error("Video ID mismatch");
-        }
-    } catch {
-        const pageHtml = await fetchHTMLPage(videoTag);
-        rawData = extractYtInitial(pageHtml);
-    }
-    if (!rawData) {
-        throw new Error("Failed to extract raw data");
-    }
-    return rawData;
-}
-
 export function parseVideoFormats(formats: RawFormat): YoutubeVideoFormat[] {
     const audioSize = getAverageAudioSize(formats.audioFormats);
     const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);
-    const humanizedVideoFormats = humanizeVideoFormats(
-        mergedFormats,
-        formats.durationSeconds,
-        formats.isLive,
-    );
-    return humanizedVideoFormats;
-}
-
-export function humanizeVideoFormats(
-    videoFormats: RawFormat["formats"],
-    durationInSeconds: number,
-    isLive = false,
-) {
-    return videoFormats.map((format) => {
+    const parsedFormats = mergedFormats.map((format) => {
+        const data = format;
+        delete data.bitrateBitsPerSecond;
         return {
-            formatId: format.formatId,
-            height: format.height,
-            sizeMB: format.maxSizeBytes
-                ? `${filesize(format.sizeBytes)} - ${filesize(format.maxSizeBytes)}`
-                : filesize(format.sizeBytes),
-            maxSizeMB: format.maxSizeBytes ? filesize(format.maxSizeBytes) : undefined,
-            sizePerMinuteMB: sizePerMinute(format.sizeBytes, durationInSeconds, isLive),
+            ...data,
+            sizePerSecondBytes: format.sizeBytes / formats.durationSeconds,
         };
     });
+    return parsedFormats;
 }
 
 export function getAverageAudioSize(audioFormatArray: RawFormat["audioFormats"]) {
@@ -96,53 +68,65 @@ export function parseLiveStreamInfo(formats: RawFormat): StreamInfo[] {
     }));
 }
 
-async function fetchHTMLPage(videoTag: string) {
+async function fetchYoutubeHtml(videoTag: string) {
     const res = await fetchAndRetry(`https://www.youtube.com/watch?v=${videoTag}`, {
         method: "GET",
         signal: AbortSignal.timeout(CONFIG.FETCH_HTML_TIMEOUT),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const fetchedHtml = await res.text();
+    if (!res.success) throw new Error(`HTTP ${res.error.message}`);
+    const fetchedHtml = await res.response.text();
     return fetchedHtml;
 }
 
-export function extractYtInitial(html: string): RawData {
-    const match = html.match(CONFIG.YT_INITIAL_PLAYER_REGEX);
-    if (!match || !match[1]) throw new Error("No match found");
-    const data = JSON.parse(match[1]) as unknown as RawData;
-    if (!data) throw new Error("No data found");
-    return data;
+export async function extractYtInitialResponse(
+    videoTag: string,
+    html: string | undefined,
+): Promise<ytInitialPlayerResponse> {
+    const validHtml = html || (await fetchYoutubeHtml(videoTag));
+    const match = validHtml.match(CONFIG.YT_INITIAL_PLAYER_REGEX);
+    if (!match?.[1]) throw new Error("No match found");
+
+    const data = JSON.parse(match[1]) as unknown;
+    const ytInitial = ytInitialSchema.parse(data);
+
+    if (ytInitial.videoDetails.videoId !== videoTag) {
+        throw new Error("Video ID mismatch between extracted data and requested video");
+    }
+    return ytInitial;
+}
+
+function getFormatSizeBytes(
+    format: ytInitialPlayerResponse["streamingData"]["adaptiveFormats"][number],
+    isLive: boolean,
+): number {
+    if (isLive) {
+        return format.bitrate ? (format.bitrate * 3600) / 8 : 0;
+    }
+    return Number.parseInt(format.contentLength || "0", 10);
 }
 
 // Order of each key is important. It's the same order the user sees.
 // Order of itags is important. The first index of each key means higher priority.
 // For example, for 144p, if itag 394 is available, we choose that. If not, we check for itag 330 and so on.
-function chooseVideoFormats(data: RawData): RawFormat["formats"] {
+function chooseVideoFormats(data: ytInitialPlayerResponse): RawFormat["formats"] {
     const chosenFormats: RawFormat["formats"] = [];
     const adaptiveFormats = data.streamingData.adaptiveFormats;
+    const isLive = data.videoDetails.isLive || false;
 
     for (const [resolution, itags] of CONFIG.VIDEO_ITAGS) {
         const matchingFormats = itags
-            .map((itag) => {
-                return adaptiveFormats.find((format) => format.itag === itag);
-            })
-            // Remove missing itags and keep only formats we can size.
-            .filter((format): format is RawData["streamingData"]["adaptiveFormats"][number] => {
-                if (!format) return false;
-                if (data.videoDetails.isLive) return Boolean(format.bitrate);
-                return Number.parseInt(format.contentLength || "0", 10) > 0;
+            .map((itag) => adaptiveFormats.find((format) => format.itag === itag))
+            // eslint-disable-next-line unicorn/prefer-native-coercion-functions
+            .filter((format): format is NonNullable<typeof format> => Boolean(format))
+            .filter((format) => {
+                return getFormatSizeBytes(format, isLive) > 0;
             });
 
         if (matchingFormats.length === 0) {
             continue;
         }
 
-        const sizes = matchingFormats.map((format) => {
-            if (data.videoDetails.isLive) {
-                return format.bitrate ? (format.bitrate * 3600) / 8 : 0;
-            }
-            return Number.parseInt(format.contentLength || "0", 10);
-        });
+        const sizes = matchingFormats.map((format) => getFormatSizeBytes(format, isLive));
         const firstFormat = matchingFormats[0];
         const shouldShowRange = resolution >= CONFIG.RANGE_RESOLUTION_THRESHOLD;
         const minSize = Math.min(...sizes);
@@ -161,7 +145,7 @@ function chooseVideoFormats(data: RawData): RawFormat["formats"] {
     return chosenFormats;
 }
 
-function chooseAudioFormats(data: RawData) {
+function chooseAudioFormats(data: ytInitialPlayerResponse) {
     if (data.videoDetails.isLive) {
         const audioFormat = data.streamingData.adaptiveFormats.find(
             (format) => format.itag === CONFIG.LIVE_AUDIO_ITAG,
@@ -169,8 +153,8 @@ function chooseAudioFormats(data: RawData) {
         if (!audioFormat) return [];
         return [
             {
-                formatId: audioFormat?.itag,
-                sizeBytes: audioFormat?.bitrate ? (audioFormat?.bitrate * 3600) / 8 : 0,
+                formatId: audioFormat.itag,
+                sizeBytes: audioFormat.bitrate ? (audioFormat.bitrate * 3600) / 8 : 0,
             },
         ];
     }
@@ -187,7 +171,8 @@ function chooseAudioFormats(data: RawData) {
         });
 }
 
-export function parseDataFromYtInitial(data: RawData): RawFormat {
+export function parseDataFromYtInitial(data: ytInitialPlayerResponse): RawFormat {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!data || !data.videoDetails || !data.streamingData || !data.streamingData.adaptiveFormats)
         throw new Error("No data found");
 
@@ -197,6 +182,6 @@ export function parseDataFromYtInitial(data: RawData): RawFormat {
         durationSeconds: Number.parseInt(data.videoDetails.lengthSeconds || "0", 10),
         formats: chooseVideoFormats(data),
         audioFormats: chooseAudioFormats(data),
-        isLive: data.videoDetails.isLive ?? false,
+        isLive: data.videoDetails.isLive || false,
     };
 }

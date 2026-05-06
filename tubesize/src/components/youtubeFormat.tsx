@@ -1,35 +1,31 @@
-import type { StreamInfo, YoutubeVideoFormat } from "@app-types/types";
+import { perHourDisplay, perMinuteDisplay, totalSizeVideoDisplay } from "@/lib/formatting";
+import type { StreamInfo, YoutubeData, YoutubeVideoFormat } from "@app-types/types";
 
 interface Props {
-    item: YoutubeVideoFormat | StreamInfo;
-    isLive: boolean | undefined;
-    isShorts?: boolean;
+    item: YoutubeData["formats"][number];
+    isLive: boolean;
+    isShorts: boolean;
     currentQuality: number | undefined;
 }
 
-function perHourDisplay(sizePerHourMB: number): string {
-    if (sizePerHourMB >= 1000) {
-        return `${(sizePerHourMB / 1000).toFixed(2)} GB/hour`;
-    }
-    return `${sizePerHourMB.toFixed(2)} MB/hour`;
-}
+export default function YoutubeFormat({ item, isLive, isShorts, currentQuality }: Props) {
+    const resolution = isLive
+        ? (item as StreamInfo).resolution
+        : (item as YoutubeVideoFormat).height;
 
-export default function YoutubeFormat({ item, isShorts = false, currentQuality }: Props) {
-    const resolution = "height" in item ? item.height : item.resolution;
-    const sizePerMinuteMB =
-        "sizePerMinuteMB" in item
-            ? item.sizePerMinuteMB
-            : (item.sizePerSecondBytes * 60) / 1_000_000;
-    const sizeDisplay = "sizeMB" in item ? item.sizeMB : perHourDisplay(sizePerMinuteMB * 60);
     const className = resolution === currentQuality ? "format-item current" : "format-item";
 
     return (
         <div className={className}>
-            <div className="format-height">{resolution}p</div>
+            <div className="format-height"> {resolution}p </div>
             <div className="format-size">
-                <span>{sizeDisplay}</span>
+                <span>
+                    {isLive
+                        ? perHourDisplay(item.sizePerSecondBytes)
+                        : totalSizeVideoDisplay((item as YoutubeVideoFormat).sizeBytes)}
+                </span>
                 <span className="format-size-per-minute">
-                    {!isShorts && `${sizePerMinuteMB.toFixed(1)} MB/min`}
+                    {!isShorts && perMinuteDisplay(item.sizePerSecondBytes)}
                 </span>
             </div>
         </div>

@@ -21,6 +21,7 @@ class ErrorBoundary extends Component<Props, State> {
         console.error("[ErrorBoundary]:", error, info.componentStack);
     }
 
+    // eslint-disable-next-line @typescript-eslint/promise-function-async
     render() {
         const { error } = this.state;
         if (error) {

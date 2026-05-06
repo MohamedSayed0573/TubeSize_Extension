@@ -1,3 +1,4 @@
+import { delay } from "@lib/utils";
 import { sendMessageToContentScript } from "@/runtime";
 import { useEffect, useState } from "react";
 
@@ -15,7 +16,7 @@ export default function useCurrentQuality(tabId?: number, tabUrl?: string) {
                     setCurrentQuality(quality);
                     return;
                 }
-                await new Promise((resolve) => setTimeout(resolve, 500));
+                await delay(500);
             }
         })().catch((err) => {
             console.error("Failed to get current quality:", err);
