@@ -19,7 +19,10 @@ export default defineConfig(({ mode }) => ({
             "@app-types": path.resolve(__dirname, "src/types"),
         },
     },
-    plugins: [react(), webExtension({ disableAutoLaunch: true })],
+    plugins: [
+        react(),
+        webExtension({ additionalInputs: ["analytics.html"], disableAutoLaunch: true }),
+    ],
     build: {
         sourcemap: mode === "development",
     },

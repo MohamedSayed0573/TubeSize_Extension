@@ -2,7 +2,7 @@ import "@styles/options.css";
 
 export default function HeaderOptions() {
     return (
-        <div className="header">
+        <div className="optionsHeader">
             <a id="backBtn" href="index.html">
                 &larr; Back
             </a>

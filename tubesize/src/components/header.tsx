@@ -85,18 +85,32 @@ export default function Header({ data, setUseOptionsPage }: Props) {
 
     return (
         <div className="header">
-            <div className="title" title={title}>
-                {title}
+            <div className="headerInfo">
+                <div className="title" title={title}>
+                    {title}
+                </div>
+                {isLive && <span className="live-indicator">Live</span>}
+                {duration && (
+                    <span className="duration" id="duration-display">
+                        {duration}
+                    </span>
+                )}
             </div>
-            {isLive && <span className="live-indicator">Live</span>}
-            {duration && (
-                <span className="duration" id="duration-display">
-                    {duration}
-                </span>
-            )}
-            <button id="optionsBtn" onClick={() => setUseOptionsPage(true)}>
-                Options
-            </button>
+            <div className="optionsMenu">
+                <button id="optionsBtn" onClick={() => setUseOptionsPage(true)}>
+                    Options
+                </button>
+                <button id="optionsBtn" onClick={navigateToAnalytics}>
+                    Analytics
+                </button>
+            </div>
         </div>
     );
+}
+
+function navigateToAnalytics() {
+    void chrome.tabs.create({
+        active: true,
+        url: chrome.runtime.getURL("analytics.html"),
+    });
 }
