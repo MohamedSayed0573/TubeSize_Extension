@@ -5,6 +5,10 @@ let sessionUsage: number = 0;
 let pendingUsage: number = 0;
 let lastCurrentUrl: string | undefined;
 
+export async function getUsageByDay() {
+    return ((await getFromLocalCache("usageByDay")) ?? {}) as Record<string, number>;
+}
+
 const observer = new PerformanceObserver((list) => {
     if (globalThis.location.href !== lastCurrentUrl) {
         // URL has changed, reset session usage
@@ -21,8 +25,11 @@ const observer = new PerformanceObserver((list) => {
 void (async () => {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (true) {
-        const totalUsage = (await getTotalUsage()) ?? 0;
-        await setToLocalCache({ totalUsage: totalUsage + pendingUsage });
+        const date = new Date().toISOString().split("T")[0];
+        const usageByDay = await getUsageByDay();
+        usageByDay[date] = (usageByDay[date] ?? 0) + pendingUsage;
+        await setToLocalCache({ usageByDay });
+
         pendingUsage = 0;
         await delay(10_000);
     }
@@ -35,16 +42,13 @@ observer.observe({
 
 chrome.runtime.onMessage.addListener(
     (
-        message: { type: "totalUsage" | "deleteSessionData" | "deleteTotalData" },
+        message: { type: "sessionUsage" | "deleteSessionData" | "deleteTotalData" },
         _sender,
         sendResponse,
     ) => {
         switch (message.type) {
-            case "totalUsage": {
-                void (async () => {
-                    const totalUsage = (await getTotalUsage()) ?? 0;
-                    sendResponse({ sessionUsage, totalUsage });
-                })();
+            case "sessionUsage": {
+                sendResponse(sessionUsage);
                 break;
             }
             case "deleteSessionData": {
@@ -63,7 +67,3 @@ chrome.runtime.onMessage.addListener(
         return true;
     },
 );
-
-async function getTotalUsage() {
-    return getFromLocalCache("totalUsage") as Promise<number | undefined>;
-}

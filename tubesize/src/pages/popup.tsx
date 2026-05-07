@@ -19,11 +19,11 @@ import Options from "@pages/options";
 import CONFIG from "@lib/constants";
 import Header from "@components/header";
 import useTab from "@hooks/useTab";
-import TotalUsage from "@components/usage";
 import YoutubeFormats from "@components/youtubeFormats";
 import TwitchFormats from "@components/twitchFormats";
 import KickFormats from "@components/kickFormats";
 import type { PopupData } from "@app-types/uiTypes";
+import SessionUsage from "@components/usage";
 
 function getCachedAgo(createdAt: string | undefined) {
     if (!createdAt) return;
@@ -163,7 +163,7 @@ export default function Popup() {
         <div className="popup-page">
             <Header data={data} setUseOptionsPage={setUseOptionsPage} />
             <div id="container">
-                {!isLoading && data?.platform === "youtube" && <TotalUsage tabId={tabId} />}
+                {!isLoading && data?.platform === "youtube" && <SessionUsage tabId={tabId} />}
 
                 {data?.cacheCreatedAt && (
                     <div className="cached-note">{getCachedAgo(data.cacheCreatedAt)}</div>
