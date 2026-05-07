@@ -200,4 +200,10 @@
     color: #a8a8b1;
     font-size: 12px;
     font-weight: 500;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.session-usage-value {
+    color: #ffebebe8;
 }

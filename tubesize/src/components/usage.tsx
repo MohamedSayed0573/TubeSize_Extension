@@ -31,9 +31,9 @@ export default function TotalUsage({ tabId }: { tabId: number | undefined }) {
     return (
         <>
             {totalUsage?.sessionUsage !== undefined && (
-                <div>
-                    <span>
-                        {"YouTube session usage: "}
+                <div className="session-usage">
+                    <span>{"YouTube session usage: "}</span>
+                    <span className="session-usage-value">
                         {totalSizeVideoDisplay(totalUsage.sessionUsage)}
                     </span>
                 </div>
