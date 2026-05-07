@@ -163,15 +163,17 @@ export default function Popup() {
         <div className="popup-page">
             <Header data={data} setUseOptionsPage={setUseOptionsPage} />
             <div id="container">
+                {!isLoading && data?.platform === "youtube" && <TotalUsage tabId={tabId} />}
+
                 {data?.cacheCreatedAt && (
                     <div className="cached-note">{getCachedAgo(data.cacheCreatedAt)}</div>
                 )}
+
                 {!data && isLoading && (
                     <div className="loading-state">
                         <span className="spinner" />
                     </div>
                 )}
-                {!isLoading && data?.platform === "youtube" && <TotalUsage tabId={tabId} />}
 
                 {!data && !isLoading && message && <span className="info">{message}</span>}
                 {data?.platform === "youtube" && (

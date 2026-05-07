@@ -1,4 +1,3 @@
-import { setToLocalCache } from "@lib/cache";
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { sendMessageToContentScript } from "@/runtime";
 import type { TotalUsageData } from "@app-types/types";
@@ -14,7 +13,6 @@ export default function TotalUsage({ tabId }: { tabId: number | undefined }) {
             const totalUsageResponse = await sendMessageToContentScript(tabId, {
                 type: "totalUsage",
             });
-            console.log("Received total usage from content script:", totalUsageResponse);
             setTotalUsage(totalUsageResponse);
 
             interval = setInterval(() => {
@@ -23,7 +21,6 @@ export default function TotalUsage({ tabId }: { tabId: number | undefined }) {
                     const totalUsageResponse = await sendMessageToContentScript(tabId, {
                         type: "totalUsage",
                     });
-                    console.log("Received total usage from content script:", totalUsageResponse);
                     setTotalUsage(totalUsageResponse);
                 })();
             }, 5000);
@@ -36,54 +33,9 @@ export default function TotalUsage({ tabId }: { tabId: number | undefined }) {
             {totalUsage?.sessionUsage !== undefined && (
                 <div>
                     <span>
-                        Total Youtube Usage:
-                        {totalSizeVideoDisplay(totalUsage.totalUsage || 0)}
+                        {"YouTube session usage: "}
+                        {totalSizeVideoDisplay(totalUsage.sessionUsage)}
                     </span>
-
-                    <button
-                        onClick={() => {
-                            void (async () => {
-                                if (!tabId) return;
-                                await sendMessageToContentScript(tabId, {
-                                    type: "deleteTotalData",
-                                });
-                                await setToLocalCache({ totalUsage: 0 });
-
-                                setTotalUsage((prev) =>
-                                    prev ? { ...prev, totalUsage: 0 } : undefined,
-                                );
-                            })();
-                        }}
-                        style={{ marginLeft: "8px", padding: "4px 8px", cursor: "pointer" }}
-                    >
-                        Clear Total
-                    </button>
-                </div>
-            )}
-
-            {totalUsage?.sessionUsage !== undefined && (
-                <div>
-                    <span>
-                        Session Youtube Usage:
-                        {totalSizeVideoDisplay(totalUsage.sessionUsage || 0)}
-                    </span>
-
-                    <button
-                        onClick={() => {
-                            void (async () => {
-                                if (!tabId) return;
-                                await sendMessageToContentScript(tabId, {
-                                    type: "deleteSessionData",
-                                });
-                                setTotalUsage((prev) =>
-                                    prev ? { ...prev, sessionUsage: 0 } : undefined,
-                                );
-                            })();
-                        }}
-                        style={{ marginLeft: "8px", padding: "4px 8px", cursor: "pointer" }}
-                    >
-                        Clear Session
-                    </button>
                 </div>
             )}
         </>

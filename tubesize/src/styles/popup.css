@@ -191,3 +191,13 @@
     font-weight: 600;
     color: #ffffff;
 }
+
+.session-usage {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background-color: rgba(255, 255, 255, 0.03);
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: #a8a8b1;
+    font-size: 12px;
+    font-weight: 500;
+}
