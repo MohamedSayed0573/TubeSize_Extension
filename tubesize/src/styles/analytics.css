@@ -1,0 +1,65 @@
+body {
+    margin: 0;
+}
+
+.analytics-page {
+    box-sizing: border-box;
+    width: 100vw;
+    height: 100vh;
+    background: #0f0f0f;
+}
+
+.analytics-header {
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    font-weight: bolder;
+    border-bottom: 1px solid #ffffff0f;
+    color: #8b8d93;
+    background: linear-gradient(to right, #2b0303, #e8a8380f);
+    min-height: 6vh;
+    padding: 8px 20px;
+}
+
+.analytics-body {
+    padding: 0px 20px;
+}
+
+.stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 8px;
+    min-height: 14vh;
+    padding: 10px 0px;
+}
+
+.stats-card {
+    border: 1px solid #00000067;
+    border-radius: 8px;
+    background-color: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 10px 10px 10px 22px;
+    gap: 10px;
+}
+
+.stats-card:hover {
+    background-color: #2a2a2a;
+    cursor: pointer;
+}
+
+.stat-value {
+    color: #f0ece4;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", "monospace";
+    font-size: 25px;
+    font-weight: 700;
+}
+
+.stat-label {
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", "monospace";
+    text-transform: uppercase;
+    color: #3ec9c0;
+    font-size: 14px;
+    font-weight: 600;
+}

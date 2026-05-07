@@ -21,7 +21,15 @@ export default defineConfig(({ mode }) => ({
     },
     plugins: [
         react(),
-        webExtension({ additionalInputs: ["analytics.html"], disableAutoLaunch: true }),
+        webExtension({
+            additionalInputs: ["analytics.html"],
+            disableAutoLaunch: true,
+            htmlViteConfig: {
+                build: {
+                    watch: {},
+                },
+            },
+        }),
     ],
     build: {
         sourcemap: mode === "development",
