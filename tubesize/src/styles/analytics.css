@@ -63,3 +63,8 @@ body {
     font-size: 14px;
     font-weight: 600;
 }
+
+.analytics-graph {
+    height: 65vh;
+    padding: 20px;
+}

@@ -32,10 +32,12 @@
         "jest": true
     },
     "dependencies": {
+        "@recharts/devtools": "^0.0.13",
         "humanize-duration": "^3.33.2",
         "m3u8-parser": "^7.2.0",
         "react": "^19.2.6",
         "react-dom": "^19.2.6",
+        "recharts": "^3.8.1",
         "zod": "^4.4.3"
     },
     "devDependencies": {

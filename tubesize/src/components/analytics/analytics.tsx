@@ -1,6 +1,7 @@
-import { getFromLocalCache } from "@/lib/cache";
+import { getFromLocalCache } from "@lib/cache";
 import "@styles/analytics.css";
 import { useEffect, useState } from "react";
+import Chart from "@components/analytics/chart";
 
 async function getUsageByDay() {
     return ((await getFromLocalCache("usageByDay")) ?? {}) as Record<string, number>;
@@ -90,6 +91,9 @@ export default function Analytics() {
                         <div className="stat-label">Lifetime: </div>
                         <div className="stat-value">{formatBytes(lifeTimeUsage(usage))}</div>
                     </div>
+                </div>
+                <div className="analytics-graph">
+                    <Chart usage={usage} />
                 </div>
             </div>
         </div>
