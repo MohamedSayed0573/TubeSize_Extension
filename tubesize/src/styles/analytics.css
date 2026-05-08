@@ -59,13 +59,13 @@ body,
 
 .stat-value {
     color: #f0ece4;
-    font-family: "JetBrains Mono", "SF Mono", "Fira Code", "monospace";
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
     font-size: 25px;
     font-weight: 700;
 }
 
 .stat-label {
-    font-family: "JetBrains Mono", "SF Mono", "Fira Code", "monospace";
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
     text-transform: uppercase;
     color: #3ec9c0;
     font-size: 14px;

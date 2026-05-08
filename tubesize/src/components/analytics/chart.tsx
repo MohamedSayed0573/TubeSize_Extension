@@ -1,5 +1,4 @@
 import { CartesianGrid, Legend, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
-import { RechartsDevtools } from "@recharts/devtools";
 
 function formatBytes(bytes: number) {
     const mb = bytes / 1_000_000;
@@ -10,12 +9,9 @@ function formatBytes(bytes: number) {
 export default function Chart({ usage }: { usage: Record<string, number> }) {
     console.log(usage);
     const transformed = Object.entries(usage).map(([date, value]) => {
-        console.log(formatBytes(value));
-        value = formatBytes(value);
-        console.log(value);
         return {
             date,
-            value,
+            value: formatBytes(value),
         };
     });
     return (
@@ -42,7 +38,6 @@ export default function Chart({ usage }: { usage: Record<string, number> }) {
             <YAxis width="auto" label={{ value: "usage", position: "insideLeft", angle: -90 }} />
             <Legend align="right" />
             <Tooltip />
-            <RechartsDevtools />
         </LineChart>
     );
 }

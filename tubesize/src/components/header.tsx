@@ -97,10 +97,10 @@ export default function Header({ data, setUseOptionsPage }: Props) {
                 )}
             </div>
             <div className="optionsMenu">
-                <button id="optionsBtn" onClick={() => setUseOptionsPage(true)}>
+                <button className="optionsBtn" onClick={() => setUseOptionsPage(true)}>
                     Options
                 </button>
-                <button id="optionsBtn" onClick={navigateToAnalytics}>
+                <button className="optionsBtn" onClick={navigateToAnalytics}>
                     Analytics
                 </button>
             </div>

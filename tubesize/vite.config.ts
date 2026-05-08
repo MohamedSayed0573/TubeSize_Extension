@@ -24,11 +24,6 @@ export default defineConfig(({ mode }) => ({
         webExtension({
             additionalInputs: ["analytics.html"],
             disableAutoLaunch: true,
-            htmlViteConfig: {
-                build: {
-                    watch: {},
-                },
-            },
         }),
     ],
     build: {
