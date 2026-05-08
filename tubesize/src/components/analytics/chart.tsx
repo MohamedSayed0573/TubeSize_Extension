@@ -20,7 +20,7 @@ export default function Chart({ usage }: { usage: Record<string, number> }) {
     });
     return (
         <LineChart
-            style={{ width: "100%", aspectRatio: 1.618, maxWidth: "100%", maxHeight: "100%" }}
+            style={{ width: "100%", height: "100%" }}
             responsive
             data={transformed}
             margin={{
