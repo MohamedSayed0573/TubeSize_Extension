@@ -1,0 +1,61 @@
+.header {
+    background: #141415;
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+.headerInfo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 2px;
+}
+.optionsMenu {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+.title {
+    font-size: 14px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.audio {
+    font-size: 12px;
+    color: #a8a8b1;
+    font-weight: 500;
+}
+.duration {
+    font-size: 12px;
+    color: #a8a8b1;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-weight: 500;
+}
+.live-indicator {
+    font-size: 14px;
+    color: #ff4d4d;
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(255, 77, 77, 0.4);
+}
+#optionsBtn {
+    font-size: 12px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #f1f1f1;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    min-width: 48%;
+}
+#optionsBtn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}

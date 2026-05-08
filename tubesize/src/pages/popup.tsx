@@ -1,5 +1,7 @@
 import "@styles/popup.css";
 import "@styles/global.css";
+import "@styles/header.css";
+import "@styles/formatItem.css";
 import { sendMessageToBackground, sendMessageToContentScript } from "@/runtime";
 import { useEffect, useState } from "react";
 import {
