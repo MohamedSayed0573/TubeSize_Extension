@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => ({
             "@lib": path.resolve(__dirname, "src/lib"),
             "@tests": path.resolve(__dirname, "src/tests"),
             "@assets": path.resolve(__dirname, "src/assets"),
+            "@hooks": path.resolve(__dirname, "src/hooks"),
             "@app-types": path.resolve(__dirname, "src/types"),
         },
     },

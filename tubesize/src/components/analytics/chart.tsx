@@ -1,13 +1,34 @@
-import { CartesianGrid, Legend, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Tooltip,
+    XAxis,
+    YAxis,
+    type TooltipContentProps,
+} from "recharts";
+import "@styles/chart.css";
 
 function formatBytes(bytes: number) {
-    const mb = bytes / 1_000_000;
-    return mb;
+    return bytes / 1_000_000;
 }
 
-// #endregion
+const renderTooltip = ({ active, payload, label }: TooltipContentProps) => {
+    if (!active || payload.length === 0) {
+        return <></>;
+    }
+
+    const megabytes = Number(payload[0].value).toFixed(1);
+
+    return (
+        <div className="tooltip">
+            <div className="tooltip-label">{label}</div>
+            <div className="tooltip-value">{megabytes} MB</div>
+        </div>
+    );
+};
+
 export default function Chart({ usage }: { usage: Record<string, number> }) {
-    console.log(usage);
     const transformed = Object.entries(usage).map(([date, value]) => {
         return {
             date,
@@ -15,29 +36,12 @@ export default function Chart({ usage }: { usage: Record<string, number> }) {
         };
     });
     return (
-        <LineChart
-            style={{ width: "100%", height: "100%" }}
-            responsive
-            data={transformed}
-            margin={{
-                top: 20,
-                right: 20,
-                bottom: 5,
-                left: 0,
-            }}
-        >
-            <CartesianGrid stroke="#aaa" strokeDasharray="5 5" />
-            <Line
-                type="monotone"
-                dataKey="value"
-                stroke="purple"
-                strokeWidth={2}
-                name="Usage (MB)"
-            />
+        <BarChart className="bar-chart" responsive data={transformed}>
+            <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" strokeDasharray="4 4" />
             <XAxis dataKey="date" />
-            <YAxis width="auto" label={{ value: "usage", position: "insideLeft", angle: -90 }} />
-            <Legend align="right" />
-            <Tooltip />
-        </LineChart>
+            <YAxis width="auto" />
+            <Tooltip content={renderTooltip} />
+            <Bar dataKey="value" fill="#8884d8" />
+        </BarChart>
     );
 }

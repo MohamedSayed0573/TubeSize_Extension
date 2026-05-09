@@ -56,6 +56,7 @@ export default defineConfig([
             "unicorn/prefer-top-level-await": "off",
             "@typescript-eslint/no-unnecessary-condition": "error",
             "@typescript-eslint/promise-function-async": "error",
+            "unicorn/no-nested-ternary": "off",
         },
     },
     {

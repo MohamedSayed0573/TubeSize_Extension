@@ -1,4 +1,4 @@
-import { getFromLocalCache } from "@lib/cache";
+import { getFromLocalCache, removeFromLocalCache } from "@lib/cache";
 import "@styles/analytics.css";
 import { useEffect, useState } from "react";
 import Chart from "@components/analytics/chart";
@@ -62,6 +62,9 @@ function formatBytes(bytes: number) {
 }
 
 export default function Analytics() {
+    const [isClearing, setIsClearing] = useState(false);
+    const [clearStatus, setClearStatus] = useState<"idle" | "success" | "error">("idle");
+
     const [usage, setUsage] = useState<Record<string, number>>({});
     useEffect(() => {
         void (async () => {
@@ -69,6 +72,32 @@ export default function Analytics() {
             setUsage(usageByDay);
         })();
     }, []);
+    console.log(usage);
+
+    const handleClearUsageData = async () => {
+        confirm("Are you sure you want to clear all usage data?");
+        setIsClearing(true);
+        try {
+            await clearAllUsageData();
+            setUsage({});
+            setClearStatus("success");
+        } catch (err) {
+            console.log("Failed to clear usage data", err);
+            setClearStatus("error");
+        } finally {
+            setIsClearing(false);
+            setTimeout(() => {
+                setClearStatus("idle");
+            }, 1500);
+        }
+    };
+
+    const clearButtonText =
+        clearStatus === "success"
+            ? "Usage Data Cleared Successfully!"
+            : clearStatus === "error"
+              ? "Failed to Clear Usage Data. Try Again."
+              : "Clear All Usage Data";
 
     return (
         <div className="analytics-page">
@@ -93,9 +122,37 @@ export default function Analytics() {
                     </div>
                 </div>
                 <div className="analytics-graph">
-                    <Chart usage={usage} />
+                    <div className="graph-header">
+                        <div className="graph-title">Data Usage per day (MB)</div>
+                        <div className="days-counter">
+                            {Object.keys(usage).length === 1
+                                ? `${Object.keys(usage).length} Day`
+                                : `${Object.keys(usage).length} Days`}
+                        </div>
+                    </div>
+                    {Object.keys(usage).length === 0 ||
+                    Object.entries(usage).every(([_, value]) => value === 0) ? (
+                        <div className="empty-graph">
+                            No data available. Watch a YouTube video to see your usage statistics.
+                        </div>
+                    ) : (
+                        <div className="graph">
+                            <Chart usage={usage} />
+                        </div>
+                    )}
                 </div>
+                <button
+                    className="reset-button"
+                    onClick={() => void handleClearUsageData()}
+                    disabled={isClearing}
+                >
+                    {clearButtonText}
+                </button>
             </div>
         </div>
     );
+}
+
+async function clearAllUsageData() {
+    await removeFromLocalCache("usageByDay");
 }
