@@ -23,6 +23,8 @@
             "src/background.ts",
             "src/content.ts",
             "src/observer.ts",
+            "src/components/analytics/analytics.tsx",
+            "src/mainAnalytics.tsx",
             "scripts/generate-firefox-manifest.cjs"
         ],
         "ignoreBinaries": [

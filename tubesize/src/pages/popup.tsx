@@ -23,7 +23,7 @@ import YoutubeFormats from "@components/youtubeFormats";
 import TwitchFormats from "@components/twitchFormats";
 import KickFormats from "@components/kickFormats";
 import type { PopupData } from "@app-types/uiTypes";
-import SessionUsage from "@components/usage";
+import TodayUsage from "@components/usage";
 
 export default function Popup() {
     const [message, setMessage] = useState<string>("");
@@ -152,7 +152,7 @@ export default function Popup() {
         <div className="popup-page">
             <Header data={data} setUseOptionsPage={setUseOptionsPage} />
             <div id="container">
-                {!isLoading && data?.platform === "youtube" && <SessionUsage tabId={tabId} />}
+                {!isLoading && data?.platform === "youtube" && <TodayUsage tabId={tabId} />}
 
                 {!data && isLoading && (
                     <div className="loading-state">

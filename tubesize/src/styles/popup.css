@@ -76,7 +76,7 @@
     color: #ffffff;
 }
 
-.session-usage {
+.today-usage {
     border: 1px solid rgba(255, 255, 255, 0.12);
     background-color: rgba(255, 255, 255, 0.03);
     padding: 8px 12px;
@@ -88,6 +88,6 @@
     justify-content: space-between;
     align-items: center;
 }
-.session-usage-value {
+.today-usage-value {
     color: #ffebebe8;
 }

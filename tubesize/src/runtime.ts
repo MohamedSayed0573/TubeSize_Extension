@@ -41,16 +41,10 @@ export async function sendMessageToBackground<T extends FrontEndMessage>(
 
 type ContentScriptMessage =
     | { type: "getCurrentResolution" }
-    | { type: "getKick"; fromPopup?: boolean }
-    | { type: "sessionUsage" }
-    | { type: "deleteSessionData" }
-    | { type: "deleteTotalData" };
+    | { type: "getKick"; fromPopup?: boolean };
 type ContentScriptResponseMap = {
     getCurrentResolution: number | undefined;
     getKick: KickBackgroundResponse | undefined;
-    sessionUsage: number | undefined;
-    deleteSessionData: { success: boolean };
-    deleteTotalData: { success: boolean };
 };
 export async function sendMessageToContentScript<T extends ContentScriptMessage>(
     tabId: number,

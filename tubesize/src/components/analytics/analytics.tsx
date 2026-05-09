@@ -1,11 +1,8 @@
-import { getFromLocalCache, removeFromLocalCache } from "@lib/cache";
+import { removeFromLocalCache } from "@lib/cache";
 import "@styles/analytics.css";
 import { useEffect, useState } from "react";
 import Chart from "@components/analytics/chart";
-
-async function getUsageByDay() {
-    return ((await getFromLocalCache("usageByDay")) ?? {}) as Record<string, number>;
-}
+import { getUsageByDay } from "@/observer";
 
 function utcDateKey(date: Date) {
     return date.toISOString().split("T")[0];
@@ -69,10 +66,25 @@ export default function Analytics() {
     useEffect(() => {
         void (async () => {
             const usageByDay = await getUsageByDay();
-            setUsage(usageByDay);
+            const totalUsageByDay = Object.entries(usageByDay).map(([day, videoItags]) => {
+                let total = 0;
+                for (const [_videoItag, { usage }] of Object.entries(videoItags)) {
+                    total += usage;
+                }
+                return {
+                    day,
+                    total,
+                };
+            });
+
+            const data: Record<string, number> = {};
+            for (const { day, total } of totalUsageByDay) {
+                data[day] = total;
+            }
+
+            setUsage(data);
         })();
     }, []);
-    console.log(usage);
 
     const handleClearUsageData = async () => {
         confirm("Are you sure you want to clear all usage data?");

@@ -1,26 +1,32 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
-import { sendMessageToContentScript } from "@/runtime";
 import { useEffect, useState } from "react";
+import { getUsageByDay } from "@/observer";
 
-export default function SessionUsage({ tabId }: { tabId: number | undefined }) {
-    const [sessionUsage, setSessionUsage] = useState<number | undefined>();
+async function getTodaysTotalUsage(tabId: number | undefined) {
+    if (!tabId) return;
+    const usageByDay = await getUsageByDay();
+    const date = new Date().toISOString().split("T")[0];
+
+    let total = 0;
+    for (const [_videoTag, { usage }] of Object.entries(usageByDay[date] ?? {})) {
+        total += usage;
+    }
+    return total;
+}
+
+export default function TodayUsage({ tabId }: { tabId: number | undefined }) {
+    const [todayUsage, setTodayUsage] = useState<number | undefined>();
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
         void (async () => {
-            if (!tabId) return;
-            const sessionUsage = await sendMessageToContentScript(tabId, {
-                type: "sessionUsage",
-            });
-            setSessionUsage(sessionUsage);
+            const total = await getTodaysTotalUsage(tabId);
+            setTodayUsage(total);
 
             interval = setInterval(() => {
                 void (async () => {
-                    if (!tabId) return;
-                    const sessionUsage = await sendMessageToContentScript(tabId, {
-                        type: "sessionUsage",
-                    });
-                    setSessionUsage(sessionUsage);
+                    const total = await getTodaysTotalUsage(tabId);
+                    setTodayUsage(total);
                 })();
             }, 5000);
         })();
@@ -29,12 +35,10 @@ export default function SessionUsage({ tabId }: { tabId: number | undefined }) {
 
     return (
         <>
-            {sessionUsage !== undefined && (
-                <div className="session-usage">
-                    <span>{"YouTube session usage: "}</span>
-                    <span className="session-usage-value">
-                        {totalSizeVideoDisplay(sessionUsage)}
-                    </span>
+            {todayUsage !== undefined && (
+                <div className="today-usage">
+                    <span>{"YouTube Data Usage Today: "}</span>
+                    <span className="today-usage-value">{totalSizeVideoDisplay(todayUsage)}</span>
                 </div>
             )}
         </>
