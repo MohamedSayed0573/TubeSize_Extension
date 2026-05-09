@@ -8,7 +8,8 @@ export async function getUsageByDay() {
     >;
 }
 
-export function transformData(usageByDay: UsageByDay) {
+export function transformData(usageByDay: UsageByDay | undefined) {
+    if (!usageByDay) return {};
     const data: Record<string, number> = {};
     for (const [day, videoItags] of Object.entries(usageByDay)) {
         let total = 0;
@@ -59,7 +60,9 @@ void (async () => {
         pendingUsage = 0;
         await delay(10_000);
     }
-})();
+})().catch((err) => {
+    console.error("Error in usage tracking loop:", err);
+});
 
 observer.observe({
     type: "resource",

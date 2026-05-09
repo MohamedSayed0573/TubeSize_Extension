@@ -23,8 +23,6 @@
             "src/background.ts",
             "src/content.ts",
             "src/observer.ts",
-            "src/components/analytics/analytics.tsx",
-            "src/mainAnalytics.tsx",
             "scripts/generate-firefox-manifest.cjs"
         ],
         "ignoreBinaries": [
@@ -38,6 +36,7 @@
         "m3u8-parser": "^7.2.0",
         "react": "^19.2.6",
         "react-dom": "^19.2.6",
+        "react-router": "^7.15.0",
         "recharts": "^3.8.1",
         "zod": "^4.4.3"
     },

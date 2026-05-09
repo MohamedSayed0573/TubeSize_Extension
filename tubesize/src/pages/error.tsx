@@ -1,5 +1,3 @@
-import { useState } from "react";
-import Options from "@pages/options";
 import Header from "@components/header";
 
 interface Props {
@@ -7,11 +5,9 @@ interface Props {
 }
 
 function ErrorPage({ errorMessage }: Props) {
-    const [useOptionsPage, setUseOptionsPage] = useState(false);
-    if (useOptionsPage) return <Options />;
     return (
         <>
-            <Header setUseOptionsPage={setUseOptionsPage} />
+            <Header />
             <div className="error-page">
                 <div className="error-page-icon">⚠</div>
                 <div className="error-page-title">Something went wrong</div>

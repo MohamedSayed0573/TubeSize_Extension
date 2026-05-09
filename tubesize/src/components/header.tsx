@@ -1,6 +1,7 @@
 import type { PopupData } from "@app-types/uiTypes";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/types";
 import { humanizeDuration } from "@lib/utils";
+import { useNavigate } from "react-router";
 
 function getYoutubeTitle(youtubeData?: YoutubeData | null): string {
     return youtubeData?.type === "video"
@@ -54,10 +55,10 @@ function getKickDuration(kickData?: KickData | null): string | undefined {
 
 interface Props {
     data?: PopupData;
-    setUseOptionsPage: (useOptionsPage: boolean) => void;
 }
 
-export default function Header({ data, setUseOptionsPage }: Props) {
+export default function Header({ data }: Props) {
+    const navigate = useNavigate();
     const isLive = data?.data.type === "live";
     let title: string;
     let duration: string | undefined;
@@ -97,7 +98,7 @@ export default function Header({ data, setUseOptionsPage }: Props) {
                 )}
             </div>
             <div className="optionsMenu">
-                <button className="optionsBtn" onClick={() => setUseOptionsPage(true)}>
+                <button className="optionsBtn" onClick={() => void navigate("/options")}>
                     Options
                 </button>
                 <button className="optionsBtn" onClick={navigateToAnalytics}>
@@ -111,6 +112,6 @@ export default function Header({ data, setUseOptionsPage }: Props) {
 function navigateToAnalytics() {
     void chrome.tabs.create({
         active: true,
-        url: chrome.runtime.getURL("analytics.html"),
+        url: chrome.runtime.getURL("index.html#/analytics"),
     });
 }

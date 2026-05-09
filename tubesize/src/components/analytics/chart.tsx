@@ -8,6 +8,7 @@ import {
     type TooltipContentProps,
 } from "recharts";
 import "@styles/chart.css";
+import { useNavigate } from "react-router";
 
 function formatBytes(bytes: number) {
     return bytes / 1_000_000;
@@ -29,6 +30,7 @@ const renderTooltip = ({ active, payload, label }: TooltipContentProps) => {
 };
 
 export default function Chart({ usage }: { usage: Record<string, number> }) {
+    const navigate = useNavigate();
     const transformed = Object.entries(usage).map(([date, value]) => {
         return {
             date,
@@ -41,7 +43,14 @@ export default function Chart({ usage }: { usage: Record<string, number> }) {
             <XAxis dataKey="date" />
             <YAxis width="auto" />
             <Tooltip content={renderTooltip} />
-            <Bar dataKey="value" fill="#8884d8" />
+            <Bar
+                dataKey="value"
+                fill="#8884d8"
+                onClick={(data) => {
+                    const date = (data.payload as { date: string }).date;
+                    void navigate(`/analytics/${date}`);
+                }}
+            />
         </BarChart>
     );
 }

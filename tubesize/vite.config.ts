@@ -23,7 +23,6 @@ export default defineConfig(({ mode }) => ({
     plugins: [
         react(),
         webExtension({
-            additionalInputs: ["analytics.html"],
             disableAutoLaunch: true,
         }),
     ],

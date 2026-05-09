@@ -16,7 +16,6 @@ import {
     isKickStream,
     isKickVod,
 } from "@lib/utils";
-import Options from "@pages/options";
 import Header from "@components/header";
 import useTab from "@hooks/useTab";
 import YoutubeFormats from "@components/youtubeFormats";
@@ -30,7 +29,6 @@ export default function Popup() {
     const [isLoading, setIsLoading] = useState(true);
     const { tabId, tabUrl, error: tabError } = useTab();
     const [data, setData] = useState<PopupData | undefined>();
-    const [useOptionsPage, setUseOptionsPage] = useState(false);
     const [error, setError] = useState<Error | undefined>();
 
     useEffect(() => {
@@ -144,13 +142,9 @@ export default function Popup() {
         throw pageError;
     }
 
-    if (useOptionsPage) {
-        return <Options />;
-    }
-
     return (
         <div className="popup-page">
-            <Header data={data} setUseOptionsPage={setUseOptionsPage} />
+            <Header data={data} />
             <div id="container">
                 {!isLoading && data?.platform === "youtube" && <TodayUsage tabId={tabId} />}
 
