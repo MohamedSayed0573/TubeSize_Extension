@@ -1,11 +1,12 @@
 import "@styles/options.css";
+import { Link } from "react-router";
 
 export default function HeaderOptions() {
     return (
         <div className="optionsHeader">
-            <a id="backBtn" href="index.html">
+            <Link id="backBtn" to="/">
                 &larr; Back
-            </a>
+            </Link>
             <h3>Options</h3>
         </div>
     );
