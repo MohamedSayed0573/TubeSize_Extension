@@ -7,7 +7,7 @@
     border-radius: 8px;
     cursor: pointer;
     border: 1px solid transparent;
-    transition: all 0.2s ease;
+    transition: all 0.1s ease;
 }
 .format-item.current {
     background: rgba(220, 38, 38, 0.15);

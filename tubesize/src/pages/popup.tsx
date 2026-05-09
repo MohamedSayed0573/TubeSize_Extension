@@ -13,12 +13,10 @@ import {
     isTwitchVod,
     isKickPage,
     extractTwitchVodId,
-    humanizeDuration,
     isKickStream,
     isKickVod,
 } from "@lib/utils";
 import Options from "@pages/options";
-import CONFIG from "@lib/constants";
 import Header from "@components/header";
 import useTab from "@hooks/useTab";
 import YoutubeFormats from "@components/youtubeFormats";
@@ -26,17 +24,6 @@ import TwitchFormats from "@components/twitchFormats";
 import KickFormats from "@components/kickFormats";
 import type { PopupData } from "@app-types/uiTypes";
 import SessionUsage from "@components/usage";
-
-function getCachedAgo(createdAt: string | undefined) {
-    if (!createdAt) return;
-    const timeInMs = Date.now() - new Date(createdAt).getTime();
-    if (timeInMs < CONFIG.CACHE_JUST_NOW_THRESHOLD) {
-        return "Cached just now";
-    } else {
-        const timeAgo = humanizeDuration(timeInMs);
-        return `Cached ${timeAgo} ago`;
-    }
-}
 
 export default function Popup() {
     const [message, setMessage] = useState<string>("");
@@ -166,10 +153,6 @@ export default function Popup() {
             <Header data={data} setUseOptionsPage={setUseOptionsPage} />
             <div id="container">
                 {!isLoading && data?.platform === "youtube" && <SessionUsage tabId={tabId} />}
-
-                {data?.cacheCreatedAt && (
-                    <div className="cached-note">{getCachedAgo(data.cacheCreatedAt)}</div>
-                )}
 
                 {!data && isLoading && (
                     <div className="loading-state">
