@@ -37,7 +37,7 @@ export default function TodayUsage({ tabId }: { tabId: number | undefined }) {
         <>
             {todayUsage !== undefined && (
                 <div className="today-usage">
-                    <span>{"YouTube Data Usage Today: "}</span>
+                    <span>{"YouTube Usage Today: "}</span>
                     <span className="today-usage-value">{totalSizeVideoDisplay(todayUsage)}</span>
                 </div>
             )}

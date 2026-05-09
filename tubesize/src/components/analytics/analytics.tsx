@@ -3,6 +3,7 @@ import "@styles/analytics.css";
 import { useEffect, useState } from "react";
 import Chart from "@components/analytics/chart";
 import { getUsageByDay } from "@/observer";
+import { transformData } from "@/observer";
 
 function utcDateKey(date: Date) {
     return date.toISOString().split("T")[0];
@@ -66,28 +67,13 @@ export default function Analytics() {
     useEffect(() => {
         void (async () => {
             const usageByDay = await getUsageByDay();
-            const totalUsageByDay = Object.entries(usageByDay).map(([day, videoItags]) => {
-                let total = 0;
-                for (const [_videoItag, { usage }] of Object.entries(videoItags)) {
-                    total += usage;
-                }
-                return {
-                    day,
-                    total,
-                };
-            });
-
-            const data: Record<string, number> = {};
-            for (const { day, total } of totalUsageByDay) {
-                data[day] = total;
-            }
-
-            setUsage(data);
+            const transformedData = transformData(usageByDay);
+            setUsage(transformedData);
         })();
     }, []);
 
     const handleClearUsageData = async () => {
-        confirm("Are you sure you want to clear all usage data?");
+        if (!confirm("Are you sure you want to clear all usage data?")) return;
         setIsClearing(true);
         try {
             await clearAllUsageData();

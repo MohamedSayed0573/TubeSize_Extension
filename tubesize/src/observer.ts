@@ -8,6 +8,18 @@ export async function getUsageByDay() {
     >;
 }
 
+export function transformData(usageByDay: UsageByDay) {
+    const data: Record<string, number> = {};
+    for (const [day, videoItags] of Object.entries(usageByDay)) {
+        let total = 0;
+        for (const [_videoItag, { usage }] of Object.entries(videoItags)) {
+            total += usage;
+        }
+        data[day] = total;
+    }
+    return data;
+}
+
 let pendingUsage: number = 0;
 const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
