@@ -1,25 +1,6 @@
-import { getFromLocalCache, setToLocalCache } from "@lib/cache";
+import { setToLocalCache } from "@lib/cache";
 import { delay, extractVideoTag } from "@lib/utils";
-
-export async function getUsageByDay() {
-    return ((await getFromLocalCache("usageByDay")) ?? {}) as Record<
-        string,
-        Record<string, { usage: number }>
-    >;
-}
-
-export function transformData(usageByDay: UsageByDay | undefined) {
-    if (!usageByDay) return {};
-    const data: Record<string, number> = {};
-    for (const [day, videoItags] of Object.entries(usageByDay)) {
-        let total = 0;
-        for (const [_videoItag, { usage }] of Object.entries(videoItags)) {
-            total += usage;
-        }
-        data[day] = total;
-    }
-    return data;
-}
+import { getUsageByDay } from "@lib/analyticsUtils";
 
 let pendingUsage: number = 0;
 const observer = new PerformanceObserver((list) => {
@@ -32,8 +13,6 @@ const observer = new PerformanceObserver((list) => {
 function getCurrentTabUrl() {
     return globalThis.location.href;
 }
-
-export type UsageByDay = Record<string, Record<string, { usage: number }>>;
 
 void (async () => {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

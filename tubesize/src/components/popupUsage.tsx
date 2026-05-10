@@ -1,6 +1,6 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { useEffect, useState } from "react";
-import { getUsageByDay } from "@/observer";
+import { getUsageByDay } from "@lib/analyticsUtils";
 
 async function getTodaysTotalUsage(tabId: number | undefined) {
     if (!tabId) return;
@@ -14,7 +14,7 @@ async function getTodaysTotalUsage(tabId: number | undefined) {
     return total;
 }
 
-export default function TodayUsage({ tabId }: { tabId: number | undefined }) {
+export default function PopupUsage({ tabId }: { tabId: number | undefined }) {
     const [todayUsage, setTodayUsage] = useState<number | undefined>();
 
     useEffect(() => {

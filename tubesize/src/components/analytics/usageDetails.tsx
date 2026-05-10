@@ -1,4 +1,4 @@
-import { getUsageByDay } from "@/observer";
+import { getUsageByDay } from "@lib/analyticsUtils";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 

@@ -2,8 +2,8 @@ import { removeFromLocalCache } from "@lib/cache";
 import "@styles/analytics.css";
 import { useEffect, useState } from "react";
 import Chart from "@components/analytics/chart";
-import { getUsageByDay } from "@/observer";
-import { transformData } from "@/observer";
+import { getUsageByDay } from "@lib/analyticsUtils";
+import { transformData } from "@lib/analyticsUtils";
 
 function utcDateKey(date: Date) {
     return date.toISOString().split("T")[0];
