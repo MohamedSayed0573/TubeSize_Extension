@@ -38,7 +38,7 @@ export default function Chart({ usage }: { usage: Record<string, number> }) {
         };
     });
     return (
-        <BarChart className="bar-chart" responsive data={transformed}>
+        <BarChart responsive data={transformed}>
             <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" strokeDasharray="4 4" />
             <XAxis dataKey="date" />
             <YAxis width="auto" />

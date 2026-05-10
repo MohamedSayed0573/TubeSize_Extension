@@ -1,19 +1,6 @@
-* {
-    box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-    background: #0f0f0f;
-    margin: 0;
-    width: 100%;
-    height: 100%;
-}
-
 .analytics-page {
     width: 100%;
-    height: 100%;
+    height: 100vh;
     display: flex;
     flex-direction: column;
 }
