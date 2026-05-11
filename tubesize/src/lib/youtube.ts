@@ -185,3 +185,8 @@ export function parseDataFromYtInitial(data: ytInitialPlayerResponse): RawFormat
         isLive: data.videoDetails.isLive || false,
     };
 }
+
+export function getThumbnailUrl(data: ytInitialPlayerResponse): string | undefined {
+    data.videoDetails.thumbnail.thumbnails.sort((a, b) => b.width - a.width);
+    return data.videoDetails.thumbnail.thumbnails[0]?.url;
+}

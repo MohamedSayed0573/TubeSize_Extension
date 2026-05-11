@@ -38,6 +38,10 @@ export default function Popup() {
             setIsLoading(true);
 
             if (isYoutubePage(tabUrl)) {
+                if (tabId) {
+                    void sendMessageToContentScript(tabId, { type: "unpauseVideo" });
+                }
+
                 const videoTag = extractVideoTag(tabUrl);
                 if (!videoTag) {
                     setMessage("Open a Youtube video");

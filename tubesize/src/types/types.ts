@@ -46,6 +46,7 @@ export type YoutubeVideoData = {
     durationSeconds: number;
     id: string;
     isShorts?: boolean;
+    thumbnailUrl: string | undefined;
 };
 
 type YoutubeLiveData = {

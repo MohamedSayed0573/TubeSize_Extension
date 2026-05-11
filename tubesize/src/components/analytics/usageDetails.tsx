@@ -1,6 +1,7 @@
 import { getUsageByDay } from "@lib/analyticsUtils";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
+import "@styles/usageDetails.css";
 
 function getTodayTotalUsage(usage: Record<string, { usage: number }>) {
     let total = 0;
@@ -14,11 +15,26 @@ function formatBytes(bytes: number) {
     const mb = bytes / 1_000_000;
     return mb < 1000 ? mb.toFixed(1) + " MB" : (mb / 1000).toFixed(1) + " GB";
 }
+function getVideoUrl(videoTag: string) {
+    return `https://youtube.com/watch?v=${videoTag}`;
+}
+
+function formatDate(date: string) {
+    const dateString = new Date(date).toDateString();
+    const firstSpaceIndex = dateString.indexOf(" ");
+    return dateString.slice(firstSpaceIndex + 1);
+}
 
 export function UsageDetails() {
+    const navigate = useNavigate();
+    const [todayUsage, setTodayUsage] =
+        useState<
+            Record<
+                string,
+                { usage: number; title: string | undefined; thumbnailUrl: string | undefined }
+            >
+        >();
     const { date } = useParams();
-    console.log("Date in the URL:", date);
-    const [todayUsage, setTodayUsage] = useState<Record<string, { usage: number }>>();
 
     useEffect(() => {
         void (async () => {
@@ -26,20 +42,59 @@ export function UsageDetails() {
             setTodayUsage(date ? usageByDay[date] : undefined);
         })();
     }, [date]);
-    if (!todayUsage) return;
-
+    console.log(todayUsage);
+    if (!todayUsage || !date) return;
     return (
         <div className="usage-details">
-            <div className="usage-details-title">
-                {"Today's Usage by Video Tag"} {getTodayTotalUsage(todayUsage)}
+            <div className="usage-details-header">
+                <div className="usage-details-title">{`${formatDate(date)}`}</div>
+                <div className="usage-details-summary">
+                    <div className="summary-item">
+                        <div className="summary-item-header">{"Total Data Used"}</div>
+                        <div className="number">{formatBytes(getTodayTotalUsage(todayUsage))}</div>
+                    </div>
+                    <div className="summary-item">
+                        <div className="summary-item-header">{"Videos Watched"}</div>
+                        <div className="number">{Object.entries(todayUsage).length}</div>
+                    </div>
+                </div>
+                {/* <button
+                    className="return-btn"
+                    onClick={() => {
+                        void navigate("/analytics");
+                    }}
+                >
+                    Return to Analytics Page
+                </button> */}
             </div>
             <div className="usage-details-list">
-                {Object.entries(todayUsage).map(([videoTag, { usage }]) => (
-                    <div key={videoTag} className="usage-details-item">
-                        <span className="video-tag">{videoTag}</span>
-                        <span className="video-usage">{formatBytes(usage)}</span>
-                    </div>
-                ))}
+                <table>
+                    <tr className="row">
+                        <th>#</th>
+                        <th>VIDEO</th>
+                        <th>Data Used</th>
+                    </tr>
+                    {Object.entries(todayUsage).map(
+                        ([videoTag, { usage, title, thumbnailUrl }]) => (
+                            <tr key={videoTag} className="row">
+                                <td>1</td>
+                                <td>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                        }}
+                                    >
+                                        <img className="video-thumbnail" src={thumbnailUrl}></img>
+                                        {title}
+                                    </div>
+                                </td>
+                                <td>{formatBytes(usage)}</td>
+                            </tr>
+                        ),
+                    )}
+                </table>
             </div>
         </div>
     );

@@ -1,0 +1,134 @@
+.usage-details {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+}
+
+.usage-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 18px;
+    background: #161819;
+    border: 1px solid rgba(53, 32, 20, 0.925);
+    padding: 20px;
+}
+.usage-details-title {
+    color: rgb(0, 255, 221);
+    font-size: 32px;
+    width: 65%;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+}
+
+.usage-details-summary {
+    display: flex;
+    flex: 1;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.summary-item-header {
+    color: #8b8d93;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+}
+
+.number {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.return-btn {
+    padding: 10px;
+    border-radius: 12px;
+}
+.return-btn:hover {
+    cursor: pointer;
+}
+.usage-summary {
+    display: grid;
+    grid-template-columns: 65% 35%;
+    padding: 10px 20px;
+    gap: 10px;
+    height: 15vh;
+}
+
+.usage-summary-box {
+    font-size: 16px;
+    font-weight: 700;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    border: 1px solid black;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    color: #f0ece4;
+}
+
+.usage-details-list {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 20px;
+    padding: 10px 20px;
+}
+
+.usage-details-item {
+    display: flex;
+    gap: 20px;
+    padding: 12px;
+    border: 3px solid rgba(34, 125, 216, 0.133);
+    border-radius: 14px;
+    height: 120px;
+    overflow: hidden;
+}
+
+.video-thumbnail {
+    aspect-ratio: 16 / 9;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-item-data {
+    display: flex;
+    height: 20vh;
+    gap: 30px;
+}
+
+.row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 30px;
+}
+
+.video-item-info {
+    display: flex;
+    justify-content: space-evenly;
+    flex-direction: column;
+}
+.video-title {
+    font-weight: 600;
+    font-size: 18px;
+    text-decoration: none;
+    color: white;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+}
+
+.video-usage {
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    font-size: 18px;
+}

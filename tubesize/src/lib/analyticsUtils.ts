@@ -5,7 +5,10 @@ export type UsageByDay = Record<string, Record<string, { usage: number }>>;
 export async function getUsageByDay() {
     return ((await getFromLocalCache("usageByDay")) ?? {}) as Record<
         string,
-        Record<string, { usage: number }>
+        Record<
+            string,
+            { usage: number; title: string | undefined; thumbnailUrl: string | undefined }
+        >
     >;
 }
 

@@ -6,6 +6,7 @@ import type {
     TwitchMessage,
     KickBackgroundResponse,
     KickMessage,
+    YoutubeVideoData,
 } from "@app-types/types";
 import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
@@ -14,6 +15,7 @@ import {
     parseVideoFormats,
     extractYtInitialResponse,
     parseLiveStreamInfo,
+    getThumbnailUrl,
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
@@ -86,6 +88,7 @@ async function handleYoutube(
                     durationSeconds: cached.data.durationSeconds,
                     title: cached.data.title,
                     id: cached.data.id,
+                    thumbnailUrl: cached.data.thumbnailUrl,
                 },
                 createdAt: cached.createdAt,
             });
@@ -109,12 +112,13 @@ async function handleYoutube(
         } else {
             const rawFormats = parseDataFromYtInitial(rawData);
             const videoFormats = parseVideoFormats(rawFormats);
-            const youtubeData = {
+            const youtubeData: YoutubeVideoData = {
                 formats: videoFormats.sort((a, b) => b.height - a.height),
                 type: "video" as const,
                 durationSeconds: Number(rawData.videoDetails.lengthSeconds),
                 title: rawData.videoDetails.title,
                 id: rawData.videoDetails.videoId,
+                thumbnailUrl: getThumbnailUrl(rawData),
             };
             await saveToStorage(videoTag, youtubeData, "youtube");
             addBadge(message.tabId);
