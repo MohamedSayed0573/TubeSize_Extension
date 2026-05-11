@@ -1,3 +1,9 @@
+html,
+body,
+#root {
+    height: 100%;
+}
+
 .usage-details {
     display: flex;
     flex-direction: column;
@@ -45,6 +51,12 @@
     justify-content: center;
 }
 
+.body-wrapper {
+    padding: 32px;
+    background: #0e1012;
+    flex: 1;
+}
+
 .summary-item {
     display: flex;
     flex-direction: column;
@@ -80,55 +92,49 @@
 }
 
 .usage-details-list {
+    border: 1px solid black;
+    border-radius: 16px;
+    background: #161819;
     display: flex;
-    flex: 1;
     flex-direction: column;
-    gap: 20px;
-    padding: 10px 20px;
+    padding: 20px;
+    overflow-y: auto;
 }
 
-.usage-details-item {
+.usage-table th,
+.usage-table td {
+    padding: 16px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.usage-table th {
+    color: #8b8d93;
+    font-size: 16px;
+    text-transform: uppercase;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+}
+
+.usage-table td {
+    color: #f0ece4;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    font-size: 20px;
+}
+
+.video-cell {
     display: flex;
+    align-items: center;
     gap: 20px;
-    padding: 12px;
-    border: 3px solid rgba(34, 125, 216, 0.133);
-    border-radius: 14px;
-    height: 120px;
-    overflow: hidden;
 }
 
 .video-thumbnail {
+    height: 120px;
+    border-radius: 8px;
     aspect-ratio: 16 / 9;
-    height: 100%;
-    object-fit: cover;
 }
 
-.video-item-data {
-    display: flex;
-    height: 20vh;
-    gap: 30px;
-}
-
-.row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 30px;
-}
-
-.video-item-info {
-    display: flex;
-    justify-content: space-evenly;
-    flex-direction: column;
-}
-.video-title {
-    font-weight: 600;
-    font-size: 18px;
-    text-decoration: none;
-    color: white;
-    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
-}
-
-.video-usage {
-    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
-    font-size: 18px;
+.video-title-cell {
+    font-size: 20px;
+    font-weight: 500;
+    overflow: hidden;
 }

@@ -1,6 +1,6 @@
 import { getUsageByDay } from "@lib/analyticsUtils";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
 import "@styles/usageDetails.css";
 
 function getTodayTotalUsage(usage: Record<string, { usage: number }>) {
@@ -15,9 +15,6 @@ function formatBytes(bytes: number) {
     const mb = bytes / 1_000_000;
     return mb < 1000 ? mb.toFixed(1) + " MB" : (mb / 1000).toFixed(1) + " GB";
 }
-function getVideoUrl(videoTag: string) {
-    return `https://youtube.com/watch?v=${videoTag}`;
-}
 
 function formatDate(date: string) {
     const dateString = new Date(date).toDateString();
@@ -26,7 +23,6 @@ function formatDate(date: string) {
 }
 
 export function UsageDetails() {
-    const navigate = useNavigate();
     const [todayUsage, setTodayUsage] =
         useState<
             Record<
@@ -67,34 +63,38 @@ export function UsageDetails() {
                     Return to Analytics Page
                 </button> */}
             </div>
-            <div className="usage-details-list">
-                <table>
-                    <tr className="row">
-                        <th>#</th>
-                        <th>VIDEO</th>
-                        <th>Data Used</th>
-                    </tr>
-                    {Object.entries(todayUsage).map(
-                        ([videoTag, { usage, title, thumbnailUrl }]) => (
-                            <tr key={videoTag} className="row">
-                                <td>1</td>
-                                <td>
-                                    <div
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                        }}
-                                    >
-                                        <img className="video-thumbnail" src={thumbnailUrl}></img>
-                                        {title}
-                                    </div>
-                                </td>
-                                <td>{formatBytes(usage)}</td>
+            <div className="body-wrapper">
+                <div className="usage-details-list">
+                    <table className="usage-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>VIDEO</th>
+                                <th>DATA USED</th>
                             </tr>
-                        ),
-                    )}
-                </table>
+                        </thead>
+                        <tbody>
+                            {Object.entries(todayUsage).map(
+                                ([videoTag, { usage, title, thumbnailUrl }], index) => (
+                                    <tr key={videoTag}>
+                                        <td>{index + 1}</td>
+                                        <td>
+                                            <div className="video-cell">
+                                                <img
+                                                    className="video-thumbnail"
+                                                    src={thumbnailUrl}
+                                                    alt="thumbnail"
+                                                />
+                                                <span className="video-title-cell">{title}</span>
+                                            </div>
+                                        </td>
+                                        <td>{formatBytes(usage)}</td>
+                                    </tr>
+                                ),
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );
