@@ -9,8 +9,8 @@
     font-size: 14px;
     font-weight: 700;
     border-bottom: 1px solid #ffffff0f;
-    color: #8b8d93;
-    background: #141312;
+    color: #d8e7e5;
+    background: #161819;
     padding: 14px 20px;
     font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
     text-transform: uppercase;
@@ -20,6 +20,7 @@
 .analytics-body {
     padding: 16px 32px 14px;
     display: flex;
+    background: #111212;
     flex-direction: column;
     flex: 1;
 }
