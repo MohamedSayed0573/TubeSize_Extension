@@ -50,7 +50,6 @@ export function UsageDetails() {
             <div className="usage-details-header">
                 <button
                     className="return-btn"
-                    aria-label="Return to analytics"
                     onClick={() => {
                         void navigate("/analytics");
                     }}
@@ -88,7 +87,10 @@ export function UsageDetails() {
                                             <div className="video-cell">
                                                 <img
                                                     className="video-thumbnail"
-                                                    src={thumbnailUrl}
+                                                    src={
+                                                        thumbnailUrl ||
+                                                        "https://placehold.co/213x120?text=Unknown&font=roboto"
+                                                    }
                                                     alt="thumbnail"
                                                 />
                                                 <a
@@ -97,7 +99,7 @@ export function UsageDetails() {
                                                     rel="noreferrer"
                                                     href={getVideoUrl(videoTag)}
                                                 >
-                                                    {title}
+                                                    {title || "Youtube"}
                                                 </a>
                                             </div>
                                         </td>
