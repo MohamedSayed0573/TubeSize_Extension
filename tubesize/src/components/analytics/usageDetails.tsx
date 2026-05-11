@@ -1,6 +1,6 @@
 import { getUsageByDay } from "@lib/analyticsUtils";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import "@styles/usageDetails.css";
 
 function getTodayTotalUsage(usage: Record<string, { usage: number }>) {
@@ -22,7 +22,12 @@ function formatDate(date: string) {
     return dateString.slice(firstSpaceIndex + 1);
 }
 
+function getVideoUrl(videoTag: string) {
+    return `https://youtube.com/watch?v=${videoTag}`;
+}
+
 export function UsageDetails() {
+    const navigate = useNavigate();
     const [todayUsage, setTodayUsage] =
         useState<
             Record<
@@ -43,6 +48,15 @@ export function UsageDetails() {
     return (
         <div className="usage-details">
             <div className="usage-details-header">
+                <button
+                    className="return-btn"
+                    aria-label="Return to analytics"
+                    onClick={() => {
+                        void navigate("/analytics");
+                    }}
+                >
+                    ←
+                </button>
                 <div className="usage-details-title">{`${formatDate(date)}`}</div>
                 <div className="usage-details-summary">
                     <div className="summary-item">
@@ -54,14 +68,6 @@ export function UsageDetails() {
                         <div className="number">{Object.entries(todayUsage).length}</div>
                     </div>
                 </div>
-                {/* <button
-                    className="return-btn"
-                    onClick={() => {
-                        void navigate("/analytics");
-                    }}
-                >
-                    Return to Analytics Page
-                </button> */}
             </div>
             <div className="body-wrapper">
                 <div className="usage-details-list">
@@ -85,7 +91,14 @@ export function UsageDetails() {
                                                     src={thumbnailUrl}
                                                     alt="thumbnail"
                                                 />
-                                                <span className="video-title-cell">{title}</span>
+                                                <a
+                                                    className="video-title-cell"
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    href={getVideoUrl(videoTag)}
+                                                >
+                                                    {title}
+                                                </a>
                                             </div>
                                         </td>
                                         <td>{formatBytes(usage)}</td>

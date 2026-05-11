@@ -20,18 +20,19 @@ body,
     background: #161819;
     border: 1px solid rgba(53, 32, 20, 0.925);
     padding: 20px;
+    gap: 20px;
 }
 .usage-details-title {
     color: rgb(0, 255, 221);
-    font-size: 32px;
-    width: 65%;
+    font-size: 22px;
+    width: 50%;
     font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
 }
 
 .usage-details-summary {
     display: flex;
     flex: 1;
-    justify-content: space-around;
+    justify-content: space-evenly;
     align-items: center;
 }
 
@@ -64,31 +65,25 @@ body,
 }
 
 .return-btn {
-    padding: 10px;
-    border-radius: 12px;
-}
-.return-btn:hover {
-    cursor: pointer;
-}
-.usage-summary {
-    display: grid;
-    grid-template-columns: 65% 35%;
-    padding: 10px 20px;
-    gap: 10px;
-    height: 15vh;
-}
-
-.usage-summary-box {
-    font-size: 16px;
-    font-weight: 700;
-    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
-    border: 1px solid black;
-    border-radius: 16px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 12px;
-    color: #f0ece4;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    color: #0ff5dd;
+    background: rgba(0, 255, 221, 0.14);
+    border: 1px solid rgba(0, 255, 221, 0.28);
+    border-radius: 50%;
+    padding: 0;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.return-btn:hover {
+    background: rgba(0, 255, 221, 0.22);
+    border-color: rgba(0, 255, 221, 0.48);
 }
 
 .usage-details-list {
@@ -97,15 +92,13 @@ body,
     background: #161819;
     display: flex;
     flex-direction: column;
-    padding: 20px;
-    overflow-y: auto;
 }
 
 .usage-table th,
 .usage-table td {
     padding: 16px;
     text-align: left;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid #ffffff0f;
 }
 
 .usage-table th {
@@ -134,7 +127,9 @@ body,
 }
 
 .video-title-cell {
-    font-size: 20px;
+    font-size: 17px;
     font-weight: 500;
+    color: white;
+    text-decoration: none;
     overflow: hidden;
 }
