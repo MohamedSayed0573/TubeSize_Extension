@@ -126,15 +126,6 @@ chrome.runtime.onMessage.addListener(
                 });
                 return true;
             }
-            case "unpauseVideo": {
-                const videoEl = document.querySelector("video");
-                if (videoEl && videoEl.paused) {
-                    void videoEl.play();
-                }
-                sendResponse();
-                return false;
-            }
-            // No default
         }
     },
 );

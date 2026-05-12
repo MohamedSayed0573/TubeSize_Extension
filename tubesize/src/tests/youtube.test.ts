@@ -106,6 +106,7 @@ describe("parseDataFromYtInitial", () => {
                 lengthSeconds: "300",
                 isLive: false,
                 author: "Test Author",
+                thumbnail: { thumbnails: [] },
             },
             streamingData: undefined as unknown as ytInitialPlayerResponse["streamingData"],
         };
