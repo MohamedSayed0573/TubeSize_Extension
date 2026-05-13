@@ -53,12 +53,13 @@ type YoutubeLiveData = {
     type: "live";
     formats: StreamInfo[];
     channelName: string;
+    thumbnailUrl: string | undefined;
 };
 
 export type YoutubeData = YoutubeVideoData | YoutubeLiveData;
 export type YoutubeBackgroundResponse = SuccessResponse<YoutubeData> | ErrorResponse;
 
-export type StorageData<T extends YoutubeVideoData | TwitchData | KickData> = {
+export type StorageData<T extends YoutubeData | TwitchData | KickData> = {
     data: T;
     expiry?: number;
     createdAt?: string;

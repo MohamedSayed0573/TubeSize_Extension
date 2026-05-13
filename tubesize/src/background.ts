@@ -7,6 +7,7 @@ import type {
     KickBackgroundResponse,
     KickMessage,
     YoutubeVideoData,
+    YoutubeData,
 } from "@app-types/types";
 import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
@@ -82,14 +83,7 @@ async function handleYoutube(
             addBadge(message.tabId);
             return sendResponse({
                 success: true,
-                data: {
-                    formats: cached.data.formats,
-                    type: "video",
-                    durationSeconds: cached.data.durationSeconds,
-                    title: cached.data.title,
-                    id: cached.data.id,
-                    thumbnailUrl: cached.data.thumbnailUrl,
-                },
+                data: cached.data,
                 createdAt: cached.createdAt,
             });
         }
@@ -100,14 +94,19 @@ async function handleYoutube(
         if (isLive) {
             const rawFormats = parseDataFromYtInitial(rawData);
             const youtubeData = parseLiveStreamInfo(rawFormats);
+            const thumbnailUrl = getThumbnailUrl(rawData);
+
+            const data: YoutubeData = {
+                channelName: rawData.videoDetails.author,
+                formats: youtubeData.sort((a, b) => b.resolution - a.resolution),
+                type: "live",
+                thumbnailUrl,
+            };
+            await saveToStorage(videoTag, data, "youtube");
 
             sendResponse({
                 success: true,
-                data: {
-                    formats: youtubeData.sort((a, b) => b.resolution - a.resolution),
-                    type: "live",
-                    channelName: rawData.videoDetails.author,
-                },
+                data,
             });
         } else {
             const rawFormats = parseDataFromYtInitial(rawData);

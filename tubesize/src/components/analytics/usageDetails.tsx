@@ -35,6 +35,7 @@ export function UsageDetails() {
                 { usage: number; title: string | undefined; thumbnailUrl: string | undefined }
             >
         >();
+    console.log(todayUsage);
     const { date } = useParams();
 
     useEffect(() => {
