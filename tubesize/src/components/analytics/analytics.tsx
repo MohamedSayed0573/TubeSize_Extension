@@ -80,7 +80,7 @@ export default function Analytics() {
             setUsage({});
             setClearStatus("success");
         } catch (err) {
-            console.log("Failed to clear usage data", err);
+            console.error("Failed to clear usage data", err);
             setClearStatus("error");
         } finally {
             setIsClearing(false);

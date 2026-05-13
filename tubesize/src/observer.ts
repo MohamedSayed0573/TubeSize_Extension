@@ -41,7 +41,6 @@ void (async () => {
                 type: "youtubeVideo",
                 videoTag,
             });
-            console.log(res);
             if (!res.success) {
                 console.error("Failed to get video title from background script.");
                 continue;
@@ -52,7 +51,6 @@ void (async () => {
             usageByDay[date][videoTag].thumbnailUrl =
                 res.data.thumbnailUrl || "https://www.youtube.com/img/desktop/yt_1200.png";
 
-            console.log("After:", usageByDay);
             await setToLocalCache({ usageByDay });
 
             pendingUsage = 0;

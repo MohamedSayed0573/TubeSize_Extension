@@ -35,7 +35,6 @@ export function UsageDetails() {
                 { usage: number; title: string | undefined; thumbnailUrl: string | undefined }
             >
         >();
-    console.log(todayUsage);
     const { date } = useParams();
 
     useEffect(() => {
@@ -44,7 +43,6 @@ export function UsageDetails() {
             setTodayUsage(date ? usageByDay[date] : undefined);
         })();
     }, [date]);
-    console.log(todayUsage);
     if (!todayUsage || !date) return;
     return (
         <div className="usage-details">
