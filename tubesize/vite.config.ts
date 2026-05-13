@@ -24,9 +24,18 @@ export default defineConfig(({ mode }) => ({
         react(),
         webExtension({
             disableAutoLaunch: true,
+            htmlViteConfig:
+                mode === "development"
+                    ? {
+                          build: {
+                              watch: {},
+                          },
+                      }
+                    : undefined,
         }),
     ],
     build: {
         sourcemap: mode === "development",
+        chunkSizeWarningLimit: 700,
     },
 }));

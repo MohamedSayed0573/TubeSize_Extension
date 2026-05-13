@@ -54,7 +54,7 @@ export function UsageDetails() {
                         void navigate("/analytics");
                     }}
                 >
-                    ←
+                    ← Back to Analytics
                 </button>
                 <div className="usage-details-title">{`${formatDate(date)}`}</div>
                 <div className="usage-details-summary">
@@ -73,7 +73,7 @@ export function UsageDetails() {
                     <table className="usage-table">
                         <thead>
                             <tr>
-                                <th>#</th>
+                                <th id="header-index">#</th>
                                 <th>VIDEO</th>
                                 <th>DATA USED</th>
                             </tr>
@@ -82,7 +82,7 @@ export function UsageDetails() {
                             {Object.entries(todayUsage).map(
                                 ([videoTag, { usage, title, thumbnailUrl }], index) => (
                                     <tr key={videoTag}>
-                                        <td>{index + 1}</td>
+                                        <td id="index">{index + 1}</td>
                                         <td>
                                             <div className="video-cell">
                                                 <img

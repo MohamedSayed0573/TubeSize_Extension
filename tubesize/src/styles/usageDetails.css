@@ -19,12 +19,12 @@ body,
     font-size: 18px;
     background: #161819;
     border: 1px solid rgba(53, 32, 20, 0.925);
-    padding: 20px;
+    padding: 10px;
     gap: 20px;
 }
 .usage-details-title {
     color: rgb(0, 255, 221);
-    font-size: 22px;
+    font-size: 18px;
     width: 50%;
     font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
 }
@@ -65,20 +65,17 @@ body,
 }
 
 .return-btn {
-    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
     cursor: pointer;
     color: #0ff5dd;
     background: rgba(0, 255, 221, 0.14);
     border: 1px solid rgba(0, 255, 221, 0.28);
-    border-radius: 50%;
-    padding: 0;
+    border-radius: 4px;
+    padding: 10px;
     font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
-    font-size: 22px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 500;
 }
 
 .return-btn:hover {
@@ -94,24 +91,23 @@ body,
     flex-direction: column;
 }
 
-.usage-table th,
-.usage-table td {
-    padding: 16px;
+.usage-table th {
+    padding: 10px;
     text-align: left;
     border-bottom: 1px solid #ffffff0f;
-}
-
-.usage-table th {
     color: #8b8d93;
-    font-size: 16px;
+    font-size: 14px;
     text-transform: uppercase;
     font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
 }
 
 .usage-table td {
+    padding: 6px;
+    text-align: left;
+    border-bottom: 1px solid #ffffff0f;
     color: #f0ece4;
     font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
-    font-size: 20px;
+    font-size: 14px;
 }
 
 .video-cell {
@@ -121,15 +117,22 @@ body,
 }
 
 .video-thumbnail {
-    height: 120px;
+    height: 80px;
     border-radius: 8px;
     aspect-ratio: 16 / 9;
 }
 
 .video-title-cell {
-    font-size: 17px;
+    font-size: 14px;
     font-weight: 500;
     color: white;
     text-decoration: none;
     overflow: hidden;
+}
+
+#header-index {
+    text-align: center;
+}
+#index {
+    text-align: center;
 }
