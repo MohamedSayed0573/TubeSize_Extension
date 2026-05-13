@@ -71,7 +71,7 @@ body,
     color: #0ff5dd;
     background: rgba(0, 255, 221, 0.14);
     border: 1px solid rgba(0, 255, 221, 0.28);
-    border-radius: 4px;
+    border-radius: 8px;
     padding: 10px;
     font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
     font-size: 14px;
@@ -91,23 +91,34 @@ body,
     flex-direction: column;
 }
 
+.usage-table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
 .usage-table th {
-    padding: 10px;
+    padding: 14px;
     text-align: left;
     border-bottom: 1px solid #ffffff0f;
+    background: #ffffff05;
     color: #8b8d93;
-    font-size: 14px;
+    font-size: 12px;
     text-transform: uppercase;
     font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
 }
 
 .usage-table td {
-    padding: 6px;
+    padding: 12px;
     text-align: left;
     border-bottom: 1px solid #ffffff0f;
     color: #f0ece4;
     font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
     font-size: 14px;
+}
+
+tbody tr:hover {
+    background: #1e2125;
+    cursor: pointer;
 }
 
 .video-cell {
@@ -117,7 +128,7 @@ body,
 }
 
 .video-thumbnail {
-    height: 80px;
+    height: 70px;
     border-radius: 8px;
     aspect-ratio: 16 / 9;
 }
@@ -132,6 +143,7 @@ body,
 
 #header-index {
     text-align: center;
+    width: 60px;
 }
 #index {
     text-align: center;
