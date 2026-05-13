@@ -9,7 +9,7 @@ import type {
     YoutubeVideoData,
     YoutubeData,
 } from "@app-types/types";
-import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
+import { clearMediaCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
 import {
     parseDataFromYtInitial,
@@ -172,7 +172,7 @@ async function handleKick(
 
 chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === "install" || details.reason === "update") {
-        clearLocalCache()
+        clearMediaCache()
             .then(async () => await clearSyncCache())
             .catch((err) => {
                 console.error("Failed to clear cache on install/update", err);

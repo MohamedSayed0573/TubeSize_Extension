@@ -61,6 +61,16 @@ export async function clearLocalCache() {
     return removeAllFromCache("local");
 }
 
+export async function clearMediaCache() {
+    const allLocalCache = (await getFromLocalCache()) as Record<string, unknown>;
+    const mediaKeys = Object.keys(allLocalCache).filter(
+        (key) => key.startsWith("youtube:") || key.startsWith("twitch:") || key.startsWith("kick:"),
+    );
+    if (mediaKeys.length > 0) {
+        await removeFromLocalCache(mediaKeys);
+    }
+}
+
 /**
  * Clear all keys from sync cache
  * @throws Will throw an error if the cache clearing process fails
