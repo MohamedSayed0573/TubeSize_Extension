@@ -44,7 +44,7 @@
         "@types/humanize-duration": "^3.27.4",
         "@types/jest": "^30.0.0",
         "@types/m3u8-parser": "^7.2.6",
-        "@types/node": "^25.6.0",
+        "@types/node": "^25.7.0",
         "@types/react": "^19.2.7",
         "@types/react-dom": "^19.2.3",
         "@vitejs/plugin-react": "^6.0.1",
@@ -55,14 +55,14 @@
         "eslint-plugin-react-refresh": "^0.5.2",
         "eslint-plugin-unicorn": "^64.0.0",
         "globals": "^17.6.0",
-        "jest": "^30.3.0",
+        "jest": "^30.4.2",
         "jest-extended": "^7.0.0",
-        "knip": "^6.12.0",
+        "knip": "^6.13.1",
         "prettier": "^3.8.3",
         "ts-jest": "^29.4.9",
         "typescript": "~6.0.3",
-        "typescript-eslint": "^8.59.2",
-        "vite": "^8.0.11",
+        "typescript-eslint": "^8.59.3",
+        "vite": "^8.0.13",
         "vite-plugin-web-extension": "^4.5.1"
     }
 }
