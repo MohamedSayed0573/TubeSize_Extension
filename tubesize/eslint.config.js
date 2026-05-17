@@ -57,6 +57,7 @@ export default defineConfig([
             "@typescript-eslint/no-unnecessary-condition": "error",
             "@typescript-eslint/promise-function-async": "error",
             "unicorn/no-nested-ternary": "off",
+            "@typescript-eslint/no-unnecessary-type-assertion": "off",
         },
     },
     {

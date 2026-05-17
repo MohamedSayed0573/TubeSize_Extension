@@ -121,12 +121,6 @@ tbody tr:hover {
     cursor: pointer;
 }
 
-.video-cell {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
 .video-thumbnail {
     height: 70px;
     border-radius: 8px;
@@ -134,6 +128,9 @@ tbody tr:hover {
 }
 
 .video-title-cell {
+    display: flex;
+    align-items: center;
+    gap: 20px;
     font-size: 14px;
     font-weight: 500;
     color: white;

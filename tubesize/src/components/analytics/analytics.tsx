@@ -2,19 +2,25 @@ import { removeFromLocalCache } from "@lib/cache";
 import "@styles/analytics.css";
 import { useEffect, useState } from "react";
 import Chart from "@components/analytics/chart";
-import { getUsageByDay } from "@lib/analyticsUtils";
-import { transformData } from "@lib/analyticsUtils";
+import { getUsageByDay, isEmptyUsageByDay, utcDateKey, type UsageByDay } from "@lib/analyticsUtils";
+import { Link } from "react-router";
 
-function utcDateKey(date: Date) {
-    return date.toISOString().split("T")[0];
-}
-
-function todayUsage(usageByDay: Record<string, number>) {
+function todayUsage(usageByDay: UsageByDay) {
     const date = utcDateKey(new Date());
-    return usageByDay[date] ?? 0;
+    for (const day in usageByDay) {
+        if (day === date) {
+            let usage = 0;
+            for (const videoTag in usageByDay[day]) {
+                const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
+                usage += videoUsage.usage;
+            }
+            return usage;
+        }
+    }
+    return 0;
 }
 
-function thisWeekUsage(usageByDay: Record<string, number>) {
+function thisWeekUsage(usageByDay: UsageByDay) {
     const today = new Date();
     const startOfWeek = new Date(today);
     startOfWeek.setUTCDate(today.getUTCDate() - ((today.getUTCDay() + 1) % 7));
@@ -25,14 +31,17 @@ function thisWeekUsage(usageByDay: Record<string, number>) {
     let usage = 0;
     for (const day in usageByDay) {
         if (day >= startDate && day <= endDate) {
-            usage += usageByDay[day];
+            for (const videoTag in usageByDay[day]) {
+                const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
+                usage += videoUsage.usage;
+            }
         }
     }
 
     return usage;
 }
 
-function thisMonthUsage(usageByDay: Record<string, number>) {
+function thisMonthUsage(usageByDay: UsageByDay) {
     const date = utcDateKey(new Date());
     const month = date.split("-")[1];
     const year = date.split("-")[0];
@@ -40,16 +49,22 @@ function thisMonthUsage(usageByDay: Record<string, number>) {
     let usage = 0;
     for (const day in usageByDay) {
         if (day.split("-")[1] === month && day.split("-")[0] === year) {
-            usage += usageByDay[day];
+            for (const videoTag in usageByDay[day]) {
+                const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
+                usage += videoUsage.usage;
+            }
         }
     }
     return usage;
 }
 
-function lifeTimeUsage(usageByDay: Record<string, number>) {
+function lifeTimeUsage(usageByDay: UsageByDay) {
     let usage = 0;
     for (const day in usageByDay) {
-        usage += usageByDay[day];
+        for (const videoTag in usageByDay[day]) {
+            const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
+            usage += videoUsage.usage;
+        }
     }
     return usage;
 }
@@ -63,12 +78,11 @@ export default function Analytics() {
     const [isClearing, setIsClearing] = useState(false);
     const [clearStatus, setClearStatus] = useState<"idle" | "success" | "error">("idle");
 
-    const [usage, setUsage] = useState<Record<string, number>>({});
+    const [usage, setUsage] = useState<UsageByDay>({});
     useEffect(() => {
         void (async () => {
             const usageByDay = await getUsageByDay();
-            const transformedData = transformData(usageByDay);
-            setUsage(transformedData);
+            setUsage(usageByDay);
         })();
     }, []);
 
@@ -102,10 +116,12 @@ export default function Analytics() {
             <div className="analytics-header">TubeSize Usage Analytics for YouTube</div>
             <div className="analytics-body">
                 <div className="stats-row">
-                    <div className="stats-card">
-                        <div className="stat-label">Today: </div>
-                        <div className="stat-value">{formatBytes(todayUsage(usage))}</div>
-                    </div>
+                    <Link to="/today" className="stats-card-link">
+                        <div className="stats-card">
+                            <div className="stat-label">Today: </div>
+                            <div className="stat-value">{formatBytes(todayUsage(usage))}</div>
+                        </div>
+                    </Link>
                     <div className="stats-card">
                         <div className="stat-label">This Week: </div>
                         <div className="stat-value">{formatBytes(thisWeekUsage(usage))}</div>
@@ -128,16 +144,14 @@ export default function Analytics() {
                                 : `${Object.keys(usage).length} Days`}
                         </div>
                     </div>
-                    {Object.keys(usage).length === 0 ||
-                    Object.entries(usage).every(([_, value]) => value === 0) ? (
+                    {isEmptyUsageByDay(usage) && (
                         <div className="empty-graph">
                             No data available. Watch a YouTube video to see your usage statistics.
                         </div>
-                    ) : (
-                        <div className="graph">
-                            <Chart usage={usage} />
-                        </div>
                     )}
+                    <div className="graph">
+                        <Chart usage={usage} />
+                    </div>
                 </div>
                 <button
                     className="reset-button"

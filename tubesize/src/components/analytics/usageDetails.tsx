@@ -1,4 +1,4 @@
-import { getUsageByDay } from "@lib/analyticsUtils";
+import { getUsageByDay, type UsageByVideo } from "@lib/analyticsUtils";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import "@styles/usageDetails.css";
@@ -6,7 +6,8 @@ import "@styles/usageDetails.css";
 function getTodayTotalUsage(usage: Record<string, { usage: number }>) {
     let total = 0;
     for (const videoTag in usage) {
-        total += usage[videoTag].usage;
+        const videoUsage = usage[videoTag] ?? { usage: 0 };
+        total += videoUsage.usage;
     }
     return total;
 }
@@ -28,13 +29,7 @@ function getVideoUrl(videoTag: string) {
 
 export function UsageDetails() {
     const navigate = useNavigate();
-    const [todayUsage, setTodayUsage] =
-        useState<
-            Record<
-                string,
-                { usage: number; title: string | undefined; thumbnailUrl: string | undefined }
-            >
-        >();
+    const [todayUsage, setTodayUsage] = useState<UsageByVideo>();
     const { date } = useParams();
 
     useEffect(() => {
@@ -79,32 +74,37 @@ export function UsageDetails() {
                         </thead>
                         <tbody>
                             {Object.entries(todayUsage).map(
-                                ([videoTag, { usage, title, thumbnailUrl }], index) => (
-                                    <tr key={videoTag}>
-                                        <td id="index">{index + 1}</td>
-                                        <td>
-                                            <div className="video-cell">
-                                                <img
-                                                    className="video-thumbnail"
-                                                    src={
-                                                        thumbnailUrl ||
-                                                        "https://placehold.co/213x120?text=Unknown&font=roboto"
-                                                    }
-                                                    alt="thumbnail"
-                                                />
-                                                <a
-                                                    className="video-title-cell"
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    href={getVideoUrl(videoTag)}
-                                                >
-                                                    {title || "Youtube"}
-                                                </a>
-                                            </div>
-                                        </td>
-                                        <td>{formatBytes(usage)}</td>
-                                    </tr>
-                                ),
+                                ([videoTag, { usage, title, thumbnailUrl }], index) => {
+                                    const url = getVideoUrl(videoTag);
+                                    const imageUrl =
+                                        thumbnailUrl ||
+                                        "https://placehold.co/213x120?text=Unknown&font=roboto";
+                                    const displayTitle = title || "Youtube";
+
+                                    return (
+                                        <tr key={videoTag}>
+                                            <td id="index">{index + 1}</td>
+                                            <td>
+                                                <div className="video-cell">
+                                                    <a
+                                                        className="video-title-cell"
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        href={url}
+                                                    >
+                                                        <img
+                                                            className="video-thumbnail"
+                                                            src={imageUrl}
+                                                            alt="thumbnail"
+                                                        />
+                                                        {displayTitle}
+                                                    </a>
+                                                </div>
+                                            </td>
+                                            <td>{formatBytes(usage)}</td>
+                                        </tr>
+                                    );
+                                },
                             )}
                         </tbody>
                     </table>

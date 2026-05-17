@@ -23,6 +23,7 @@
         "erasableSyntaxOnly": true,
         "noFallthroughCasesInSwitch": true,
         "noUncheckedSideEffectImports": true,
+        "noUncheckedIndexedAccess": true,
         "paths": {
             "@/*": ["./src/*"],
             "@components/*": ["./src/components/*"],

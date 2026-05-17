@@ -1,6 +1,7 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import "@styles/chart.css";
 import { useNavigate } from "react-router";
+import type { UsageByDay } from "@lib/analyticsUtils";
 
 function formatBytes(bytes: number) {
     return bytes / 1_000_000;
@@ -13,11 +14,11 @@ function UsageTooltip({
     active?: boolean;
     payload?: Array<{ payload?: { date?: string; value?: number } }>;
 }) {
-    if (!active || payload?.length === 0) {
+    if (!active || payload?.length === 0 || !payload?.[0]) {
         return <></>;
     }
-    const value = (payload?.[0].payload as { value: number | undefined }).value;
-    const date = (payload?.[0].payload as { date: string | undefined }).date;
+    const value = (payload[0].payload as { value: number | undefined } | undefined)?.value;
+    const date = (payload[0].payload as { date: string | undefined } | undefined)?.date;
 
     const megabytes = Number(value).toFixed(1);
 
@@ -29,12 +30,14 @@ function UsageTooltip({
     );
 }
 
-export default function Chart({ usage }: { usage: Record<string, number> }) {
+export default function Chart({ usage }: { usage: UsageByDay }) {
     const navigate = useNavigate();
-    const transformed = Object.entries(usage).map(([date, value]) => {
+    const transformed = Object.entries(usage).map(([date, videos]) => {
         return {
             date,
-            value: formatBytes(value),
+            value: formatBytes(
+                Object.values(videos).reduce((total, video) => total + video.usage, 0),
+            ),
         };
     });
     return (

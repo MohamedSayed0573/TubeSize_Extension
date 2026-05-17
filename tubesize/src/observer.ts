@@ -1,6 +1,6 @@
 import { setToLocalCache } from "@lib/cache";
 import { delay, extractVideoTag } from "@lib/utils";
-import { getUsageByDay } from "@lib/analyticsUtils";
+import { getUsageByDay, utcDateKey } from "@lib/analyticsUtils";
 import { sendMessageToBackground } from "./runtime";
 
 let pendingUsage: number = 0;
@@ -24,7 +24,7 @@ void (async () => {
                 continue;
             }
 
-            const date = new Date().toISOString().split("T")[0];
+            const date = utcDateKey(new Date());
             const usageByDay = await getUsageByDay();
             usageByDay[date] ??= {};
             usageByDay[date][videoTag] ??= {

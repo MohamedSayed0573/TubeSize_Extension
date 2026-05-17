@@ -1,26 +1,41 @@
 import { getFromLocalCache } from "./cache";
 
-export type UsageByDay = Record<string, Record<string, { usage: number }>>;
+export type UsageByDay = {
+    [date: string]: {
+        [videoId: string]: {
+            usage: number;
+            title: string | undefined;
+            thumbnailUrl: string | undefined;
+        };
+    };
+};
 
-export async function getUsageByDay() {
-    return ((await getFromLocalCache("usageByDay")) ?? {}) as Record<
-        string,
-        Record<
-            string,
-            { usage: number; title: string | undefined; thumbnailUrl: string | undefined }
-        >
-    >;
+export type UsageByVideo = {
+    [videoId: string]: {
+        usage: number;
+        title: string | undefined;
+        thumbnailUrl: string | undefined;
+    };
+};
+export async function getUsageByDay(): Promise<UsageByDay> {
+    return ((await getFromLocalCache("usageByDay")) ?? {}) as UsageByDay;
 }
 
-export function transformData(usageByDay: UsageByDay | undefined) {
-    if (!usageByDay) return {};
-    const data: Record<string, number> = {};
-    for (const [day, videoItags] of Object.entries(usageByDay)) {
-        let total = 0;
-        for (const [_videoItag, { usage }] of Object.entries(videoItags)) {
-            total += usage;
-        }
-        data[day] = total;
-    }
-    return data;
+export function utcDateKey(date: Date) {
+    return date.toISOString().slice(0, 10);
+}
+
+export function isEmptyUsageByDay(usage: UsageByDay) {
+    return (
+        Object.keys(usage).length === 0 ||
+        Object.values(usage).every((videos) =>
+            Object.values(videos).every((video) => video.usage === 0),
+        )
+    );
+}
+
+export function isEmptyUsageByVideo(usage: UsageByVideo) {
+    return (
+        Object.keys(usage).length === 0 || Object.values(usage).every((video) => video.usage === 0)
+    );
 }

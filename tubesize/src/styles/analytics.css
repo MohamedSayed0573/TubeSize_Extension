@@ -48,6 +48,10 @@
     cursor: pointer;
 }
 
+.stats-card-link {
+    text-decoration: none;
+}
+
 .stat-value {
     color: #f0ece4;
     font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;

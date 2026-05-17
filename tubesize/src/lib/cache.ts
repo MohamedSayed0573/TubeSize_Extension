@@ -1,5 +1,6 @@
 import CONFIG from "@lib/constants";
 import type { KickData, OptionsMap, StorageData, TwitchData, YoutubeData } from "@app-types/types";
+import { utcDateKey } from "./analyticsUtils";
 
 async function getCacheTTLSetting(): Promise<number> {
     const cacheTTL = (await getFromSyncCache("cacheTTL")) as number;
@@ -111,7 +112,7 @@ export async function saveToStorage(
     const dataToStore: StorageData<YoutubeData | TwitchData | KickData> = {
         data,
         expiry,
-        createdAt: new Date().toISOString(),
+        createdAt: utcDateKey(new Date()),
     };
 
     const prefix = target;

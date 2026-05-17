@@ -6,6 +6,7 @@ import Popup from "@pages/popup";
 import Options from "@pages/options";
 import Analytics from "@components/analytics/analytics";
 import { UsageDetails } from "@components/analytics/usageDetails";
+import TodayUsage from "./components/analytics/todayUsage";
 
 const domRoot = document.querySelector("#root") as HTMLElement;
 
@@ -19,6 +20,7 @@ root.render(
                 <Route path="/options" element={<Options />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/analytics/:date" element={<UsageDetails />} />
+                <Route path="/today" element={<TodayUsage />} />
             </Routes>
         </ErrorBoundary>
     </HashRouter>,
