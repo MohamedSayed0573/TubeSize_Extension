@@ -84,11 +84,12 @@ body,
 }
 
 .usage-details-list {
-    border: 1px solid black;
+    border: 1px solid #ffffff0f;
     border-radius: 16px;
     background: #161819;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .usage-table {
