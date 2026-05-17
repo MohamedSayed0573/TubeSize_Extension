@@ -119,20 +119,32 @@ export default function Analytics() {
                     <Link to="/today" className="stats-card-link">
                         <div className="stats-card">
                             <div className="stat-label">Today: </div>
-                            <div className="stat-value">{formatBytes(todayUsage(usage))}</div>
+                            <div className="stat-value">
+                                {formatBytes(todayUsage(usage))}
+                                <div className="view-details">View Details</div>
+                            </div>
                         </div>
                     </Link>
                     <div className="stats-card">
                         <div className="stat-label">This Week: </div>
-                        <div className="stat-value">{formatBytes(thisWeekUsage(usage))}</div>
+                        <div className="stat-value">
+                            {formatBytes(thisWeekUsage(usage))}
+                            <div className="view-details">View Details</div>
+                        </div>
                     </div>
                     <div className="stats-card">
                         <div className="stat-label">This Month: </div>
-                        <div className="stat-value">{formatBytes(thisMonthUsage(usage))}</div>
+                        <div className="stat-value">
+                            {formatBytes(thisMonthUsage(usage))}
+                            <div className="view-details">View Details</div>
+                        </div>
                     </div>
                     <div className="stats-card">
                         <div className="stat-label">Lifetime: </div>
-                        <div className="stat-value">{formatBytes(lifeTimeUsage(usage))}</div>
+                        <div className="stat-value">
+                            {formatBytes(lifeTimeUsage(usage))}
+                            <div className="view-details">View Details</div>
+                        </div>
                     </div>
                 </div>
                 <div className="analytics-graph">

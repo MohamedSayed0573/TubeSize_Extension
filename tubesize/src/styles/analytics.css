@@ -53,10 +53,20 @@
 }
 
 .stat-value {
+    display: flex;
+    justify-content: space-between;
     color: #f0ece4;
     font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
     font-size: 25px;
     font-weight: 700;
+}
+
+.view-details {
+    font-size: 11px;
+    color: #e20d0d;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    text-decoration: underline;
+    align-self: flex-end;
 }
 
 .stat-label {
