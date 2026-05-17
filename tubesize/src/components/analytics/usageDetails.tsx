@@ -1,4 +1,4 @@
-import { getUsageByDay, type UsageByVideo } from "@lib/analyticsUtils";
+import { formatBytes, getUsageByDay, type UsageByVideo } from "@lib/analyticsUtils";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import "@styles/usageDetails.css";
@@ -10,11 +10,6 @@ function getTodayTotalUsage(usage: Record<string, { usage: number }>) {
         total += videoUsage.usage;
     }
     return total;
-}
-
-function formatBytes(bytes: number) {
-    const mb = bytes / 1_000_000;
-    return mb < 1000 ? mb.toFixed(1) + " MB" : (mb / 1000).toFixed(1) + " GB";
 }
 
 function formatDate(date: string) {

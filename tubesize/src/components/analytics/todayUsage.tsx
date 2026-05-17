@@ -1,4 +1,6 @@
 import {
+    formatBytes,
+    getNumVideosWatched,
     getUsageByDay,
     isEmptyUsageByVideo,
     utcDateKey,
@@ -6,11 +8,6 @@ import {
 } from "@lib/analyticsUtils";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-
-function formatBytes(bytes: number) {
-    const mb = bytes / 1_000_000;
-    return mb < 1000 ? mb.toFixed(1) + " MB" : (mb / 1000).toFixed(1) + " GB";
-}
 
 function getTodayTotalUsage(todayUsage: UsageByVideo) {
     let total = 0;
@@ -65,7 +62,9 @@ export default function TodayUsage() {
                         </div>
                         <div className="summary-item">
                             <div className="summary-item-header">{"Videos Watched"}</div>
-                            <div className="number">{Object.entries(todayUsage).length}</div>
+                            <div className="number">
+                                {getNumVideosWatched({ [today]: todayUsage })}
+                            </div>
                         </div>
                     </div>
                 </div>

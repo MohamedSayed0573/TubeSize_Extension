@@ -6,7 +6,10 @@ import Popup from "@pages/popup";
 import Options from "@pages/options";
 import Analytics from "@components/analytics/analytics";
 import { UsageDetails } from "@components/analytics/usageDetails";
-import TodayUsage from "./components/analytics/todayUsage";
+import TodayUsage from "@components/analytics/todayUsage";
+import WeekUsage from "@components/analytics/weekUsage";
+import MonthUsage from "@components/analytics/monthUsage";
+import LifetimeUsage from "@components/analytics/lifeTimeUsage";
 
 const domRoot = document.querySelector("#root") as HTMLElement;
 
@@ -21,6 +24,9 @@ root.render(
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/analytics/:date" element={<UsageDetails />} />
                 <Route path="/today" element={<TodayUsage />} />
+                <Route path="/week" element={<WeekUsage />} />
+                <Route path="/month" element={<MonthUsage />} />
+                <Route path="/lifetime" element={<LifetimeUsage />} />
             </Routes>
         </ErrorBoundary>
     </HashRouter>,

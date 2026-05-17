@@ -2,7 +2,15 @@ import { removeFromLocalCache } from "@lib/cache";
 import "@styles/analytics.css";
 import { useEffect, useState } from "react";
 import Chart from "@components/analytics/chart";
-import { getUsageByDay, isEmptyUsageByDay, utcDateKey, type UsageByDay } from "@lib/analyticsUtils";
+import {
+    formatBytes,
+    getLast30Days,
+    getLast7Days,
+    getUsageByDay,
+    isEmptyUsageByDay,
+    utcDateKey,
+    type UsageByDay,
+} from "@lib/analyticsUtils";
 import { Link } from "react-router";
 
 function todayUsage(usageByDay: UsageByDay) {
@@ -21,34 +29,25 @@ function todayUsage(usageByDay: UsageByDay) {
 }
 
 function thisWeekUsage(usageByDay: UsageByDay) {
-    const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setUTCDate(today.getUTCDate() - ((today.getUTCDay() + 1) % 7));
-
-    const startDate = utcDateKey(startOfWeek);
-    const endDate = utcDateKey(today);
-
+    const date = new Set(getLast7Days().map((day) => utcDateKey(day)));
     let usage = 0;
     for (const day in usageByDay) {
-        if (day >= startDate && day <= endDate) {
+        if (date.has(day)) {
             for (const videoTag in usageByDay[day]) {
                 const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
                 usage += videoUsage.usage;
             }
         }
     }
-
     return usage;
 }
 
 function thisMonthUsage(usageByDay: UsageByDay) {
-    const date = utcDateKey(new Date());
-    const month = date.split("-")[1];
-    const year = date.split("-")[0];
+    const dateSet = new Set(getLast30Days().map((day) => utcDateKey(day)));
 
     let usage = 0;
     for (const day in usageByDay) {
-        if (day.split("-")[1] === month && day.split("-")[0] === year) {
+        if (dateSet.has(day)) {
             for (const videoTag in usageByDay[day]) {
                 const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
                 usage += videoUsage.usage;
@@ -67,11 +66,6 @@ function lifeTimeUsage(usageByDay: UsageByDay) {
         }
     }
     return usage;
-}
-
-function formatBytes(bytes: number) {
-    const mb = bytes / 1_000_000;
-    return mb < 1000 ? mb.toFixed(1) + " MB" : (mb / 1000).toFixed(1) + " GB";
 }
 
 export default function Analytics() {
@@ -125,27 +119,33 @@ export default function Analytics() {
                             </div>
                         </div>
                     </Link>
-                    <div className="stats-card">
-                        <div className="stat-label">This Week: </div>
-                        <div className="stat-value">
-                            {formatBytes(thisWeekUsage(usage))}
-                            <div className="view-details">View Details</div>
+                    <Link to="/week" className="stats-card-link">
+                        <div className="stats-card">
+                            <div className="stat-label">This Week: </div>
+                            <div className="stat-value">
+                                {formatBytes(thisWeekUsage(usage))}
+                                <div className="view-details">View Details</div>
+                            </div>
                         </div>
-                    </div>
-                    <div className="stats-card">
-                        <div className="stat-label">This Month: </div>
-                        <div className="stat-value">
-                            {formatBytes(thisMonthUsage(usage))}
-                            <div className="view-details">View Details</div>
+                    </Link>
+                    <Link to="/month" className="stats-card-link">
+                        <div className="stats-card">
+                            <div className="stat-label">This Month: </div>
+                            <div className="stat-value">
+                                {formatBytes(thisMonthUsage(usage))}
+                                <div className="view-details">View Details</div>
+                            </div>
                         </div>
-                    </div>
-                    <div className="stats-card">
-                        <div className="stat-label">Lifetime: </div>
-                        <div className="stat-value">
-                            {formatBytes(lifeTimeUsage(usage))}
-                            <div className="view-details">View Details</div>
+                    </Link>
+                    <Link to="/lifetime" className="stats-card-link">
+                        <div className="stats-card">
+                            <div className="stat-label">Lifetime: </div>
+                            <div className="stat-value">
+                                {formatBytes(lifeTimeUsage(usage))}
+                                <div className="view-details">View Details</div>
+                            </div>
                         </div>
-                    </div>
+                    </Link>
                 </div>
                 <div className="analytics-graph">
                     <div className="graph-header">

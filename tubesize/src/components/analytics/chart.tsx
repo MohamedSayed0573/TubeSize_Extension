@@ -3,10 +3,6 @@ import "@styles/chart.css";
 import { useNavigate } from "react-router";
 import type { UsageByDay } from "@lib/analyticsUtils";
 
-function formatBytes(bytes: number) {
-    return bytes / 1_000_000;
-}
-
 function UsageTooltip({
     active,
     payload,
@@ -35,9 +31,8 @@ export default function Chart({ usage }: { usage: UsageByDay }) {
     const transformed = Object.entries(usage).map(([date, videos]) => {
         return {
             date,
-            value: formatBytes(
-                Object.values(videos).reduce((total, video) => total + video.usage, 0),
-            ),
+            value:
+                Object.values(videos).reduce((total, video) => total + video.usage, 0) / 1_000_000,
         };
     });
     return (
