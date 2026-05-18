@@ -89,7 +89,7 @@ export default function TodayUsage() {
 
                                         return (
                                             <tr key={videoTag}>
-                                                <td id="index">{index + 1}</td>
+                                                <td className="index">{index + 1}</td>
                                                 <td>
                                                     <a
                                                         className="video-title-cell"

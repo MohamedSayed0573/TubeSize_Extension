@@ -108,7 +108,7 @@ export default function MonthUsage() {
 
                                             return (
                                                 <tr key={`${date}-${videoTag}`}>
-                                                    <td id="index">{index++ + 1}</td>
+                                                    <td className="index">{index++ + 1}</td>
 
                                                     <td>
                                                         <a

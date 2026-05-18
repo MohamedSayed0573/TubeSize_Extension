@@ -78,7 +78,7 @@ export function UsageDetails() {
 
                                     return (
                                         <tr key={videoTag}>
-                                            <td id="index">{index + 1}</td>
+                                            <td className="index">{index + 1}</td>
                                             <td>
                                                 <div className="video-cell">
                                                     <a
