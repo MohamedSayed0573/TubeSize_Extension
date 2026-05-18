@@ -15,17 +15,15 @@ import { Link } from "react-router";
 
 function todayUsage(usageByDay: UsageByDay) {
     const date = utcDateKey(new Date());
-    for (const day in usageByDay) {
-        if (day === date) {
-            let usage = 0;
-            for (const videoTag in usageByDay[day]) {
-                const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
-                usage += videoUsage.usage;
-            }
-            return usage;
-        }
+    const dayUsage = usageByDay[date];
+    if (!dayUsage) return 0;
+
+    let usage = 0;
+    for (const videoTag in dayUsage) {
+        const videoUsage = dayUsage[videoTag] ?? { usage: 0 };
+        usage += videoUsage.usage;
     }
-    return 0;
+    return usage;
 }
 
 function thisWeekUsage(usageByDay: UsageByDay) {
@@ -46,8 +44,8 @@ function thisMonthUsage(usageByDay: UsageByDay) {
     const dateSet = new Set(getLast30Days().map((day) => utcDateKey(day)));
 
     let usage = 0;
-    for (const day in usageByDay) {
-        if (dateSet.has(day)) {
+    for (const day in dateSet) {
+        if (usageByDay[day]) {
             for (const videoTag in usageByDay[day]) {
                 const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
                 usage += videoUsage.usage;
@@ -95,9 +93,9 @@ export default function Analytics() {
             console.error("Failed to clear usage data", err);
             setClearStatus("error");
         } finally {
-            setIsClearing(false);
             setTimeout(() => {
                 setClearStatus("idle");
+                setIsClearing(false);
             }, 1500);
         }
     };
