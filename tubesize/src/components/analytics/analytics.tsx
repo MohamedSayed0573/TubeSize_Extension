@@ -71,13 +71,17 @@ function lifeTimeUsage(usageByDay: UsageByDay) {
 export default function Analytics() {
     const [isClearing, setIsClearing] = useState(false);
     const [clearStatus, setClearStatus] = useState<"idle" | "success" | "error">("idle");
+    const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
     const [usage, setUsage] = useState<UsageByDay>({});
     useEffect(() => {
         void (async () => {
             const usageByDay = await getUsageByDay();
             setUsage(usageByDay);
-        })();
+        })().catch((err) => {
+            console.error("Failed to load usage data", err);
+            setErrorMessage(err instanceof Error ? err.message : "An unknown error occurred");
+        });
     }, []);
 
     const handleClearUsageData = async () => {
@@ -156,14 +160,16 @@ export default function Analytics() {
                                 : `${Object.keys(usage).length} Days`}
                         </div>
                     </div>
-                    {isEmptyUsageByDay(usage) && (
+                    {isEmptyUsageByDay(usage) || errorMessage ? (
                         <div className="empty-graph">
-                            No data available. Watch a YouTube video to see your usage statistics.
+                            {errorMessage ||
+                                "No data available. Watch a YouTube video to see your usage statistics."}
+                        </div>
+                    ) : (
+                        <div className="graph">
+                            <Chart usage={usage} />
                         </div>
                     )}
-                    <div className="graph">
-                        <Chart usage={usage} />
-                    </div>
                 </div>
                 <button
                     className="reset-button"
