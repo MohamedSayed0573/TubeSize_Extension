@@ -44,7 +44,7 @@ function thisMonthUsage(usageByDay: UsageByDay) {
     const dateSet = new Set(getLast30Days().map((day) => utcDateKey(day)));
 
     let usage = 0;
-    for (const day in dateSet) {
+    for (const day of dateSet) {
         if (usageByDay[day]) {
             for (const videoTag in usageByDay[day]) {
                 const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };

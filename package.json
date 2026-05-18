@@ -9,7 +9,7 @@
         "lint-staged": "lint-staged"
     },
     "lint-staged": {
-        "*.{css,html,js,jsx,json,md,ts,tsx}": "pnpm prettier --write"
+        "*.{css,html,js,jsx,json,md,ts,tsx}": "prettier --write"
     },
     "devDependencies": {
         "husky": "^9.1.7",

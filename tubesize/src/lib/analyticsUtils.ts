@@ -1,4 +1,5 @@
 import { getFromLocalCache } from "./cache";
+import { filesize } from "filesize";
 
 export type UsageByDay = {
     [date: string]: {
@@ -75,6 +76,5 @@ export function getNumVideosWatched(usageByDay: UsageByDay) {
 }
 
 export function formatBytes(bytes: number) {
-    const mb = bytes / 1_000_000;
-    return mb < 1000 ? mb.toFixed(1) + " MB" : (mb / 1000).toFixed(1) + " GB";
+    return filesize(bytes, { base: 10, standard: "jedec", round: 2 });
 }
