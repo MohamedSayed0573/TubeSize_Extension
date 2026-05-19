@@ -1,12 +1,18 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import webExtension from "vite-plugin-web-extension";
+import { crx } from "@crxjs/vite-plugin";
+import zip from "vite-plugin-zip-pack";
 import path from "node:path";
+import manifest from "./manifest.config.js";
+import { name, version } from "./package.json";
 
 const __dirname = import.meta.dirname;
-
-// https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
+    server: {
+        cors: {
+            origin: [/^chrome-extension:\/\//],
+        },
+    },
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "src"),
@@ -22,17 +28,9 @@ export default defineConfig(({ mode }) => ({
     },
     plugins: [
         react(),
-        webExtension({
-            disableAutoLaunch: true,
-            htmlViteConfig:
-                mode === "development"
-                    ? {
-                          build: {
-                              watch: {},
-                          },
-                      }
-                    : undefined,
-        }),
+        crx({ manifest }),
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        zip({ outDir: "release", outFileName: `crx-${name}-${version}.zip` }),
     ],
     build: {
         sourcemap: mode === "development",
