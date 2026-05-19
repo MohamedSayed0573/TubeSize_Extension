@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="tubesize/public/icons/icon-128.png" alt="TubeSize Logo" width="96" />
+<img src="public/icons/icon-128.png" alt="TubeSize Logo" width="96" />
 
 # TubeSize
 
@@ -43,7 +43,7 @@ TubeSize is a browser extension that shows estimated data usage for YouTube and 
     <td valign="top" width="33%">
       <strong>Edge Add-ons</strong><br />
       Install the Chromium build for Microsoft Edge.<br /><br />
-      <a href="https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka">
+      <a href="https://chromewebstore.google.com/detail/tubesize/bdpkcpbkonollfbgcnkknkjdbfpacnoi">
         <img src="https://img.shields.io/badge/Install%20for%20Edge-0078D7?logo=microsoftedge&logoColor=white" alt="Install for Edge" />
       </a>
     </td>
