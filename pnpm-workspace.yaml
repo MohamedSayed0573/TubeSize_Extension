@@ -1,9 +1,0 @@
-packages:
-    - "."
-    - "api"
-    - "tubesize"
-
-allowBuilds:
-    spawn-sync: false
-    unrs-resolver: false
-
