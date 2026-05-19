@@ -37,6 +37,9 @@
         "vite": true,
         "jest": true
     },
+    "pnpm": {
+        "onlyBuiltDependencies": []
+    },
     "dependencies": {
         "filesize": "^11.0.17",
         "humanize-duration": "^3.33.2",
