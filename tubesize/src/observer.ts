@@ -1,69 +1,72 @@
-import { getFromLocalCache, setToLocalCache } from "@lib/cache";
-import { delay } from "@lib/utils";
+import { setToLocalCache } from "@lib/cache";
+import { delay, extractVideoTag } from "@lib/utils";
+import { getUsageByDay, utcDateKey } from "@lib/analyticsUtils";
+import { sendMessageToBackground } from "./runtime";
 
-let sessionUsage: number = 0;
 let pendingUsage: number = 0;
-let lastCurrentUrl: string | undefined;
-
 const observer = new PerformanceObserver((list) => {
-    if (globalThis.location.href !== lastCurrentUrl) {
-        // URL has changed, reset session usage
-        sessionUsage = 0;
-        lastCurrentUrl = globalThis.location.href;
-    }
     for (const entry of list.getEntries()) {
         const resource = entry as PerformanceResourceTiming;
-        sessionUsage += resource.transferSize;
         pendingUsage += resource.transferSize;
     }
 });
 
+function getCurrentTabUrl() {
+    return globalThis.location.href;
+}
+
 void (async () => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    while (true) {
-        const totalUsage = (await getTotalUsage()) ?? 0;
-        await setToLocalCache({ totalUsage: totalUsage + pendingUsage });
-        pendingUsage = 0;
-        await delay(10_000);
-    }
-})();
+    do {
+        try {
+            const videoTag = extractVideoTag(getCurrentTabUrl());
+            if (!videoTag) {
+                await delay(10_000);
+                continue;
+            }
+
+            const date = utcDateKey(new Date());
+            const usageByDay = await getUsageByDay();
+            usageByDay[date] ??= {};
+            usageByDay[date][videoTag] ??= {
+                usage: 0,
+                title: undefined,
+                thumbnailUrl: undefined,
+            };
+
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+            const oldUsage = usageByDay?.[date]?.[videoTag]?.usage || 0;
+
+            usageByDay[date][videoTag].usage = oldUsage + pendingUsage;
+            const res = await sendMessageToBackground({
+                type: "youtubeVideo",
+                videoTag,
+            });
+            if (!res.success) {
+                console.error("Failed to get video title from background script.");
+                continue;
+            }
+
+            usageByDay[date][videoTag].title =
+                res.data.type === "video" ? res.data.title : res.data.channelName || "Youtube";
+            usageByDay[date][videoTag].thumbnailUrl =
+                res.data.thumbnailUrl || "https://www.youtube.com/img/desktop/yt_1200.png";
+
+            await setToLocalCache({ usageByDay });
+
+            pendingUsage = 0;
+        } catch (err) {
+            console.error("Error in usage tracking loop:", err);
+            continue;
+        } finally {
+            await delay(5000);
+        }
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition , no-constant-condition
+    } while (true);
+})().catch((err) => {
+    console.error("Error in usage tracking loop:", err);
+});
 
 observer.observe({
     type: "resource",
     buffered: true,
 });
-
-chrome.runtime.onMessage.addListener(
-    (
-        message: { type: "totalUsage" | "deleteSessionData" | "deleteTotalData" },
-        _sender,
-        sendResponse,
-    ) => {
-        switch (message.type) {
-            case "totalUsage": {
-                void (async () => {
-                    const totalUsage = (await getTotalUsage()) ?? 0;
-                    sendResponse({ sessionUsage, totalUsage });
-                })();
-                break;
-            }
-            case "deleteSessionData": {
-                sessionUsage = 0;
-                pendingUsage = 0;
-                sendResponse({ success: true });
-                break;
-            }
-            case "deleteTotalData": {
-                void (async () => {
-                    await setToLocalCache({ totalUsage: 0 });
-                })();
-                sendResponse({ success: true });
-            }
-        }
-        return true;
-    },
-);
-
-async function getTotalUsage() {
-    return getFromLocalCache("totalUsage") as Promise<number | undefined>;
-}

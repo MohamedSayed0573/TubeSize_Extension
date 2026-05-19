@@ -51,7 +51,7 @@ describe("getAverageAudioSize", () => {
         expect(getAverageAudioSize(audioFormats)).toBe(2_463_966);
     });
     test("returns the exact size when there is one audio format", () => {
-        expect(getAverageAudioSize([audioFormats[0]])).toBe(2_467_654);
+        expect(getAverageAudioSize([audioFormats[0]!])).toBe(2_467_654);
     });
     test("returns 0 when there are no audio formats", () => {
         expect(getAverageAudioSize([])).toBe(0);
@@ -70,7 +70,7 @@ describe("mergeAudioWithVideo", () => {
     ];
 
     test("merges audio size with video formats without max size", () => {
-        const merged = mergeAudioWithVideo([videoFormats[0]], audioSize);
+        const merged = mergeAudioWithVideo([videoFormats[0]!], audioSize);
         expect(merged).toEqual([
             { formatId: 18, height: 360, sizeBytes: 62_463_966, maxSizeBytes: undefined },
         ]);
@@ -106,6 +106,7 @@ describe("parseDataFromYtInitial", () => {
                 lengthSeconds: "300",
                 isLive: false,
                 author: "Test Author",
+                thumbnail: { thumbnails: [] },
             },
             streamingData: undefined as unknown as ytInitialPlayerResponse["streamingData"],
         };

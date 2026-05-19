@@ -1,7 +1,7 @@
 {
     "name": "tubesize-workspace",
     "private": true,
-    "packageManager": "pnpm@10.33.0",
+    "packageManager": "pnpm@11.1.2",
     "scripts": {
         "prepare": "husky",
         "prettier:write": "prettier . --write",
@@ -9,7 +9,7 @@
         "lint-staged": "lint-staged"
     },
     "lint-staged": {
-        "*.{css,html,js,jsx,json,md,ts,tsx}": "pnpm prettier --write"
+        "*.{css,html,js,jsx,json,md,ts,tsx}": "prettier --write"
     },
     "devDependencies": {
         "husky": "^9.1.7",

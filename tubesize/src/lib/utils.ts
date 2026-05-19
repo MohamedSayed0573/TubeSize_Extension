@@ -53,7 +53,7 @@ export function isTwitchVod(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         const pathname = parsedUrl.pathname.split("/").filter(Boolean);
-        return pathname.length === 2 && pathname[0] === "videos" && /^[0-9]+$/.test(pathname[1]);
+        return pathname.length === 2 && pathname[0] === "videos" && /^[0-9]+$/.test(pathname[1]!);
     } catch {
         return false;
     }
@@ -83,7 +83,7 @@ export function isKickStream(url: string): boolean {
             "following",
             "browse",
         ]);
-        return pathSegments.length === 1 && !notStreamPath.has(pathSegments[0]); // Assuming kick.com/channelName format for streams
+        return pathSegments.length === 1 && !notStreamPath.has(pathSegments[0]!); // Assuming kick.com/channelName format for streams
     } catch {
         return false;
     }

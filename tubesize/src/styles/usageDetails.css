@@ -1,0 +1,148 @@
+html,
+body,
+#root {
+    height: 100%;
+}
+
+.usage-details {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+}
+
+.usage-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 18px;
+    background: #161819;
+    border: 1px solid rgba(53, 32, 20, 0.925);
+    padding: 10px;
+    gap: 20px;
+}
+.usage-details-title {
+    color: rgb(0, 255, 221);
+    font-size: 18px;
+    width: 50%;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+}
+
+.usage-details-summary {
+    display: flex;
+    flex: 1;
+    justify-content: space-evenly;
+    align-items: center;
+}
+
+.summary-item-header {
+    color: #8b8d93;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+}
+
+.number {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.body-wrapper {
+    padding: 32px;
+    background: #0e1012;
+    flex: 1;
+}
+
+.summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.return-btn {
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #0ff5dd;
+    background: rgba(0, 255, 221, 0.14);
+    border: 1px solid rgba(0, 255, 221, 0.28);
+    border-radius: 8px;
+    padding: 10px;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.return-btn:hover {
+    background: rgba(0, 255, 221, 0.22);
+    border-color: rgba(0, 255, 221, 0.48);
+}
+
+.usage-details-list {
+    border: 1px solid #ffffff0f;
+    border-radius: 16px;
+    background: #161819;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.usage-table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+.usage-table th {
+    padding: 14px;
+    text-align: left;
+    border-bottom: 1px solid #ffffff0f;
+    background: #ffffff05;
+    color: #8b8d93;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+}
+
+.usage-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ffffff0f;
+    color: #f0ece4;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    font-size: 14px;
+}
+
+tbody tr:hover {
+    background: #1e2125;
+    cursor: pointer;
+}
+
+.video-thumbnail {
+    height: 70px;
+    border-radius: 8px;
+    aspect-ratio: 16 / 9;
+}
+
+.video-title-cell {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+    text-decoration: none;
+    overflow: hidden;
+}
+
+#header-index {
+    text-align: center;
+    width: 60px;
+}
+.index {
+    text-align: center;
+}

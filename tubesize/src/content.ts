@@ -105,24 +105,27 @@ chrome.runtime.onMessage.addListener(
         _sender: chrome.runtime.MessageSender,
         sendResponse: (response: ResponseMessage) => void,
     ) => {
-        if (message.type === "getCurrentResolution") {
-            void (async () => {
-                const resolution = await getCurrentResolution();
-                sendResponse(resolution);
-            })();
-            return true;
-        } else if (message.type === "getKick") {
-            void (async () => {
-                const kickData = await initKick(true);
-                sendResponse(kickData);
-            })().catch((err) => {
-                console.error("Error handling getKick message:", err);
-                sendResponse({
-                    success: false,
-                    message: err instanceof Error ? err.message : "Unknown error",
+        switch (message.type) {
+            case "getCurrentResolution": {
+                void (async () => {
+                    const resolution = await getCurrentResolution();
+                    sendResponse(resolution);
+                })();
+                return true;
+            }
+            case "getKick": {
+                void (async () => {
+                    const kickData = await initKick(true);
+                    sendResponse(kickData);
+                })().catch((err) => {
+                    console.error("Error handling getKick message:", err);
+                    sendResponse({
+                        success: false,
+                        message: err instanceof Error ? err.message : "Unknown error",
+                    });
                 });
-            });
-            return true;
+                return true;
+            }
         }
     },
 );

@@ -7,6 +7,15 @@ export const ytInitialSchema = z.object({
         lengthSeconds: z.string(),
         isLive: z.boolean().optional(),
         author: z.string(),
+        thumbnail: z.object({
+            thumbnails: z.array(
+                z.object({
+                    url: z.string(),
+                    width: z.number(),
+                    height: z.number(),
+                }),
+            ),
+        }),
     }),
     streamingData: z.object({
         adaptiveFormats: z.array(

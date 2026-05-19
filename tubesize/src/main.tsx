@@ -1,14 +1,33 @@
 import { createRoot } from "react-dom/client";
-import Popup from "@pages/popup.tsx";
 import ErrorBoundary from "@components/errorBoundary.tsx";
 import ErrorPage from "@pages/error.tsx";
+import { Routes, Route, HashRouter } from "react-router";
+import Popup from "@pages/popup";
+import Options from "@pages/options";
+import Analytics from "@components/analytics/analytics";
+import { UsageDetails } from "@components/analytics/usageDetails";
+import TodayUsage from "@components/analytics/todayUsage";
+import WeekUsage from "@components/analytics/weekUsage";
+import MonthUsage from "@components/analytics/monthUsage";
+import LifetimeUsage from "@components/analytics/lifeTimeUsage";
 
 const domRoot = document.querySelector("#root") as HTMLElement;
 
 const root = createRoot(domRoot);
 
 root.render(
-    <ErrorBoundary errorComponent={(err) => <ErrorPage errorMessage={err.message} />}>
-        <Popup />
-    </ErrorBoundary>,
+    <HashRouter>
+        <ErrorBoundary errorComponent={(err) => <ErrorPage errorMessage={err.message} />}>
+            <Routes>
+                <Route path="/" element={<Popup />} />
+                <Route path="/options" element={<Options />} />
+                <Route path="/analytics" element={<Analytics />} />
+                <Route path="/analytics/:date" element={<UsageDetails />} />
+                <Route path="/today" element={<TodayUsage />} />
+                <Route path="/week" element={<WeekUsage />} />
+                <Route path="/month" element={<MonthUsage />} />
+                <Route path="/lifetime" element={<LifetimeUsage />} />
+            </Routes>
+        </ErrorBoundary>
+    </HashRouter>,
 );

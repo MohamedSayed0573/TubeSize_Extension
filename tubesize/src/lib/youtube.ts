@@ -39,7 +39,7 @@ export function parseVideoFormats(formats: RawFormat): YoutubeVideoFormat[] {
 export function getAverageAudioSize(audioFormatArray: RawFormat["audioFormats"]) {
     // Note: ytInitialPlayerResponse usually returns three formats with itag 251, so we take the average of the content size of all three.
     if (audioFormatArray.length === 0) return 0;
-    if (audioFormatArray.length === 1) return Math.round(audioFormatArray[0].sizeBytes);
+    if (audioFormatArray.length === 1) return Math.round(audioFormatArray[0]!.sizeBytes);
     return Math.round(
         audioFormatArray.reduce((acc, format) => {
             return acc + format.sizeBytes;
@@ -127,7 +127,7 @@ function chooseVideoFormats(data: ytInitialPlayerResponse): RawFormat["formats"]
         }
 
         const sizes = matchingFormats.map((format) => getFormatSizeBytes(format, isLive));
-        const firstFormat = matchingFormats[0];
+        const firstFormat = matchingFormats[0]!;
         const shouldShowRange = resolution >= CONFIG.RANGE_RESOLUTION_THRESHOLD;
         const minSize = Math.min(...sizes);
         const maxSize = Math.max(...sizes);
@@ -136,7 +136,7 @@ function chooseVideoFormats(data: ytInitialPlayerResponse): RawFormat["formats"]
         chosenFormats.push({
             formatId: firstFormat.itag,
             height: resolution,
-            sizeBytes: shouldShowRange ? minSize : sizes[0],
+            sizeBytes: shouldShowRange ? minSize : sizes[0]!,
             // Only attach a max size when there is an actual range to display.
             maxSizeBytes: shouldShowRange && maxSize > minSize ? maxSize : undefined,
         });
@@ -184,4 +184,9 @@ export function parseDataFromYtInitial(data: ytInitialPlayerResponse): RawFormat
         audioFormats: chooseAudioFormats(data),
         isLive: data.videoDetails.isLive || false,
     };
+}
+
+export function getThumbnailUrl(data: ytInitialPlayerResponse): string | undefined {
+    data.videoDetails.thumbnail.thumbnails.sort((a, b) => b.width - a.width);
+    return data.videoDetails.thumbnail.thumbnails[0]?.url;
 }

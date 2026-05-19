@@ -1,7 +1,6 @@
 import type {
     FrontEndMessage,
     KickBackgroundResponse,
-    TotalUsageData,
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
 } from "@app-types/types";
@@ -42,16 +41,10 @@ export async function sendMessageToBackground<T extends FrontEndMessage>(
 
 type ContentScriptMessage =
     | { type: "getCurrentResolution" }
-    | { type: "getKick"; fromPopup?: boolean }
-    | { type: "totalUsage" }
-    | { type: "deleteSessionData" }
-    | { type: "deleteTotalData" };
+    | { type: "getKick"; fromPopup?: boolean };
 type ContentScriptResponseMap = {
     getCurrentResolution: number | undefined;
     getKick: KickBackgroundResponse | undefined;
-    totalUsage: TotalUsageData;
-    deleteSessionData: { success: boolean };
-    deleteTotalData: { success: boolean };
 };
 export async function sendMessageToContentScript<T extends ContentScriptMessage>(
     tabId: number,

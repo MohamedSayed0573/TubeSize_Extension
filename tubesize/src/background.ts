@@ -6,14 +6,17 @@ import type {
     TwitchMessage,
     KickBackgroundResponse,
     KickMessage,
+    YoutubeVideoData,
+    YoutubeData,
 } from "@app-types/types";
-import { clearLocalCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
+import { clearMediaCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { addBadge, clearBadge } from "@/badge";
 import {
     parseDataFromYtInitial,
     parseVideoFormats,
     extractYtInitialResponse,
     parseLiveStreamInfo,
+    getThumbnailUrl,
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
@@ -80,13 +83,7 @@ async function handleYoutube(
             addBadge(message.tabId);
             return sendResponse({
                 success: true,
-                data: {
-                    formats: cached.data.formats,
-                    type: "video",
-                    durationSeconds: cached.data.durationSeconds,
-                    title: cached.data.title,
-                    id: cached.data.id,
-                },
+                data: cached.data,
                 createdAt: cached.createdAt,
             });
         }
@@ -97,24 +94,30 @@ async function handleYoutube(
         if (isLive) {
             const rawFormats = parseDataFromYtInitial(rawData);
             const youtubeData = parseLiveStreamInfo(rawFormats);
+            const thumbnailUrl = getThumbnailUrl(rawData);
+
+            const data: YoutubeData = {
+                channelName: rawData.videoDetails.author,
+                formats: youtubeData.sort((a, b) => b.resolution - a.resolution),
+                type: "live",
+                thumbnailUrl,
+            };
+            await saveToStorage(videoTag, data, "youtube");
 
             sendResponse({
                 success: true,
-                data: {
-                    formats: youtubeData.sort((a, b) => b.resolution - a.resolution),
-                    type: "live",
-                    channelName: rawData.videoDetails.author,
-                },
+                data,
             });
         } else {
             const rawFormats = parseDataFromYtInitial(rawData);
             const videoFormats = parseVideoFormats(rawFormats);
-            const youtubeData = {
+            const youtubeData: YoutubeVideoData = {
                 formats: videoFormats.sort((a, b) => b.height - a.height),
                 type: "video" as const,
                 durationSeconds: Number(rawData.videoDetails.lengthSeconds),
                 title: rawData.videoDetails.title,
                 id: rawData.videoDetails.videoId,
+                thumbnailUrl: getThumbnailUrl(rawData),
             };
             await saveToStorage(videoTag, youtubeData, "youtube");
             addBadge(message.tabId);
@@ -169,7 +172,7 @@ async function handleKick(
 
 chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === "install" || details.reason === "update") {
-        clearLocalCache()
+        clearMediaCache()
             .then(async () => await clearSyncCache())
             .catch((err) => {
                 console.error("Failed to clear cache on install/update", err);

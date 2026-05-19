@@ -30,12 +30,20 @@ export function removeEventListeners() {
 }
 
 const settingsBtnHandler = () => {
+    const videoEl = document.querySelector("video");
+    if (videoEl && videoEl.paused) {
+        void videoEl.play();
+    }
     settingsBtnClickListener().catch((err) => {
         console.error("Error in settings button click handler:", err);
     });
 };
 
 const qualityBtnHandler = () => {
+    const videoEl = document.querySelector("video");
+    if (videoEl && videoEl.paused) {
+        void videoEl.play();
+    }
     renderQualityLabels().catch((err) => {
         console.error("Error in quality button click handler:", err);
     });

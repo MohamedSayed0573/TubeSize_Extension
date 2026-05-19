@@ -1,11 +1,6 @@
 import CONFIG from "@lib/constants";
-import type {
-    KickData,
-    OptionsMap,
-    StorageData,
-    TwitchData,
-    YoutubeVideoData,
-} from "@app-types/types";
+import type { KickData, OptionsMap, StorageData, TwitchData, YoutubeData } from "@app-types/types";
+import { utcDateKey } from "./analyticsUtils";
 
 async function getCacheTTLSetting(): Promise<number> {
     const cacheTTL = (await getFromSyncCache("cacheTTL")) as number;
@@ -67,6 +62,16 @@ export async function clearLocalCache() {
     return removeAllFromCache("local");
 }
 
+export async function clearMediaCache() {
+    const allLocalCache = (await getFromLocalCache()) as Record<string, unknown>;
+    const mediaKeys = Object.keys(allLocalCache).filter(
+        (key) => key.startsWith("youtube:") || key.startsWith("twitch:") || key.startsWith("kick:"),
+    );
+    if (mediaKeys.length > 0) {
+        await removeFromLocalCache(mediaKeys);
+    }
+}
+
 /**
  * Clear all keys from sync cache
  * @throws Will throw an error if the cache clearing process fails
@@ -77,23 +82,37 @@ export async function clearSyncCache() {
 
 export async function saveToStorage(
     key: string,
-    data: YoutubeVideoData | TwitchData | KickData,
+    data: YoutubeData,
+    target: "youtube",
+): Promise<void>;
+export async function saveToStorage(key: string, data: TwitchData, target: "twitch"): Promise<void>;
+export async function saveToStorage(key: string, data: KickData, target: "kick"): Promise<void>;
+export async function saveToStorage(
+    key: string,
+    data: YoutubeData | TwitchData | KickData,
     target: "youtube" | "twitch" | "kick",
 ) {
     const ttlInSecondsOptions = await getCacheTTLSetting();
     const expiry = Date.now() + ttlInSecondsOptions * 1000;
 
     // If any of the formats have null sizes, we don't want to cache the response as it might be incomplete.
-    if (data.type === "live" && data.data.length === 0) return;
-    if (data.type === "vod" && data.data.length === 0) return;
-    if (data.type === "video" && data.formats.length === 0) return;
-    if (data.type === "vod" && data.data.some((stream) => stream.sizePerSecondBytes === 0)) return;
-    if (data.type === "video" && data.formats.some((format) => format.sizeBytes === 0)) return;
+    if (data.type === "video") {
+        if (data.formats.length === 0) return;
+        if (data.formats.some((format) => format.sizeBytes === 0)) return;
+    } else if (target === "youtube") {
+        const youtubeData = data as YoutubeData;
+        if (youtubeData.formats.length === 0) return;
+        if (youtubeData.formats.some((format) => format.sizePerSecondBytes === 0)) return;
+    } else {
+        const streamData = data as TwitchData | KickData;
+        if (streamData.data.length === 0) return;
+        if (streamData.data.some((stream) => stream.sizePerSecondBytes === 0)) return;
+    }
 
-    const dataToStore: StorageData<YoutubeVideoData | TwitchData | KickData> = {
+    const dataToStore: StorageData<YoutubeData | TwitchData | KickData> = {
         data,
         expiry,
-        createdAt: new Date().toISOString(),
+        createdAt: utcDateKey(new Date()),
     };
 
     const prefix = target;
@@ -106,7 +125,7 @@ export async function saveToStorage(
 export async function getFromStorage(
     target: "youtube",
     tag: string,
-): Promise<StorageData<YoutubeVideoData> | undefined>;
+): Promise<StorageData<YoutubeData> | undefined>;
 export async function getFromStorage(
     target: "twitch",
     tag: string,
@@ -119,9 +138,9 @@ export async function getFromStorage(
 export async function getFromStorage(
     target: "youtube" | "twitch" | "kick",
     tag: string,
-): Promise<StorageData<YoutubeVideoData | TwitchData | KickData> | undefined> {
+): Promise<StorageData<YoutubeData | TwitchData | KickData> | undefined> {
     const data = await getFromLocalCache(`${target}:${tag}`);
-    const item = data as StorageData<YoutubeVideoData | TwitchData | KickData> | undefined;
+    const item = data as StorageData<YoutubeData | TwitchData | KickData> | undefined;
 
     if (!item) return undefined;
 

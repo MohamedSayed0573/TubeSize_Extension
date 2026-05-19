@@ -1,5 +1,7 @@
 import "@styles/popup.css";
 import "@styles/global.css";
+import "@styles/header.css";
+import "@styles/formatItem.css";
 import { sendMessageToBackground, sendMessageToContentScript } from "@/runtime";
 import { useEffect, useState } from "react";
 import {
@@ -11,37 +13,22 @@ import {
     isTwitchVod,
     isKickPage,
     extractTwitchVodId,
-    humanizeDuration,
     isKickStream,
     isKickVod,
 } from "@lib/utils";
-import Options from "@pages/options";
-import CONFIG from "@lib/constants";
 import Header from "@components/header";
 import useTab from "@hooks/useTab";
-import TotalUsage from "@components/usage";
 import YoutubeFormats from "@components/youtubeFormats";
 import TwitchFormats from "@components/twitchFormats";
 import KickFormats from "@components/kickFormats";
 import type { PopupData } from "@app-types/uiTypes";
-
-function getCachedAgo(createdAt: string | undefined) {
-    if (!createdAt) return;
-    const timeInMs = Date.now() - new Date(createdAt).getTime();
-    if (timeInMs < CONFIG.CACHE_JUST_NOW_THRESHOLD) {
-        return "Cached just now";
-    } else {
-        const timeAgo = humanizeDuration(timeInMs);
-        return `Cached ${timeAgo} ago`;
-    }
-}
+import PopupUsage from "@/components/popupUsage";
 
 export default function Popup() {
     const [message, setMessage] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
     const { tabId, tabUrl, error: tabError } = useTab();
     const [data, setData] = useState<PopupData | undefined>();
-    const [useOptionsPage, setUseOptionsPage] = useState(false);
     const [error, setError] = useState<Error | undefined>();
 
     useEffect(() => {
@@ -155,23 +142,17 @@ export default function Popup() {
         throw pageError;
     }
 
-    if (useOptionsPage) {
-        return <Options />;
-    }
-
     return (
         <div className="popup-page">
-            <Header data={data} setUseOptionsPage={setUseOptionsPage} />
+            <Header data={data} />
             <div id="container">
-                {data?.cacheCreatedAt && (
-                    <div className="cached-note">{getCachedAgo(data.cacheCreatedAt)}</div>
-                )}
+                {!isLoading && data?.platform === "youtube" && <PopupUsage tabId={tabId} />}
+
                 {!data && isLoading && (
                     <div className="loading-state">
                         <span className="spinner" />
                     </div>
                 )}
-                {!isLoading && data?.platform === "youtube" && <TotalUsage tabId={tabId} />}
 
                 {!data && !isLoading && message && <span className="info">{message}</span>}
                 {data?.platform === "youtube" && (
