@@ -5,8 +5,8 @@
     "type": "module",
     "packageManager": "pnpm@11.1.3",
     "scripts": {
-        "dev": "vite build --watch --mode development",
-        "build": "vite build",
+        "build": "tsc -b && vite build",
+        "dev": "vite",
         "test": "jest",
         "test:coverage": "jest --coverage",
         "test:preview": "wslview ./coverage/lcov-report/index.html",
@@ -48,6 +48,8 @@
         "zod": "^4.4.3"
     },
     "devDependencies": {
+        "vite-plugin-zip-pack": "^1.2.4",
+        "@crxjs/vite-plugin": "^2.4.0",
         "@eslint/js": "^10.0.1",
         "@types/chrome": "^0.1.42",
         "@types/humanize-duration": "^3.27.4",
@@ -73,7 +75,6 @@
         "ts-jest": "^29.4.9",
         "typescript": "~6.0.3",
         "typescript-eslint": "^8.59.2",
-        "vite": "^8.0.11",
-        "vite-plugin-web-extension": "^4.5.1"
+        "vite": "^8.0.11"
     }
 }
