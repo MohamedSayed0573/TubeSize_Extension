@@ -44,7 +44,6 @@
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@types/chrome": "^0.1.42",
-        "@types/filesize": "^5.0.2",
         "@types/humanize-duration": "^3.27.4",
         "@types/jest": "^30.0.0",
         "@types/m3u8-parser": "^7.2.6",
