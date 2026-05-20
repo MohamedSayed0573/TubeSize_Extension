@@ -53,6 +53,7 @@ body,
 }
 
 .body-wrapper {
+    display: flex;
     padding: 32px;
     background: #0e1012;
     flex: 1;
@@ -84,6 +85,7 @@ body,
 }
 
 .usage-details-list {
+    flex: 1;
     border: 1px solid #ffffff0f;
     border-radius: 16px;
     background: #161819;
