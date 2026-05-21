@@ -1,7 +1,8 @@
 import { setToLocalCache } from "@lib/cache";
 import { delay, extractVideoTag } from "@lib/utils";
 import { getUsageByDay, utcDateKey } from "@lib/analyticsUtils";
-import { sendMessageToBackground } from "./runtime";
+import { sendMessageToBackground } from "@/runtime";
+import { updateBadge } from "./badge";
 
 let pendingUsage: number = 0;
 const observer = new PerformanceObserver((list) => {
@@ -16,11 +17,12 @@ function getCurrentTabUrl() {
 }
 
 void (async () => {
+    const CACHED_VIDEOS = new Set<string>();
     do {
         try {
             const videoTag = extractVideoTag(getCurrentTabUrl());
             if (!videoTag) {
-                await delay(10_000);
+                await delay(500);
                 continue;
             }
 
@@ -36,21 +38,24 @@ void (async () => {
             // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
             const oldUsage = usageByDay?.[date]?.[videoTag]?.usage || 0;
 
-            usageByDay[date][videoTag].usage = oldUsage + pendingUsage;
-            const res = await sendMessageToBackground({
-                type: "youtubeVideo",
-                videoTag,
-            });
-            if (!res.success) {
-                console.error("Failed to get video title from background script.");
-                continue;
+            if (!CACHED_VIDEOS.has(videoTag)) {
+                const res = await sendMessageToBackground({
+                    type: "youtubeVideo",
+                    videoTag,
+                });
+                if (!res.success) {
+                    console.error("Failed to get video title from background script.");
+                    continue;
+                }
+
+                usageByDay[date][videoTag].title =
+                    res.data.type === "video" ? res.data.title : res.data.channelName || "Youtube";
+                usageByDay[date][videoTag].thumbnailUrl =
+                    res.data.thumbnailUrl || "https://www.youtube.com/img/desktop/yt_1200.png";
+                CACHED_VIDEOS.add(videoTag);
             }
-
-            usageByDay[date][videoTag].title =
-                res.data.type === "video" ? res.data.title : res.data.channelName || "Youtube";
-            usageByDay[date][videoTag].thumbnailUrl =
-                res.data.thumbnailUrl || "https://www.youtube.com/img/desktop/yt_1200.png";
-
+            usageByDay[date][videoTag].usage = oldUsage + pendingUsage;
+            updateBadge(usageByDay, date);
             await setToLocalCache({ usageByDay });
 
             pendingUsage = 0;

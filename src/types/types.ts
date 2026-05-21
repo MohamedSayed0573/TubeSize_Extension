@@ -102,8 +102,8 @@ export type FrontEndMessage =
     | TwitchLiveMessage
     | KickLiveMessage
     | KickVodMessage
-    | { type: "clearBadge" }
-    | { type: "setBadge" };
+    | { type: "removeBadge"; tabId: number }
+    | { type: "setBadge"; text: string };
 
 export type YoutubeMessage = {
     type: "youtubeVideo";
