@@ -32,7 +32,8 @@ export default function Chart({ usage }: { usage: UsageByDay }) {
         return {
             date,
             value:
-                Object.values(videos).reduce((total, video) => total + video.usage, 0) / 1_000_000,
+                Object.values(videos).reduce((total, video) => total + video.usage, 0) /
+                (1024 * 1024),
         };
     });
     return (
