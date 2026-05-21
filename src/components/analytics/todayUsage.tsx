@@ -79,8 +79,9 @@ export default function TodayUsage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {Object.entries(todayUsage).map(
-                                    ([videoTag, { usage, title, thumbnailUrl }], index) => {
+                                {Object.entries(todayUsage)
+                                    .sort((a, b) => b[1].usage - a[1].usage)
+                                    .map(([videoTag, { usage, title, thumbnailUrl }], index) => {
                                         const url = getVideoUrl(videoTag);
                                         const imageUrl =
                                             thumbnailUrl ||
@@ -108,8 +109,7 @@ export default function TodayUsage() {
                                                 <td>{formatBytes(usage)}</td>
                                             </tr>
                                         );
-                                    },
-                                )}
+                                    })}
                             </tbody>
                         </table>
                         {isEmptyUsageByVideo(todayUsage) && (

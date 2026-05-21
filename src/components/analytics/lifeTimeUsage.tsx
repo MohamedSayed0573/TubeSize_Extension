@@ -17,7 +17,7 @@ function getLifeTimeDateRange(usageByDay: UsageByDay) {
     const startDate = new Date(dates[0]!);
     const endDate = new Date(dates.at(-1)!);
 
-    return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
+    return `${startDate.toDateString().split(" ").slice(1).join(" ")} -> ${endDate.toDateString().split(" ").slice(1).join(" ")}`;
 }
 
 function getTotalUsage(lifeTimeUsage: UsageByDay) {
@@ -85,8 +85,9 @@ export default function LifetimeUsage() {
                             </thead>
                             <tbody>
                                 {Object.entries(lifeTimeUsage).map(([date, videos]) =>
-                                    Object.entries(videos).map(
-                                        ([videoTag, { usage, title, thumbnailUrl }]) => {
+                                    Object.entries(videos)
+                                        .sort((a, b) => b[1].usage - a[1].usage)
+                                        .map(([videoTag, { usage, title, thumbnailUrl }]) => {
                                             const url = getVideoUrl(videoTag);
 
                                             const imageUrl =
@@ -119,8 +120,7 @@ export default function LifetimeUsage() {
                                                     <td>{formatBytes(usage)}</td>
                                                 </tr>
                                             );
-                                        },
-                                    ),
+                                        }),
                                 )}
                             </tbody>
                         </table>

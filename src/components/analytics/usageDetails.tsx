@@ -68,8 +68,9 @@ export function UsageDetails() {
                             </tr>
                         </thead>
                         <tbody>
-                            {Object.entries(todayUsage).map(
-                                ([videoTag, { usage, title, thumbnailUrl }], index) => {
+                            {Object.entries(todayUsage)
+                                .sort((a, b) => b[1].usage - a[1].usage)
+                                .map(([videoTag, { usage, title, thumbnailUrl }], index) => {
                                     const url = getVideoUrl(videoTag);
                                     const imageUrl =
                                         thumbnailUrl ||
@@ -99,8 +100,7 @@ export function UsageDetails() {
                                             <td>{formatBytes(usage)}</td>
                                         </tr>
                                     );
-                                },
-                            )}
+                                })}
                         </tbody>
                     </table>
                 </div>

@@ -37,7 +37,7 @@ function getWeekUsage(usageByDay: UsageByDay) {
 function formatDate(week: Date[]) {
     const startDate = new Date(week[0]!);
     const endDate = new Date(week.at(-1)!);
-    return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
+    return `${startDate.toDateString().split(" ").slice(1).join(" ")} -> ${endDate.toDateString().split(" ").slice(1).join(" ")}`;
 }
 
 function getVideoUrl(videoTag: string) {
@@ -96,8 +96,9 @@ export default function WeekUsage() {
                             </thead>
                             <tbody>
                                 {Object.entries(weekUsage).map(([date, videos]) =>
-                                    Object.entries(videos).map(
-                                        ([videoTag, { usage, title, thumbnailUrl }]) => {
+                                    Object.entries(videos)
+                                        .sort((a, b) => b[1].usage - a[1].usage)
+                                        .map(([videoTag, { usage, title, thumbnailUrl }]) => {
                                             const url = getVideoUrl(videoTag);
 
                                             const imageUrl =
@@ -130,8 +131,7 @@ export default function WeekUsage() {
                                                     <td>{formatBytes(usage)}</td>
                                                 </tr>
                                             );
-                                        },
-                                    ),
+                                        }),
                                 )}
                             </tbody>
                         </table>

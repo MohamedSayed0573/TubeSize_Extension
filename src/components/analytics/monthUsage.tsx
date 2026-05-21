@@ -37,7 +37,7 @@ function getMonthUsage(usageByDay: UsageByDay) {
 function formatDate(month: Date[]) {
     const startDate = new Date(month[0]!);
     const endDate = new Date(month.at(-1)!);
-    return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
+    return `${startDate.toDateString().split(" ").slice(1).join(" ")} -> ${endDate.toDateString().split(" ").slice(1).join(" ")}`;
 }
 
 function getVideoUrl(videoTag: string) {
@@ -96,8 +96,9 @@ export default function MonthUsage() {
                             </thead>
                             <tbody>
                                 {Object.entries(monthUsage).map(([date, videos]) =>
-                                    Object.entries(videos).map(
-                                        ([videoTag, { usage, title, thumbnailUrl }]) => {
+                                    Object.entries(videos)
+                                        .sort((a, b) => b[1].usage - a[1].usage)
+                                        .map(([videoTag, { usage, title, thumbnailUrl }]) => {
                                             const url = getVideoUrl(videoTag);
 
                                             const imageUrl =
@@ -130,8 +131,7 @@ export default function MonthUsage() {
                                                     <td>{formatBytes(usage)}</td>
                                                 </tr>
                                             );
-                                        },
-                                    ),
+                                        }),
                                 )}
                             </tbody>
                         </table>
