@@ -76,17 +76,22 @@
     color: #ffffff;
 }
 
-.today-usage {
+.today-usage button {
     border: 1px solid rgba(255, 255, 255, 0.12);
     background-color: rgba(255, 255, 255, 0.03);
     padding: 8px 12px;
     border-radius: 8px;
-    color: #a8a8b1;
-    font-size: 12px;
-    font-weight: 500;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    color: #a8a8b1;
+    font-weight: 500;
+    font-size: 12px;
+    width: 100%;
+}
+.today-usage button:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    cursor: pointer;
 }
 .today-usage-value {
     color: #ffebebe8;
