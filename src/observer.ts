@@ -20,11 +20,10 @@ void (async () => {
     const CACHED_VIDEOS = new Set<string>();
     do {
         try {
+            if (pendingUsage === 0) continue;
+
             const videoTag = extractVideoTag(getCurrentTabUrl());
-            if (!videoTag) {
-                await delay(500);
-                continue;
-            }
+            if (!videoTag) continue;
 
             const date = utcDateKey(new Date());
             const usageByDay = await getUsageByDay();
