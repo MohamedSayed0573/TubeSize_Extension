@@ -140,6 +140,6 @@ tbody tr:hover {
     text-align: center;
     width: 60px;
 }
-.index {
+.usage-table td.index {
     text-align: center;
 }
