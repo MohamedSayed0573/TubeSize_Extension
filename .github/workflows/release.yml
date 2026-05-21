@@ -44,9 +44,10 @@ jobs:
                   pnpm --filter tubesize run pack
 
             - name: Create Release
-              uses: softprops/action-gh-release@v2
+              uses: softprops/action-gh-release@v3
               with:
                   files: |
-                      tubesize/dist/tubesize.zip
-                      tubesize/dist_firefox/tubesize_firefox.zip
+                      dist/tubesize.zip
+                      dist_firefox/tubesize_firefox.zip
+                  fail_on_unmatched_files: true
                   generate_release_notes: true
