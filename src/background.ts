@@ -10,20 +10,21 @@ import type {
     YoutubeData,
 } from "@app-types/types";
 import { clearMediaCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
-import { addBadge, clearBadge } from "@/badge";
+import { badgeFormatter, removeBadge, setBadge } from "@/badge";
 import {
+    extractYtInitialResponse,
     parseDataFromYtInitial,
     parseVideoFormats,
-    extractYtInitialResponse,
     parseLiveStreamInfo,
     getThumbnailUrl,
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
+import { isYoutubePage } from "@lib/utils";
+import { getTotalUsageForDate, getUsageByDay, utcDateKey } from "@lib/analyticsUtils";
 
 chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
     void handleMessage(message, sender, sendResponse);
-    // Synchronously return true to indicate that sendResponse will be called asynchronously
     return true;
 });
 
@@ -43,11 +44,11 @@ async function handleMessage(
     const tabId = getTabId(sender, message);
 
     switch (message.type) {
-        case "clearBadge": {
-            return handleClearBadge(tabId, sendResponse);
+        case "removeBadge": {
+            return handleRemoveBadge(tabId, sendResponse);
         }
         case "setBadge": {
-            return handleSetBadge(tabId, sendResponse);
+            return handleSetBadge(message, tabId, sendResponse);
         }
         case "youtubeVideo": {
             return await handleYoutube(message, sendResponse);
@@ -76,11 +77,9 @@ async function handleYoutube(
         if (!videoTag) {
             throw new Error("No video tag provided");
         }
-        clearBadge(message.tabId);
 
         const cached = await getFromStorage("youtube", videoTag);
         if (cached) {
-            addBadge(message.tabId);
             return sendResponse({
                 success: true,
                 data: cached.data,
@@ -104,7 +103,7 @@ async function handleYoutube(
             };
             await saveToStorage(videoTag, data, "youtube");
 
-            sendResponse({
+            return sendResponse({
                 success: true,
                 data,
             });
@@ -118,18 +117,15 @@ async function handleYoutube(
                 title: rawData.videoDetails.title,
                 id: rawData.videoDetails.videoId,
                 thumbnailUrl: getThumbnailUrl(rawData),
+                channelName: rawData.videoDetails.author,
             };
             await saveToStorage(videoTag, youtubeData, "youtube");
-            addBadge(message.tabId);
             return sendResponse({
                 success: true,
                 data: youtubeData,
             });
         }
-
-        addBadge(message.tabId);
     } catch (err) {
-        clearBadge(message.tabId);
         return sendResponse({
             success: false,
             message: err instanceof Error ? err.message : "Unknown error",
@@ -180,18 +176,44 @@ chrome.runtime.onInstalled.addListener((details) => {
     }
 });
 
-function handleClearBadge(
+function handleRemoveBadge(
     tabId: number | undefined,
     sendResponse: (response: { success: boolean }) => void,
 ) {
-    clearBadge(tabId);
+    removeBadge(tabId);
     return sendResponse({ success: true });
 }
 
 function handleSetBadge(
+    message: { type: "setBadge"; text: string },
     tabId: number | undefined,
     sendResponse: (response: { success: boolean }) => void,
 ) {
-    addBadge(tabId);
+    setBadge(message.text, tabId);
     return sendResponse({ success: true });
+}
+
+const lastUrlByTab = new Map<number, string>();
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status !== "complete") return;
+    if (!tab.url || tab.url === lastUrlByTab.get(tabId)) return;
+    lastUrlByTab.set(tabId, tab.url);
+    if (isYoutubePage(tab.url)) {
+        void showBadge(tabId);
+    } else {
+        removeBadge(tabId);
+    }
+});
+
+// Clean up map entries when a tab is closed to avoid memory leaks
+chrome.tabs.onRemoved.addListener((tabId) => {
+    lastUrlByTab.delete(tabId);
+});
+
+async function showBadge(tabId: number) {
+    const date = utcDateKey(new Date());
+    const usageByDay = await getUsageByDay();
+    const total = getTotalUsageForDate(usageByDay, date);
+
+    setBadge(badgeFormatter(total), tabId);
 }

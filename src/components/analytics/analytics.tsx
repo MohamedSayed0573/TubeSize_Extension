@@ -109,7 +109,10 @@ export default function Analytics() {
 
     return (
         <div className="analytics-page">
-            <div className="analytics-header">TubeSize Usage Analytics for YouTube</div>
+            <div className="analytics-header">
+                <img className="analytics-icon" src="/icons/icon-32.png" alt="Analytics Icon" />
+                <span>Usage Analytics for YouTube</span>
+            </div>
             <div className="analytics-body">
                 <div className="stats-row">
                     <Link to="/today" className="stats-card-link">
@@ -123,7 +126,7 @@ export default function Analytics() {
                     </Link>
                     <Link to="/week" className="stats-card-link">
                         <div className="stats-card">
-                            <div className="stat-label">This Week: </div>
+                            <div className="stat-label">Last 7 Days: </div>
                             <div className="stat-value">
                                 {formatBytes(thisWeekUsage(usage))}
                                 <div className="view-details">View Details</div>
@@ -132,7 +135,7 @@ export default function Analytics() {
                     </Link>
                     <Link to="/month" className="stats-card-link">
                         <div className="stats-card">
-                            <div className="stat-label">This Month: </div>
+                            <div className="stat-label">Last 30 Days: </div>
                             <div className="stat-value">
                                 {formatBytes(thisMonthUsage(usage))}
                                 <div className="view-details">View Details</div>

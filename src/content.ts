@@ -22,8 +22,8 @@ import {
     stopResolutionTracking,
 } from "@/resolution";
 import { getKickHtml, getKickStreamId } from "@lib/kick";
-import type { KickBackgroundResponse } from "./types/types";
-import { waitForElement } from "./lib/dom";
+import type { KickBackgroundResponse } from "@app-types/types";
+import { waitForElement } from "@lib/dom";
 
 function getCurrentUrl() {
     return globalThis.location.href;
@@ -32,7 +32,6 @@ function getCurrentUrl() {
 async function handlePageNavigation() {
     try {
         const url = getCurrentUrl();
-        void sendMessageToBackground({ type: "clearBadge" });
 
         if (!isYoutubePage(url) && !isTwitchPage(url) && !isKickPage(url)) {
             removeEventListeners();
@@ -129,13 +128,12 @@ chrome.runtime.onMessage.addListener(
         }
     },
 );
+
 /**
  * Returns the setting for the toaster threshold in MB per minute.
  * If the setting is not found or is invalid, it returns the default threshold defined in CONFIG.
- * @returns {number} The toaster threshold in MB per minute.
  * @throws Will throw an error if there is an issue retrieving the setting from cache.
  */
-
 async function initYoutube(videoTag: string) {
     const scriptsArray = [...document.scripts];
     const ytInitialPlayerResponse = scriptsArray.find((script) => {

@@ -1,4 +1,4 @@
-import { getFromLocalCache } from "./cache";
+import { getFromLocalCache } from "@lib/cache";
 import { filesize } from "filesize";
 
 export type UsageByDay = {
@@ -7,6 +7,7 @@ export type UsageByDay = {
             usage: number;
             title: string | undefined;
             thumbnailUrl: string | undefined;
+            channelName: string | undefined;
         };
     };
 };
@@ -16,6 +17,7 @@ export type UsageByVideo = {
         usage: number;
         title: string | undefined;
         thumbnailUrl: string | undefined;
+        channelName: string | undefined;
     };
 };
 export async function getUsageByDay(): Promise<UsageByDay> {
@@ -75,6 +77,14 @@ export function getNumVideosWatched(usageByDay: UsageByDay) {
     return count;
 }
 
-export function formatBytes(bytes: number) {
-    return filesize(bytes, { base: 10, standard: "jedec", round: 2 });
+export function formatBytes(bytes: number, options?: { round: number }) {
+    return filesize(bytes, { base: 10, standard: "jedec", round: 2, ...options });
+}
+
+export function getTotalUsageForDate(usageByDay: UsageByDay, date: string) {
+    let total = 0;
+    for (const [_videoTag, { usage }] of Object.entries(usageByDay[date] ?? {})) {
+        total += usage;
+    }
+    return total;
 }

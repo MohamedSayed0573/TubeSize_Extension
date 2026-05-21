@@ -47,6 +47,7 @@ export type YoutubeVideoData = {
     id: string;
     isShorts?: boolean;
     thumbnailUrl: string | undefined;
+    channelName: string | undefined;
 };
 
 type YoutubeLiveData = {
@@ -102,8 +103,8 @@ export type FrontEndMessage =
     | TwitchLiveMessage
     | KickLiveMessage
     | KickVodMessage
-    | { type: "clearBadge" }
-    | { type: "setBadge" };
+    | { type: "removeBadge"; tabId: number }
+    | { type: "setBadge"; text: string };
 
 export type YoutubeMessage = {
     type: "youtubeVideo";

@@ -25,7 +25,7 @@ function checkGitClean() {
 }
 
 function gitCommit() {
-    execFileSync("git", ["add", "package.json", "manifest.json"], { stdio: "inherit" });
+    execFileSync("git", ["add", "package.json"], { stdio: "inherit" });
     execFileSync("git", ["commit", "-m", `Release ${fullVersion}`], { stdio: "inherit" });
 }
 
@@ -77,7 +77,6 @@ function main() {
         process.exit(1);
     }
     checkGitClean();
-    updateJsonVersion(path.join(__dirname, "..", "manifest.json"));
     updateJsonVersion(path.join(__dirname, "..", "package.json"));
     gitCommit();
     pack();

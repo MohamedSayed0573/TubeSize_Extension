@@ -8,3 +8,4 @@ devTest/
 coverage/
 code_review/
 .release/
+*.tsbuildinfo

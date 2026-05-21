@@ -1,7 +1,7 @@
 import "@styles/panel.css";
 import type { YoutubeData } from "@app-types/types";
-import { totalSizeVideoDisplay } from "./lib/formatting";
-import { waitForElement } from "./lib/dom";
+import { totalSizeVideoDisplay } from "@lib/formatting";
+import { waitForElement } from "@lib/dom";
 
 let settingsBtnEl: Element | undefined;
 let qualityBtnEl: Element | undefined;

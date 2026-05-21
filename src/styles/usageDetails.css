@@ -1,14 +1,9 @@
-html,
-body,
-#root {
-    height: 100%;
-}
-
 .usage-details {
     display: flex;
     flex-direction: column;
     height: 100%;
     width: 100%;
+    min-height: 100vh;
 }
 
 .usage-details-header {
@@ -53,6 +48,7 @@ body,
 }
 
 .body-wrapper {
+    display: flex;
     padding: 32px;
     background: #0e1012;
     flex: 1;
@@ -84,6 +80,7 @@ body,
 }
 
 .usage-details-list {
+    flex: 1;
     border: 1px solid #ffffff0f;
     border-radius: 16px;
     background: #161819;
@@ -139,10 +136,33 @@ tbody tr:hover {
     overflow: hidden;
 }
 
+.video-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.video-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.video-channel {
+    font-size: 12px;
+    color: #8b8d93;
+    font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 #header-index {
     text-align: center;
     width: 60px;
 }
-.index {
+.usage-table td.index {
     text-align: center;
 }

@@ -11,8 +11,8 @@ type MessageResponseMap = {
     twitchLive: TwitchBackgroundResponse;
     kickLive: KickBackgroundResponse;
     kickVod: KickBackgroundResponse;
-    clearBadge: { success: boolean };
     setBadge: { success: boolean };
+    removeBadge: { success: boolean };
 };
 export async function sendMessageToBackground<T extends FrontEndMessage>(
     message: T,

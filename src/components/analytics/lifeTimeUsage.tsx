@@ -17,7 +17,7 @@ function getLifeTimeDateRange(usageByDay: UsageByDay) {
     const startDate = new Date(dates[0]!);
     const endDate = new Date(dates.at(-1)!);
 
-    return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
+    return `${startDate.toDateString().split(" ").slice(1).join(" ")} -> ${endDate.toDateString().split(" ").slice(1).join(" ")}`;
 }
 
 function getTotalUsage(lifeTimeUsage: UsageByDay) {
@@ -85,42 +85,56 @@ export default function LifetimeUsage() {
                             </thead>
                             <tbody>
                                 {Object.entries(lifeTimeUsage).map(([date, videos]) =>
-                                    Object.entries(videos).map(
-                                        ([videoTag, { usage, title, thumbnailUrl }]) => {
-                                            const url = getVideoUrl(videoTag);
+                                    Object.entries(videos)
+                                        .sort((a, b) => b[1].usage - a[1].usage)
+                                        .map(
+                                            ([
+                                                videoTag,
+                                                { usage, title, thumbnailUrl, channelName },
+                                            ]) => {
+                                                const url = getVideoUrl(videoTag);
 
-                                            const imageUrl =
-                                                thumbnailUrl ||
-                                                "https://placehold.co/213x120?text=Unknown&font=roboto";
+                                                const imageUrl =
+                                                    thumbnailUrl ||
+                                                    "https://placehold.co/213x120?text=Unknown&font=roboto";
 
-                                            const displayTitle = title || "Youtube";
+                                                const displayTitle = title || "Youtube";
 
-                                            return (
-                                                <tr key={`${date}-${videoTag}`}>
-                                                    <td className="index">{index++ + 1}</td>
+                                                return (
+                                                    <tr key={`${date}-${videoTag}`}>
+                                                        <td className="index">{index++ + 1}</td>
 
-                                                    <td>
-                                                        <a
-                                                            className="video-title-cell"
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            href={url}
-                                                        >
-                                                            <img
-                                                                className="video-thumbnail"
-                                                                src={imageUrl}
-                                                                alt="thumbnail"
-                                                            />
+                                                        <td>
+                                                            <a
+                                                                className="video-title-cell"
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                href={url}
+                                                            >
+                                                                <img
+                                                                    className="video-thumbnail"
+                                                                    src={imageUrl}
+                                                                    alt="thumbnail"
+                                                                />
 
-                                                            {displayTitle}
-                                                        </a>
-                                                    </td>
+                                                                <div className="video-info">
+                                                                    <span className="video-title">
+                                                                        {displayTitle}
+                                                                    </span>
+                                                                    {channelName && (
+                                                                        <span className="video-channel">
+                                                                            {channelName}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </a>
+                                                        </td>
 
-                                                    <td>{formatBytes(usage)}</td>
-                                                </tr>
-                                            );
-                                        },
-                                    ),
+                                                        <td>{formatBytes(usage)}</td>
+                                                    </tr>
+                                                );
+                                            },
+                                        ),
                                 )}
                             </tbody>
                         </table>
