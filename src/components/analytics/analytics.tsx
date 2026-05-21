@@ -126,7 +126,7 @@ export default function Analytics() {
                     </Link>
                     <Link to="/week" className="stats-card-link">
                         <div className="stats-card">
-                            <div className="stat-label">This Week: </div>
+                            <div className="stat-label">Last 7 Days: </div>
                             <div className="stat-value">
                                 {formatBytes(thisWeekUsage(usage))}
                                 <div className="view-details">View Details</div>
@@ -135,7 +135,7 @@ export default function Analytics() {
                     </Link>
                     <Link to="/month" className="stats-card-link">
                         <div className="stats-card">
-                            <div className="stat-label">This Month: </div>
+                            <div className="stat-label">Last 30 Days: </div>
                             <div className="stat-value">
                                 {formatBytes(thisMonthUsage(usage))}
                                 <div className="view-details">View Details</div>
