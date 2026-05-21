@@ -1,7 +1,7 @@
 import type { KickData } from "@app-types/types";
 import useCurrentQuality from "@hooks/useCurrentQuality";
 import useTab from "@hooks/useTab";
-import FormatItem from "./formatItem";
+import FormatItem from "@components/formatItem";
 
 export default function KickFormats({ data }: { data: KickData }) {
     const { tabId, tabUrl } = useTab();

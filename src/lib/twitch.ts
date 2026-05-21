@@ -9,11 +9,11 @@ import type {
 } from "@app-types/types";
 import type { PlaylistItem } from "m3u8-parser";
 import CONFIG from "@lib/constants";
-import { estimateHlsStreamSizes } from "./hlsSize";
+import { estimateHlsStreamSizes } from "@lib/hlsSize";
 import { filterM3u8, parseM3U8 } from "@lib/m3u8";
-import { getFromStorage, saveToStorage } from "./cache";
-import { fetchAndRetry } from "./utils";
-import { twitchGqlResponseSchema } from "./schema";
+import { getFromStorage, saveToStorage } from "@lib/cache";
+import { fetchAndRetry } from "@lib/utils";
+import { twitchGqlResponseSchema } from "@lib/schema";
 
 export async function getTwitchClientId(message: TwitchMessage): Promise<string> {
     const url =

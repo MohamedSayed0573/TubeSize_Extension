@@ -1,4 +1,4 @@
-import { getFromLocalCache } from "./cache";
+import { getFromLocalCache } from "@lib/cache";
 import { filesize } from "filesize";
 
 export type UsageByDay = {

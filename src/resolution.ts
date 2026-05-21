@@ -1,7 +1,7 @@
 import { showTwitchToast, showYoutubeToast } from "@pages/toaster";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/types";
-import CONFIG from "./lib/constants";
-import { getFromSyncCache } from "./lib/cache";
+import CONFIG from "@lib/constants";
+import { getFromSyncCache } from "@lib/cache";
 
 /**
  * Get the current resolution of the video being played on thepage by observing the DOM for video element.

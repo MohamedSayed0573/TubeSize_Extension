@@ -2,7 +2,7 @@ import { setToLocalCache } from "@lib/cache";
 import { delay, extractVideoTag } from "@lib/utils";
 import { getUsageByDay, utcDateKey } from "@lib/analyticsUtils";
 import { sendMessageToBackground } from "@/runtime";
-import { updateBadge } from "./badge";
+import { updateBadge } from "@/badge";
 
 let pendingUsage: number = 0;
 const observer = new PerformanceObserver((list) => {

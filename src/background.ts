@@ -20,8 +20,8 @@ import {
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
-import { isYoutubePage } from "./lib/utils";
-import { getTotalUsageForDate, getUsageByDay, utcDateKey } from "./lib/analyticsUtils";
+import { isYoutubePage } from "@lib/utils";
+import { getTotalUsageForDate, getUsageByDay, utcDateKey } from "@lib/analyticsUtils";
 
 chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
     void handleMessage(message, sender, sendResponse);
@@ -45,7 +45,7 @@ async function handleMessage(
 
     switch (message.type) {
         case "removeBadge": {
-            return handleRemoveBadge(message, sendResponse);
+            return handleRemoveBadge(tabId, sendResponse);
         }
         case "setBadge": {
             return handleSetBadge(message, tabId, sendResponse);
@@ -176,10 +176,10 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 function handleRemoveBadge(
-    message: { type: "removeBadge"; tabId: number },
+    tabId: number | undefined,
     sendResponse: (response: { success: boolean }) => void,
 ) {
-    removeBadge(message.tabId);
+    removeBadge(tabId);
     return sendResponse({ success: true });
 }
 
@@ -192,13 +192,21 @@ function handleSetBadge(
     return sendResponse({ success: true });
 }
 
-chrome.tabs.onUpdated.addListener((tabId, _changeInfo, tab) => {
-    if (!tab.url) return;
+const lastUrlByTab = new Map<number, string>();
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status !== "complete") return;
+    if (!tab.url || tab.url === lastUrlByTab.get(tabId)) return;
+    lastUrlByTab.set(tabId, tab.url);
     if (isYoutubePage(tab.url)) {
         void showBadge(tabId);
     } else {
         removeBadge(tabId);
     }
+});
+
+// Clean up map entries when a tab is closed to avoid memory leaks
+chrome.tabs.onRemoved.addListener((tabId) => {
+    lastUrlByTab.delete(tabId);
 });
 
 async function showBadge(tabId: number) {

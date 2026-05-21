@@ -18,11 +18,6 @@ export function totalSizeLiveDisplay(sizePerSecondBytes: number, durationSeconds
     return `${totalSizeMB.toFixed(2)} MB`;
 }
 export function totalSizeVideoDisplay(totalSizeBytes: number): string {
-    // const totalSizeMB = totalSizeBytes / 1_000_000;
-    // if (totalSizeMB >= 1000) {
-    //     return `${(totalSizeMB / 1000).toFixed(2)} GB`;
-    // }
-    // return `${totalSizeMB.toFixed(2)} MB`;
     return filesize(totalSizeBytes, { base: 10, standard: "jedec", round: 2 });
 }
 

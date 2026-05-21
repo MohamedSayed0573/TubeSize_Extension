@@ -6,7 +6,7 @@ import type {
 } from "@app-types/types";
 import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
-import { ytInitialSchema } from "./schema";
+import { ytInitialSchema } from "@lib/schema";
 
 export function sizePerMinute(
     sizeInBytes: number,

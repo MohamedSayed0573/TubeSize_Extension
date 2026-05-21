@@ -1,4 +1,4 @@
-import type { KickData, TwitchData, YoutubeData } from "./types";
+import type { KickData, TwitchData, YoutubeData } from "@app-types/types";
 
 export type PopupData =
     | {
