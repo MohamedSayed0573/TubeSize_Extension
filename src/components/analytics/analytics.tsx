@@ -110,11 +110,7 @@ export default function Analytics() {
     return (
         <div className="analytics-page">
             <div className="analytics-header">
-                <img
-                    className="analytics-icon"
-                    src="./public/icons/icon-32.png"
-                    alt="Analytics Icon"
-                />
+                <img className="analytics-icon" src="/icons/icon-32.png" alt="Analytics Icon" />
                 <span>Usage Analytics for YouTube</span>
             </div>
             <div className="analytics-body">

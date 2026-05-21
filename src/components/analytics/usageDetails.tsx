@@ -75,37 +75,51 @@ export function UsageDetails() {
                             {todayUsage &&
                                 Object.entries(todayUsage)
                                     .sort((a, b) => b[1].usage - a[1].usage)
-                                    .map(([videoTag, { usage, title, thumbnailUrl }], index) => {
-                                        const url = getVideoUrl(videoTag);
-                                        const imageUrl =
-                                            thumbnailUrl ||
-                                            "https://placehold.co/213x120?text=Unknown&font=roboto";
-                                        const displayTitle = title || "Youtube";
+                                    .map(
+                                        (
+                                            [videoTag, { usage, title, thumbnailUrl, channelName }],
+                                            index,
+                                        ) => {
+                                            const url = getVideoUrl(videoTag);
+                                            const imageUrl =
+                                                thumbnailUrl ||
+                                                "https://placehold.co/213x120?text=Unknown&font=roboto";
+                                            const displayTitle = title || "Youtube";
 
-                                        return (
-                                            <tr key={videoTag}>
-                                                <td className="index">{index + 1}</td>
-                                                <td>
-                                                    <div className="video-cell">
-                                                        <a
-                                                            className="video-title-cell"
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            href={url}
-                                                        >
-                                                            <img
-                                                                className="video-thumbnail"
-                                                                src={imageUrl}
-                                                                alt="thumbnail"
-                                                            />
-                                                            {displayTitle}
-                                                        </a>
-                                                    </div>
-                                                </td>
-                                                <td>{formatBytes(usage)}</td>
-                                            </tr>
-                                        );
-                                    })}
+                                            return (
+                                                <tr key={videoTag}>
+                                                    <td className="index">{index + 1}</td>
+                                                    <td>
+                                                        <div className="video-cell">
+                                                            <a
+                                                                className="video-title-cell"
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                href={url}
+                                                            >
+                                                                <img
+                                                                    className="video-thumbnail"
+                                                                    src={imageUrl}
+                                                                    alt="thumbnail"
+                                                                />
+                                                                <div className="video-info">
+                                                                    <span className="video-title">
+                                                                        {displayTitle}
+                                                                    </span>
+                                                                    {channelName && (
+                                                                        <span className="video-channel">
+                                                                            {channelName}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                    <td>{formatBytes(usage)}</td>
+                                                </tr>
+                                            );
+                                        },
+                                    )}
                         </tbody>
                     </table>
                 </div>

@@ -47,6 +47,7 @@ export type YoutubeVideoData = {
     id: string;
     isShorts?: boolean;
     thumbnailUrl: string | undefined;
+    channelName: string | undefined;
 };
 
 type YoutubeLiveData = {

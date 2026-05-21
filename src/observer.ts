@@ -32,6 +32,7 @@ void (async () => {
                 usage: 0,
                 title: undefined,
                 thumbnailUrl: undefined,
+                channelName: undefined,
             };
 
             // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -51,6 +52,7 @@ void (async () => {
                     res.data.type === "video" ? res.data.title : res.data.channelName || "Youtube";
                 usageByDay[date][videoTag].thumbnailUrl =
                     res.data.thumbnailUrl || "https://www.youtube.com/img/desktop/yt_1200.png";
+                usageByDay[date][videoTag].channelName = res.data.channelName;
                 CACHED_VIDEOS.add(videoTag);
             }
             usageByDay[date][videoTag].usage = oldUsage + pendingUsage;

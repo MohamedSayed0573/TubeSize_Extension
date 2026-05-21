@@ -7,6 +7,7 @@ export type UsageByDay = {
             usage: number;
             title: string | undefined;
             thumbnailUrl: string | undefined;
+            channelName: string | undefined;
         };
     };
 };
@@ -16,6 +17,7 @@ export type UsageByVideo = {
         usage: number;
         title: string | undefined;
         thumbnailUrl: string | undefined;
+        channelName: string | undefined;
     };
 };
 export async function getUsageByDay(): Promise<UsageByDay> {

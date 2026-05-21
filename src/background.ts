@@ -117,6 +117,7 @@ async function handleYoutube(
                 title: rawData.videoDetails.title,
                 id: rawData.videoDetails.videoId,
                 thumbnailUrl: getThumbnailUrl(rawData),
+                channelName: rawData.videoDetails.author,
             };
             await saveToStorage(videoTag, youtubeData, "youtube");
             return sendResponse({
