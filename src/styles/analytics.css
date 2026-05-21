@@ -6,15 +6,14 @@
 }
 
 .analytics-header {
-    font-size: 14px;
-    font-weight: 700;
+    display: flex;
+    align-items: center;
+
     border-bottom: 1px solid #ffffff0f;
     color: #d8e7e5;
     background: #161819;
     padding: 14px 20px;
-    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
+    gap: 12px;
 }
 
 .analytics-body {
@@ -23,6 +22,19 @@
     background: #111212;
     flex-direction: column;
     flex: 1;
+}
+
+.analytics-header span {
+    font-size: 14px;
+    font-weight: 700;
+    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+}
+
+.analytics-icon {
+    width: 24px;
+    height: 24px;
 }
 
 .stats-row {
