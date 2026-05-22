@@ -6,13 +6,14 @@
 
 ![GitHub stars](https://img.shields.io/github/stars/MohamedSayed0573/Tubesize_Extension)
 
-**Know exactly how much internet data a YouTube or Twitch stream will use before you press play.**
+**Know exactly how much internet data a YouTube, Twitch, or Kick stream will use before you press play.**
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Install-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/tubesize/bdpkcpbkonollfbgcnkknkjdbfpacnoi)
 [![Firefox Add-ons](https://img.shields.io/badge/Firefox-Install-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)
-[![Edge Add-ons](https://img.shields.io/badge/Edge-Install-0078D7?logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka)
+[![Edge Add-ons](https://img.shields.io/badge/Edge-Install-0078D7?logo=microsoftedge&logoColor=white)](https://chromewebstore.google.com/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)](https://developer.chrome.com/docs/extensions/mv3/)
 
 [![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/mohamedsayed253)
@@ -20,7 +21,8 @@
 </div>
 
 ---
-TubeSize is a browser extension that shows estimated data usage for YouTube and Twitch directly in a popup without leaving the page.
+
+TubeSize is a lightweight, premium browser extension that estimates data usage and file sizes for YouTube, Twitch, and Kick streams in real-time. It features an interactive daily usage analytics dashboard, custom threshold data alerts, and direct integration into video players.
 
 ## Installation
 
@@ -52,7 +54,6 @@ TubeSize is a browser extension that shows estimated data usage for YouTube and 
 
 ---
 
-
 ## Screenshots
 
 <div align="center">
@@ -63,79 +64,125 @@ TubeSize is a browser extension that shows estimated data usage for YouTube and 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/1685c8eb-ff3f-49df-a3e8-0df363367aa1" alt="toast" width="48%" />
   <img alt="twitch1" src="https://github.com/user-attachments/assets/c56770f5-08ee-4a17-8ce1-3e05dcf13d5a" width="48%" />
-
 </div>
 
 ---
 
 ## Features
 
-- **YouTube Videos Support**: see estimated data usage for each video quality
-- **Twitch Support**: compare data usage across stream qualities
-- **Live Streams**: check usage estimates for YouTube Live and Twitch live
-- **Data Usage Warning**: get alerted when a quality uses too much data
-- **Quality Menu**: view size info directly inside YouTube’s quality menu
-- **Shortcut**: open the popup anytime with Alt+P
-- **Browsers**: use it on Chrome, Firefox, and Edge
+- **YouTube Quality Estimates**: View calculated file sizes for standard resolutions on video pages, Shorts, and Live streams.
+- **Twitch Stream Diagnostics**: Compare data consumption across resolutions for live streams and VODs.
+- **Kick Platform Support (New)**: Compare data usage estimates for Kick live streams and VODs using HLS stream bandwidth profiles.
+- **Data Usage Analytics Dashboard (New)**: Track your daily YouTube data usage dynamically. View usage metrics across:
+    - Today, Last 7 Days, Last 30 Days, and Lifetime totals.
+    - Interactive daily bandwidth consumption graphs built with Recharts.
+    - Granular breakdown of videos watched, complete with thumbnails, channel names, and exact data consumed.
+- **Dynamic Badge Counter (New)**: View your real-time cumulative daily YouTube bandwidth consumption directly on the extension icon's badge (e.g., `1.2G` or `450M`).
+- **Bandwidth Warning Toasts**: Set data thresholds in Settings and receive automated notifications if a stream's bitrate exceeds your limits.
+- **Quality Menu Integration**: Embed calculated file size details directly inside YouTube's native player settings and quality selection dropdowns.
+- **Keyboard Shortcut**: Open the TubeSize extension popup at any time using `Alt+P` (or custom hotkey).
+- **Modern Options Panel**: Customize cache time-to-live (TTL), adjust notification triggers, clear analytics/caches, and filter custom streaming qualities.
+
 ---
+
 ## Permissions
 
-The extension requests the minimum permissions required:
+The extension requests the minimum permissions required to perform client-side analysis and local usage tracking:
 
-| Permission                          | Why                                                                       |
-| ----------------------------------- | ------------------------------------------------------------------------- |
-| `activeTab`                         | Read the current tab's URL to detect the current YouTube or Twitch page   |
-| `storage`                           | Cache YouTube data and user preferences locally                           |
-| `host_permissions: *.youtube.com`   | Read YouTube pages and extract stream metadata locally                    |
-| `host_permissions: *.twitch.tv`     | Read Twitch live/VOD pages and request Twitch playback metadata           |
-| `host_permissions: usher.ttvnw.net` | Fetch Twitch HLS playlists to inspect available resolutions and bandwidth |
-| `host_permissions: gql.twitch.tv`   | Request Twitch playback access tokens                                     |
+| Permission                                          | Why                                                                   |
+| :-------------------------------------------------- | :-------------------------------------------------------------------- |
+| `activeTab`                                         | Read the current tab's URL to detect YouTube, Twitch, or Kick pages.  |
+| `storage`                                           | Cache stream metadata, user preferences, and usage analytics locally. |
+| `host_permissions: *.youtube.com`                   | Read YouTube pages and parse player initial configurations locally.   |
+| `host_permissions: *.twitch.tv`                     | Query Twitch GQL APIs to retrieve stream token hashes.                |
+| `host_permissions: gql.twitch.tv`                   | Request authorization payloads for Twitch stream playbacks.           |
+| `host_permissions: usher.ttvnw.net`                 | Retrieve HLS master playlists to map resolutions and bitrates.        |
+| `host_permissions: *.playlist.ttvnw.net`            | Read dynamic stream playlist streams.                                 |
+| `host_permissions: *.cloudfront.hls.ttvnw.net`      | Connect to Twitch media CDNs for packet analysis.                     |
+| `host_permissions: *.kick.com`                      | Fetch Kick channel, live stream HTML, and VOD session records.        |
+| `host_permissions: *.playback.live-video.net`       | Retrieve Kick live master M3U8 streams via the IVS Player API.        |
+| `host_permissions: *.cloudfront.hls.live-video.net` | Analyze Kick video chunks on Amazon Interactive Video Service.        |
+
 ---
-## Stack
 
-TubeSize is currently an extension-first project. The legacy API under `api/` is deprecated and not used by the extension.
+## Technology Stack
 
-| Layer        | Technology                                                                |
-| ------------ | ------------------------------------------------------------------------- |
-| Extension UI | React, TypeScript, Vite                                                   |
-| Testing      | Jest                                                                      |
-| Linting      | ESLint, Knip, Prettier                                                    |
-| Storage      | `chrome.storage.local`, `chrome.storage.sync`                             |
-| YouTube Data | `ytInitialPlayerResponse` parsing with direct YouTube HTML fetch fallback |
-| Twitch Data  | Twitch GQL playback tokens + HLS playlist parsing                         |
-| Packaging    | `vite-plugin-web-extension`, zip packaging                                |
-| CI/CD        | GitHub Actions                                                            |
+TubeSize is an modern, extension-first project. The legacy API under `api/` is fully deprecated and is no longer used by the extension.
+
+| Layer                 | Technology                                                                                         |
+| :-------------------- | :------------------------------------------------------------------------------------------------- |
+| **Frontend & UI**     | React 19, TypeScript, Vite, React Router v7, Recharts, CSS Variables                               |
+| **Testing**           | Jest, ts-jest, jest-extended                                                                       |
+| **Linting & Tooling** | ESLint 10, Knip, Prettier, Husky, Lint-Staged                                                      |
+| **Local Cache**       | `chrome.storage.local` (media cache, daily analytics) and `chrome.storage.sync` (user preferences) |
+| **Data Parsing**      | Zod (schema verification) & `m3u8-parser` (Twitch/Kick streams)                                    |
+| **Packaging**         | `@crxjs/vite-plugin` (Manifest V3 integration), zip packaging                                      |
+| **CI/CD**             | GitHub Actions                                                                                     |
+
+---
 
 ## How It Works
 
-TubeSize uses two retrieval paths depending on the site.
+### Size Retrieval Flow
+
+TubeSize performs completely client-side extraction to estimate resolution-specific streaming filesizes:
+
+```mermaid
+flowchart TD
+    A[Open TubeSize Popup] --> B{What Platform?}
+
+    B -->|YouTube| YT_Cache{In local cache?}
+    YT_Cache -->|Yes| YT_Show[Show cached video quality sizes]
+    YT_Cache -->|No| YT_Extract[Extract ytInitialPlayerResponse from page]
+    YT_Extract --> YT_Success{Extraction successful?}
+    YT_Success -->|Yes| YT_CacheAndShow[Show sizes & cache details]
+    YT_Success -->|No| YT_Fetch[Fetch YouTube watch HTML manually]
+    YT_Fetch --> YT_FetchSuccess{Parse successful?}
+    YT_FetchSuccess -->|Yes| YT_CacheAndShow
+    YT_FetchSuccess -->|No| YT_Error[Display extraction error]
+
+    B -->|Twitch| TW_Detect{Live or VOD?}
+    TW_Detect -->|VOD| TW_VODCache{In local cache?}
+    TW_VODCache -->|Yes| TW_ShowVOD[Show cached VOD quality estimates]
+    TW_VODCache -->|No| TW_GQL[Fetch Twitch playback access token]
+    TW_Detect -->|Live| TW_GQL
+    TW_GQL --> TW_M3U8[Request HLS master playlist m3u8]
+    TW_M3U8 --> TW_Parse[Parse stream resolutions and bandwidths]
+    TW_Parse --> TW_Show[Display estimates & cache VOD results]
+
+    B -->|Kick| KK_Detect{Live or VOD?}
+    KK_Detect -->|VOD| KK_VODCache{In local cache?}
+    KK_VODCache -->|Yes| KK_ShowVOD[Show cached VOD quality estimates]
+    KK_VODCache -->|No| KK_HTML[Retrieve Kick HTML / Stream ID]
+    KK_Detect -->|Live| KK_HTML
+    KK_HTML --> KK_IVS[Request IVS playback credentials & M3U8]
+    KK_IVS --> KK_Parse[Parse resolutions and bandwidths]
+    KK_Parse --> KK_Show[Display estimates & cache VOD results]
+```
+
+### Real-Time YouTube Analytics & Badge Flow
+
+Bandwidth usage tracking runs fully locally in your browser to maintain strict privacy:
 
 ```mermaid
 flowchart LR
-    A[Open YouTube or Twitch page] --> B{Site?}
-    B -->|YouTube| C{Local cache?}
-    C -->|Yes| D[Return cached sizes]
-    C -->|No| E[Extract ytInitialPlayerResponse locally]
-    E --> F{Local success?}
-    F -->|Yes| G[Return sizes and cache non-live results]
-    F -->|No| H[Fetch YouTube watch HTML]
-    H --> I{Fetch parse success?}
-    I -->|Yes| G
-    I -->|No| X[Return extraction error]
-    B -->|Twitch| J[Detect live channel or VOD]
-    J --> K{Twitch VOD cache?}
-    K -->|Yes| L[Return cached VOD estimates]
-    K -->|No| M[Fetch Twitch playback token]
-    M --> N[Fetch HLS master playlist]
-    N --> O[Parse resolutions and bandwidth]
-    O --> P[Return hourly and per-minute estimates and cache VOD results]
+    A[User watches YouTube video] --> B[PerformanceObserver records resource timing logs]
+    B --> C[Accumulate transferSize of video network packets]
+    C --> D[Log incremental usage in chrome.storage.local every 5s]
+    D --> E[Read today's total data usage]
+    E --> F[Update extension badge label e.g., 1.2G]
 ```
+
+---
+
 ### Resolution & Codec Support
+
+#### YouTube
 
 TubeSize resolves standard YouTube adaptive-streaming itags:
 
 | Resolution | Itags checked (priority order) |
-| ---------- | ------------------------------ |
+| :--------- | :----------------------------- |
 | 144p       | 394, 330, 278, 160             |
 | 240p       | 395, 331, 242, 133             |
 | 360p       | 396, 332, 243, 134             |
@@ -146,15 +193,11 @@ TubeSize resolves standard YouTube adaptive-streaming itags:
 | 2160p (4K) | 401, 337, 315, 313, 305, 266   |
 | 4320p (8K) | 402, 571, 272, 138             |
 
-For regular YouTube videos, audio size is determined by averaging all available `itag 251` (Opus 160kbps) streams returned by YouTube and is added to every video format.
+For regular YouTube videos, audio size is determined by averaging all available `itag 251` (Opus 160kbps) streams returned by YouTube and is added to every video format. For YouTube Live streams, TubeSize estimates both audio and video usage from bitrate data when content length is not available.
 
-For YouTube Live streams, TubeSize estimates both audio and video usage from bitrate data when content length is not available.
+#### Twitch & Kick
 
-For Twitch live streams and VODs, TubeSize reads the HLS playlist variants exposed by Twitch and reports the available resolutions with approximate transfer usage derived from each variant bandwidth.
-
----
-### Legacy API
-The extension used to rely on an API that used yt-dlp to retrieve video data. The API is now deprecated and not used in the extension
+For Twitch and Kick live streams and VODs, TubeSize reads the HLS playlist variants exposed by the streaming APIs and reports the available resolutions with approximate transfer usage derived from each variant's bandwidth (e.g., resolving resolutions like 1080p60, 720p60, 720p, 480p, 360p, 160p).
 
 ---
 
