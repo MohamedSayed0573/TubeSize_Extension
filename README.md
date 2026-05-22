@@ -62,7 +62,7 @@ TubeSize is a lightweight, premium browser extension that estimates data usage a
 <br>
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/1685c8eb-ff3f-49df-a3e8-0df363367aa1" alt="toast" width="48%" />
+  <img width="1280" height="800" alt="analytics" src="https://github.com/user-attachments/assets/96d61287-64ad-41e5-8eb1-9e5e32cb839d" />
   <img alt="twitch1" src="https://github.com/user-attachments/assets/c56770f5-08ee-4a17-8ce1-3e05dcf13d5a" width="48%" />
 </div>
 
