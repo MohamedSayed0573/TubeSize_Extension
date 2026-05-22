@@ -11,6 +11,9 @@ import WeekUsage from "@components/analytics/weekUsage";
 import MonthUsage from "@components/analytics/monthUsage";
 import LifetimeUsage from "@components/analytics/lifeTimeUsage";
 
+import "@styles/global.css";
+import "@fontsource-variable/jetbrains-mono/wght.css";
+
 const domRoot = document.querySelector("#root") as HTMLElement;
 
 const root = createRoot(domRoot);

@@ -1,5 +1,4 @@
 import "@styles/options.css";
-import "@styles/global.css";
 import CONFIG from "@lib/constants";
 import HeaderOptions from "@components/options/headerOptions";
 import OptionItem from "@components/options/optionItem";

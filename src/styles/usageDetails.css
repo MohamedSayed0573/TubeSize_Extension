@@ -21,7 +21,7 @@
     color: rgb(0, 255, 221);
     font-size: 18px;
     width: 50%;
-    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    font-family: "JetBrains Mono Variable", "SF Mono", "Fira Code", monospace;
 }
 
 .usage-details-summary {
@@ -35,13 +35,13 @@
     color: #8b8d93;
     font-size: 11px;
     text-transform: uppercase;
-    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    font-family: "JetBrains Mono Variable", "SF Mono", "Fira Code", monospace;
 }
 
 .number {
     font-size: 18px;
     font-weight: 700;
-    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    font-family: "JetBrains Mono Variable", "SF Mono", "Fira Code", monospace;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -69,7 +69,7 @@
     border: 1px solid rgba(0, 255, 221, 0.28);
     border-radius: 8px;
     padding: 10px;
-    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    font-family: "JetBrains Mono Variable", "SF Mono", "Fira Code", monospace;
     font-size: 14px;
     font-weight: 500;
 }
@@ -102,7 +102,7 @@
     color: #8b8d93;
     font-size: 12px;
     text-transform: uppercase;
-    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    font-family: "JetBrains Mono Variable", "SF Mono", "Fira Code", monospace;
 }
 
 .usage-table td {
@@ -110,7 +110,7 @@
     text-align: left;
     border-bottom: 1px solid #ffffff0f;
     color: #f0ece4;
-    font-family: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+    font-family: "JetBrains Mono Variable", "SF Mono", "Fira Code", monospace;
     font-size: 14px;
 }
 
