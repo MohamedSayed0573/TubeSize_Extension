@@ -41,7 +41,11 @@ export default function Options() {
             <Divider />
             <div className="footer">
                 <div className="author">
-                    <a href="https://github.com/MohamedSayed0573" target="_blank" rel="noreferrer">
+                    <a
+                        href="https://github.com/MohamedSayed0573/TubeSize_Extension"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
                         <img src="icons/github.svg" alt="" width="14" height="14" />
                         @Mohamed Sayed
                     </a>
