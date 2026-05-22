@@ -1,7 +1,7 @@
 {
     "name": "tubesize",
     "private": true,
-    "version": "2.3.01",
+    "version": "2.3.1",
     "type": "module",
     "packageManager": "pnpm@11.2.2",
     "scripts": {
