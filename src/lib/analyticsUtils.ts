@@ -88,3 +88,15 @@ export function getTotalUsageForDate(usageByDay: UsageByDay, date: string) {
     }
     return total;
 }
+
+export function getSortedVideoUsageRows(lifeTimeUsage: UsageByDay) {
+    return Object.entries(lifeTimeUsage)
+        .flatMap(([date, videos]) => {
+            return Object.entries(videos).map(([videoTag, details]) => ({
+                videoTag,
+                date,
+                ...details,
+            }));
+        })
+        .sort((a, b) => b.usage - a.usage);
+}

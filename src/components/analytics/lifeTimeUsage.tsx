@@ -1,12 +1,14 @@
 import {
     formatBytes,
     getNumVideosWatched,
+    getSortedVideoUsageRows,
     getUsageByDay,
     isEmptyUsageByDay,
     type UsageByDay,
 } from "@lib/analyticsUtils";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import VideoCard from "./videoCard";
 
 function getLifeTimeDateRange(usageByDay: UsageByDay) {
     const dates = Object.keys(usageByDay);
@@ -30,9 +32,6 @@ function getTotalUsage(lifeTimeUsage: UsageByDay) {
     }
     return total;
 }
-function getVideoUrl(videoTag: string) {
-    return `https://youtube.com/watch?v=${videoTag}`;
-}
 
 export default function LifetimeUsage() {
     const navigate = useNavigate();
@@ -45,16 +44,7 @@ export default function LifetimeUsage() {
         })();
     }, []);
 
-    const allVideos = Object.entries(lifeTimeUsage)
-        .flatMap(([date, videos]) => {
-            return Object.entries(videos).map(([videoTag, details]) => ({
-                videoTag,
-                date,
-                ...details,
-            }));
-        })
-        .sort((a, b) => b.usage - a.usage);
-
+    const allVideos = useMemo(() => getSortedVideoUsageRows(lifeTimeUsage), [lifeTimeUsage]);
     let index = 0;
 
     return (
@@ -94,58 +84,16 @@ export default function LifetimeUsage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {allVideos.map(
-                                    ({
-                                        videoTag,
-                                        usage,
-                                        title,
-                                        thumbnailUrl,
-                                        date,
-                                        channelName,
-                                    }) => {
-                                        const url = getVideoUrl(videoTag);
-
-                                        const imageUrl =
-                                            thumbnailUrl ||
-                                            "https://placehold.co/213x120?text=Unknown&font=roboto";
-
-                                        const displayTitle = title || "Youtube";
-
-                                        return (
-                                            <tr key={`${date}-${videoTag}`}>
-                                                <td className="index">{index++ + 1}</td>
-
-                                                <td>
-                                                    <a
-                                                        className="video-title-cell"
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        href={url}
-                                                    >
-                                                        <img
-                                                            className="video-thumbnail"
-                                                            src={imageUrl}
-                                                            alt="thumbnail"
-                                                        />
-
-                                                        <div className="video-info">
-                                                            <span className="video-title">
-                                                                {displayTitle}
-                                                            </span>
-                                                            {channelName && (
-                                                                <span className="video-channel">
-                                                                    {channelName}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </a>
-                                                </td>
-
-                                                <td>{formatBytes(usage)}</td>
-                                            </tr>
-                                        );
-                                    },
-                                )}
+                                {allVideos.map((videoDetails) => {
+                                    index++;
+                                    return (
+                                        <VideoCard
+                                            key={`${videoDetails.date}-${videoDetails.videoTag}`}
+                                            videoDetails={videoDetails}
+                                            index={index}
+                                        />
+                                    );
+                                })}
                             </tbody>
                         </table>
                         {isEmptyUsageByDay(lifeTimeUsage) && (

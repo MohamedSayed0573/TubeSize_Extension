@@ -159,6 +159,30 @@ tbody tr:hover {
     white-space: nowrap;
 }
 
+.video-channel a {
+    color: #8b8d93;
+    text-decoration: none;
+}
+
+.video-channel a:hover,
+.date-cell a:hover {
+    text-decoration: underline;
+}
+
+.date-cell {
+    font-size: 12px;
+    color: #b4b8c2;
+    font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.date-cell a {
+    color: #b4b8c2;
+    text-decoration: none;
+}
+
 #header-index {
     text-align: center;
     width: 60px;

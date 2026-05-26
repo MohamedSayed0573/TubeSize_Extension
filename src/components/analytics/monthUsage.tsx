@@ -2,13 +2,15 @@ import {
     formatBytes,
     getLast30Days,
     getNumVideosWatched,
+    getSortedVideoUsageRows,
     getUsageByDay,
     isEmptyUsageByDay,
     utcDateKey,
     type UsageByDay,
 } from "@lib/analyticsUtils";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import VideoCard from "@components/analytics/videoCard";
 
 function getMonthTotalUsage(monthUsage: UsageByDay) {
     let total = 0;
@@ -40,10 +42,6 @@ function formatDate(month: Date[]) {
     return `${startDate.toDateString().split(" ").slice(1).join(" ")} -> ${endDate.toDateString().split(" ").slice(1).join(" ")}`;
 }
 
-function getVideoUrl(videoTag: string) {
-    return `https://youtube.com/watch?v=${videoTag}`;
-}
-
 export default function MonthUsage() {
     const navigate = useNavigate();
     const [monthUsage, setMonthUsage] = useState<UsageByDay>({});
@@ -56,16 +54,7 @@ export default function MonthUsage() {
         })();
     }, []);
 
-    const allVideos = Object.entries(monthUsage)
-        .flatMap(([date, videos]) => {
-            return Object.entries(videos).map(([videoTag, details]) => ({
-                videoTag,
-                date,
-                ...details,
-            }));
-        })
-        .sort((a, b) => b.usage - a.usage);
-
+    const allVideos = useMemo(() => getSortedVideoUsageRows(monthUsage), [monthUsage]);
     let index = 0;
 
     return (
@@ -105,58 +94,16 @@ export default function MonthUsage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {allVideos.map(
-                                    ({
-                                        channelName,
-                                        date,
-                                        thumbnailUrl,
-                                        title,
-                                        usage,
-                                        videoTag,
-                                    }) => {
-                                        const url = getVideoUrl(videoTag);
-
-                                        const imageUrl =
-                                            thumbnailUrl ||
-                                            "https://placehold.co/213x120?text=Unknown&font=roboto";
-
-                                        const displayTitle = title || "Youtube";
-
-                                        return (
-                                            <tr key={`${date}-${videoTag}`}>
-                                                <td className="index">{index++ + 1}</td>
-
-                                                <td>
-                                                    <a
-                                                        className="video-title-cell"
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        href={url}
-                                                    >
-                                                        <img
-                                                            className="video-thumbnail"
-                                                            src={imageUrl}
-                                                            alt="thumbnail"
-                                                        />
-
-                                                        <div className="video-info">
-                                                            <span className="video-title">
-                                                                {displayTitle}
-                                                            </span>
-                                                            {channelName && (
-                                                                <span className="video-channel">
-                                                                    {channelName}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </a>
-                                                </td>
-
-                                                <td>{formatBytes(usage)}</td>
-                                            </tr>
-                                        );
-                                    },
-                                )}
+                                {allVideos.map((videoDetails) => {
+                                    index++;
+                                    return (
+                                        <VideoCard
+                                            key={`${videoDetails.date}-${videoDetails.videoTag}`}
+                                            videoDetails={videoDetails}
+                                            index={index}
+                                        />
+                                    );
+                                })}
                             </tbody>
                         </table>
                         {isEmptyUsageByDay(monthUsage) && (
