@@ -29,7 +29,6 @@ export default defineConfig(({ mode }) => ({
     plugins: [
         react(),
         crx({ manifest }),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         zip({ outDir: "release", outFileName: `crx-${name}-${version}.zip` }),
     ],
     build: {

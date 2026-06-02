@@ -98,5 +98,5 @@ export function getSortedVideoUsageRows(lifeTimeUsage: UsageByDay) {
                 ...details,
             }));
         })
-        .sort((a, b) => b.usage - a.usage);
+        .toSorted((a, b) => b.usage - a.usage);
 }

@@ -97,7 +97,7 @@ async function handleYoutube(
 
             const data: YoutubeData = {
                 channelName: rawData.videoDetails.author,
-                formats: youtubeData.sort((a, b) => b.resolution - a.resolution),
+                formats: youtubeData.toSorted((a, b) => b.resolution - a.resolution),
                 type: "live",
                 thumbnailUrl,
             };
@@ -111,7 +111,7 @@ async function handleYoutube(
             const rawFormats = parseDataFromYtInitial(rawData);
             const videoFormats = parseVideoFormats(rawFormats);
             const youtubeData: YoutubeVideoData = {
-                formats: videoFormats.sort((a, b) => b.height - a.height),
+                formats: videoFormats.toSorted((a, b) => b.height - a.height),
                 type: "video" as const,
                 durationSeconds: Number(rawData.videoDetails.lengthSeconds),
                 title: rawData.videoDetails.title,

@@ -1,8 +1,8 @@
 {
     "compilerOptions": {
-        "target": "es2022",
+        "target": "es2023",
         "useDefineForClassFields": true,
-        "lib": ["es2022", "DOM", "DOM.Iterable"],
+        //"lib": ["es2023", "DOM", "DOM.Iterable"],
         "module": "es2022",
         "types": ["vite/client", "chrome", "jest", "jest-extended", "node", "@types/jest"],
         "skipLibCheck": true,

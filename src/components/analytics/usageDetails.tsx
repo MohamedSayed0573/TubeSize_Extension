@@ -74,7 +74,7 @@ export function UsageDetails() {
                         <tbody>
                             {todayUsage &&
                                 Object.entries(todayUsage)
-                                    .sort((a, b) => b[1].usage - a[1].usage)
+                                    .toSorted((a, b) => b[1].usage - a[1].usage)
                                     .map(
                                         (
                                             [videoTag, { usage, title, thumbnailUrl, channelName }],
