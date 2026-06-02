@@ -4,7 +4,9 @@
 
 # TubeSize
 
-![GitHub stars](https://img.shields.io/github/stars/MohamedSayed0573/Tubesize_Extension)
+![Number of Users](https://img.shields.io/chrome-web-store/users/bdpkcpbkonollfbgcnkknkjdbfpacnoi?label=Number%20of%20Users&link=https%3A%2F%2Fchromewebstore.google.com%2Fdetail%2Ftubesize%2Fbdpkcpbkonollfbgcnkknkjdbfpacnoi
+)
+
 
 **Know exactly how much internet data a YouTube, Twitch, or Kick stream will use before you press play.**
 
@@ -12,8 +14,8 @@
 [![Firefox Add-ons](https://img.shields.io/badge/Firefox-Install-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)
 [![Edge Add-ons](https://img.shields.io/badge/Edge-Install-0078D7?logo=microsoftedge&logoColor=white)](https://chromewebstore.google.com/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.x-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-blue?logo=react&logoColor=white)](https://react.dev/)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)](https://developer.chrome.com/docs/extensions/mv3/)
 
 [![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/mohamedsayed253)
