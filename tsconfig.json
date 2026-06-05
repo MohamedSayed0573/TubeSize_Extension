@@ -4,7 +4,16 @@
         "useDefineForClassFields": true,
         //"lib": ["es2023", "DOM", "DOM.Iterable"],
         "module": "es2022",
-        "types": ["vite/client", "chrome", "jest", "jest-extended", "node", "@types/jest"],
+        "types": [
+            "vite/client",
+            "chrome",
+            "jest",
+            "jest-extended",
+            "node",
+            "@types/jest",
+            "@types/react",
+            "@types/react-dom"
+        ],
         "skipLibCheck": true,
 
         /* Bundler mode */

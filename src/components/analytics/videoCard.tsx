@@ -34,20 +34,37 @@ export default function VideoCard({
             <td className="index">{index}</td>
 
             <td>
-                <a className="video-title-cell" target="_blank" rel="noreferrer" href={url}>
-                    <img className="video-thumbnail" src={imageUrl} alt="thumbnail" />
+                <a
+                    className="flex items-center gap-5 text-sm font-medium text-white no-underline overflow-hidden"
+                    target="_blank"
+                    rel="noreferrer"
+                    href={url}
+                >
+                    <img
+                        className="h-17.5 rounded-lg aspect-video"
+                        src={imageUrl}
+                        alt="thumbnail"
+                    />
 
-                    <div className="video-info">
-                        <span className="video-title">{displayTitle}</span>
+                    <div className="flex flex-col gap-1 overflow-hidden min-w-0">
+                        <span className="truncate">{displayTitle}</span>
                         {videoDetails.channelName && (
-                            <span className="video-channel">
-                                <a href={"https://www.youtube.com/@" + videoDetails.channelName}>
+                            <span className="text-xs truncate">
+                                <a
+                                    className="text-[#8b8d93] no-underline hover:underline"
+                                    href={"https://www.youtube.com/@" + videoDetails.channelName}
+                                >
                                     {videoDetails.channelName}
                                 </a>
                             </span>
                         )}
-                        <span className="date-cell">
-                            <Link to={`/analytics/${date}`}>{date}</Link>
+                        <span className="text-xs text-[#b4b8c2] font-normal truncate">
+                            <Link
+                                className="text-[#b4b8c2] no-underline hover:underline"
+                                to={`/analytics/${date}`}
+                            >
+                                {date}
+                            </Link>
                         </span>
                     </div>
                 </a>
