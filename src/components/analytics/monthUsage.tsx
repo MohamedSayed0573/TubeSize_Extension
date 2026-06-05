@@ -9,8 +9,8 @@ import {
     type UsageByDay,
 } from "@lib/analyticsUtils";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
 import VideoCard from "@components/analytics/videoCard";
+import AnalyticsHeader from "./analyticsHeader";
 
 function getMonthTotalUsage(monthUsage: UsageByDay) {
     let total = 0;
@@ -43,7 +43,6 @@ function formatDate(month: Date[]) {
 }
 
 export default function MonthUsage() {
-    const navigate = useNavigate();
     const [monthUsage, setMonthUsage] = useState<UsageByDay>({});
 
     useEffect(() => {
@@ -60,29 +59,11 @@ export default function MonthUsage() {
     return (
         <>
             <div className="usage-details">
-                <div className="usage-details-header">
-                    <button
-                        className="return-btn"
-                        onClick={() => {
-                            void navigate("/analytics");
-                        }}
-                    >
-                        ← Back to Analytics
-                    </button>
-                    <div className="usage-details-title">{`${formatDate(getLast30Days())}`}</div>
-                    <div className="usage-details-summary">
-                        <div className="summary-item">
-                            <div className="summary-item-header">{"Total Data Used"}</div>
-                            <div className="number">
-                                {formatBytes(getMonthTotalUsage(monthUsage))}
-                            </div>
-                        </div>
-                        <div className="summary-item">
-                            <div className="summary-item-header">{"Videos Watched"}</div>
-                            <div className="number">{getNumVideosWatched(monthUsage)}</div>
-                        </div>
-                    </div>
-                </div>
+                <AnalyticsHeader
+                    title={formatDate(getLast30Days())}
+                    totalDataUsage={formatBytes(getMonthTotalUsage(monthUsage))}
+                    numVideosWatched={getNumVideosWatched(monthUsage)}
+                />
                 <div className="body-wrapper">
                     <div className="usage-details-list">
                         <table className="usage-table">

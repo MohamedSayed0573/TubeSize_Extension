@@ -7,8 +7,8 @@ import {
     type UsageByDay,
 } from "@lib/analyticsUtils";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
 import VideoCard from "./videoCard";
+import AnalyticsHeader from "./analyticsHeader";
 
 function getLifeTimeDateRange(usageByDay: UsageByDay) {
     const dates = Object.keys(usageByDay);
@@ -34,7 +34,6 @@ function getTotalUsage(lifeTimeUsage: UsageByDay) {
 }
 
 export default function LifetimeUsage() {
-    const navigate = useNavigate();
     const [lifeTimeUsage, setLifeTimeUsage] = useState<UsageByDay>({});
 
     useEffect(() => {
@@ -50,29 +49,11 @@ export default function LifetimeUsage() {
     return (
         <>
             <div className="usage-details">
-                <div className="usage-details-header">
-                    <button
-                        className="return-btn"
-                        onClick={() => {
-                            void navigate("/analytics");
-                        }}
-                    >
-                        ← Back to Analytics
-                    </button>
-                    <div className="usage-details-title">{`${getLifeTimeDateRange(lifeTimeUsage)}`}</div>
-                    <div className="usage-details-summary">
-                        <div className="summary-item">
-                            <div className="summary-item-header">{"Total Data Used"}</div>
-                            <div className="number">
-                                {formatBytes(getTotalUsage(lifeTimeUsage))}
-                            </div>
-                        </div>
-                        <div className="summary-item">
-                            <div className="summary-item-header">{"Videos Watched"}</div>
-                            <div className="number">{getNumVideosWatched(lifeTimeUsage)}</div>
-                        </div>
-                    </div>
-                </div>
+                <AnalyticsHeader
+                    title={getLifeTimeDateRange(lifeTimeUsage)}
+                    totalDataUsage={formatBytes(getTotalUsage(lifeTimeUsage))}
+                    numVideosWatched={getNumVideosWatched(lifeTimeUsage)}
+                />
                 <div className="body-wrapper">
                     <div className="usage-details-list">
                         <table className="usage-table">

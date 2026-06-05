@@ -7,7 +7,7 @@ import {
     type UsageByVideo,
 } from "@lib/analyticsUtils";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import AnalyticsHeader from "./analyticsHeader";
 
 function getTodayTotalUsage(todayUsage: UsageByVideo) {
     let total = 0;
@@ -29,7 +29,6 @@ function getVideoUrl(videoTag: string) {
 }
 
 export default function TodayUsage() {
-    const navigate = useNavigate();
     const [todayUsage, setTodayUsage] = useState<UsageByVideo>({});
     const today = utcDateKey(new Date());
 
@@ -42,32 +41,12 @@ export default function TodayUsage() {
 
     return (
         <>
-            <div className="usage-details">
-                <div className="usage-details-header">
-                    <button
-                        className="return-btn"
-                        onClick={() => {
-                            void navigate("/analytics");
-                        }}
-                    >
-                        ← Back to Analytics
-                    </button>
-                    <div className="usage-details-title">{`${formatDate(today)}`}</div>
-                    <div className="usage-details-summary">
-                        <div className="summary-item">
-                            <div className="summary-item-header">{"Total Data Used"}</div>
-                            <div className="number">
-                                {formatBytes(getTodayTotalUsage(todayUsage))}
-                            </div>
-                        </div>
-                        <div className="summary-item">
-                            <div className="summary-item-header">{"Videos Watched"}</div>
-                            <div className="number">
-                                {getNumVideosWatched({ [today]: todayUsage })}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div className="flex flex-col h-full w-full min-h-screen">
+                <AnalyticsHeader
+                    title={formatDate(today)}
+                    totalDataUsage={formatBytes(getTodayTotalUsage(todayUsage))}
+                    numVideosWatched={getNumVideosWatched({ [today]: todayUsage })}
+                />
                 <div className="body-wrapper">
                     <div className="usage-details-list">
                         <table className="usage-table">

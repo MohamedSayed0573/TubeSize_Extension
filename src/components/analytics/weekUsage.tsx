@@ -9,8 +9,8 @@ import {
     type UsageByDay,
 } from "@lib/analyticsUtils";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
 import VideoCard from "@components/analytics/videoCard";
+import AnalyticsHeader from "./analyticsHeader";
 
 function getWeekTotalUsage(weekUsage: UsageByDay) {
     let total = 0;
@@ -43,7 +43,6 @@ function formatDate(week: Date[]) {
 }
 
 export default function WeekUsage() {
-    const navigate = useNavigate();
     const [weekUsage, setWeekUsage] = useState<UsageByDay>({});
 
     useEffect(() => {
@@ -60,29 +59,11 @@ export default function WeekUsage() {
     return (
         <>
             <div className="usage-details">
-                <div className="usage-details-header">
-                    <button
-                        className="return-btn"
-                        onClick={() => {
-                            void navigate("/analytics");
-                        }}
-                    >
-                        ← Back to Analytics
-                    </button>
-                    <div className="usage-details-title">{`${formatDate(getLast7Days())}`}</div>
-                    <div className="usage-details-summary">
-                        <div className="summary-item">
-                            <div className="summary-item-header">{"Total Data Used"}</div>
-                            <div className="number">
-                                {formatBytes(getWeekTotalUsage(weekUsage))}
-                            </div>
-                        </div>
-                        <div className="summary-item">
-                            <div className="summary-item-header">{"Videos Watched"}</div>
-                            <div className="number">{getNumVideosWatched(weekUsage)}</div>
-                        </div>
-                    </div>
-                </div>
+                <AnalyticsHeader
+                    title={formatDate(getLast7Days())}
+                    totalDataUsage={formatBytes(getWeekTotalUsage(weekUsage))}
+                    numVideosWatched={getNumVideosWatched(weekUsage)}
+                />
                 <div className="body-wrapper">
                     <div className="usage-details-list">
                         <table className="usage-table">
