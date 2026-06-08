@@ -4,7 +4,6 @@ import VideoCard from "./videoCard";
 
 export default function AnalyticsBody({ usage }: { usage: UsageByDay }) {
     const allVideos = useMemo(() => getSortedVideoUsageRows(usage), [usage]);
-    let index = 0;
     return (
         <div className="flex flex-1 bg-neutral-950 p-8">
             <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900">
@@ -23,13 +22,12 @@ export default function AnalyticsBody({ usage }: { usage: UsageByDay }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {allVideos.map((videoDetails) => {
-                            index++;
+                        {allVideos.map((videoDetails, index) => {
                             return (
                                 <VideoCard
                                     key={`${videoDetails.date}-${videoDetails.videoTag}`}
                                     videoDetails={videoDetails}
-                                    index={index}
+                                    index={index + 1}
                                 />
                             );
                         })}
