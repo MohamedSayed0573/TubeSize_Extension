@@ -1,11 +1,11 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { useEffect, useState } from "react";
-import { getTotalUsageForDate, getUsageByDay, utcDateKey } from "@lib/analyticsUtils";
+import { getTotalUsageForDate, getUsageByDay, getDateKey } from "@lib/analyticsUtils";
 
 async function getTodaysTotalUsage(tabId: number | undefined) {
     if (!tabId) return;
     const usageByDay = await getUsageByDay();
-    const date = utcDateKey(new Date());
+    const date = getDateKey(new Date());
 
     const total = getTotalUsageForDate(usageByDay, date);
     return total;

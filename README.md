@@ -4,9 +4,7 @@
 
 # TubeSize
 
-![Number of Users](https://img.shields.io/chrome-web-store/users/bdpkcpbkonollfbgcnkknkjdbfpacnoi?label=Number%20of%20Users&link=https%3A%2F%2Fchromewebstore.google.com%2Fdetail%2Ftubesize%2Fbdpkcpbkonollfbgcnkknkjdbfpacnoi
-)
-
+![Number of Users](https://img.shields.io/chrome-web-store/users/bdpkcpbkonollfbgcnkknkjdbfpacnoi?label=Number%20of%20Users&link=https%3A%2F%2Fchromewebstore.google.com%2Fdetail%2Ftubesize%2Fbdpkcpbkonollfbgcnkknkjdbfpacnoi)
 
 **Know exactly how much internet data a YouTube, Twitch, or Kick stream will use before you press play.**
 

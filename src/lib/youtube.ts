@@ -187,6 +187,5 @@ export function parseDataFromYtInitial(data: ytInitialPlayerResponse): RawFormat
 }
 
 export function getThumbnailUrl(data: ytInitialPlayerResponse): string | undefined {
-    data.videoDetails.thumbnail.thumbnails.sort((a, b) => b.width - a.width);
-    return data.videoDetails.thumbnail.thumbnails[0]?.url;
+    return data.videoDetails.thumbnail.thumbnails.toSorted((a, b) => b.width - a.width)[0]?.url;
 }

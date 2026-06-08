@@ -24,8 +24,8 @@ export async function getUsageByDay(): Promise<UsageByDay> {
     return ((await getFromLocalCache("usageByDay")) ?? {}) as UsageByDay;
 }
 
-export function utcDateKey(date: Date) {
-    return date.toISOString().slice(0, 10);
+export function getDateKey(date: Date) {
+    return new Intl.DateTimeFormat("en-CA").format(date);
 }
 
 export function isEmptyUsageByDay(usage: UsageByDay) {
@@ -98,5 +98,5 @@ export function getSortedVideoUsageRows(lifeTimeUsage: UsageByDay) {
                 ...details,
             }));
         })
-        .sort((a, b) => b.usage - a.usage);
+        .toSorted((a, b) => b.usage - a.usage);
 }
