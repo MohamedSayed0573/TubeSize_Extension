@@ -6,7 +6,6 @@ import {
 } from "@lib/analyticsUtils";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import "@styles/usageDetails.css";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
 
@@ -37,7 +36,7 @@ export function UsageDetails() {
     }, [date]);
     if (!date) return;
     return (
-        <div className="usage-details">
+        <div className="flex h-screen w-full flex-col">
             <AnalyticsHeader
                 numVideosWatched={getNumVideosWatched({ [date]: todayUsage ?? {} })}
                 title={`${formatDate(date)}`}

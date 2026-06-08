@@ -53,7 +53,7 @@ export default function MonthUsage() {
 
     return (
         <>
-            <div className="usage-details">
+            <div className="flex h-screen w-full flex-col">
                 <AnalyticsHeader
                     title={formatDate(getLast30Days())}
                     totalDataUsage={formatBytes(getMonthTotalUsage(monthUsage))}

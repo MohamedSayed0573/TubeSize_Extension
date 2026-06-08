@@ -1,22 +1,3 @@
-.tooltip {
-    background: #1f2937;
-    border: 1px solid #374151;
-    border-radius: 8px;
-    color: #f9fafb;
-    padding: 10px 12px;
-}
-
-.tooltip-label {
-    color: #d1d5db;
-    font-size: 12px;
-    margin-bottom: 4px;
-}
-
-.tooltip-value {
-    font-size: 14px;
-    font-weight: 600;
-}
-
 .recharts-wrapper *:focus {
     outline: none !important;
 }

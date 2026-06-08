@@ -43,7 +43,7 @@ export default function LifetimeUsage() {
 
     return (
         <>
-            <div className="usage-details">
+            <div className="flex h-screen w-full flex-col">
                 <AnalyticsHeader
                     title={getLifeTimeDateRange(lifeTimeUsage)}
                     totalDataUsage={formatBytes(getTotalUsage(lifeTimeUsage))}

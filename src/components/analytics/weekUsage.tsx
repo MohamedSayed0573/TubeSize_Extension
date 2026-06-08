@@ -53,7 +53,7 @@ export default function WeekUsage() {
 
     return (
         <>
-            <div className="usage-details">
+            <div className="flex h-screen w-full flex-col">
                 <AnalyticsHeader
                     title={formatDate(getLast7Days())}
                     totalDataUsage={formatBytes(getWeekTotalUsage(weekUsage))}

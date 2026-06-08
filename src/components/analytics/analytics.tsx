@@ -1,5 +1,4 @@
 import { removeFromLocalCache } from "@lib/cache";
-import "@styles/analytics.css";
 import { useEffect, useState } from "react";
 import Chart from "@components/analytics/chart";
 import {
