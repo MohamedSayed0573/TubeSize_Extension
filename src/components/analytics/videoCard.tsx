@@ -35,7 +35,7 @@ export default function VideoCard({
                 {index}
             </td>
 
-            <td className="border-b border-neutral-800 px-3 py-3 text-left font-mono text-sm text-stone-200">
+            <td className="flex items-center gap-5 border-b border-neutral-800 px-3 py-3 text-left font-mono text-sm text-stone-200">
                 <a
                     className="flex items-center gap-5 overflow-hidden text-sm font-medium text-white no-underline"
                     target="_blank"
@@ -47,29 +47,33 @@ export default function VideoCard({
                         src={imageUrl}
                         alt="thumbnail"
                     />
-
-                    <div className="flex min-w-0 flex-col gap-1 overflow-hidden">
-                        <span className="truncate">{displayTitle}</span>
-                        {videoDetails.channelName && (
-                            <span className="truncate text-xs">
-                                <a
-                                    className="text-gray-500 no-underline hover:underline"
-                                    href={"https://www.youtube.com/@" + videoDetails.channelName}
-                                >
-                                    {videoDetails.channelName}
-                                </a>
-                            </span>
-                        )}
-                        <span className="truncate text-xs font-normal text-gray-400">
-                            <Link
-                                className="text-gray-400 no-underline hover:underline"
-                                to={`/analytics/${date}`}
-                            >
-                                {date}
-                            </Link>
-                        </span>
-                    </div>
                 </a>
+
+                <div className="flex min-w-0 flex-col gap-1 overflow-hidden">
+                    <span className="truncate">
+                        <a href={url} target="_blank" rel="noreferrer">
+                            {displayTitle}
+                        </a>
+                    </span>
+                    {videoDetails.channelName && (
+                        <span className="truncate text-xs">
+                            <a
+                                className="text-gray-500 no-underline hover:underline"
+                                href={"https://www.youtube.com/@" + videoDetails.channelName}
+                            >
+                                {videoDetails.channelName}
+                            </a>
+                        </span>
+                    )}
+                    <span className="truncate text-xs font-normal text-gray-400">
+                        <Link
+                            className="text-gray-400 no-underline hover:underline"
+                            to={`/analytics/${date}`}
+                        >
+                            {date}
+                        </Link>
+                    </span>
+                </div>
             </td>
 
             <td className="border-b border-neutral-800 px-3 py-3 text-left font-mono text-sm text-stone-200">
