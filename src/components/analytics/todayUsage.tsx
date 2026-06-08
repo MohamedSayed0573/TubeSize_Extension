@@ -2,7 +2,7 @@ import {
     formatBytes,
     getNumVideosWatched,
     getUsageByDay,
-    utcDateKey,
+    getDateKey,
     type UsageByVideo,
 } from "@lib/analyticsUtils";
 import { useEffect, useState } from "react";
@@ -26,7 +26,7 @@ function formatDate(date: string) {
 
 export default function TodayUsage() {
     const [todayUsage, setTodayUsage] = useState<UsageByVideo>({});
-    const today = utcDateKey(new Date());
+    const today = getDateKey(new Date());
 
     useEffect(() => {
         void (async () => {

@@ -3,7 +3,7 @@ import {
     getLast30Days,
     getNumVideosWatched,
     getUsageByDay,
-    utcDateKey,
+    getDateKey,
     type UsageByDay,
 } from "@lib/analyticsUtils";
 import { useEffect, useState } from "react";
@@ -22,7 +22,7 @@ function getMonthTotalUsage(monthUsage: UsageByDay) {
 }
 
 function getMonthUsage(usageByDay: UsageByDay) {
-    const last30Days = getLast30Days().map((date) => utcDateKey(date));
+    const last30Days = getLast30Days().map((date) => getDateKey(date));
     const monthUsage: UsageByDay = {};
 
     for (const day of last30Days) {

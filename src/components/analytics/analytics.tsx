@@ -7,14 +7,14 @@ import {
     getLast7Days,
     getUsageByDay,
     isEmptyUsageByDay,
-    utcDateKey,
+    getDateKey,
     type UsageByDay,
 } from "@lib/analyticsUtils";
 import { Link } from "react-router";
 import StatsCard from "./statsCard";
 
 function todayUsage(usageByDay: UsageByDay) {
-    const date = utcDateKey(new Date());
+    const date = getDateKey(new Date());
     const dayUsage = usageByDay[date];
     if (!dayUsage) return 0;
 
@@ -27,7 +27,8 @@ function todayUsage(usageByDay: UsageByDay) {
 }
 
 function thisWeekUsage(usageByDay: UsageByDay) {
-    const date = new Set(getLast7Days().map((day) => utcDateKey(day)));
+    const date = new Set(getLast7Days().map((day) => getDateKey(day)));
+    console.log(date);
     let usage = 0;
     for (const day in usageByDay) {
         if (date.has(day)) {
@@ -41,7 +42,7 @@ function thisWeekUsage(usageByDay: UsageByDay) {
 }
 
 function thisMonthUsage(usageByDay: UsageByDay) {
-    const dateSet = new Set(getLast30Days().map((day) => utcDateKey(day)));
+    const dateSet = new Set(getLast30Days().map((day) => getDateKey(day)));
 
     let usage = 0;
     for (const day of dateSet) {
