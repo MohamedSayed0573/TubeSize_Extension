@@ -12,6 +12,7 @@ import {
     type UsageByDay,
 } from "@lib/analyticsUtils";
 import { Link } from "react-router";
+import StatsCard from "./statsCard";
 
 function todayUsage(usageByDay: UsageByDay) {
     const date = utcDateKey(new Date());
@@ -66,6 +67,10 @@ function lifeTimeUsage(usageByDay: UsageByDay) {
     return usage;
 }
 
+async function clearAllUsageData() {
+    await removeFromLocalCache("usageByDay");
+}
+
 export default function Analytics() {
     const [isClearing, setIsClearing] = useState(false);
     const [clearStatus, setClearStatus] = useState<"idle" | "success" | "error">("idle");
@@ -108,72 +113,56 @@ export default function Analytics() {
               : "Clear All Usage Data";
 
     return (
-        <div className="analytics-page">
-            <div className="analytics-header">
-                <img className="analytics-icon" src="/icons/icon-32.png" alt="Analytics Icon" />
-                <span>Usage Analytics for YouTube</span>
+        <div className="flex h-screen w-full flex-col">
+            <div className="flex items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-5 py-3.5 text-gray-300">
+                <img className="h-6 w-6" src="/icons/icon-32.png" alt="Analytics Icon" />
+                <span className="font-mono text-sm font-bold tracking-wider uppercase">
+                    Usage Analytics for YouTube
+                </span>
             </div>
-            <div className="analytics-body">
-                <div className="stats-row">
-                    <Link to="/today" className="stats-card-link">
-                        <div className="stats-card">
-                            <div className="stat-label">Today: </div>
-                            <div className="stat-value">
-                                {formatBytes(todayUsage(usage))}
-                                <div className="view-details">View Details</div>
-                            </div>
-                        </div>
+            <div className="flex flex-1 flex-col bg-neutral-950 px-8 pt-4 pb-3.5">
+                <div className="grid grid-cols-4 gap-2 py-2.5">
+                    <Link to="/today" className="no-underline">
+                        <StatsCard title="Today" value={formatBytes(todayUsage(usage))} />
                     </Link>
-                    <Link to="/week" className="stats-card-link">
-                        <div className="stats-card">
-                            <div className="stat-label">Last 7 Days: </div>
-                            <div className="stat-value">
-                                {formatBytes(thisWeekUsage(usage))}
-                                <div className="view-details">View Details</div>
-                            </div>
-                        </div>
+                    <Link to="/week" className="no-underline">
+                        <StatsCard title="This Week" value={formatBytes(thisWeekUsage(usage))} />
                     </Link>
-                    <Link to="/month" className="stats-card-link">
-                        <div className="stats-card">
-                            <div className="stat-label">Last 30 Days: </div>
-                            <div className="stat-value">
-                                {formatBytes(thisMonthUsage(usage))}
-                                <div className="view-details">View Details</div>
-                            </div>
-                        </div>
+                    <Link to="/month" className="no-underline">
+                        <StatsCard
+                            title="Last 30 Days"
+                            value={formatBytes(thisMonthUsage(usage))}
+                        />
                     </Link>
-                    <Link to="/lifetime" className="stats-card-link">
-                        <div className="stats-card">
-                            <div className="stat-label">Lifetime: </div>
-                            <div className="stat-value">
-                                {formatBytes(lifeTimeUsage(usage))}
-                                <div className="view-details">View Details</div>
-                            </div>
-                        </div>
+                    <Link to="/lifetime" className="no-underline">
+                        <StatsCard title="Lifetime" value={formatBytes(lifeTimeUsage(usage))} />
                     </Link>
                 </div>
-                <div className="analytics-graph">
-                    <div className="graph-header">
-                        <div className="graph-title">Data Usage per day (MB)</div>
-                        <div className="days-counter">
+
+                <div className="flex flex-1 flex-col rounded-lg border border-amber-950 bg-neutral-900 px-5 pt-3.5">
+                    <div className="mb-2.5 flex items-center justify-between">
+                        <div className="text-base font-bold text-stone-200">
+                            Data Usage per day (MB)
+                        </div>
+                        <div className="rounded-xl border border-teal-400 px-2 py-1 font-mono text-sm text-teal-400">
                             {Object.keys(usage).length === 1
                                 ? `${Object.keys(usage).length} Day`
                                 : `${Object.keys(usage).length} Days`}
                         </div>
                     </div>
                     {isEmptyUsageByDay(usage) || errorMessage ? (
-                        <div className="empty-graph">
+                        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-neutral-700 bg-neutral-900 font-mono text-base text-teal-400">
                             {errorMessage ||
                                 "No data available. Watch a YouTube video to see your usage statistics."}
                         </div>
                     ) : (
-                        <div className="graph">
+                        <div className="flex-1">
                             <Chart usage={usage} />
                         </div>
                     )}
                 </div>
                 <button
-                    className="reset-button"
+                    className="mt-2.5 cursor-pointer overflow-hidden rounded-md border border-red-900 bg-red-950 px-3 py-2 font-mono text-xs font-semibold tracking-wide text-red-400 uppercase hover:bg-red-900"
                     onClick={() => void handleClearUsageData()}
                     disabled={isClearing}
                 >
@@ -182,8 +171,4 @@ export default function Analytics() {
             </div>
         </div>
     );
-}
-
-async function clearAllUsageData() {
-    await removeFromLocalCache("usageByDay");
 }

@@ -2,15 +2,13 @@ import {
     formatBytes,
     getLast7Days,
     getNumVideosWatched,
-    getSortedVideoUsageRows,
     getUsageByDay,
-    isEmptyUsageByDay,
     utcDateKey,
     type UsageByDay,
 } from "@lib/analyticsUtils";
-import { useEffect, useMemo, useState } from "react";
-import VideoCard from "@components/analytics/videoCard";
+import { useEffect, useState } from "react";
 import AnalyticsHeader from "./analyticsHeader";
+import AnalyticsBody from "./analyticsBody";
 
 function getWeekTotalUsage(weekUsage: UsageByDay) {
     let total = 0;
@@ -53,9 +51,6 @@ export default function WeekUsage() {
         })();
     }, []);
 
-    const allVideos = useMemo(() => getSortedVideoUsageRows(weekUsage), [weekUsage]);
-    let index = 0;
-
     return (
         <>
             <div className="usage-details">
@@ -64,37 +59,7 @@ export default function WeekUsage() {
                     totalDataUsage={formatBytes(getWeekTotalUsage(weekUsage))}
                     numVideosWatched={getNumVideosWatched(weekUsage)}
                 />
-                <div className="body-wrapper">
-                    <div className="usage-details-list">
-                        <table className="usage-table">
-                            <thead>
-                                <tr>
-                                    <th id="header-index">#</th>
-                                    <th>VIDEO</th>
-                                    <th>DATA USED</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {allVideos.map((videoDetails) => {
-                                    index++;
-                                    return (
-                                        <VideoCard
-                                            key={`${videoDetails.date}-${videoDetails.videoTag}`}
-                                            videoDetails={videoDetails}
-                                            index={index}
-                                        />
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                        {isEmptyUsageByDay(weekUsage) && (
-                            <div className="empty-graph">
-                                No data available. Watch a YouTube video to see your usage
-                                statistics.
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <AnalyticsBody usage={weekUsage} />
             </div>
         </>
     );

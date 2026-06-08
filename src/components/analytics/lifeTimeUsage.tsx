@@ -1,14 +1,12 @@
 import {
     formatBytes,
     getNumVideosWatched,
-    getSortedVideoUsageRows,
     getUsageByDay,
-    isEmptyUsageByDay,
     type UsageByDay,
 } from "@lib/analyticsUtils";
-import { useEffect, useMemo, useState } from "react";
-import VideoCard from "./videoCard";
+import { useEffect, useState } from "react";
 import AnalyticsHeader from "./analyticsHeader";
+import AnalyticsBody from "./analyticsBody";
 
 function getLifeTimeDateRange(usageByDay: UsageByDay) {
     const dates = Object.keys(usageByDay);
@@ -43,9 +41,6 @@ export default function LifetimeUsage() {
         })();
     }, []);
 
-    const allVideos = useMemo(() => getSortedVideoUsageRows(lifeTimeUsage), [lifeTimeUsage]);
-    let index = 0;
-
     return (
         <>
             <div className="usage-details">
@@ -54,37 +49,7 @@ export default function LifetimeUsage() {
                     totalDataUsage={formatBytes(getTotalUsage(lifeTimeUsage))}
                     numVideosWatched={getNumVideosWatched(lifeTimeUsage)}
                 />
-                <div className="body-wrapper">
-                    <div className="usage-details-list">
-                        <table className="usage-table">
-                            <thead>
-                                <tr>
-                                    <th id="header-index">#</th>
-                                    <th>VIDEO</th>
-                                    <th>DATA USED</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {allVideos.map((videoDetails) => {
-                                    index++;
-                                    return (
-                                        <VideoCard
-                                            key={`${videoDetails.date}-${videoDetails.videoTag}`}
-                                            videoDetails={videoDetails}
-                                            index={index}
-                                        />
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                        {isEmptyUsageByDay(lifeTimeUsage) && (
-                            <div className="empty-graph">
-                                No data available. Watch a YouTube video to see your usage
-                                statistics.
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <AnalyticsBody usage={lifeTimeUsage} />
             </div>
         </>
     );

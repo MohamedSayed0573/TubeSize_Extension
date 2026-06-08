@@ -30,37 +30,39 @@ export default function VideoCard({
     const displayTitle = videoDetails.title || "Youtube";
 
     return (
-        <tr key={`${date}-${videoTag}`}>
-            <td className="index">{index}</td>
+        <tr key={`${date}-${videoTag}`} className="hover:cursor-pointer hover:bg-neutral-800">
+            <td className="border-b border-neutral-800 px-3 py-3 text-center font-mono text-sm text-stone-200">
+                {index}
+            </td>
 
-            <td>
+            <td className="border-b border-neutral-800 px-3 py-3 text-left font-mono text-sm text-stone-200">
                 <a
-                    className="flex items-center gap-5 text-sm font-medium text-white no-underline overflow-hidden"
+                    className="flex items-center gap-5 overflow-hidden text-sm font-medium text-white no-underline"
                     target="_blank"
                     rel="noreferrer"
                     href={url}
                 >
                     <img
-                        className="h-17.5 rounded-lg aspect-video"
+                        className="aspect-video h-17.5 rounded-lg"
                         src={imageUrl}
                         alt="thumbnail"
                     />
 
-                    <div className="flex flex-col gap-1 overflow-hidden min-w-0">
+                    <div className="flex min-w-0 flex-col gap-1 overflow-hidden">
                         <span className="truncate">{displayTitle}</span>
                         {videoDetails.channelName && (
-                            <span className="text-xs truncate">
+                            <span className="truncate text-xs">
                                 <a
-                                    className="text-[#8b8d93] no-underline hover:underline"
+                                    className="text-gray-500 no-underline hover:underline"
                                     href={"https://www.youtube.com/@" + videoDetails.channelName}
                                 >
                                     {videoDetails.channelName}
                                 </a>
                             </span>
                         )}
-                        <span className="text-xs text-[#b4b8c2] font-normal truncate">
+                        <span className="truncate text-xs font-normal text-gray-400">
                             <Link
-                                className="text-[#b4b8c2] no-underline hover:underline"
+                                className="text-gray-400 no-underline hover:underline"
                                 to={`/analytics/${date}`}
                             >
                                 {date}
@@ -70,7 +72,9 @@ export default function VideoCard({
                 </a>
             </td>
 
-            <td>{formatBytes(usage)}</td>
+            <td className="border-b border-neutral-800 px-3 py-3 text-left font-mono text-sm text-stone-200">
+                {formatBytes(usage)}
+            </td>
         </tr>
     );
 }
