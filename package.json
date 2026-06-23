@@ -41,6 +41,7 @@
     "dependencies": {
         "@fontsource-variable/jetbrains-mono": "^5.2.8",
         "@tailwindcss/vite": "^4.3.0",
+        "clsx": "^2.1.1",
         "filesize": "^11.0.17",
         "humanize-duration": "^3.33.2",
         "m3u8-parser": "^7.2.0",

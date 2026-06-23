@@ -11,19 +11,27 @@ function convertSecondsToDays(seconds: number | string) {
     return String(Math.round(Number(seconds) / (24 * 60 * 60)));
 }
 
+const stateStyles = {
+    idle: "border-red-500/20 bg-red-500/8 text-red-400 hover:border-red-500/40 hover:bg-red-500/18",
+    success: "border-green-500/40 bg-green-500/8 text-green-500",
+    fail: "border-red-500/20 bg-red-500/8 text-red-400",
+} as const;
+
 export default function CacheSettings() {
     const [clearCache, setClearCache] = useState<"idle" | "success" | "fail">("idle");
     const [disableClearCache, setDisableClearCache] = useState(false);
     const { optionsState, setOptionsState } = useOptions();
 
     return (
-        <div className="container">
-            <div className="section-title">Cache</div>
-            <div className="cache-row">
-                <span className="cache-row-label">Duration</span>
+        <div className="p-3">
+            <div className="mb-2 text-xs font-semibold tracking-wide text-zinc-400 uppercase">
+                Cache
+            </div>
+            <div className="mb-2 flex items-center justify-between rounded-md border border-transparent bg-white/4 p-3">
+                <span className="text-xs font-medium">Duration</span>
                 <select
                     id="cacheTTL"
-                    className="ttl-select"
+                    className="cursor-pointer rounded border border-white/15 bg-zinc-800 p-1 outline-none focus:border-sky-400"
                     value={
                         convertSecondsToDays(optionsState.cacheTTL ?? CONFIG.DEFAULT_CACHE_TTL) ||
                         "3"
@@ -47,7 +55,7 @@ export default function CacheSettings() {
             </div>
             <button
                 id="resetCache"
-                className={`reset-cache-btn ${clearCache}`}
+                className={`font-inherit w-full cursor-pointer rounded-md border px-2.5 py-2 text-center text-xs font-medium transition-all disabled:cursor-default ${stateStyles[clearCache]}`}
                 disabled={disableClearCache}
                 onClick={() => {
                     setDisableClearCache(true);

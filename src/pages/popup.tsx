@@ -1,6 +1,3 @@
-import "@styles/popup.css";
-import "@styles/header.css";
-import "@styles/formatItem.css";
 import { sendMessageToBackground, sendMessageToContentScript } from "@/runtime";
 import { useEffect, useState } from "react";
 import {
@@ -22,6 +19,7 @@ import TwitchFormats from "@components/twitchFormats";
 import KickFormats from "@components/kickFormats";
 import type { PopupData } from "@app-types/uiTypes";
 import PopupUsage from "@/components/popupUsage";
+import InfoCard from "@/components/info";
 
 export default function Popup() {
     const [message, setMessage] = useState<string>("");
@@ -142,18 +140,18 @@ export default function Popup() {
     }
 
     return (
-        <div className="popup-page">
+        <div className="w-60">
             <Header data={data} />
-            <div id="container">
+            <div className="zinc-400 flex flex-col gap-2 px-3 py-1.5 text-xs">
                 {!isLoading && data?.platform === "youtube" && <PopupUsage tabId={tabId} />}
 
                 {!data && isLoading && (
-                    <div className="loading-state">
-                        <span className="spinner" />
+                    <div className="flex items-center justify-center py-3">
+                        <span className="h-5.5 w-5.5 animate-spin rounded-full border-2 border-blue-400/20 border-t-blue-400" />
                     </div>
                 )}
 
-                {!data && !isLoading && message && <span className="info">{message}</span>}
+                {!data && !isLoading && message && <InfoCard message={message} />}
                 {data?.platform === "youtube" && (
                     <YoutubeFormats data={data.data} tabId={tabId} tabUrl={tabUrl} />
                 )}

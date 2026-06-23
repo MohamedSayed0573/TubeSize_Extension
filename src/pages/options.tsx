@@ -1,4 +1,3 @@
-import "@styles/options.css";
 import CONFIG from "@lib/constants";
 import HeaderOptions from "@components/options/headerOptions";
 import OptionItem from "@components/options/optionItem";
@@ -11,11 +10,11 @@ import Divider from "@/components/options/divider";
 export default function Options() {
     const { optionsState, setOptionsState } = useOptions();
     return (
-        <div className="options-page">
+        <div className="w-72.5">
             <HeaderOptions />
-            <div className="container">
-                <div className="description">Select which resolutions to display:</div>
-                <div id="options-grid">
+            <div className="p-3">
+                <div className="zinc-400 m-b-2 text-sm">Select which resolutions to display:</div>
+                <div className="grid grid-cols-3 gap-2.5">
                     {CONFIG.optionIDs.map((option) => {
                         return (
                             <OptionItem
@@ -39,19 +38,25 @@ export default function Options() {
             <QualityMenu />
 
             <Divider />
-            <div className="footer">
-                <div className="author">
+            <div className="flex items-center justify-around p-3">
+                <div>
                     <a
                         href="https://github.com/MohamedSayed0573/TubeSize_Extension"
                         target="_blank"
                         rel="noreferrer"
+                        className="flex gap-2 text-xs text-zinc-500 no-underline transition-colors hover:text-zinc-400"
                     >
                         <img src="icons/github.svg" alt="" width="14" height="14" />
                         @Mohamed Sayed
                     </a>
                 </div>
                 <div>
-                    <a href="https://ko-fi.com/mohamedsayed253" target="_blank" rel="noreferrer">
+                    <a
+                        href="https://ko-fi.com/mohamedsayed253"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex gap-2 text-xs text-zinc-500 no-underline transition-colors hover:text-zinc-400"
+                    >
                         <img src="icons/support.svg" alt="" width="14" height="14" />
                         Support Me
                     </a>

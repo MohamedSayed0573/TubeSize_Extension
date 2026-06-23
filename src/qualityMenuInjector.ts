@@ -1,4 +1,3 @@
-import "@styles/panel.css";
 import type { YoutubeData } from "@app-types/types";
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { waitForElement } from "@lib/dom";
@@ -11,7 +10,8 @@ export const QUALITY_MENU_BTN_SELECTOR = ".ytp-panel.ytp-quality-menu";
 export const SETTINGS_BTN_SELECTOR = ".ytp-button.ytp-settings-button";
 const MENU_ITEM_SELECTOR = ".ytp-menuitem";
 const MENU_ITEM_LABEL_SELECTOR = ".ytp-menuitem-label";
-const TUBESIZE_QUALITY_MENU_CLASS = "tubesize-quality-menu-panel";
+const TUBESIZE_QUALITY_MENU_CLASS =
+    "text-xs text-sky-400 font-medium ml-1.5 opacity-90 tubesize-quality-menu-panel";
 const INNER_DIV_SELECTOR = "div";
 const SPAN_SELECTOR = "span";
 
