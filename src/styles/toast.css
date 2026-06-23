@@ -1,0 +1,105 @@
+#TubeSize-Toast-Host {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 2147483647;
+}
+
+#TubeSize-Toast-Host .container {
+    width: 360px;
+    height: auto;
+    color: white;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(26, 26, 28, 0.98);
+}
+
+#TubeSize-Toast-Host .title {
+    margin-bottom: 12px;
+    color: #ff6b6b;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+#TubeSize-Toast-Host .toast {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 14px;
+    margin-bottom: 14px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.88);
+}
+
+#TubeSize-Toast-Host .toast-inner {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+    margin-top: 6px;
+}
+
+#TubeSize-Toast-Host .current-quality {
+    font-weight: 700;
+    color: #38bdf8;
+}
+
+#TubeSize-Toast-Host .toast-inner span {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    border-radius: 8px;
+    background: rgba(56, 189, 248, 0.08);
+    color: rgba(255, 255, 255, 0.96);
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    text-align: center;
+    display: inline-flex;
+}
+
+#TubeSize-Toast-Host .actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+#TubeSize-Toast-Host button {
+    color: white;
+    display: inline-flex;
+    margin: 0;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+#TubeSize-Toast-Host button.firstBtn {
+    background: #ff4b2b;
+    border-color: rgba(255, 75, 43, 0.8);
+    color: white;
+}
+
+#TubeSize-Toast-Host button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: white;
+    transform: translateY(-1px);
+}
+
+#TubeSize-Toast-Host button:active {
+    transform: translateY(0);
+}
+
+#TubeSize-Toast-Host button.firstBtn:hover {
+    background: #ff6045;
+    border-color: rgba(255, 96, 69, 0.9);
+    color: white;
+}

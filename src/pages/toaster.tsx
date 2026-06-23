@@ -11,7 +11,6 @@ function ensureRoot() {
     if (!host) {
         host = document.createElement("div");
         host.id = HOST_ID;
-        host.className = "fixed top-6 right-6 z-100";
         document.body.append(host);
         root = createRoot(host);
     }
