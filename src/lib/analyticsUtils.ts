@@ -37,12 +37,6 @@ export function isEmptyUsageByDay(usage: UsageByDay) {
     );
 }
 
-export function isEmptyUsageByVideo(usage: UsageByVideo) {
-    return (
-        Object.keys(usage).length === 0 || Object.values(usage).every((video) => video.usage === 0)
-    );
-}
-
 export function getLast7Days(): Date[] {
     const days = [];
 
