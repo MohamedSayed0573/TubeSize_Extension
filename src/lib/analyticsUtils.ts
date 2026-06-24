@@ -77,7 +77,8 @@ export function formatBytes(bytes: number, options?: { round: number }) {
 
 export function getTotalUsageForDate(usageByDay: UsageByDay, date: string) {
     let total = 0;
-    for (const [_videoTag, { usage }] of Object.entries(usageByDay[date] ?? {})) {
+    const entries = Object.entries(usageByDay[date] ?? {});
+    for (const [_videoTag, { usage }] of entries) {
         total += usage;
     }
     return total;

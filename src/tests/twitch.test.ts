@@ -11,6 +11,7 @@ describe("getTwitchClientId", () => {
     test("should extract client ID from Twitch page", async () => {
         const channelName = "hivise";
         const htmlPath = path.join(process.cwd(), "src", "tests", "assets", "twitch.html");
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn().mockResolvedValue({
             ok: true,
             text: () => fs.readFileSync(htmlPath, "utf8"),
@@ -44,6 +45,7 @@ describe("getTwitchToken", () => {
                 }),
             });
 
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock;
 
         const token = await getTwitchToken({
@@ -58,8 +60,10 @@ describe("getTwitchToken", () => {
         });
         expect(fetchMock).toHaveBeenNthCalledWith(1, "https://www.twitch.tv/hivise", {});
         expect(fetchMock).toHaveBeenCalledTimes(2);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(fetchMock.mock.calls[1]?.[0]).toBe("https://gql.twitch.tv/gql");
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         const request = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
         if (!request) {
             throw new Error("Expected gql request options");
@@ -102,6 +106,7 @@ describe("getTwitchToken", () => {
                 }),
             });
 
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock;
 
         const token = await getTwitchToken({ type: "twitchVod", vodId: "2748008198" });
@@ -112,6 +117,7 @@ describe("getTwitchToken", () => {
         });
         expect(fetchMock).toHaveBeenNthCalledWith(1, "https://www.twitch.tv/videos/2748008198", {});
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         const request = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
         if (!request) {
             throw new Error("Expected gql request options");
@@ -141,6 +147,7 @@ describe("getTwitchMasterM3u8", () => {
 `,
         });
 
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock;
 
         const data = await getTwitchMasterM3u8(
@@ -153,6 +160,7 @@ describe("getTwitchMasterM3u8", () => {
         expect(data[0]?.attributes.BANDWIDTH).toBe(2_602_418);
         expect(data[0]?.attributes.RESOLUTION?.height).toBe(720);
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         const requestUrl = fetchMock.mock.calls[0]?.[0] as URL | undefined;
 
         expect(requestUrl?.toString()).toBe(
@@ -170,6 +178,7 @@ describe("getTwitchMasterM3u8", () => {
 `,
         });
 
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock;
 
         const data = await getTwitchMasterM3u8(
@@ -182,6 +191,7 @@ describe("getTwitchMasterM3u8", () => {
         expect(data[0]?.attributes.BANDWIDTH).toBe(1_627_418);
         expect(data[0]?.attributes.RESOLUTION?.height).toBe(480);
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         const requestUrl = fetchMock.mock.calls[0]?.[0] as URL | undefined;
 
         expect(requestUrl?.toString()).toBe(

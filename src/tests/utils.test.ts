@@ -187,6 +187,7 @@ describe("fetchAndRetry", () => {
     // }, 10_000);
 
     test("should not retry on client errors 4xx", async () => {
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn().mockResolvedValue({
             status: 400,
             ok: false,
@@ -199,10 +200,11 @@ describe("fetchAndRetry", () => {
             },
         );
 
-        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+        expect(fetch).toHaveBeenCalledTimes(1);
     });
 
     test("should retry on server errors 5xx", async () => {
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest
             .fn()
             .mockResolvedValueOnce({

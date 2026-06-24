@@ -8,12 +8,12 @@ let pendingUsage: number = 0;
 const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
         const resource = entry as PerformanceResourceTiming;
-        pendingUsage += resource.transferSize;
+        pendingUsage += resource.transferSize; // eslint-disable-line unicorn/no-top-level-assignment-in-function
     }
 });
 
 function getCurrentTabUrl() {
-    return globalThis.location.href;
+    return location.href;
 }
 
 void (async () => {
@@ -59,7 +59,7 @@ void (async () => {
             updateBadge(usageByDay, date);
             await setToLocalCache({ usageByDay });
 
-            pendingUsage = 0;
+            pendingUsage = 0; // eslint-disable-line unicorn/no-top-level-assignment-in-function
         } catch (err) {
             console.error("Error in usage tracking loop:", err);
             continue;

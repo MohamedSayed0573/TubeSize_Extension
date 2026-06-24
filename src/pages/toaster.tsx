@@ -12,19 +12,19 @@ function ensureRoot() {
         host = document.createElement("div");
         host.id = HOST_ID;
         document.body.append(host);
-        root = createRoot(host);
+        root = createRoot(host); // eslint-disable-line unicorn/no-top-level-assignment-in-function
     }
 
     return root!;
 }
 
-let DONT_SHOW_AGAIN: boolean = false;
+let shouldSuppressToast: boolean = false;
 export function showYoutubeToast(
     currentQuality: number,
     youtubeData: YoutubeData,
     toasterThresholdMbpm: number,
 ) {
-    if (DONT_SHOW_AGAIN) return;
+    if (shouldSuppressToast) return;
 
     if (youtubeData.type === "video") {
         const format = youtubeData.formats.find((format) => format.height === currentQuality);
@@ -66,7 +66,7 @@ export function showTwitchToast(
     toasterThresholdMbpm: number,
     isLive: boolean = true,
 ) {
-    if (DONT_SHOW_AGAIN) return;
+    if (shouldSuppressToast) return;
 
     const format = videoFormats.find((format) => format.resolution === currentQuality);
     if (!format) return;
@@ -88,13 +88,13 @@ function okOnClick() {
     unmountToast();
 }
 function dontShowAgainOnClick() {
-    DONT_SHOW_AGAIN = true;
+    shouldSuppressToast = true; // eslint-disable-line unicorn/no-top-level-assignment-in-function
     unmountToast();
 }
 
 function unmountToast() {
     if (root) root.unmount();
-    root = undefined;
+    root = undefined; // eslint-disable-line unicorn/no-top-level-assignment-in-function
 
     const host = document.querySelector(`#${HOST_ID}`);
     if (host) host.remove();

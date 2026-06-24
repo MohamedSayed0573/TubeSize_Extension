@@ -17,6 +17,7 @@ const syncClear = jest.fn();
 const localSet = jest.fn();
 const syncSet = jest.fn();
 
+// eslint-disable-next-line unicorn/no-global-object-property-assignment
 globalThis.chrome = {
     storage: {
         local: {
