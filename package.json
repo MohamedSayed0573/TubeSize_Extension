@@ -3,7 +3,7 @@
     "private": true,
     "version": "2.3.1",
     "type": "module",
-    "packageManager": "pnpm@11.2.2",
+    "packageManager": "pnpm@11.5.2",
     "scripts": {
         "build": "tsc -b && vite build",
         "dev": "vite",
@@ -11,6 +11,7 @@
         "test:coverage": "jest --coverage",
         "test:preview": "wslview ./coverage/lcov-report/index.html",
         "prettier:write": "pnpm exec prettier . --write",
+        "prettier:check": "pnpm exec prettier . --check",
         "pack": "rm -rf dist && pnpm run build && zip -r dist/tubesize.zip dist",
         "pack:firefox": "rm -rf dist_firefox && pnpm run build && sh ./scripts/pack-firefox.sh",
         "lint": "eslint .",
@@ -39,6 +40,8 @@
     },
     "dependencies": {
         "@fontsource-variable/jetbrains-mono": "^5.2.8",
+        "@tailwindcss/vite": "^4.3.0",
+        "clsx": "^2.1.1",
         "filesize": "^11.0.17",
         "humanize-duration": "^3.33.2",
         "m3u8-parser": "^7.2.0",
@@ -46,6 +49,7 @@
         "react-dom": "^19.2.7",
         "react-router": "^8.0.0",
         "recharts": "^3.8.1",
+        "tailwindcss": "^4.3.0",
         "zod": "^4.4.3"
     },
     "devDependencies": {

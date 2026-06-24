@@ -85,23 +85,27 @@ export default function Header({ data }: Props) {
     }
 
     return (
-        <div className="header">
-            <div className="headerInfo">
-                <div className="title" title={title}>
+        <div className="border-b-2 border-white/8 px-2.5 py-1.5">
+            <div className="flex items-center justify-between gap-2.5 px-0.5 py-2">
+                <div className="truncate text-sm font-semibold" title={title}>
                     {title}
                 </div>
-                {isLive && <span className="live-indicator">Live</span>}
+                {isLive && <span className="text-sm font-medium text-red-500">Live</span>}
                 {duration && (
-                    <span className="duration" id="duration-display">
-                        {duration}
-                    </span>
+                    <span className="shrink-0 text-xs font-medium text-zinc-400">{duration}</span>
                 )}
             </div>
-            <div className="optionsMenu">
-                <button className="optionsBtn" onClick={() => void navigate("/options")}>
+            <div className="flex items-center justify-between gap-2.5">
+                <button
+                    className="flex-1 cursor-pointer rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
+                    onClick={() => void navigate("/options")}
+                >
                     Options
                 </button>
-                <button className="optionsBtn" onClick={navigateToAnalytics}>
+                <button
+                    className="flex-1 cursor-pointer rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
+                    onClick={navigateToAnalytics}
+                >
                     Analytics
                 </button>
             </div>

@@ -114,7 +114,7 @@ export async function estimateHlsStreamSizes(
         return streamResults
             .filter((item) => item.status === "fulfilled")
             .map((result) => result.value)
-            .sort((a, b) => b.resolution - a.resolution);
+            .toSorted((a, b) => b.resolution - a.resolution);
     }
 
     // Fallback to bitrate from master M3U8 if we failed to fetch actual segments.
@@ -140,5 +140,5 @@ export async function estimateHlsStreamSizes(
                 sizePerSecondBytes: bitrate ? bitrate / 8 : 0,
             };
         })
-        .sort((a, b) => b.resolution - a.resolution);
+        .toSorted((a, b) => b.resolution - a.resolution);
 }

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { getTwitchClientId, getTwitchMasterM3u8, getTwitchToken } from "@lib/twitch";
 import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import path from "node:path";

@@ -1,6 +1,6 @@
 import { setToLocalCache } from "@lib/cache";
 import { delay, extractVideoTag } from "@lib/utils";
-import { getUsageByDay, utcDateKey } from "@lib/analyticsUtils";
+import { getUsageByDay, getDateKey } from "@lib/analyticsUtils";
 import { sendMessageToBackground } from "@/runtime";
 import { updateBadge } from "@/badge";
 
@@ -25,7 +25,7 @@ void (async () => {
             const videoTag = extractVideoTag(getCurrentTabUrl());
             if (!videoTag) continue;
 
-            const date = utcDateKey(new Date());
+            const date = getDateKey(new Date());
             const usageByDay = await getUsageByDay();
             usageByDay[date] ??= {};
             usageByDay[date][videoTag] ??= {

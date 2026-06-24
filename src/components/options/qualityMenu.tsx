@@ -18,10 +18,15 @@ export default function QualityMenu() {
     }, []);
 
     return (
-        <div className="container">
-            <div className="section-title">Quality Menu</div>
-            <div className="setting-toggle-row">
-                <label className="option-label" htmlFor="qualityMenuToggle">
+        <div className="p-3.5">
+            <div className="mb-2 text-xs font-semibold tracking-wide text-zinc-400 uppercase">
+                Quality Menu
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-transparent bg-white/4 px-4 py-2 transition-all duration-300 hover:border-white/15 hover:bg-white/8">
+                <label
+                    className="cursor-pointer text-xs font-medium text-white"
+                    htmlFor="qualityMenuToggle"
+                >
                     Enable Quality Menu
                 </label>
                 <input

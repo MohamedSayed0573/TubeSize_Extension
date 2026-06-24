@@ -2,15 +2,13 @@ import {
     formatBytes,
     getLast30Days,
     getNumVideosWatched,
-    getSortedVideoUsageRows,
     getUsageByDay,
-    isEmptyUsageByDay,
-    utcDateKey,
+    getDateKey,
     type UsageByDay,
 } from "@lib/analyticsUtils";
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
-import VideoCard from "@components/analytics/videoCard";
+import { useEffect, useState } from "react";
+import AnalyticsHeader from "./analyticsHeader";
+import AnalyticsBody from "./analyticsBody";
 
 function getMonthTotalUsage(monthUsage: UsageByDay) {
     let total = 0;
@@ -24,7 +22,7 @@ function getMonthTotalUsage(monthUsage: UsageByDay) {
 }
 
 function getMonthUsage(usageByDay: UsageByDay) {
-    const last30Days = getLast30Days().map((date) => utcDateKey(date));
+    const last30Days = getLast30Days().map((date) => getDateKey(date));
     const monthUsage: UsageByDay = {};
 
     for (const day of last30Days) {
@@ -43,7 +41,6 @@ function formatDate(month: Date[]) {
 }
 
 export default function MonthUsage() {
-    const navigate = useNavigate();
     const [monthUsage, setMonthUsage] = useState<UsageByDay>({});
 
     useEffect(() => {
@@ -54,66 +51,15 @@ export default function MonthUsage() {
         })();
     }, []);
 
-    const allVideos = useMemo(() => getSortedVideoUsageRows(monthUsage), [monthUsage]);
-    let index = 0;
-
     return (
         <>
-            <div className="usage-details">
-                <div className="usage-details-header">
-                    <button
-                        className="return-btn"
-                        onClick={() => {
-                            void navigate("/analytics");
-                        }}
-                    >
-                        ← Back to Analytics
-                    </button>
-                    <div className="usage-details-title">{`${formatDate(getLast30Days())}`}</div>
-                    <div className="usage-details-summary">
-                        <div className="summary-item">
-                            <div className="summary-item-header">{"Total Data Used"}</div>
-                            <div className="number">
-                                {formatBytes(getMonthTotalUsage(monthUsage))}
-                            </div>
-                        </div>
-                        <div className="summary-item">
-                            <div className="summary-item-header">{"Videos Watched"}</div>
-                            <div className="number">{getNumVideosWatched(monthUsage)}</div>
-                        </div>
-                    </div>
-                </div>
-                <div className="body-wrapper">
-                    <div className="usage-details-list">
-                        <table className="usage-table">
-                            <thead>
-                                <tr>
-                                    <th id="header-index">#</th>
-                                    <th>VIDEO</th>
-                                    <th>DATA USED</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {allVideos.map((videoDetails) => {
-                                    index++;
-                                    return (
-                                        <VideoCard
-                                            key={`${videoDetails.date}-${videoDetails.videoTag}`}
-                                            videoDetails={videoDetails}
-                                            index={index}
-                                        />
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                        {isEmptyUsageByDay(monthUsage) && (
-                            <div className="empty-graph">
-                                No data available. Watch a YouTube video to see your usage
-                                statistics.
-                            </div>
-                        )}
-                    </div>
-                </div>
+            <div className="flex h-screen w-full flex-col">
+                <AnalyticsHeader
+                    title={formatDate(getLast30Days())}
+                    totalDataUsage={formatBytes(getMonthTotalUsage(monthUsage))}
+                    numVideosWatched={getNumVideosWatched(monthUsage)}
+                />
+                <AnalyticsBody usage={monthUsage} />
             </div>
         </>
     );

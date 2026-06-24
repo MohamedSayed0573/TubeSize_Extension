@@ -2,12 +2,12 @@ import {
     formatBytes,
     getNumVideosWatched,
     getUsageByDay,
-    isEmptyUsageByVideo,
-    utcDateKey,
+    getDateKey,
     type UsageByVideo,
 } from "@lib/analyticsUtils";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import AnalyticsHeader from "./analyticsHeader";
+import AnalyticsBody from "./analyticsBody";
 
 function getTodayTotalUsage(todayUsage: UsageByVideo) {
     let total = 0;
@@ -24,14 +24,9 @@ function formatDate(date: string) {
     return dateString.slice(firstSpaceIndex + 1);
 }
 
-function getVideoUrl(videoTag: string) {
-    return `https://youtube.com/watch?v=${videoTag}`;
-}
-
 export default function TodayUsage() {
-    const navigate = useNavigate();
     const [todayUsage, setTodayUsage] = useState<UsageByVideo>({});
-    const today = utcDateKey(new Date());
+    const today = getDateKey(new Date());
 
     useEffect(() => {
         void (async () => {
@@ -42,98 +37,13 @@ export default function TodayUsage() {
 
     return (
         <>
-            <div className="usage-details">
-                <div className="usage-details-header">
-                    <button
-                        className="return-btn"
-                        onClick={() => {
-                            void navigate("/analytics");
-                        }}
-                    >
-                        ← Back to Analytics
-                    </button>
-                    <div className="usage-details-title">{`${formatDate(today)}`}</div>
-                    <div className="usage-details-summary">
-                        <div className="summary-item">
-                            <div className="summary-item-header">{"Total Data Used"}</div>
-                            <div className="number">
-                                {formatBytes(getTodayTotalUsage(todayUsage))}
-                            </div>
-                        </div>
-                        <div className="summary-item">
-                            <div className="summary-item-header">{"Videos Watched"}</div>
-                            <div className="number">
-                                {getNumVideosWatched({ [today]: todayUsage })}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div className="body-wrapper">
-                    <div className="usage-details-list">
-                        <table className="usage-table">
-                            <thead>
-                                <tr>
-                                    <th id="header-index">#</th>
-                                    <th>VIDEO</th>
-                                    <th>DATA USED</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {Object.entries(todayUsage)
-                                    .sort((a, b) => b[1].usage - a[1].usage)
-                                    .map(
-                                        (
-                                            [videoTag, { usage, title, thumbnailUrl, channelName }],
-                                            index,
-                                        ) => {
-                                            const url = getVideoUrl(videoTag);
-                                            const imageUrl =
-                                                thumbnailUrl ||
-                                                "https://placehold.co/213x120?text=Unknown&font=roboto";
-                                            const displayTitle = title || "Youtube";
-
-                                            return (
-                                                <tr key={videoTag}>
-                                                    <td className="index">{index + 1}</td>
-                                                    <td>
-                                                        <a
-                                                            className="video-title-cell"
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            href={url}
-                                                        >
-                                                            <img
-                                                                className="video-thumbnail"
-                                                                src={imageUrl}
-                                                                alt="thumbnail"
-                                                            />
-                                                            <div className="video-info">
-                                                                <span className="video-title">
-                                                                    {displayTitle}
-                                                                </span>
-                                                                {channelName && (
-                                                                    <span className="video-channel">
-                                                                        {channelName}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </a>
-                                                    </td>
-                                                    <td>{formatBytes(usage)}</td>
-                                                </tr>
-                                            );
-                                        },
-                                    )}
-                            </tbody>
-                        </table>
-                        {isEmptyUsageByVideo(todayUsage) && (
-                            <div className="empty-graph">
-                                No data available. Watch a YouTube video to see your usage
-                                statistics.
-                            </div>
-                        )}
-                    </div>
-                </div>
+            <div className="flex h-full min-h-screen w-full flex-col">
+                <AnalyticsHeader
+                    title={formatDate(today)}
+                    totalDataUsage={formatBytes(getTodayTotalUsage(todayUsage))}
+                    numVideosWatched={getNumVideosWatched({ [today]: todayUsage })}
+                />
+                <AnalyticsBody usage={{ [today]: todayUsage }} />
             </div>
         </>
     );
