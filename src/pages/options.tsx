@@ -13,7 +13,9 @@ export default function Options() {
         <div className="w-72.5">
             <HeaderOptions />
             <div className="p-3">
-                <div className="zinc-400 m-b-2 text-sm">Select which resolutions to display:</div>
+                <div className="mb-2 text-sm text-zinc-400">
+                    Select which resolutions to display:
+                </div>
                 <div className="grid grid-cols-3 gap-2.5">
                     {CONFIG.optionIDs.map((option) => {
                         return (

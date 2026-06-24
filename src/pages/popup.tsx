@@ -142,7 +142,7 @@ export default function Popup() {
     return (
         <div className="w-60">
             <Header data={data} />
-            <div className="zinc-400 flex flex-col gap-2 px-3 py-1.5 text-xs">
+            <div className="flex flex-col gap-2 px-3 py-1.5 text-xs text-zinc-400">
                 {!isLoading && data?.platform === "youtube" && <PopupUsage tabId={tabId} />}
 
                 {!data && isLoading && (

@@ -92,7 +92,7 @@ export default function Header({ data }: Props) {
                 </div>
                 {isLive && <span className="red-500 text-sm font-medium">Live</span>}
                 {duration && (
-                    <span className="zinc-400 shrink-0 text-xs font-medium">{duration}</span>
+                    <span className="shrink-0 text-xs font-medium text-zinc-400">{duration}</span>
                 )}
             </div>
             <div className="flex items-center justify-between gap-2.5">
