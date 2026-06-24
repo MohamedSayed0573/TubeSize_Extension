@@ -13,9 +13,6 @@
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(26, 26, 28, 0.98);
-    box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.4),
-        0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 #TubeSize-Toast-Host .title {
@@ -61,7 +58,6 @@
     font-weight: 600;
     text-align: center;
     display: inline-flex;
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 #TubeSize-Toast-Host .actions {
@@ -74,7 +70,6 @@
 #TubeSize-Toast-Host button {
     color: white;
     display: inline-flex;
-    width: auto;
     margin: 0;
     padding: 8px 12px;
     background: rgba(255, 255, 255, 0.08);
@@ -90,7 +85,6 @@
     background: #ff4b2b;
     border-color: rgba(255, 75, 43, 0.8);
     color: white;
-    box-shadow: 0 2px 8px rgba(255, 75, 43, 0.25);
 }
 
 #TubeSize-Toast-Host button:hover {
@@ -98,7 +92,6 @@
     border-color: rgba(255, 255, 255, 0.25);
     color: white;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 #TubeSize-Toast-Host button:active {
@@ -109,5 +102,4 @@
     background: #ff6045;
     border-color: rgba(255, 96, 69, 0.9);
     color: white;
-    box-shadow: 0 4px 12px rgba(255, 75, 43, 0.35);
 }

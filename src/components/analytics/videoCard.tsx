@@ -30,30 +30,55 @@ export default function VideoCard({
     const displayTitle = videoDetails.title || "Youtube";
 
     return (
-        <tr key={`${date}-${videoTag}`}>
-            <td className="index">{index}</td>
-
-            <td>
-                <a className="video-title-cell" target="_blank" rel="noreferrer" href={url}>
-                    <img className="video-thumbnail" src={imageUrl} alt="thumbnail" />
-
-                    <div className="video-info">
-                        <span className="video-title">{displayTitle}</span>
-                        {videoDetails.channelName && (
-                            <span className="video-channel">
-                                <a href={"https://www.youtube.com/@" + videoDetails.channelName}>
-                                    {videoDetails.channelName}
-                                </a>
-                            </span>
-                        )}
-                        <span className="date-cell">
-                            <Link to={`/analytics/${date}`}>{date}</Link>
-                        </span>
-                    </div>
-                </a>
+        <tr key={`${date}-${videoTag}`} className="hover:cursor-pointer hover:bg-neutral-800">
+            <td className="border-b border-neutral-800 px-3 py-3 text-center font-mono text-sm text-stone-200">
+                {index}
             </td>
 
-            <td>{formatBytes(usage)}</td>
+            <td className="flex items-center gap-5 border-b border-neutral-800 px-3 py-3 text-left font-mono text-sm text-stone-200">
+                <a
+                    className="flex items-center gap-5 overflow-hidden text-sm font-medium text-white no-underline"
+                    target="_blank"
+                    rel="noreferrer"
+                    href={url}
+                >
+                    <img
+                        className="aspect-video h-17.5 rounded-lg"
+                        src={imageUrl}
+                        alt="thumbnail"
+                    />
+                </a>
+
+                <div className="flex min-w-0 flex-col gap-1 overflow-hidden">
+                    <span className="truncate">
+                        <a href={url} target="_blank" rel="noreferrer">
+                            {displayTitle}
+                        </a>
+                    </span>
+                    {videoDetails.channelName && (
+                        <span className="truncate text-xs">
+                            <a
+                                className="text-gray-500 no-underline hover:underline"
+                                href={"https://www.youtube.com/@" + videoDetails.channelName}
+                            >
+                                {videoDetails.channelName}
+                            </a>
+                        </span>
+                    )}
+                    <span className="truncate text-xs font-normal text-gray-400">
+                        <Link
+                            className="text-gray-400 no-underline hover:underline"
+                            to={`/analytics/${date}`}
+                        >
+                            {date}
+                        </Link>
+                    </span>
+                </div>
+            </td>
+
+            <td className="border-b border-neutral-800 px-3 py-3 text-left font-mono text-sm text-stone-200">
+                {formatBytes(usage)}
+            </td>
         </tr>
     );
 }

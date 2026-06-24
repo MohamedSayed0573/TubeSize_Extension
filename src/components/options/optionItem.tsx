@@ -11,8 +11,8 @@ export default function OptionItem({
     setOptionsState: (optionsState: OptionsMap) => void;
 }) {
     return (
-        <div className="option-item">
-            <label className="option-label" htmlFor={option}>
+        <div className="flex cursor-pointer items-center justify-between rounded-lg border border-transparent bg-white/3 px-3 py-2.5 pl-3 transition-all hover:border-white/20 hover:bg-white/8">
+            <label className="cursor-pointer text-xs font-medium text-white" htmlFor={option}>
                 {option.slice(1) + "p"}
             </label>
             <input
@@ -30,21 +30,21 @@ export default function OptionItem({
 
 async function handleOptionChange(
     option: string,
-    isChecked: boolean,
+    checked: boolean,
     optionsState: OptionsMap,
     setOptionsState: (optionsState: OptionsMap) => void,
 ) {
     await setToSyncCache({
         qualityIds: {
             ...optionsState["qualityIds"],
-            [option]: isChecked,
+            [option]: checked,
         },
     });
     setOptionsState({
         ...optionsState,
         qualityIds: {
             ...optionsState["qualityIds"],
-            [option]: isChecked,
+            [option]: checked,
         },
     });
 }

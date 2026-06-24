@@ -5,6 +5,7 @@ import zip from "vite-plugin-zip-pack";
 import path from "node:path";
 import manifest from "./manifest.config.js";
 import { name, version } from "./package.json";
+import tailwindcss from "@tailwindcss/vite";
 
 const __dirname = import.meta.dirname;
 export default defineConfig(({ mode }) => ({
@@ -29,8 +30,8 @@ export default defineConfig(({ mode }) => ({
     plugins: [
         react(),
         crx({ manifest }),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         zip({ outDir: "release", outFileName: `crx-${name}-${version}.zip` }),
+        tailwindcss(),
     ],
     build: {
         sourcemap: mode === "development",

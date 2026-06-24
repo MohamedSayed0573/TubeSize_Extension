@@ -34,18 +34,22 @@ export default function FormatItem({
         ? (item as StreamInfo).resolution
         : (item as YoutubeVideoFormat).height;
 
-    const className = resolution === currentQuality ? "format-item current" : "format-item";
-
     return (
-        <div className={className}>
-            <div className="format-height"> {resolution}p </div>
-            <div className="format-size">
+        <div
+            className={
+                resolution === currentQuality
+                    ? "flex cursor-pointer items-center justify-between rounded-lg border border-teal-950 bg-red-900 px-3 py-2.5"
+                    : "flex cursor-pointer items-center justify-between rounded-lg border border-teal-950 bg-stone-800 px-3 py-2.5 hover:border-teal-500"
+            }
+        >
+            <div className="pr-2.5 text-sm font-semibold text-white"> {resolution}p </div>
+            <div className="flex flex-col items-end text-right text-sm font-semibold text-teal-200">
                 <span>
                     {isLive
                         ? perHourDisplay(item.sizePerSecondBytes)
                         : totalSizeDisplay(item, durationSeconds)}
                 </span>
-                <span className="format-size-per-minute">
+                <span className="mt-0.5 items-end text-xs font-normal text-cyan-300">
                     {!isShorts && perMinuteDisplay(item.sizePerSecondBytes)}
                 </span>
             </div>

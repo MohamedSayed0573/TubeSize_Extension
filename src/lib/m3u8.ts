@@ -41,7 +41,7 @@ export function filterM3u8(m3u8Data: PlaylistItem[]): StreamInfo[] {
                 sizePerSecondBytes: item.attributes.BANDWIDTH! / 8,
             };
         })
-        .sort((a, b) => b.resolution - a.resolution);
+        .toSorted((a, b) => b.resolution - a.resolution);
 
     return result;
 }

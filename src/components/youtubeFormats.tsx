@@ -3,6 +3,7 @@ import CONFIG from "@lib/constants";
 import useOptions from "@hooks/useOptions";
 import useCurrentQuality from "@hooks/useCurrentQuality";
 import FormatItem from "@components/formatItem";
+import InfoCard from "./info";
 
 function getEnabledOptions(optionsState: OptionsMap | null) {
     const qualityIds = optionsState?.["qualityIds"] ?? {};
@@ -26,7 +27,7 @@ export default function YoutubeFormats({
     const enabledOptions = getEnabledOptions(optionsState);
 
     if (enabledOptions.length === 0) {
-        return <span className="error">All Resolutions Disabled. Enable in options</span>;
+        return <InfoCard message="All Resolutions Disabled. Enable in options" />;
     }
 
     if (data.type === "live") {
