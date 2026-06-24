@@ -15,19 +15,18 @@ export default function PopupUsage({ tabId }: { tabId: number | undefined }) {
     const [todayUsage, setTodayUsage] = useState<number | undefined>();
 
     useEffect(() => {
-        let interval: NodeJS.Timeout;
-        void (async () => {
+        const updateUsage = async () => {
             const total = await getTodaysTotalUsage(tabId);
             setTodayUsage(total);
+        };
+        const handleUpdateUsage = () => {
+            void updateUsage();
+        };
 
-            interval = setInterval(() => {
-                void (async () => {
-                    const total = await getTodaysTotalUsage(tabId);
-                    setTodayUsage(total);
-                })();
-            }, 5000);
-        })();
-        return () => clearInterval(interval);
+        void updateUsage();
+        chrome.storage.onChanged.addListener(handleUpdateUsage);
+
+        return () => chrome.storage.onChanged.removeListener(handleUpdateUsage);
     }, [tabId]);
 
     return (

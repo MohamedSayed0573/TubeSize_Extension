@@ -19,9 +19,9 @@ function UsageTooltip({
     const megabytes = Number(value).toFixed(1);
 
     return (
-        <div className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800">
-            <div className="mb-1 text-xs text-teal-400">{date}</div>
-            <div className="text-sm font-semibold">{megabytes} MB</div>
+        <div className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 shadow-lg">
+            <div className="mb-1 text-xs font-medium text-neutral-500">{date}</div>
+            <div className="text-sm font-bold text-cyan-400">{megabytes} MB</div>
         </div>
     );
 }

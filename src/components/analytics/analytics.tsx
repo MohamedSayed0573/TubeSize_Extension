@@ -80,16 +80,16 @@ function AnalyticsHeader() {
 function StatsRow({ usage }: { usage: UsageByDay }) {
     return (
         <div className="grid grid-cols-4 gap-2 py-2.5">
-            <Link to="/today" className="no-underline">
+            <Link to="/today">
                 <StatsCard title="Today" value={formatBytes(todayUsage(usage))} />
             </Link>
-            <Link to="/week" className="no-underline">
+            <Link to="/week">
                 <StatsCard title="This Week" value={formatBytes(thisWeekUsage(usage))} />
             </Link>
-            <Link to="/month" className="no-underline">
+            <Link to="/month">
                 <StatsCard title="Last 30 Days" value={formatBytes(thisMonthUsage(usage))} />
             </Link>
-            <Link to="/lifetime" className="no-underline">
+            <Link to="/lifetime">
                 <StatsCard title="Lifetime" value={formatBytes(lifeTimeUsage(usage))} />
             </Link>
         </div>
@@ -105,7 +105,7 @@ function UsageChartSection({
 }) {
     const dayCount = Object.keys(usage).length;
     return (
-        <div className="flex flex-1 flex-col rounded-lg border border-amber-950 bg-neutral-900 px-5 pt-3.5">
+        <div className="flex flex-1 flex-col rounded-lg border border-neutral-800 bg-neutral-900 px-5 pt-3.5">
             <div className="mb-2.5 flex items-center justify-between">
                 <div className="text-base font-bold text-stone-200">Data Usage per day (MB)</div>
                 <div className="rounded-xl border border-teal-400 px-2 py-1 font-mono text-sm text-teal-400">
@@ -154,7 +154,7 @@ function ClearUsageButton({ setUsage }: { setUsage: (UsageByDay: UsageByDay) => 
 
     return (
         <button
-            className="mt-2.5 cursor-pointer rounded-xl border border-red-950 bg-[#221718] px-3 py-2.5 font-mono text-xs font-semibold tracking-widest text-red-400 uppercase transition-colors hover:bg-[#2a1b1c]"
+            className="mt-2.5 cursor-pointer rounded-xl border border-neutral-800 bg-[#221718] px-3 py-2.5 font-mono text-xs font-semibold tracking-widest text-red-400 uppercase transition-colors hover:bg-[#2a1b1c]"
             onClick={() => void handleClearUsageData()}
             disabled={isClearing}
         >

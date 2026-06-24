@@ -115,7 +115,6 @@ export default function Header({ data }: Props) {
 
 function navigateToAnalytics() {
     void chrome.tabs.create({
-        active: true,
         url: chrome.runtime.getURL("index.html#/analytics"),
     });
 }
