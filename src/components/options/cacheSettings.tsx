@@ -55,7 +55,7 @@ export default function CacheSettings() {
             </div>
             <button
                 id="resetCache"
-                className={`font-inherit w-full cursor-pointer rounded-md border px-2.5 py-2 text-center text-xs font-medium transition-all disabled:cursor-default ${stateStyles[clearCache]}`}
+                className={`w-full cursor-pointer rounded-md border px-2.5 py-2 text-center text-xs font-medium transition-all disabled:cursor-default ${stateStyles[clearCache]}`}
                 disabled={disableClearCache}
                 onClick={() => {
                     setDisableClearCache(true);

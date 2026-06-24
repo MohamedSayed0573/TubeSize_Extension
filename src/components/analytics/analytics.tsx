@@ -28,7 +28,6 @@ function todayUsage(usageByDay: UsageByDay) {
 
 function thisWeekUsage(usageByDay: UsageByDay) {
     const date = new Set(getLast7Days().map((day) => getDateKey(day)));
-    console.log(date);
     let usage = 0;
     for (const day in usageByDay) {
         if (date.has(day)) {
