@@ -27,7 +27,7 @@ export default function CacheSettings() {
             <div className="mb-2 text-xs font-semibold tracking-wide text-zinc-400 uppercase">
                 Cache
             </div>
-            <div className="mb-2 flex items-center justify-between rounded-md border border-transparent bg-white/4 p-3">
+            <div className="mb-2 flex items-center justify-between rounded-md border border-transparent bg-white/4 p-2">
                 <span className="text-xs font-medium">Duration</span>
                 <select
                     id="cacheTTL"

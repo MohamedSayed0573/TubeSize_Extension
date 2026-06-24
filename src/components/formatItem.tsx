@@ -5,6 +5,7 @@ import {
     totalSizeVideoDisplay,
 } from "@lib/formatting";
 import type { StreamInfo, YoutubeData, YoutubeVideoFormat } from "@app-types/types";
+import clsx from "clsx";
 
 interface Props {
     item: YoutubeData["formats"][number] | StreamInfo;
@@ -36,11 +37,11 @@ export default function FormatItem({
 
     return (
         <div
-            className={
-                resolution === currentQuality
-                    ? "flex cursor-pointer items-center justify-between rounded-lg border border-teal-950 bg-red-900 px-3 py-2.5"
-                    : "flex cursor-pointer items-center justify-between rounded-lg border border-teal-950 bg-stone-800 px-3 py-2.5 hover:border-teal-500"
-            }
+            className={clsx(
+                "flex cursor-pointer items-center justify-between rounded-lg border border-teal-950 px-3 py-2.5",
+                { "bg-red-800/80 hover:border-red-600": resolution === currentQuality },
+                { "bg-stone-800 hover:border-teal-800": resolution !== currentQuality },
+            )}
         >
             <div className="pr-2.5 text-sm font-semibold text-white"> {resolution}p </div>
             <div className="flex flex-col items-end text-right text-sm font-semibold text-teal-200">
@@ -49,7 +50,7 @@ export default function FormatItem({
                         ? perHourDisplay(item.sizePerSecondBytes)
                         : totalSizeDisplay(item, durationSeconds)}
                 </span>
-                <span className="mt-0.5 items-end text-xs font-normal text-cyan-300">
+                <span className="mt-0.5 text-xs font-normal text-cyan-500">
                     {!isShorts && perMinuteDisplay(item.sizePerSecondBytes)}
                 </span>
             </div>
