@@ -29,7 +29,7 @@ export default function Popup() {
     const [error, setError] = useState<Error | undefined>();
 
     useEffect(() => {
-        (async () => {
+        void (async () => {
             if (!tabUrl) return;
 
             setIsLoading(true);
@@ -76,12 +76,12 @@ export default function Popup() {
                         vodId: vodId,
                     });
                     if (!response.success) throw new Error(response.message);
+                    setIsLoading(false);
                     setData({
                         platform: "twitch",
                         data: response.data,
                         cacheCreatedAt: response.createdAt,
                     });
-                    setIsLoading(false);
                 } else {
                     const channelName = extractChannelName(tabUrl);
                     if (!channelName) {
@@ -93,7 +93,7 @@ export default function Popup() {
                     const response = await sendMessageToBackground({
                         type: "twitchLive",
                         channelName: channelName,
-                        fromPopup: true,
+                        isFromPopup: true,
                     });
                     if (!response.success) throw new Error(response.message);
                     setData({
@@ -112,7 +112,7 @@ export default function Popup() {
 
                 const response = await sendMessageToContentScript(tabId, {
                     type: "getKick",
-                    fromPopup: true,
+                    isFromPopup: true,
                 });
                 if (!response?.success) {
                     throw new Error(response?.message || "Failed to retrieve Kick data");

@@ -18,8 +18,7 @@ export async function getKickHtml(url: string): Promise<string> {
 }
 
 export function getKickStreamId(html: string): string | undefined {
-    const match =
-        String(html).match(/vod_id\\":\\"([^\\]+)/) || String(html).match(/vod_id":"([^"]+)"}/);
+    const match = html.match(/vod_id\\":\\"([^\\]+)/) || html.match(/vod_id":"([^"]+)"}/);
     if (!match?.[1]) return;
     return match[1];
 }
@@ -93,7 +92,7 @@ export async function getKickLiveResponse(
 ) {
     try {
         const masterM3U8Data = await getKickMasterM3u8(message.streamId);
-        const kickData = message.fromPopup
+        const kickData = message.isFromPopup
             ? await estimateHlsStreamSizes(masterM3U8Data)
             : filterM3u8(masterM3U8Data);
 

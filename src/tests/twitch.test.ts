@@ -18,7 +18,7 @@ describe("getTwitchClientId", () => {
         const clientId = await getTwitchClientId({
             channelName,
             type: "twitchLive",
-            fromPopup: true,
+            isFromPopup: true,
         });
         expect(clientId).toBe("kimne78kx3ncx6brgo4mv6wki5et0ko");
     });
@@ -49,7 +49,7 @@ describe("getTwitchToken", () => {
         const token = await getTwitchToken({
             type: "twitchLive",
             channelName: "hivise",
-            fromPopup: true,
+            isFromPopup: true,
         });
 
         expect(token).toEqual({
@@ -145,7 +145,7 @@ describe("getTwitchMasterM3u8", () => {
 
         const data = await getTwitchMasterM3u8(
             { value: '{"token":"live"}', signature: "live-signature" },
-            { type: "twitchLive", channelName: "hivise", fromPopup: true },
+            { type: "twitchLive", channelName: "hivise", isFromPopup: true },
         );
 
         expect(data).toHaveLength(1);

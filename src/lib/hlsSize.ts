@@ -30,7 +30,7 @@ async function fetchActualSegments(
 
                 const fullSize =
                     res.status === 206
-                        ? res.headers.get("content-range")?.split("/")[1]
+                        ? res.headers.get("content-range")?.split("/", 2)[1]
                         : res.headers.get("content-length");
                 return {
                     duration: segment.duration,
@@ -66,7 +66,7 @@ export async function estimateHlsStreamSizes(
     }
 
     const streamResults = await Promise.allSettled(
-        [...mediaUrlByHeight.entries()].map(async ([height, url]) => {
+        [...mediaUrlByHeight].map(async ([height, url]) => {
             const resolution = Number(height);
 
             const manifest = await fetchMediaM3u8(url);
@@ -91,7 +91,7 @@ export async function estimateHlsStreamSizes(
 
                 if (!fullSize || fullSize === "*" || fullSize === "0") continue;
 
-                const size = Number.parseInt(fullSize, 10);
+                const size = Number(fullSize);
                 if (!Number.isFinite(size)) continue;
 
                 if (duration > 0) {

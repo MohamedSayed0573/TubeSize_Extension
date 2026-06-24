@@ -13,7 +13,7 @@ export default function ToasterSettings() {
 
     const [toasterEnabled, setToasterEnabled] = useState<boolean>(CONFIG.DEFAULT_TOASTER_ENABLED);
     useEffect(() => {
-        (async () => {
+        void (async () => {
             const toasterThreshold =
                 (await getFromSyncCache("toasterThreshold")) ?? CONFIG.DEFAULT_TOASTER_THRESHOLD;
             const toasterThresholdUnit =
@@ -26,17 +26,17 @@ export default function ToasterSettings() {
                 setToasterThreshold(toasterThreshold);
             }
             setThresholdUnit(toasterThresholdUnit);
-        })().catch(() => {});
+        })();
     }, []);
 
     useEffect(() => {
-        (async () => {
-            const toasterEnabled =
+        void (async () => {
+            const isToasterEnabled =
                 (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
-            if (typeof toasterEnabled === "boolean") {
-                setToasterEnabled(toasterEnabled);
+            if (typeof isToasterEnabled === "boolean") {
+                setToasterEnabled(isToasterEnabled);
             }
-        })().catch(() => {});
+        })();
     }, []);
 
     return (
@@ -92,7 +92,7 @@ export default function ToasterSettings() {
                             id="toasterThreshold"
                             value={toasterThreshold}
                             onChange={(event) => {
-                                const value = Number.parseInt(event.target.value, 10);
+                                const value = Number(event.target.value);
                                 if (value < 1 || value > 10_000 || Number.isNaN(value)) return;
                                 void setToSyncCache({
                                     toasterThreshold: value,

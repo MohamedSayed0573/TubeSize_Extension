@@ -102,7 +102,7 @@ function getFormatSizeBytes(
     if (isLive) {
         return format.bitrate ? (format.bitrate * 3600) / 8 : 0;
     }
-    return Number.parseInt(format.contentLength || "0", 10);
+    return Number(format.contentLength || "0");
 }
 
 // Order of each key is important. It's the same order the user sees.
@@ -116,7 +116,6 @@ function chooseVideoFormats(data: ytInitialPlayerResponse): RawFormat["formats"]
     for (const [resolution, itags] of CONFIG.VIDEO_ITAGS) {
         const matchingFormats = itags
             .map((itag) => adaptiveFormats.find((format) => format.itag === itag))
-            // eslint-disable-next-line unicorn/prefer-native-coercion-functions
             .filter((format): format is NonNullable<typeof format> => Boolean(format))
             .filter((format) => {
                 return getFormatSizeBytes(format, isLive) > 0;
@@ -166,7 +165,7 @@ function chooseAudioFormats(data: ytInitialPlayerResponse) {
         .map((format) => {
             return {
                 formatId: format.itag,
-                sizeBytes: Number.parseInt(format.contentLength || "0", 10),
+                sizeBytes: Number(format.contentLength || "0"),
             };
         });
 }
@@ -179,7 +178,7 @@ export function parseDataFromYtInitial(data: ytInitialPlayerResponse): RawFormat
     return {
         id: data.videoDetails.videoId,
         title: data.videoDetails.title,
-        durationSeconds: Number.parseInt(data.videoDetails.lengthSeconds || "0", 10),
+        durationSeconds: Number(data.videoDetails.lengthSeconds || "0"),
         formats: chooseVideoFormats(data),
         audioFormats: chooseAudioFormats(data),
         isLive: data.videoDetails.isLive || false,

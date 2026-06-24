@@ -1,3 +1,5 @@
+/* eslint-disable unicorn/max-nested-calls */
+
 import { z } from "zod";
 
 export const ytInitialSchema = z.object({

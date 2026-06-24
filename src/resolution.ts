@@ -1,3 +1,5 @@
+/* eslint-disable unicorn/no-top-level-assignment-in-function */
+
 import { showTwitchToast, showYoutubeToast } from "@pages/toaster";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/types";
 import CONFIG from "@lib/constants";
@@ -31,7 +33,6 @@ export async function getCurrentResolution() {
 
         const timeout = setTimeout(() => {
             observer.disconnect();
-            // eslint-disable-next-line unicorn/no-useless-undefined
             return resolve(undefined);
         }, 10_000);
     });
@@ -40,7 +41,7 @@ export async function getCurrentResolution() {
 let currentQuality: number | undefined;
 
 let videoResizeListener: (() => void) | undefined;
-let currentVideoElement: HTMLVideoElement | undefined;
+let isCurrentVideoElement: HTMLVideoElement | undefined;
 
 /**
  * Starts polling for resolution changes and shows toasts for YouTube videos.
@@ -52,17 +53,17 @@ export async function startYoutubeToastTracking(youtubeResponse: YoutubeData) {
     const toasterThresholdMbpm = await getToasterThresholdMbPm();
     const video = document.querySelector("video");
     if (videoResizeListener) {
-        currentVideoElement?.removeEventListener("resize", videoResizeListener);
+        isCurrentVideoElement?.removeEventListener("resize", videoResizeListener);
     }
-    currentVideoElement = video ?? undefined;
+    isCurrentVideoElement = video ?? undefined;
     videoResizeListener = () => {
-        const resolution = currentVideoElement?.videoHeight;
+        const resolution = isCurrentVideoElement?.videoHeight;
         if (!resolution || resolution === currentQuality) return;
         currentQuality = resolution;
         showYoutubeToast(resolution, youtubeResponse, toasterThresholdMbpm);
     };
     videoResizeListener();
-    currentVideoElement?.addEventListener("resize", videoResizeListener);
+    isCurrentVideoElement?.addEventListener("resize", videoResizeListener);
 }
 
 async function getToasterThreshold() {
@@ -97,11 +98,11 @@ export async function startToastTwitchPolling(twitchData: TwitchData) {
 
     const video = document.querySelector("video");
     if (videoResizeListener) {
-        currentVideoElement?.removeEventListener("resize", videoResizeListener);
+        isCurrentVideoElement?.removeEventListener("resize", videoResizeListener);
     }
-    currentVideoElement = video ?? undefined;
+    isCurrentVideoElement = video ?? undefined;
     videoResizeListener = () => {
-        const resolution = currentVideoElement?.videoHeight;
+        const resolution = isCurrentVideoElement?.videoHeight;
         if (!resolution || resolution === currentQuality) return;
         currentQuality = resolution;
         showTwitchToast(
@@ -112,7 +113,7 @@ export async function startToastTwitchPolling(twitchData: TwitchData) {
         );
     };
     videoResizeListener();
-    currentVideoElement?.addEventListener("resize", videoResizeListener);
+    isCurrentVideoElement?.addEventListener("resize", videoResizeListener);
 }
 
 export async function startToastKickPolling(kickData: KickData) {
@@ -120,24 +121,24 @@ export async function startToastKickPolling(kickData: KickData) {
     const toasterThresholdMbpm = await getToasterThresholdMbPm();
     const video = document.querySelector("video");
     if (videoResizeListener) {
-        currentVideoElement?.removeEventListener("resize", videoResizeListener);
+        isCurrentVideoElement?.removeEventListener("resize", videoResizeListener);
     }
-    currentVideoElement = video ?? undefined;
+    isCurrentVideoElement = video ?? undefined;
     videoResizeListener = () => {
-        const resolution = currentVideoElement?.videoHeight;
+        const resolution = isCurrentVideoElement?.videoHeight;
         if (!resolution || resolution === currentQuality) return;
         currentQuality = resolution;
         showTwitchToast(resolution, kickData.data, toasterThresholdMbpm);
     };
     videoResizeListener();
-    currentVideoElement?.addEventListener("resize", videoResizeListener);
+    isCurrentVideoElement?.addEventListener("resize", videoResizeListener);
 }
 
 export function stopResolutionTracking() {
     if (videoResizeListener) {
-        currentVideoElement?.removeEventListener("resize", videoResizeListener);
+        isCurrentVideoElement?.removeEventListener("resize", videoResizeListener);
     }
     currentQuality = undefined;
-    currentVideoElement = undefined;
+    isCurrentVideoElement = undefined;
     videoResizeListener = undefined;
 }

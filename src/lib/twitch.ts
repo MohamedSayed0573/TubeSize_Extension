@@ -121,7 +121,7 @@ export async function getTwitchLiveResponse(
 ) {
     const twitchToken = await getTwitchToken(message);
     const masterM3u8 = await getTwitchMasterM3u8(twitchToken, message);
-    const twitchData = message.fromPopup
+    const twitchData = message.isFromPopup
         ? await estimateHlsStreamSizes(masterM3u8)
         : filterM3u8(masterM3u8);
 

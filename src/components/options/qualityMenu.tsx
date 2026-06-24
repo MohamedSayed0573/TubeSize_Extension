@@ -9,10 +9,10 @@ export default function QualityMenu() {
 
     useEffect(() => {
         void (async () => {
-            const qualityMenu =
+            const isQualityMenuEnabled =
                 (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
-            if (typeof qualityMenu === "boolean") {
-                setQualityMenuEnabled(qualityMenu);
+            if (typeof isQualityMenuEnabled === "boolean") {
+                setQualityMenuEnabled(isQualityMenuEnabled);
             }
         })();
     }, []);

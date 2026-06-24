@@ -11,11 +11,11 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
-    state: State = { error: undefined };
-
     static getDerivedStateFromError(error: Error): State {
         return { error };
     }
+
+    state: State = { error: undefined };
 
     componentDidCatch(error: Error, info: React.ErrorInfo) {
         console.error("[ErrorBoundary]:", error, info.componentStack);

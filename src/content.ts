@@ -26,7 +26,7 @@ import type { KickBackgroundResponse } from "@app-types/types";
 import { waitForElement } from "@lib/dom";
 
 function getCurrentUrl() {
-    return globalThis.location.href;
+    return location.href;
 }
 
 async function handlePageNavigation() {
@@ -47,32 +47,33 @@ async function handlePageNavigation() {
             if (!tag) return;
 
             const youtubeResponse = await initYoutube(tag);
-            const qualityMenuEnabled =
+            const isQualityMenuEnabled =
                 (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
-            if (qualityMenuEnabled) {
+            if (isQualityMenuEnabled) {
                 await injectQualityMenu(youtubeResponse);
             }
 
-            const toasterEnabled = await isToasterEnabled();
-            if (toasterEnabled) {
+            const isToasterEnable = await isToasterEnabled();
+            if (isToasterEnable) {
                 await startYoutubeToastTracking(youtubeResponse);
             }
         } else if (isTwitchPage(url)) {
             const isLive = !isTwitchVod(url);
+            // eslint-disable-next-line unicorn/prefer-minimal-ternary
             const tag = isLive ? extractChannelName(url) : extractTwitchVodId(url);
 
             stopResolutionTracking();
             if (!tag) return;
 
             const twitchResponse = await initTwitch(tag, isLive);
-            const toasterEnabled = await isToasterEnabled();
-            if (toasterEnabled) {
+            const isToasterEnable = await isToasterEnabled();
+            if (isToasterEnable) {
                 await startToastTwitchPolling(twitchResponse);
             }
         } else if (isKickPage(url)) {
             stopResolutionTracking();
-            const toasterEnabled = await isToasterEnabled();
-            if (toasterEnabled) {
+            const isToasterEnable = await isToasterEnabled();
+            if (isToasterEnable) {
                 const kickData = await initKick(false);
                 if (!kickData.success) {
                     throw new Error(kickData.message || "Failed to initialize Kick data");
@@ -86,7 +87,7 @@ async function handlePageNavigation() {
 }
 
 if (isYoutubePage(getCurrentUrl())) {
-    globalThis.addEventListener("yt-navigate-finish", () => {
+    addEventListener("yt-navigate-finish", () => {
         void handlePageNavigation();
     });
 }
@@ -159,7 +160,7 @@ async function initTwitch(tag: string, isLive: boolean) {
         ? await sendMessageToBackground({
               type: "twitchLive",
               channelName: tag,
-              fromPopup: false,
+              isFromPopup: false,
           })
         : await sendMessageToBackground({
               type: "twitchVod",
@@ -171,16 +172,17 @@ async function initTwitch(tag: string, isLive: boolean) {
     return twitchData.data;
 }
 
-async function initKick(fromPopup: boolean): Promise<KickBackgroundResponse> {
+async function initKick(isFromPopup: boolean): Promise<KickBackgroundResponse> {
     try {
         const url = getCurrentUrl();
-        const isLive = !isKickVod(url);
         const channelName = extractChannelName(url);
-        const videoId = extractKickVodId(url);
 
         if (!channelName) {
             throw new Error("Failed to extract Kick channel name from URL");
         }
+
+        const isLive = !isKickVod(url);
+        const videoId = extractKickVodId(url);
 
         if (!isLive && videoId) {
             const cached = await getFromStorage("kick", videoId);
@@ -203,13 +205,13 @@ async function initKick(fromPopup: boolean): Promise<KickBackgroundResponse> {
             ? await sendMessageToBackground({
                   type: "kickLive",
                   streamId,
-                  fromPopup,
+                  isFromPopup,
               })
             : await sendMessageToBackground({
                   type: "kickVod",
                   streamId,
                   vodId: videoId!,
-                  fromPopup,
+                  isFromPopup,
               });
 
         if (!kickData.success) {

@@ -39,7 +39,7 @@ export default function CacheSettings() {
                     onChange={(event) => {
                         const days = event.target.value;
                         const ttlInSeconds = convertDaysToSeconds(days);
-                        setToSyncCache({
+                        void setToSyncCache({
                             cacheTTL: ttlInSeconds,
                         }).catch(() => {});
                         setOptionsState((prev) => ({
@@ -59,7 +59,7 @@ export default function CacheSettings() {
                 disabled={disableClearCache}
                 onClick={() => {
                     setDisableClearCache(true);
-                    clearLocalCache()
+                    void clearLocalCache()
                         .then(() => {
                             setClearCache("success");
                             setTimeout(() => {

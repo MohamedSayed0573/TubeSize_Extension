@@ -41,7 +41,7 @@ export async function sendMessageToBackground<T extends FrontEndMessage>(
 
 type ContentScriptMessage =
     | { type: "getCurrentResolution" }
-    | { type: "getKick"; fromPopup?: boolean };
+    | { type: "getKick"; isFromPopup?: boolean };
 type ContentScriptResponseMap = {
     getCurrentResolution: number | undefined;
     getKick: KickBackgroundResponse | undefined;
@@ -56,7 +56,6 @@ export async function sendMessageToContentScript<T extends ContentScriptMessage>
                 const errorMessage = chrome.runtime.lastError.message || "";
 
                 if (errorMessage.includes("Receiving end does not exist")) {
-                    // eslint-disable-next-line unicorn/no-useless-undefined
                     resolve(undefined);
                     return;
                 }

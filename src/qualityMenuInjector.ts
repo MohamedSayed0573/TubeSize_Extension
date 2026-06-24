@@ -1,3 +1,5 @@
+/* eslint-disable unicorn/no-top-level-assignment-in-function */
+
 import type { YoutubeData } from "@app-types/types";
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { waitForElement } from "@lib/dom";
@@ -33,7 +35,7 @@ const settingsBtnHandler = () => {
     if (videoEl && videoEl.paused) {
         void videoEl.play();
     }
-    settingsBtnClickListener().catch((err) => {
+    void settingsBtnClickListener().catch((err) => {
         console.error("Error in settings button click handler:", err);
     });
 };
@@ -43,17 +45,17 @@ const qualityBtnHandler = () => {
     if (videoEl && videoEl.paused) {
         void videoEl.play();
     }
-    renderQualityLabels().catch((err) => {
+    void renderQualityLabels().catch((err) => {
         console.error("Error in quality button click handler:", err);
     });
 };
 
-let currentYoutubeData: YoutubeData | undefined;
+let isCurrentYoutubeData: YoutubeData | undefined;
 
 export async function injectQualityMenu(youtubeData: YoutubeData) {
     try {
         removeEventListeners();
-        currentYoutubeData = youtubeData;
+        isCurrentYoutubeData = youtubeData;
         settingsBtnEl = await waitForElement(SETTINGS_BTN_SELECTOR);
         if (!settingsBtnEl) return;
 
@@ -78,12 +80,13 @@ async function settingsBtnClickListener() {
 
 function createQualitySizeLookup() {
     const lookup = new Map<number, string>();
-    if (currentYoutubeData?.type === "video") {
-        for (const format of currentYoutubeData.formats) {
+    if (isCurrentYoutubeData?.type === "video") {
+        for (const format of isCurrentYoutubeData.formats) {
             lookup.set(format.height, totalSizeVideoDisplay(format.sizeBytes));
         }
     } else {
-        for (const format of currentYoutubeData?.formats ?? []) {
+        const formats = isCurrentYoutubeData?.formats ?? [];
+        for (const format of formats) {
             lookup.set(format.resolution, perHourDisplay(format.sizePerSecondBytes));
         }
     }
@@ -123,7 +126,7 @@ async function renderQualityLabels() {
             continue;
 
         const newDiv = document.createElement("div");
-        const size = lookup.get(Number.parseInt(qualityText, 10));
+        const size = lookup.get(Number(qualityText));
         if (!size) continue;
         newDiv.textContent = size;
         newDiv.className = TUBESIZE_QUALITY_MENU_CLASS;

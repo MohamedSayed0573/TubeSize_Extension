@@ -107,24 +107,23 @@ async function handleYoutube(
                 success: true,
                 data,
             });
-        } else {
-            const rawFormats = parseDataFromYtInitial(rawData);
-            const videoFormats = parseVideoFormats(rawFormats);
-            const youtubeData: YoutubeVideoData = {
-                formats: videoFormats.toSorted((a, b) => b.height - a.height),
-                type: "video" as const,
-                durationSeconds: Number(rawData.videoDetails.lengthSeconds),
-                title: rawData.videoDetails.title,
-                id: rawData.videoDetails.videoId,
-                thumbnailUrl: getThumbnailUrl(rawData),
-                channelName: rawData.videoDetails.author,
-            };
-            await saveToStorage(videoTag, youtubeData, "youtube");
-            return sendResponse({
-                success: true,
-                data: youtubeData,
-            });
         }
+        const rawFormats = parseDataFromYtInitial(rawData);
+        const videoFormats = parseVideoFormats(rawFormats);
+        const youtubeData: YoutubeVideoData = {
+            formats: videoFormats.toSorted((a, b) => b.height - a.height),
+            type: "video" as const,
+            durationSeconds: Number(rawData.videoDetails.lengthSeconds),
+            title: rawData.videoDetails.title,
+            id: rawData.videoDetails.videoId,
+            thumbnailUrl: getThumbnailUrl(rawData),
+            channelName: rawData.videoDetails.author,
+        };
+        await saveToStorage(videoTag, youtubeData, "youtube");
+        return sendResponse({
+            success: true,
+            data: youtubeData,
+        });
     } catch (err) {
         return sendResponse({
             success: false,
@@ -167,13 +166,17 @@ async function handleKick(
 }
 
 chrome.runtime.onInstalled.addListener((details) => {
-    if (details.reason === "install" || details.reason === "update") {
-        clearMediaCache()
-            .then(async () => await clearSyncCache())
-            .catch((err) => {
-                console.error("Failed to clear cache on install/update", err);
-            });
+    if (details.reason !== "install" && details.reason !== "update") {
+        return;
     }
+
+    void clearMediaCache().catch((err) => {
+        console.error("Failed to clear media cache", err);
+    });
+
+    void clearSyncCache().catch((err) => {
+        console.error("Failed to clear sync cache", err);
+    });
 });
 
 function handleRemoveBadge(

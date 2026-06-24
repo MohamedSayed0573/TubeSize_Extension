@@ -39,7 +39,7 @@ export function UsageDetails() {
         <div className="flex h-screen w-full flex-col">
             <AnalyticsHeader
                 numVideosWatched={getNumVideosWatched({ [date]: todayUsage ?? {} })}
-                title={`${formatDate(date)}`}
+                title={formatDate(date)}
                 totalDataUsage={formatBytes(getTodayTotalUsage(todayUsage ?? {}))}
                 key={date}
             />

@@ -30,21 +30,21 @@ export default function OptionItem({
 
 async function handleOptionChange(
     option: string,
-    checked: boolean,
+    isChecked: boolean,
     optionsState: OptionsMap,
     setOptionsState: (optionsState: OptionsMap) => void,
 ) {
     await setToSyncCache({
         qualityIds: {
             ...optionsState["qualityIds"],
-            [option]: checked,
+            [option]: isChecked,
         },
     });
     setOptionsState({
         ...optionsState,
         qualityIds: {
             ...optionsState["qualityIds"],
-            [option]: checked,
+            [option]: isChecked,
         },
     });
 }

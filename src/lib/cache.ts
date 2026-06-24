@@ -25,6 +25,8 @@ async function getFromCache<T>(storage: "local" | "sync", key?: string | string[
     // If key is a single string/number, return just that value
     // If key is an array, return the object with all requested keys
     const data = await chrome.storage[storage].get(key);
+
+    //eslint-disable-next-line unicorn/no-unsafe-property-key
     return (Array.isArray(key) ? data : data[key]) as T;
 }
 export async function getFromLocalCache(key?: string | string[]) {

@@ -25,7 +25,7 @@ export function updateBadge(usageByDay: UsageByDay, date: string) {
 
 export function badgeFormatter(bytes: number) {
     if (bytes < 1024) return `${bytes}B`;
-    else if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}K`;
-    else if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)}M`;
-    else return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)}G`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}K`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)}M`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)}G`;
 }

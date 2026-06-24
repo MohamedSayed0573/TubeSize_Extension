@@ -7,14 +7,16 @@ export default function useTab() {
     const [error, setError] = useState<Error | undefined>();
 
     useEffect(() => {
-        (async () => {
-            const activeTab = await getTab();
-            setTabId(activeTab?.id);
-            setTabUrl(activeTab?.url);
-        })().catch((err) => {
-            console.error("Failed to get active tab:", err);
-            setError(new Error("Failed to get active tab"));
-        });
+        void (async () => {
+            try {
+                const activeTab = await getTab();
+                setTabId(activeTab?.id);
+                setTabUrl(activeTab?.url);
+            } catch (err) {
+                console.error("Failed to get active tab:", err);
+                setError(new Error("Failed to get active tab"));
+            }
+        })();
     }, []);
 
     return { tabId, tabUrl, error };

@@ -14,7 +14,7 @@ export default defineConfig([
         files: ["**/*.{ts,tsx}"],
         extends: [
             js.configs.recommended,
-            tseslint.configs.recommended,
+            tseslint.configs.recommendedTypeChecked,
             react.configs.flat.recommended,
             react.configs.flat["jsx-runtime"],
             reactHooks.configs.flat.recommended,
@@ -58,6 +58,8 @@ export default defineConfig([
             "@typescript-eslint/promise-function-async": "error",
             "unicorn/no-nested-ternary": "off",
             "@typescript-eslint/no-unnecessary-type-assertion": "off",
+            "unicorn/name-replacements": "off",
+            "unicorn/no-computed-property-existence-check": "off",
         },
     },
     {

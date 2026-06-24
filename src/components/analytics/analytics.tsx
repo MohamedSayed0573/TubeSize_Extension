@@ -45,7 +45,7 @@ function thisMonthUsage(usageByDay: UsageByDay) {
 
     let usage = 0;
     for (const day of dateSet) {
-        if (usageByDay[day]) {
+        if (Object.hasOwn(usageByDay, day)) {
             for (const videoTag in usageByDay[day]) {
                 const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
                 usage += videoUsage.usage;

@@ -24,6 +24,7 @@ export function isTwitchPage(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         const isTwitchHost =
+            // eslint-disable-next-line unicorn/prefer-includes-over-repeated-comparisons
             parsedUrl.hostname === "www.twitch.tv" ||
             parsedUrl.hostname === "twitch.tv" ||
             parsedUrl.hostname === "www.twitch.com" ||
@@ -40,9 +41,7 @@ export function isTwitchPage(url: string): boolean {
         if (pathSegments.length === 1) return true;
 
         // Check for VOD URL (e.g., twitch.tv/videos/vodId)
-        if (pathSegments.length === 2 && pathSegments[0] === "videos") return true;
-
-        return false;
+        return pathSegments.length === 2 && pathSegments[0] === "videos";
     } catch {
         return false;
     }
@@ -131,7 +130,7 @@ export function extractTwitchVodId(url: string): string | undefined {
 export function extractChannelName(url: string): string | undefined {
     try {
         const parsedUrl = new URL(url);
-        return parsedUrl.pathname.split("/")[1] || undefined;
+        return parsedUrl.pathname.split("/", 2)[1] || undefined;
     } catch (err) {
         console.error(err);
         return;
@@ -145,7 +144,7 @@ export function extractVideoTag(ytUrl: string): string | undefined {
         const videoTag =
             parsedUrl.pathname === "/watch"
                 ? parsedUrl.searchParams.get("v")
-                : parsedUrl.pathname.split("/")[2];
+                : parsedUrl.pathname.split("/", 3)[2];
 
         if (!videoTag || !CONFIG.VIDEO_ID_REGEX.test(videoTag)) {
             return;
@@ -186,7 +185,7 @@ export async function fetchAndRetry(
                 return { success: false, error: new Error("Request aborted") };
             }
             // Skip the timeout if the last attempt
-            if (maxRetries - attempt > 0) {
+            if (maxRetries > attempt) {
                 // Exponential backoff before retry
                 await delay(Math.pow(2, attempt) * 1000);
             }
