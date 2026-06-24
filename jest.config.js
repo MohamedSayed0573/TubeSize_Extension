@@ -9,7 +9,7 @@ export default {
             {
                 useESM: true,
                 tsconfig: {
-                    target: "ES2022",
+                    target: "ES2023",
                     module: "ESNext",
                     moduleResolution: "bundler",
                     allowImportingTsExtensions: true,

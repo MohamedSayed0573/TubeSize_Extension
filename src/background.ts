@@ -21,7 +21,7 @@ import {
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
 import { isYoutubePage } from "@lib/utils";
-import { getTotalUsageForDate, getUsageByDay, utcDateKey } from "@lib/analyticsUtils";
+import { getTotalUsageForDate, getUsageByDay, getDateKey } from "@lib/analyticsUtils";
 
 chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
     void handleMessage(message, sender, sendResponse);
@@ -97,7 +97,7 @@ async function handleYoutube(
 
             const data: YoutubeData = {
                 channelName: rawData.videoDetails.author,
-                formats: youtubeData.sort((a, b) => b.resolution - a.resolution),
+                formats: youtubeData.toSorted((a, b) => b.resolution - a.resolution),
                 type: "live",
                 thumbnailUrl,
             };
@@ -111,7 +111,7 @@ async function handleYoutube(
             const rawFormats = parseDataFromYtInitial(rawData);
             const videoFormats = parseVideoFormats(rawFormats);
             const youtubeData: YoutubeVideoData = {
-                formats: videoFormats.sort((a, b) => b.height - a.height),
+                formats: videoFormats.toSorted((a, b) => b.height - a.height),
                 type: "video" as const,
                 durationSeconds: Number(rawData.videoDetails.lengthSeconds),
                 title: rawData.videoDetails.title,
@@ -211,7 +211,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 async function showBadge(tabId: number) {
-    const date = utcDateKey(new Date());
+    const date = getDateKey(new Date());
     const usageByDay = await getUsageByDay();
     const total = getTotalUsageForDate(usageByDay, date);
 

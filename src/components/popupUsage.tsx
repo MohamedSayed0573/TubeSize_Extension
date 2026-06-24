@@ -1,11 +1,11 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { useEffect, useState } from "react";
-import { getTotalUsageForDate, getUsageByDay, utcDateKey } from "@lib/analyticsUtils";
+import { getTotalUsageForDate, getUsageByDay, getDateKey } from "@lib/analyticsUtils";
 
 async function getTodaysTotalUsage(tabId: number | undefined) {
     if (!tabId) return;
     const usageByDay = await getUsageByDay();
-    const date = utcDateKey(new Date());
+    const date = getDateKey(new Date());
 
     const total = getTotalUsageForDate(usageByDay, date);
     return total;
@@ -33,12 +33,13 @@ export default function PopupUsage({ tabId }: { tabId: number | undefined }) {
     return (
         <>
             {todayUsage !== undefined && (
-                <div className="today-usage">
-                    <button onClick={() => void chrome.tabs.create({ url: "#/today" })}>
+                <div>
+                    <button
+                        className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-white/12 bg-white/3 px-3 py-2 text-xs font-medium text-zinc-400 hover:bg-white/6"
+                        onClick={() => void chrome.tabs.create({ url: "#/today" })}
+                    >
                         <span>{"YouTube Usage Today: "}</span>
-                        <span className="today-usage-value">
-                            {totalSizeVideoDisplay(todayUsage)}
-                        </span>
+                        <span className="text-zinc-400">{totalSizeVideoDisplay(todayUsage)}</span>
                     </button>
                 </div>
             )}

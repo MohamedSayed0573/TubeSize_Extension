@@ -1,4 +1,3 @@
-import "@styles/panel.css";
 import type { YoutubeData } from "@app-types/types";
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { waitForElement } from "@lib/dom";
@@ -128,6 +127,13 @@ async function renderQualityLabels() {
         if (!size) continue;
         newDiv.textContent = size;
         newDiv.className = TUBESIZE_QUALITY_MENU_CLASS;
+        newDiv.style.cssText = `
+            font-size: 13px;
+            color: #38bdf8;
+            font-weight: 500;
+            margin-left: 6px;
+            opacity: 0.9;
+        `;
 
         innerDiv.append(newDiv);
     }

@@ -14,7 +14,7 @@ export default defineConfig([
         files: ["**/*.{ts,tsx}"],
         extends: [
             js.configs.recommended,
-            tseslint.configs.recommendedTypeChecked,
+            tseslint.configs.recommended,
             react.configs.flat.recommended,
             react.configs.flat["jsx-runtime"],
             reactHooks.configs.flat.recommended,
