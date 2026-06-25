@@ -12,6 +12,7 @@ import {
 } from "@lib/analyticsUtils";
 import { Link } from "react-router";
 import StatsCard from "./statsCard";
+import PageLayout from "./pageLayout";
 
 function todayUsage(usageByDay: UsageByDay) {
     const date = getDateKey(new Date());
@@ -182,13 +183,13 @@ export default function Analytics() {
     }, []);
 
     return (
-        <div className="flex h-screen w-full flex-col">
+        <PageLayout>
             <AnalyticsHeader />
             <div className="flex flex-1 flex-col bg-neutral-950/70 px-8 pt-1 pb-3.5">
                 <StatsRow usage={usage} />
                 <UsageChartSection usage={usage} errorMessage={errorMessage} />
                 <ClearUsageButton setUsage={setUsage} />
             </div>
-        </div>
+        </PageLayout>
     );
 }

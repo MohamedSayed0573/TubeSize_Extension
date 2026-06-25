@@ -9,6 +9,7 @@ import {
 import { useEffect, useState } from "react";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
+import PageLayout from "./pageLayout";
 
 function getMonthTotalUsage(monthUsage: UsageByDay) {
     let total = 0;
@@ -53,14 +54,14 @@ export default function MonthUsage() {
 
     return (
         <>
-            <div className="flex h-screen w-full flex-col">
+            <PageLayout>
                 <AnalyticsHeader
                     title={formatDate(getLast30Days())}
                     totalDataUsage={formatBytes(getMonthTotalUsage(monthUsage))}
                     numVideosWatched={getNumVideosWatched(monthUsage)}
                 />
                 <AnalyticsBody usage={monthUsage} />
-            </div>
+            </PageLayout>
         </>
     );
 }

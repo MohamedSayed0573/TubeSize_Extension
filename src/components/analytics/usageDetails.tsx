@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
+import PageLayout from "./pageLayout";
 
 function getTodayTotalUsage(usage: Record<string, { usage: number }>) {
     let total = 0;
@@ -36,7 +37,7 @@ export function UsageDetails() {
     }, [date]);
     if (!date) return;
     return (
-        <div className="flex h-screen w-full flex-col">
+        <PageLayout>
             <AnalyticsHeader
                 numVideosWatched={getNumVideosWatched({ [date]: todayUsage ?? {} })}
                 title={formatDate(date)}
@@ -44,6 +45,6 @@ export function UsageDetails() {
                 key={date}
             />
             <AnalyticsBody usage={{ [date]: todayUsage ?? {} }} />
-        </div>
+        </PageLayout>
     );
 }

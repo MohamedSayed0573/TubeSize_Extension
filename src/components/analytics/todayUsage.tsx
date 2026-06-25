@@ -8,6 +8,7 @@ import {
 import { useEffect, useState } from "react";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
+import PageLayout from "./pageLayout";
 
 function getTodayTotalUsage(todayUsage: UsageByVideo) {
     let total = 0;
@@ -37,14 +38,14 @@ export default function TodayUsage() {
 
     return (
         <>
-            <div className="flex h-full min-h-screen w-full flex-col">
+            <PageLayout>
                 <AnalyticsHeader
                     title={formatDate(today)}
                     totalDataUsage={formatBytes(getTodayTotalUsage(todayUsage))}
                     numVideosWatched={getNumVideosWatched({ [today]: todayUsage })}
                 />
                 <AnalyticsBody usage={{ [today]: todayUsage }} />
-            </div>
+            </PageLayout>
         </>
     );
 }

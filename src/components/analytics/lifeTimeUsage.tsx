@@ -7,6 +7,7 @@ import {
 import { useEffect, useState } from "react";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
+import PageLayout from "./pageLayout";
 
 function getLifeTimeDateRange(usageByDay: UsageByDay) {
     const dates = Object.keys(usageByDay);
@@ -43,14 +44,14 @@ export default function LifetimeUsage() {
 
     return (
         <>
-            <div className="flex h-screen w-full flex-col">
+            <PageLayout>
                 <AnalyticsHeader
                     title={getLifeTimeDateRange(lifeTimeUsage)}
                     totalDataUsage={formatBytes(getTotalUsage(lifeTimeUsage))}
                     numVideosWatched={getNumVideosWatched(lifeTimeUsage)}
                 />
                 <AnalyticsBody usage={lifeTimeUsage} />
-            </div>
+            </PageLayout>
         </>
     );
 }

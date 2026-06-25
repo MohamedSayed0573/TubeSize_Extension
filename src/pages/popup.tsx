@@ -19,7 +19,7 @@ import TwitchFormats from "@components/twitchFormats";
 import KickFormats from "@components/kickFormats";
 import type { PopupData } from "@app-types/uiTypes";
 import PopupUsage from "@/components/popupUsage";
-import InfoCard from "@/components/info";
+import InfoCard from "@/components/infoCard";
 
 export default function Popup() {
     const [message, setMessage] = useState<string>("");
