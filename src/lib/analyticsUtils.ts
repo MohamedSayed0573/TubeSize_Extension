@@ -12,14 +12,15 @@ export type UsageByDay = {
     };
 };
 
-export type UsageByVideo = {
-    [videoId: string]: {
-        usage: number;
-        title: string | undefined;
-        thumbnailUrl: string | undefined;
-        channelName: string | undefined;
-    };
-};
+// export type UsageByVideo = {
+//     [videoId: string]: {
+//         usage: number;
+//         title: string | undefined;
+//         thumbnailUrl: string | undefined;
+//         channelName: string | undefined;
+//     };
+// };
+
 export async function getUsageByDay(): Promise<UsageByDay> {
     return ((await getFromLocalCache("usageByDay")) ?? {}) as UsageByDay;
 }

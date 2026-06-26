@@ -1,4 +1,9 @@
-import { formatBytes, getNumVideosWatched, getDateKey, getTotalUsage } from "@lib/analyticsUtils";
+import {
+    formatBytes,
+    getNumVideosWatched,
+    getDateKey,
+    getTotalUsageForDate,
+} from "@lib/analyticsUtils";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
 import PageLayout from "./pageLayout";
@@ -14,17 +19,17 @@ export default function TodayUsage() {
     const { usage, error } = useUsage();
     const today = getDateKey(new Date());
 
-    const todayData = usage[today] ?? {};
+    const todayUsage = usage[today] ?? {};
 
     return (
         <>
             <PageLayout>
                 <AnalyticsHeader
                     title={formatDate(today)}
-                    totalDataUsage={formatBytes(getTotalUsage({ [today]: todayData }))}
-                    numVideosWatched={getNumVideosWatched({ [today]: todayData })}
+                    totalDataUsage={formatBytes(getTotalUsageForDate(usage, today))}
+                    numVideosWatched={getNumVideosWatched({ [today]: todayUsage })}
                 />
-                <AnalyticsBody usage={{ [today]: todayData }} error={error} />
+                <AnalyticsBody usage={{ [today]: todayUsage }} error={error} />
             </PageLayout>
         </>
     );
