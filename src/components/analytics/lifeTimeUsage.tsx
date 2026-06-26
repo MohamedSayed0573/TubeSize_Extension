@@ -1,12 +1,13 @@
 import {
     formatBytes,
     getNumVideosWatched,
-    getUsageByDay,
+    getTotalUsage,
     type UsageByDay,
 } from "@lib/analyticsUtils";
-import { useEffect, useState } from "react";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
+import PageLayout from "./pageLayout";
+import useUsage from "@/hooks/useUsage";
 
 function getLifeTimeDateRange(usageByDay: UsageByDay) {
     const dates = Object.keys(usageByDay);
@@ -20,37 +21,19 @@ function getLifeTimeDateRange(usageByDay: UsageByDay) {
     return `${startDate.toDateString().split(" ").slice(1).join(" ")} -> ${endDate.toDateString().split(" ").slice(1).join(" ")}`;
 }
 
-function getTotalUsage(lifeTimeUsage: UsageByDay) {
-    let total = 0;
-    for (const day in lifeTimeUsage) {
-        for (const videoTag in lifeTimeUsage[day]) {
-            const videoUsage = lifeTimeUsage[day][videoTag] ?? { usage: 0 };
-            total += videoUsage.usage;
-        }
-    }
-    return total;
-}
-
 export default function LifetimeUsage() {
-    const [lifeTimeUsage, setLifeTimeUsage] = useState<UsageByDay>({});
-
-    useEffect(() => {
-        void (async () => {
-            const usage = await getUsageByDay();
-            setLifeTimeUsage(usage);
-        })();
-    }, []);
+    const { usage, error } = useUsage();
 
     return (
         <>
-            <div className="flex h-screen w-full flex-col">
+            <PageLayout>
                 <AnalyticsHeader
-                    title={getLifeTimeDateRange(lifeTimeUsage)}
-                    totalDataUsage={formatBytes(getTotalUsage(lifeTimeUsage))}
-                    numVideosWatched={getNumVideosWatched(lifeTimeUsage)}
+                    title={getLifeTimeDateRange(usage)}
+                    totalDataUsage={formatBytes(getTotalUsage(usage))}
+                    numVideosWatched={getNumVideosWatched(usage)}
                 />
-                <AnalyticsBody usage={lifeTimeUsage} />
-            </div>
+                <AnalyticsBody usage={usage} error={error} />
+            </PageLayout>
         </>
     );
 }

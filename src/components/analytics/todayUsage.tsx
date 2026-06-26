@@ -1,22 +1,13 @@
 import {
     formatBytes,
     getNumVideosWatched,
-    getUsageByDay,
     getDateKey,
-    type UsageByVideo,
+    getTotalUsageForDate,
 } from "@lib/analyticsUtils";
-import { useEffect, useState } from "react";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
-
-function getTodayTotalUsage(todayUsage: UsageByVideo) {
-    let total = 0;
-    for (const videoTag in todayUsage) {
-        const videoUsage = todayUsage[videoTag] ?? { usage: 0 };
-        total += videoUsage.usage;
-    }
-    return total;
-}
+import PageLayout from "./pageLayout";
+import useUsage from "@/hooks/useUsage";
 
 function formatDate(date: string) {
     const dateString = new Date(date).toDateString();
@@ -25,26 +16,21 @@ function formatDate(date: string) {
 }
 
 export default function TodayUsage() {
-    const [todayUsage, setTodayUsage] = useState<UsageByVideo>({});
+    const { usage, error } = useUsage();
     const today = getDateKey(new Date());
 
-    useEffect(() => {
-        void (async () => {
-            const usage = await getUsageByDay();
-            setTodayUsage(usage[today] ?? {});
-        })();
-    }, [today]);
+    const todayUsage = usage[today] ?? {};
 
     return (
         <>
-            <div className="flex h-full min-h-screen w-full flex-col">
+            <PageLayout>
                 <AnalyticsHeader
                     title={formatDate(today)}
-                    totalDataUsage={formatBytes(getTodayTotalUsage(todayUsage))}
+                    totalDataUsage={formatBytes(getTotalUsageForDate(usage, today))}
                     numVideosWatched={getNumVideosWatched({ [today]: todayUsage })}
                 />
-                <AnalyticsBody usage={{ [today]: todayUsage }} />
-            </div>
+                <AnalyticsBody usage={{ [today]: todayUsage }} error={error} />
+            </PageLayout>
         </>
     );
 }

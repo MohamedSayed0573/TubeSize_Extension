@@ -14,14 +14,14 @@ type VideoDetails = {
     date: string;
 };
 
-export default function VideoCard({
+export default function VideoTableRow({
     videoDetails,
     index,
 }: {
     videoDetails: VideoDetails;
     index: number;
 }) {
-    const { date, videoTag, usage } = videoDetails;
+    const { date, usage } = videoDetails;
     const url = getVideoUrl(videoDetails.videoTag);
 
     const imageUrl =
@@ -30,7 +30,7 @@ export default function VideoCard({
     const displayTitle = videoDetails.title || "Youtube";
 
     return (
-        <tr key={`${date}-${videoTag}`} className="hover:cursor-pointer hover:bg-neutral-800">
+        <tr className="hover:cursor-pointer hover:bg-neutral-800">
             <td className="border-b border-neutral-800 px-3 py-3 text-center font-mono text-sm text-stone-200">
                 {index}
             </td>

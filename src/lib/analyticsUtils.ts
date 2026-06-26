@@ -12,14 +12,15 @@ export type UsageByDay = {
     };
 };
 
-export type UsageByVideo = {
-    [videoId: string]: {
-        usage: number;
-        title: string | undefined;
-        thumbnailUrl: string | undefined;
-        channelName: string | undefined;
-    };
-};
+// export type UsageByVideo = {
+//     [videoId: string]: {
+//         usage: number;
+//         title: string | undefined;
+//         thumbnailUrl: string | undefined;
+//         channelName: string | undefined;
+//     };
+// };
+
 export async function getUsageByDay(): Promise<UsageByDay> {
     return ((await getFromLocalCache("usageByDay")) ?? {}) as UsageByDay;
 }
@@ -94,4 +95,15 @@ export function getSortedVideoUsageRows(lifeTimeUsage: UsageByDay) {
             }));
         })
         .toSorted((a, b) => b.usage - a.usage);
+}
+
+export function getTotalUsage(usage: UsageByDay) {
+    let total = 0;
+    for (const day in usage) {
+        for (const videoTag in usage[day]) {
+            const videoUsage = usage[day][videoTag] ?? { usage: 0 };
+            total += videoUsage.usage;
+        }
+    }
+    return total;
 }
