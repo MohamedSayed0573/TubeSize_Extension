@@ -13,24 +13,27 @@ import LifetimeUsage from "@components/analytics/lifeTimeUsage";
 
 import "@styles/global.css";
 import "@fontsource-variable/jetbrains-mono/wght.css";
+import { StrictMode } from "react";
 
 const domRoot = document.querySelector("#root") as HTMLElement;
 
 const root = createRoot(domRoot);
 
 root.render(
-    <HashRouter>
-        <ErrorBoundary errorComponent={(err) => <ErrorPage errorMessage={err.message} />}>
-            <Routes>
-                <Route path="/" element={<Popup />} />
-                <Route path="/options" element={<Options />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/analytics/:date" element={<UsageDetails />} />
-                <Route path="/today" element={<TodayUsage />} />
-                <Route path="/week" element={<WeekUsage />} />
-                <Route path="/month" element={<MonthUsage />} />
-                <Route path="/lifetime" element={<LifetimeUsage />} />
-            </Routes>
-        </ErrorBoundary>
-    </HashRouter>,
+    <StrictMode>
+        <HashRouter>
+            <ErrorBoundary errorComponent={(err) => <ErrorPage errorMessage={err.message} />}>
+                <Routes>
+                    <Route path="/" element={<Popup />} />
+                    <Route path="/options" element={<Options />} />
+                    <Route path="/analytics" element={<Analytics />} />
+                    <Route path="/analytics/:date" element={<UsageDetails />} />
+                    <Route path="/today" element={<TodayUsage />} />
+                    <Route path="/week" element={<WeekUsage />} />
+                    <Route path="/month" element={<MonthUsage />} />
+                    <Route path="/lifetime" element={<LifetimeUsage />} />
+                </Routes>
+            </ErrorBoundary>
+        </HashRouter>
+    </StrictMode>,
 );

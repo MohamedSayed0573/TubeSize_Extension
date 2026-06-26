@@ -2,25 +2,14 @@ import {
     formatBytes,
     getLast30Days,
     getNumVideosWatched,
-    getUsageByDay,
     getDateKey,
     type UsageByDay,
+    getTotalUsage,
 } from "@lib/analyticsUtils";
-import { useEffect, useState } from "react";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
 import PageLayout from "./pageLayout";
-
-function getMonthTotalUsage(monthUsage: UsageByDay) {
-    let total = 0;
-    for (const day in monthUsage) {
-        for (const videoTag in monthUsage[day]) {
-            const videoUsage = monthUsage[day][videoTag] ?? { usage: 0 };
-            total += videoUsage.usage;
-        }
-    }
-    return total;
-}
+import useUsage from "@/hooks/useUsage";
 
 function getMonthUsage(usageByDay: UsageByDay) {
     const last30Days = getLast30Days().map((date) => getDateKey(date));
@@ -42,25 +31,18 @@ function formatDate(month: Date[]) {
 }
 
 export default function MonthUsage() {
-    const [monthUsage, setMonthUsage] = useState<UsageByDay>({});
-
-    useEffect(() => {
-        void (async () => {
-            const usage = await getUsageByDay();
-            const monthUsage = getMonthUsage(usage);
-            setMonthUsage(monthUsage);
-        })();
-    }, []);
+    const { usage, error } = useUsage();
+    const monthUsage = getMonthUsage(usage);
 
     return (
         <>
             <PageLayout>
                 <AnalyticsHeader
                     title={formatDate(getLast30Days())}
-                    totalDataUsage={formatBytes(getMonthTotalUsage(monthUsage))}
+                    totalDataUsage={formatBytes(getTotalUsage(monthUsage))}
                     numVideosWatched={getNumVideosWatched(monthUsage)}
                 />
-                <AnalyticsBody usage={monthUsage} />
+                <AnalyticsBody usage={monthUsage} error={error} />
             </PageLayout>
         </>
     );

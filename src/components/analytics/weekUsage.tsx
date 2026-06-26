@@ -2,25 +2,14 @@ import {
     formatBytes,
     getLast7Days,
     getNumVideosWatched,
-    getUsageByDay,
     getDateKey,
     type UsageByDay,
+    getTotalUsage,
 } from "@lib/analyticsUtils";
-import { useEffect, useState } from "react";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
 import PageLayout from "./pageLayout";
-
-function getWeekTotalUsage(weekUsage: UsageByDay) {
-    let total = 0;
-    for (const day in weekUsage) {
-        for (const videoTag in weekUsage[day]) {
-            const videoUsage = weekUsage[day][videoTag] ?? { usage: 0 };
-            total += videoUsage.usage;
-        }
-    }
-    return total;
-}
+import useUsage from "@/hooks/useUsage";
 
 function getWeekUsage(usageByDay: UsageByDay) {
     const last7Days = getLast7Days().map((date) => getDateKey(date));
@@ -42,25 +31,18 @@ function formatDate(week: Date[]) {
 }
 
 export default function WeekUsage() {
-    const [weekUsage, setWeekUsage] = useState<UsageByDay>({});
-
-    useEffect(() => {
-        void (async () => {
-            const usage = await getUsageByDay();
-            const weekUsage = getWeekUsage(usage);
-            setWeekUsage(weekUsage);
-        })();
-    }, []);
+    const { usage, error } = useUsage();
+    const weekUsage = getWeekUsage(usage);
 
     return (
         <>
             <PageLayout>
                 <AnalyticsHeader
                     title={formatDate(getLast7Days())}
-                    totalDataUsage={formatBytes(getWeekTotalUsage(weekUsage))}
+                    totalDataUsage={formatBytes(getTotalUsage(weekUsage))}
                     numVideosWatched={getNumVideosWatched(weekUsage)}
                 />
-                <AnalyticsBody usage={weekUsage} />
+                <AnalyticsBody usage={weekUsage} error={error} />
             </PageLayout>
         </>
     );

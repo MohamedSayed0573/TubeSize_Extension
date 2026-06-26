@@ -95,3 +95,14 @@ export function getSortedVideoUsageRows(lifeTimeUsage: UsageByDay) {
         })
         .toSorted((a, b) => b.usage - a.usage);
 }
+
+export function getTotalUsage(usage: UsageByDay) {
+    let total = 0;
+    for (const day in usage) {
+        for (const videoTag in usage[day]) {
+            const videoUsage = usage[day][videoTag] ?? { usage: 0 };
+            total += videoUsage.usage;
+        }
+    }
+    return total;
+}
