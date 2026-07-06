@@ -3,8 +3,9 @@
     "private": true,
     "version": "2.3.2",
     "type": "module",
-    "packageManager": "pnpm@11.5.2",
+    "packageManager": "pnpm@11.9.0",
     "scripts": {
+        "all": "concurrently \"pnpm run build\" \"pnpm run lint\" \"pnpm run test\"",
         "build": "tsc -b && vite build",
         "dev": "vite",
         "test": "jest",
@@ -63,6 +64,7 @@
         "@types/react": "^19.2.17",
         "@types/react-dom": "^19.2.3",
         "@vitejs/plugin-react": "^6.0.3",
+        "concurrently": "^10.0.3",
         "eslint": "^10.5.0",
         "eslint-plugin-promise": "^7.3.0",
         "eslint-plugin-react": "^7.37.5",

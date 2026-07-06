@@ -3,7 +3,7 @@ import CONFIG from "@lib/constants";
 import useOptions from "@hooks/useOptions";
 import useCurrentQuality from "@hooks/useCurrentQuality";
 import FormatItem from "@components/formatItem";
-import InfoCard from "./info";
+import InfoCard from "./infoCard";
 
 function getEnabledOptions(optionsState: OptionsMap | null) {
     const qualityIds = optionsState?.["qualityIds"] ?? {};

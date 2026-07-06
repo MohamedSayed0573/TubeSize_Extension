@@ -1,17 +1,18 @@
 import { removeFromLocalCache } from "@lib/cache";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Chart from "@components/analytics/chart";
 import {
     formatBytes,
     getLast30Days,
     getLast7Days,
-    getUsageByDay,
     isEmptyUsageByDay,
     getDateKey,
     type UsageByDay,
 } from "@lib/analyticsUtils";
 import { Link } from "react-router";
 import StatsCard from "./statsCard";
+import PageLayout from "./pageLayout";
+import useUsage from "@/hooks/useUsage";
 
 function todayUsage(usageByDay: UsageByDay) {
     const date = getDateKey(new Date());
@@ -168,27 +169,16 @@ async function clearAllUsageData() {
 }
 
 export default function Analytics() {
-    const [usage, setUsage] = useState<UsageByDay>({});
-    const [errorMessage, setErrorMessage] = useState<string | undefined>();
-
-    useEffect(() => {
-        void (async () => {
-            const usageByDay = await getUsageByDay();
-            setUsage(usageByDay);
-        })().catch((err) => {
-            console.error("Failed to load usage data", err);
-            setErrorMessage(err instanceof Error ? err.message : "An unknown error occurred");
-        });
-    }, []);
+    const { usage, setUsage, error } = useUsage();
 
     return (
-        <div className="flex h-screen w-full flex-col">
+        <PageLayout>
             <AnalyticsHeader />
             <div className="flex flex-1 flex-col bg-neutral-950/70 px-8 pt-1 pb-3.5">
                 <StatsRow usage={usage} />
-                <UsageChartSection usage={usage} errorMessage={errorMessage} />
+                <UsageChartSection usage={usage} errorMessage={error?.message} />
                 <ClearUsageButton setUsage={setUsage} />
             </div>
-        </div>
+        </PageLayout>
     );
 }
