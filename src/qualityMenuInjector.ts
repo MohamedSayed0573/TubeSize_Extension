@@ -50,12 +50,12 @@ const qualityBtnHandler = () => {
     });
 };
 
-let isCurrentYoutubeData: YoutubeData | undefined;
+let currentYoutubeData: YoutubeData | undefined;
 
 export async function injectQualityMenu(youtubeData: YoutubeData) {
     try {
         removeEventListeners();
-        isCurrentYoutubeData = youtubeData;
+        currentYoutubeData = youtubeData;
         settingsBtnEl = await waitForElement(SETTINGS_BTN_SELECTOR);
         if (!settingsBtnEl) return;
 
@@ -80,12 +80,12 @@ async function settingsBtnClickListener() {
 
 function createQualitySizeLookup() {
     const lookup = new Map<number, string>();
-    if (isCurrentYoutubeData?.type === "video") {
-        for (const format of isCurrentYoutubeData.formats) {
+    if (currentYoutubeData?.type === "video") {
+        for (const format of currentYoutubeData.formats) {
             lookup.set(format.height, totalSizeVideoDisplay(format.sizeBytes));
         }
     } else {
-        const formats = isCurrentYoutubeData?.formats ?? [];
+        const formats = currentYoutubeData?.formats ?? [];
         for (const format of formats) {
             lookup.set(format.resolution, perHourDisplay(format.sizePerSecondBytes));
         }

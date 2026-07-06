@@ -17,7 +17,6 @@ async function fetchActualSegments(
             let res: Response | undefined;
             try {
                 res = await fetch(segment.url, {
-                    method: "GET",
                     headers: {
                         Range: "bytes=0-0",
                     },

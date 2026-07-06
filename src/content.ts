@@ -53,26 +53,25 @@ async function handlePageNavigation() {
                 await injectQualityMenu(youtubeResponse);
             }
 
-            const isToasterEnable = await isToasterEnabled();
+            const isToasterEnable = await getToasterEnabled();
             if (isToasterEnable) {
                 await startYoutubeToastTracking(youtubeResponse);
             }
         } else if (isTwitchPage(url)) {
             const isLive = !isTwitchVod(url);
-            // eslint-disable-next-line unicorn/prefer-minimal-ternary
             const tag = isLive ? extractChannelName(url) : extractTwitchVodId(url);
 
             stopResolutionTracking();
             if (!tag) return;
 
             const twitchResponse = await initTwitch(tag, isLive);
-            const isToasterEnable = await isToasterEnabled();
+            const isToasterEnable = await getToasterEnabled();
             if (isToasterEnable) {
                 await startToastTwitchPolling(twitchResponse);
             }
         } else if (isKickPage(url)) {
             stopResolutionTracking();
-            const isToasterEnable = await isToasterEnabled();
+            const isToasterEnable = await getToasterEnabled();
             if (isToasterEnable) {
                 const kickData = await initKick(false);
                 if (!kickData.success) {
@@ -92,7 +91,7 @@ if (isYoutubePage(getCurrentUrl())) {
     });
 }
 
-async function isToasterEnabled() {
+async function getToasterEnabled() {
     return (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
 }
 
