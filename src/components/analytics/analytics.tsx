@@ -113,7 +113,7 @@ function UsageChartSection({
                     {dayCount} {dayCount === 1 ? `Day` : `Days`}
                 </div>
             </div>
-            {isEmptyUsageByDay(usage) || errorMessage ? (
+            {errorMessage || isEmptyUsageByDay(usage) ? (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-neutral-700 bg-neutral-900 font-mono text-base text-teal-400">
                     {errorMessage ||
                         "No data available. Watch a YouTube video to see your usage statistics."}
