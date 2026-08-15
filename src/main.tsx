@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import ErrorBoundary from "@components/errorBoundary.tsx";
+import ErrorBoundary from "@components/common/errorBoundary.tsx";
 import ErrorPage from "@pages/error.tsx";
 import { Routes, Route, HashRouter } from "react-router";
 import Popup from "@pages/popup";

@@ -1,9 +1,9 @@
-import type { KickData } from "@app-types/types";
+import type { TwitchData } from "@app-types/types";
 import useCurrentQuality from "@hooks/useCurrentQuality";
 import useTab from "@hooks/useTab";
-import FormatItem from "@components/formatItem";
+import FormatItem from "@components/platforms/formatItem";
 
-export default function KickFormats({ data }: { data: KickData }) {
+export default function TwitchFormats({ data }: { data: TwitchData }) {
     const { tabId, tabUrl } = useTab();
     const { currentQuality } = useCurrentQuality(tabId, tabUrl);
 

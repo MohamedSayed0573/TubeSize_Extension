@@ -2,8 +2,8 @@ import type { OptionsMap, YoutubeData } from "@app-types/types";
 import CONFIG from "@lib/constants";
 import useOptions from "@hooks/useOptions";
 import useCurrentQuality from "@hooks/useCurrentQuality";
-import FormatItem from "@components/formatItem";
-import InfoCard from "./infoCard";
+import FormatItem from "@components/platforms/formatItem";
+import InfoCard from "@components/common/infoCard";
 
 function getEnabledOptions(optionsState: OptionsMap | null) {
     const qualityIds = optionsState?.["qualityIds"] ?? {};

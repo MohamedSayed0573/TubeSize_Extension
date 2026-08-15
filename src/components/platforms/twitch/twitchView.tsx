@@ -1,8 +1,8 @@
-import Header from "../header";
-import InfoCard from "../infoCard";
-import Spinner from "../spinner";
+import Header from "@components/popup/header";
+import InfoCard from "@components/common/infoCard";
+import Spinner from "@components/common/spinner";
 import { useTwitchData } from "@/hooks/useTwitchData";
-import TwitchFormats from "../twitchFormats";
+import TwitchFormats from "./twitchFormats";
 
 export function TwitchView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
     const { data, error, message, isLoading, createdAt } = useTwitchData(tabUrl, tabId);

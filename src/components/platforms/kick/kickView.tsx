@@ -1,8 +1,8 @@
 import { useKickData } from "@/hooks/useKickData";
-import Header from "../header";
-import InfoCard from "../infoCard";
-import KickFormats from "../kickFormats";
-import Spinner from "../spinner";
+import Header from "@components/popup/header";
+import InfoCard from "@components/common/infoCard";
+import KickFormats from "./kickFormats";
+import Spinner from "@components/common/spinner";
 
 export function KickView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
     const { data, error, message, isLoading, createdAt } = useKickData(tabUrl, tabId);

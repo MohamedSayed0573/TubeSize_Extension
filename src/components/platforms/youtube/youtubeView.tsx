@@ -1,9 +1,9 @@
 import { useYoutubeData } from "@/hooks/useYoutubeData";
-import Header from "../header";
-import InfoCard from "../infoCard";
-import YoutubeFormats from "../youtubeFormats";
-import PopupUsage from "../popupUsage";
-import Spinner from "../spinner";
+import Header from "@components/popup/header";
+import InfoCard from "@components/common/infoCard";
+import YoutubeFormats from "./youtubeFormats";
+import PopupUsage from "@components/popup/popupUsage";
+import Spinner from "@components/common/spinner";
 
 export function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
     const { data, error, message, createdAt, isLoading } = useYoutubeData(tabUrl, tabId);
