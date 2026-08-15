@@ -14,6 +14,7 @@ import LifetimeUsage from "@components/analytics/lifeTimeUsage";
 import "@styles/global.css";
 import "@fontsource-variable/jetbrains-mono/wght.css";
 import { StrictMode } from "react";
+import { PopupLayout } from "./layouts/popupLayout";
 
 const domRoot = document.querySelector("#root") as HTMLElement;
 
@@ -24,7 +25,10 @@ root.render(
         <HashRouter>
             <ErrorBoundary errorComponent={(err) => <ErrorPage errorMessage={err.message} />}>
                 <Routes>
-                    <Route path="/" element={<Popup />} />
+                    <Route path="/" element={<PopupLayout />}>
+                        <Route index element={<Popup />} />
+                    </Route>
+
                     <Route path="/options" element={<Options />} />
                     <Route path="/analytics" element={<Analytics />} />
                     <Route path="/analytics/:date" element={<UsageDetails />} />
