@@ -11,9 +11,9 @@ export function useYoutubeData(tabUrl: string, tabId: number) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (!tabUrl || !tabId) return;
         const getYoutubeData = async () => {
             try {
+                if (!tabUrl || !tabId) return;
                 const videoTag = extractVideoTag(tabUrl);
                 if (!videoTag) {
                     setMessage("Open a Youtube video");

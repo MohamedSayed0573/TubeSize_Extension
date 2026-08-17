@@ -2,70 +2,17 @@ import { removeFromLocalCache } from "@lib/cache";
 import { useState } from "react";
 import Chart from "@components/analytics/chart";
 import {
-    formatBytes,
-    getLast30Days,
-    getLast7Days,
     isEmptyUsageByDay,
-    getDateKey,
     type UsageByDay,
+    getLast7DaysUsage,
+    getLast30DaysUsage,
+    getTodayUsage,
+    getUsageNumber,
 } from "@lib/analyticsUtils";
 import { Link } from "react-router";
 import StatsCard from "./statsCard";
 import PageLayout from "./pageLayout";
 import useUsage from "@/hooks/useUsage";
-
-function todayUsage(usageByDay: UsageByDay) {
-    const date = getDateKey(new Date());
-    const dayUsage = usageByDay[date];
-    if (!dayUsage) return 0;
-
-    let usage = 0;
-    for (const videoTag in dayUsage) {
-        const videoUsage = dayUsage[videoTag] ?? { usage: 0 };
-        usage += videoUsage.usage;
-    }
-    return usage;
-}
-
-function thisWeekUsage(usageByDay: UsageByDay) {
-    const date = new Set(getLast7Days().map((day) => getDateKey(day)));
-    let usage = 0;
-    for (const day in usageByDay) {
-        if (date.has(day)) {
-            for (const videoTag in usageByDay[day]) {
-                const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
-                usage += videoUsage.usage;
-            }
-        }
-    }
-    return usage;
-}
-
-function thisMonthUsage(usageByDay: UsageByDay) {
-    const dateSet = new Set(getLast30Days().map((day) => getDateKey(day)));
-
-    let usage = 0;
-    for (const day of dateSet) {
-        if (Object.hasOwn(usageByDay, day)) {
-            for (const videoTag in usageByDay[day]) {
-                const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
-                usage += videoUsage.usage;
-            }
-        }
-    }
-    return usage;
-}
-
-function lifeTimeUsage(usageByDay: UsageByDay) {
-    let usage = 0;
-    for (const day in usageByDay) {
-        for (const videoTag in usageByDay[day]) {
-            const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
-            usage += videoUsage.usage;
-        }
-    }
-    return usage;
-}
 
 function AnalyticsHeader() {
     return (
@@ -82,16 +29,19 @@ function StatsRow({ usage }: { usage: UsageByDay }) {
     return (
         <div className="grid grid-cols-4 gap-2 py-2.5">
             <Link to="/today">
-                <StatsCard title="Today" value={formatBytes(todayUsage(usage))} />
+                <StatsCard title="Today" number={getUsageNumber(getTodayUsage(usage))} />
             </Link>
             <Link to="/week">
-                <StatsCard title="This Week" value={formatBytes(thisWeekUsage(usage))} />
+                <StatsCard title="This Week" number={getUsageNumber(getLast7DaysUsage(usage))} />
             </Link>
             <Link to="/month">
-                <StatsCard title="Last 30 Days" value={formatBytes(thisMonthUsage(usage))} />
+                <StatsCard
+                    title="Last 30 Days"
+                    number={getUsageNumber(getLast30DaysUsage(usage))}
+                />
             </Link>
             <Link to="/lifetime">
-                <StatsCard title="Lifetime" value={formatBytes(lifeTimeUsage(usage))} />
+                <StatsCard title="Lifetime" number={getUsageNumber(usage)} />
             </Link>
         </div>
     );

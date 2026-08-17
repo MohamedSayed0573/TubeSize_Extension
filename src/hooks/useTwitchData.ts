@@ -3,7 +3,7 @@ import { sendMessageToBackground } from "@/runtime";
 import type { TwitchData } from "@/types/types";
 import { useEffect, useState } from "react";
 
-export function useTwitchData(tabUrl: string, tabId: number) {
+export function useTwitchData(tabUrl: string) {
     const [data, setData] = useState<TwitchData>();
     const [error, setError] = useState<Error>();
     const [message, setMessage] = useState<string>();
@@ -51,7 +51,7 @@ export function useTwitchData(tabUrl: string, tabId: number) {
         };
 
         void getTwitchData();
-    }, [tabUrl, tabId]);
+    }, [tabUrl]);
 
     return { data, error, message, isLoading, createdAt };
 }

@@ -1,3 +1,4 @@
+import { formatBytes } from "@/lib/analyticsUtils";
 import { useNavigate } from "react-router";
 
 function HeaderStat({ label, value }: { label: string; value: number | string }) {
@@ -17,10 +18,11 @@ export default function AnalyticsHeader({
     numVideosWatched,
 }: {
     title: string;
-    totalDataUsage: string;
+    totalDataUsage: number;
     numVideosWatched: number;
 }) {
     const navigate = useNavigate();
+    const formattedDataUsage = formatBytes(totalDataUsage);
 
     return (
         <div className="flex items-center justify-between gap-5 border-b border-neutral-800 bg-neutral-900 p-2.5 text-lg font-bold">
@@ -34,7 +36,7 @@ export default function AnalyticsHeader({
             </button>
             <div className="w-1/2 font-mono text-lg text-teal-400">{title}</div>
             <div className="flex flex-1 items-center justify-evenly">
-                <HeaderStat label="Total Data Used" value={totalDataUsage} />
+                <HeaderStat label="Total Data Used" value={formattedDataUsage} />
                 <HeaderStat label="Videos Watched" value={numVideosWatched} />
             </div>
         </div>

@@ -4,8 +4,8 @@ import Spinner from "@components/common/spinner";
 import { useTwitchData } from "@/hooks/useTwitchData";
 import TwitchFormats from "./twitchFormats";
 
-export function TwitchView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
-    const { data, error, message, isLoading, createdAt } = useTwitchData(tabUrl, tabId);
+export function TwitchView({ tabUrl }: { tabUrl: string }) {
+    const { data, error, message, isLoading, createdAt } = useTwitchData(tabUrl);
 
     if (isLoading) return <Spinner />;
     if (error) throw error;

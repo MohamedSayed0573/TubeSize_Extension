@@ -1,4 +1,4 @@
-import { formatBytes, getNumVideosWatched, getTotalUsage } from "@lib/analyticsUtils";
+import { getNumVideosWatched, getUsageNumber } from "@lib/analyticsUtils";
 import { useParams } from "react-router";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
@@ -23,7 +23,7 @@ export function UsageDetails() {
             <AnalyticsHeader
                 numVideosWatched={getNumVideosWatched({ [date]: todayUsage })}
                 title={formatDate(date)}
-                totalDataUsage={formatBytes(getTotalUsage({ [date]: todayUsage }))}
+                totalDataUsage={getUsageNumber({ [date]: todayUsage })}
                 key={date}
             />
             <AnalyticsBody usage={{ [date]: todayUsage }} error={error} />

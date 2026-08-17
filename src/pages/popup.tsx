@@ -26,7 +26,7 @@ export default function Popup() {
             return <YoutubeView tabUrl={tabUrl} tabId={tabId} />;
         }
         if (isTwitchPage(tabUrl)) {
-            return <TwitchView tabUrl={tabUrl} tabId={tabId} />;
+            return <TwitchView tabUrl={tabUrl} />;
         }
         if (isKickPage(tabUrl)) {
             return <KickView tabUrl={tabUrl} tabId={tabId} />;
