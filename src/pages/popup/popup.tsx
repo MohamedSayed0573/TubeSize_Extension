@@ -1,11 +1,11 @@
 import { isYoutubePage, isTwitchPage, isKickPage } from "@lib/utils";
-import Header from "@components/popup/header";
+import Header from "./header";
 import useTab from "@hooks/useTab";
-import InfoCard from "@components/common/infoCard";
-import Spinner from "@components/common/spinner";
-import { YoutubeView } from "@components/platforms/youtube/youtubeView";
-import { TwitchView } from "@components/platforms/twitch/twitchView";
-import { KickView } from "@components/platforms/kick/kickView";
+import InfoCard from "@components/infoCard";
+import Spinner from "@components/spinner";
+import { YoutubeView } from "./platforms/youtube/youtubeView";
+import { TwitchView } from "./platforms/twitch/twitchView";
+import { KickView } from "./platforms/kick/kickView";
 
 export default function Popup() {
     const { tabUrl, tabId, error, isLoading } = useTab();

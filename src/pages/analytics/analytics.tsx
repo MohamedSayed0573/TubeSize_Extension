@@ -1,6 +1,6 @@
 import { removeFromLocalCache } from "@lib/cache";
 import { useState } from "react";
-import Chart from "@components/analytics/chart";
+import Chart from "./chart";
 import {
     isEmptyUsageByDay,
     type UsageByDay,
@@ -11,7 +11,6 @@ import {
     formatBytes,
 } from "@lib/analyticsUtils";
 import { Link } from "react-router";
-import PageLayout from "./pageLayout";
 import useUsage from "@/hooks/useUsage";
 
 function AnalyticsHeader() {
@@ -137,13 +136,13 @@ export default function Analytics() {
     const { usage, setUsage, error } = useUsage();
 
     return (
-        <PageLayout>
+        <>
             <AnalyticsHeader />
             <div className="flex flex-1 flex-col bg-neutral-950/70 px-8 pt-1 pb-3.5">
                 <StatsRow usage={usage} />
                 <UsageChartSection usage={usage} errorMessage={error?.message} />
                 <ClearUsageButton setUsage={setUsage} />
             </div>
-        </PageLayout>
+        </>
     );
 }

@@ -7,7 +7,6 @@ import {
 import { useParams } from "react-router";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
-import PageLayout from "./pageLayout";
 import useUsage from "@/hooks/useUsage";
 
 export function UsageDetails() {
@@ -18,7 +17,7 @@ export function UsageDetails() {
     const daysUsage = getUsageByDate(usage, date);
 
     return (
-        <PageLayout>
+        <>
             <AnalyticsHeader
                 numVideosWatched={getNumVideosWatched(daysUsage)}
                 title={formatDate(new Date(date))}
@@ -26,6 +25,6 @@ export function UsageDetails() {
                 key={date}
             />
             <AnalyticsBody usage={daysUsage} error={error} />
-        </PageLayout>
+        </>
     );
 }

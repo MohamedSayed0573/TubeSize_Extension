@@ -18,9 +18,8 @@ export default function ToasterSettings() {
                 (await getFromSyncCache("toasterThreshold")) ?? CONFIG.DEFAULT_TOASTER_THRESHOLD;
             const toasterThresholdUnit =
                 ((await getFromSyncCache("toasterThresholdUnit")) as
-                    | "mbPerMinute"
-                    | "mbPerHour"
-                    | undefined) ?? CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
+                    "mbPerMinute" | "mbPerHour" | undefined) ??
+                CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
 
             if (typeof toasterThreshold === "number") {
                 setToasterThreshold(toasterThreshold);

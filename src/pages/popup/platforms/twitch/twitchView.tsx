@@ -1,6 +1,6 @@
-import Header from "@components/popup/header";
-import InfoCard from "@components/common/infoCard";
-import Spinner from "@components/common/spinner";
+import Header from "../../header";
+import InfoCard from "@components/infoCard";
+import Spinner from "@components/spinner";
 import { useTwitchData } from "@/hooks/useTwitchData";
 import TwitchFormats from "./twitchFormats";
 

@@ -1,12 +1,12 @@
 import CONFIG from "@lib/constants";
-import HeaderOptions from "@components/options/headerOptions";
-import OptionItem from "@components/options/optionItem";
-import CacheSettings from "@components/options/cacheSettings";
-import ToasterSettings from "@components/options/toasterSettings";
-import QualityMenu from "@components/options/qualityMenu";
+import HeaderOptions from "./headerOptions";
+import OptionItem from "./optionItem";
+import CacheSettings from "./cacheSettings";
+import ToasterSettings from "./toasterSettings";
+import QualityMenu from "./qualityMenu";
 import useOptions from "@hooks/useOptions";
-import Divider from "@/components/options/divider";
-import { OptionsFooter } from "@/components/options/optionsFooter";
+import Divider from "./divider";
+import { OptionsFooter } from "./optionsFooter";
 
 export default function Options() {
     const { optionsState, setOptionsState } = useOptions();

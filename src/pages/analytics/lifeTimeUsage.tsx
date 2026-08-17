@@ -1,7 +1,6 @@
 import { formatDate, getNumVideosWatched, getUsageNumber } from "@lib/analyticsUtils";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
-import PageLayout from "./pageLayout";
 import useUsage from "@/hooks/useUsage";
 
 export default function LifetimeUsage() {
@@ -13,14 +12,12 @@ export default function LifetimeUsage() {
 
     return (
         <>
-            <PageLayout>
-                <AnalyticsHeader
-                    title={dateRange}
-                    totalDataUsage={getUsageNumber(lifeTimeUsage)}
-                    numVideosWatched={getNumVideosWatched(lifeTimeUsage)}
-                />
-                <AnalyticsBody usage={lifeTimeUsage} error={error} />
-            </PageLayout>
+            <AnalyticsHeader
+                title={dateRange}
+                totalDataUsage={getUsageNumber(lifeTimeUsage)}
+                numVideosWatched={getNumVideosWatched(lifeTimeUsage)}
+            />
+            <AnalyticsBody usage={lifeTimeUsage} error={error} />
         </>
     );
 }

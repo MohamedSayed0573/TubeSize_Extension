@@ -32,7 +32,8 @@
             "@tests/*": ["./src/tests/*"],
             "@assets/*": ["./src/assets/*"],
             "@hooks/*": ["./src/hooks/*"],
-            "@app-types/*": ["./src/types/*"]
+            "@app-types/*": ["./src/types/*"],
+            "@layouts/*": ["./src/layouts/*"]
         }
     },
     "include": ["./src", "./src/types", "vite.config.ts"]

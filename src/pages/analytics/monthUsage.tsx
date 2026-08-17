@@ -7,7 +7,6 @@ import {
 } from "@lib/analyticsUtils";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
-import PageLayout from "./pageLayout";
 import useUsage from "@/hooks/useUsage";
 
 export default function MonthUsage() {
@@ -16,14 +15,12 @@ export default function MonthUsage() {
 
     return (
         <>
-            <PageLayout>
-                <AnalyticsHeader
-                    title={formatDate(getLastDays(30))}
-                    totalDataUsage={getUsageNumber(monthUsage)}
-                    numVideosWatched={getNumVideosWatched(monthUsage)}
-                />
-                <AnalyticsBody usage={monthUsage} error={error} />
-            </PageLayout>
+            <AnalyticsHeader
+                title={formatDate(getLastDays(30))}
+                totalDataUsage={getUsageNumber(monthUsage)}
+                numVideosWatched={getNumVideosWatched(monthUsage)}
+            />
+            <AnalyticsBody usage={monthUsage} error={error} />
         </>
     );
 }

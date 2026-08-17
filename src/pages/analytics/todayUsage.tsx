@@ -6,7 +6,6 @@ import {
 } from "@lib/analyticsUtils";
 import AnalyticsHeader from "./analyticsHeader";
 import AnalyticsBody from "./analyticsBody";
-import PageLayout from "./pageLayout";
 import useUsage from "@/hooks/useUsage";
 
 export default function TodayUsage() {
@@ -15,14 +14,12 @@ export default function TodayUsage() {
 
     return (
         <>
-            <PageLayout>
-                <AnalyticsHeader
-                    title={formatDate(new Date())}
-                    totalDataUsage={getUsageNumber(todayUsage)}
-                    numVideosWatched={getNumVideosWatched(todayUsage)}
-                />
-                <AnalyticsBody usage={todayUsage} error={error} />
-            </PageLayout>
+            <AnalyticsHeader
+                title={formatDate(new Date())}
+                totalDataUsage={getUsageNumber(todayUsage)}
+                numVideosWatched={getNumVideosWatched(todayUsage)}
+            />
+            <AnalyticsBody usage={todayUsage} error={error} />
         </>
     );
 }
