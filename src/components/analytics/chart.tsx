@@ -36,6 +36,7 @@ export default function Chart({ usage }: { usage: UsageByDay }) {
                 (1024 * 1024),
         };
     });
+
     return (
         <ResponsiveContainer width="100%" height="100%" style={{ outline: "none" }}>
             <BarChart data={transformed}>

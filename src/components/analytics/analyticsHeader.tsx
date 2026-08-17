@@ -12,15 +12,17 @@ function HeaderStat({ label, value }: { label: string; value: number | string })
     );
 }
 
+interface AnalyticsHeaderProps {
+    title: string;
+    totalDataUsage: number;
+    numVideosWatched: number;
+}
+
 export default function AnalyticsHeader({
     title,
     totalDataUsage,
     numVideosWatched,
-}: {
-    title: string;
-    totalDataUsage: number;
-    numVideosWatched: number;
-}) {
+}: AnalyticsHeaderProps) {
     const navigate = useNavigate();
     const formattedDataUsage = formatBytes(totalDataUsage);
 

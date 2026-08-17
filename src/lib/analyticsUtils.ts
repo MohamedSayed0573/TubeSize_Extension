@@ -146,3 +146,9 @@ export function getTodayUsage(usageByDay: UsageByDay): UsageByDay {
         [today]: date,
     };
 }
+
+export function getUsageByDate(usageByDay: UsageByDay, date: string): UsageByDay {
+    return {
+        [date]: usageByDay[date] ?? {},
+    };
+}
