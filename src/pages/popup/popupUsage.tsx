@@ -1,14 +1,13 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { useEffect, useState } from "react";
-import { getTotalUsageForDate, getUsageByDay, getDateKey } from "@lib/analyticsUtils";
+import { getTodayUsage, getUsageByDay, getUsageNumber } from "@lib/analyticsUtils";
 
 async function getTodaysTotalUsage(tabId: number | undefined) {
     if (!tabId) return;
     const usageByDay = await getUsageByDay();
-    const date = getDateKey(new Date());
 
-    const total = getTotalUsageForDate(usageByDay, date);
-    return total;
+    const totalTodaysUsage = getUsageNumber(getTodayUsage(usageByDay));
+    return totalTodaysUsage;
 }
 
 export default function PopupUsage({ tabId }: { tabId: number | undefined }) {

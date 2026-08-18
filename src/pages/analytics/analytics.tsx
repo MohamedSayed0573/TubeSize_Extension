@@ -1,71 +1,17 @@
 import { removeFromLocalCache } from "@lib/cache";
 import { useState } from "react";
-import Chart from "@components/analytics/chart";
+import Chart from "./chart";
 import {
-    formatBytes,
-    getLast30Days,
-    getLast7Days,
     isEmptyUsageByDay,
-    getDateKey,
     type UsageByDay,
+    getLast7DaysUsage,
+    getLast30DaysUsage,
+    getTodayUsage,
+    getUsageNumber,
+    formatBytes,
 } from "@lib/analyticsUtils";
 import { Link } from "react-router";
-import StatsCard from "./statsCard";
-import PageLayout from "./pageLayout";
 import useUsage from "@/hooks/useUsage";
-
-function todayUsage(usageByDay: UsageByDay) {
-    const date = getDateKey(new Date());
-    const dayUsage = usageByDay[date];
-    if (!dayUsage) return 0;
-
-    let usage = 0;
-    for (const videoTag in dayUsage) {
-        const videoUsage = dayUsage[videoTag] ?? { usage: 0 };
-        usage += videoUsage.usage;
-    }
-    return usage;
-}
-
-function thisWeekUsage(usageByDay: UsageByDay) {
-    const date = new Set(getLast7Days().map((day) => getDateKey(day)));
-    let usage = 0;
-    for (const day in usageByDay) {
-        if (date.has(day)) {
-            for (const videoTag in usageByDay[day]) {
-                const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
-                usage += videoUsage.usage;
-            }
-        }
-    }
-    return usage;
-}
-
-function thisMonthUsage(usageByDay: UsageByDay) {
-    const dateSet = new Set(getLast30Days().map((day) => getDateKey(day)));
-
-    let usage = 0;
-    for (const day of dateSet) {
-        if (Object.hasOwn(usageByDay, day)) {
-            for (const videoTag in usageByDay[day]) {
-                const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
-                usage += videoUsage.usage;
-            }
-        }
-    }
-    return usage;
-}
-
-function lifeTimeUsage(usageByDay: UsageByDay) {
-    let usage = 0;
-    for (const day in usageByDay) {
-        for (const videoTag in usageByDay[day]) {
-            const videoUsage = usageByDay[day][videoTag] ?? { usage: 0 };
-            usage += videoUsage.usage;
-        }
-    }
-    return usage;
-}
 
 function AnalyticsHeader() {
     return (
@@ -78,20 +24,38 @@ function AnalyticsHeader() {
     );
 }
 
+function StatsCard({ title, number }: { title: string; number: number }) {
+    const formattedNumber = formatBytes(number);
+    return (
+        <div className="flex flex-col justify-center gap-2.5 rounded-lg border border-neutral-800 bg-neutral-900 py-4 pr-2.5 pl-5.5 hover:cursor-pointer hover:bg-neutral-800">
+            <div className="font-mono text-sm font-semibold text-teal-400 uppercase">{title}</div>
+            <div className="flex justify-between font-mono text-2xl font-bold text-stone-200">
+                {formattedNumber}
+                <div className="flex items-end font-mono text-xs text-teal-600 underline">
+                    View Details →
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function StatsRow({ usage }: { usage: UsageByDay }) {
     return (
         <div className="grid grid-cols-4 gap-2 py-2.5">
-            <Link to="/today">
-                <StatsCard title="Today" value={formatBytes(todayUsage(usage))} />
+            <Link to="today">
+                <StatsCard title="Today" number={getUsageNumber(getTodayUsage(usage))} />
             </Link>
-            <Link to="/week">
-                <StatsCard title="This Week" value={formatBytes(thisWeekUsage(usage))} />
+            <Link to="week">
+                <StatsCard title="This Week" number={getUsageNumber(getLast7DaysUsage(usage))} />
             </Link>
-            <Link to="/month">
-                <StatsCard title="Last 30 Days" value={formatBytes(thisMonthUsage(usage))} />
+            <Link to="month">
+                <StatsCard
+                    title="Last 30 Days"
+                    number={getUsageNumber(getLast30DaysUsage(usage))}
+                />
             </Link>
-            <Link to="/lifetime">
-                <StatsCard title="Lifetime" value={formatBytes(lifeTimeUsage(usage))} />
+            <Link to="lifetime">
+                <StatsCard title="Lifetime" number={getUsageNumber(usage)} />
             </Link>
         </div>
     );
@@ -172,13 +136,13 @@ export default function Analytics() {
     const { usage, setUsage, error } = useUsage();
 
     return (
-        <PageLayout>
+        <>
             <AnalyticsHeader />
             <div className="flex flex-1 flex-col bg-neutral-950/70 px-8 pt-1 pb-3.5">
                 <StatsRow usage={usage} />
                 <UsageChartSection usage={usage} errorMessage={error?.message} />
                 <ClearUsageButton setUsage={setUsage} />
             </div>
-        </PageLayout>
+        </>
     );
 }

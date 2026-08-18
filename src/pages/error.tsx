@@ -1,4 +1,4 @@
-import Header from "@components/header";
+import Header from "@pages/popup/header";
 
 interface Props {
     errorMessage: string;

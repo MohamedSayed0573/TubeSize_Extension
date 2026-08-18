@@ -56,7 +56,7 @@ void (async () => {
                 CACHED_VIDEOS.add(videoTag);
             }
             usageByDay[date][videoTag].usage = oldUsage + pendingUsage;
-            updateBadge(usageByDay, date);
+            updateBadge(usageByDay);
             await setToLocalCache({ usageByDay });
 
             pendingUsage = 0; // eslint-disable-line unicorn/no-top-level-assignment-in-function

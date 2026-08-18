@@ -21,7 +21,7 @@ import {
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
 import { isYoutubePage } from "@lib/utils";
-import { getTotalUsageForDate, getUsageByDay, getDateKey } from "@lib/analyticsUtils";
+import { getUsageByDay, getUsageNumber, getTodayUsage } from "@lib/analyticsUtils";
 
 chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
     void handleMessage(message, sender, sendResponse);
@@ -214,9 +214,8 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 async function showBadge(tabId: number) {
-    const date = getDateKey(new Date());
     const usageByDay = await getUsageByDay();
-    const total = getTotalUsageForDate(usageByDay, date);
+    const total = getUsageNumber(getTodayUsage(usageByDay));
 
     setBadge(badgeFormatter(total), tabId);
 }

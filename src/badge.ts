@@ -1,4 +1,4 @@
-import { getTotalUsageForDate } from "@lib/analyticsUtils";
+import { getUsageNumber, getTodayUsage } from "@lib/analyticsUtils";
 import type { UsageByDay } from "@lib/analyticsUtils";
 import { sendMessageToBackground } from "@/runtime";
 
@@ -15,8 +15,8 @@ export function setBadge(text: string, tabId: number | undefined) {
     void chrome.action.setBadgeBackgroundColor({ tabId, color: "rgb(102, 126, 234)" });
 }
 
-export function updateBadge(usageByDay: UsageByDay, date: string) {
-    const total = getTotalUsageForDate(usageByDay, date);
+export function updateBadge(usageByDay: UsageByDay) {
+    const total = getUsageNumber(getTodayUsage(usageByDay));
     void sendMessageToBackground({
         type: "setBadge",
         text: badgeFormatter(total),

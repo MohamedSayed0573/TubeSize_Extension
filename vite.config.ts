@@ -25,6 +25,7 @@ export default defineConfig(({ mode }) => ({
             "@assets": path.resolve(__dirname, "src/assets"),
             "@hooks": path.resolve(__dirname, "src/hooks"),
             "@app-types": path.resolve(__dirname, "src/types"),
+            "@layouts": path.resolve(__dirname, "src/layouts"),
         },
     },
     plugins: [

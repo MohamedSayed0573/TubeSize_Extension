@@ -5,6 +5,7 @@ export default function useTab() {
     const [tabId, setTabId] = useState<number | undefined>();
     const [tabUrl, setTabUrl] = useState<string | undefined>();
     const [error, setError] = useState<Error | undefined>();
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         void (async () => {
@@ -15,9 +16,11 @@ export default function useTab() {
             } catch (err) {
                 console.error("Failed to get active tab:", err);
                 setError(new Error("Failed to get active tab"));
+            } finally {
+                setIsLoading(false);
             }
         })();
     }, []);
 
-    return { tabId, tabUrl, error };
+    return { tabId, tabUrl, error, isLoading };
 }

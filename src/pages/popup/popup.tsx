@@ -1,0 +1,45 @@
+import { isYoutubePage, isTwitchPage, isKickPage } from "@lib/utils";
+import Header from "./header";
+import useTab from "@hooks/useTab";
+import InfoCard from "@components/infoCard";
+import Spinner from "@components/spinner";
+import { YoutubeView } from "./platforms/youtube/youtubeView";
+import { TwitchView } from "./platforms/twitch/twitchView";
+import { KickView } from "./platforms/kick/kickView";
+
+export default function Popup() {
+    const { tabUrl, tabId, error, isLoading } = useTab();
+
+    if (error) throw error;
+
+    if (isLoading) {
+        return (
+            <div className="flex w-60 items-center justify-center p-4">
+                <Spinner />
+            </div>
+        );
+    }
+
+    // 2. Platform sub-views
+    if (tabUrl && tabId) {
+        if (isYoutubePage(tabUrl)) {
+            return <YoutubeView tabUrl={tabUrl} tabId={tabId} />;
+        }
+        if (isTwitchPage(tabUrl)) {
+            return <TwitchView tabUrl={tabUrl} />;
+        }
+        if (isKickPage(tabUrl)) {
+            return <KickView tabUrl={tabUrl} tabId={tabId} />;
+        }
+    }
+
+    // Fallback for unsupported or restricted pages
+    return (
+        <>
+            <Header />
+            <div className="flex flex-col gap-2 px-3 py-1.5 text-xs text-zinc-400">
+                <InfoCard message="TubeSize works on YouTube, Twitch and Kick." />
+            </div>
+        </>
+    );
+}
