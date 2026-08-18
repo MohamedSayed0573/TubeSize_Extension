@@ -7,6 +7,7 @@ import unicorn from "eslint-plugin-unicorn";
 import promises from "eslint-plugin-promise";
 import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
+import pluginQuery from "@tanstack/eslint-plugin-query";
 
 export default defineConfig([
     globalIgnores(["dist", "coverage"]),
@@ -19,8 +20,9 @@ export default defineConfig([
             react.configs.flat["jsx-runtime"],
             reactHooks.configs.flat.recommended,
             reactRefresh.configs.vite,
-            unicorn.configs["flat/recommended"],
+            unicorn.configs["recommended"],
             promises.configs["flat/recommended"],
+            pluginQuery.configs["flat/recommended"],
         ],
         languageOptions: {
             ecmaVersion: "latest",
@@ -60,6 +62,7 @@ export default defineConfig([
             "@typescript-eslint/no-unnecessary-type-assertion": "off",
             "unicorn/name-replacements": "off",
             "unicorn/no-computed-property-existence-check": "off",
+            "unicorn/no-null": "off",
         },
     },
     {

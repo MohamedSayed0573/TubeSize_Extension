@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { setToSyncCache, clearLocalCache } from "@lib/cache";
+import { clearLocalCache } from "@lib/cache";
 import useOptions from "@hooks/useOptions";
 import CONFIG from "@lib/constants";
 
@@ -20,7 +20,10 @@ const stateStyles = {
 export default function CacheSettings() {
     const [clearCache, setClearCache] = useState<"idle" | "success" | "fail">("idle");
     const [disableClearCache, setDisableClearCache] = useState(false);
-    const { optionsState, setOptionsState } = useOptions();
+    const { query, updateOptions } = useOptions();
+    const { data: optionsState, isPending, isError } = query;
+    if (isPending) return <div>Loading...</div>;
+    if (isError) return <div>Error loading options.</div>;
 
     return (
         <div className="p-3">
@@ -39,13 +42,9 @@ export default function CacheSettings() {
                     onChange={(event) => {
                         const days = event.target.value;
                         const ttlInSeconds = convertDaysToSeconds(days);
-                        void setToSyncCache({
+                        updateOptions({
                             cacheTTL: ttlInSeconds,
-                        }).catch(() => {});
-                        setOptionsState((prev) => ({
-                            ...prev,
-                            cacheTTL: ttlInSeconds,
-                        }));
+                        });
                     }}
                 >
                     <option value="1">1 Day</option>

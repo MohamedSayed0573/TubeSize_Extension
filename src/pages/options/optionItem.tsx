@@ -1,15 +1,15 @@
+import useOptions from "@/hooks/useOptions";
 import type { OptionsMap } from "@app-types/types";
-import { setToSyncCache } from "@lib/cache";
 
 export default function OptionItem({
     option,
     optionsState,
-    setOptionsState,
 }: {
     option: string;
     optionsState: OptionsMap;
-    setOptionsState: (optionsState: OptionsMap) => void;
 }) {
+    const { updateOptions } = useOptions();
+
     return (
         <div className="flex cursor-pointer items-center justify-between rounded-lg border border-transparent bg-white/3 px-3 py-2.5 pl-3 transition-all hover:border-white/20 hover:bg-white/8">
             <label className="cursor-pointer text-xs font-medium text-white" htmlFor={option}>
@@ -21,30 +21,14 @@ export default function OptionItem({
                 checked={optionsState["qualityIds"]?.[option] ?? true}
                 onChange={(event) => {
                     const { checked } = event.target;
-                    void handleOptionChange(option, checked, optionsState, setOptionsState);
+                    void updateOptions({
+                        qualityIds: {
+                            ...optionsState["qualityIds"],
+                            [option]: checked,
+                        },
+                    });
                 }}
             ></input>
         </div>
     );
-}
-
-async function handleOptionChange(
-    option: string,
-    isChecked: boolean,
-    optionsState: OptionsMap,
-    setOptionsState: (optionsState: OptionsMap) => void,
-) {
-    await setToSyncCache({
-        qualityIds: {
-            ...optionsState["qualityIds"],
-            [option]: isChecked,
-        },
-    });
-    setOptionsState({
-        ...optionsState,
-        qualityIds: {
-            ...optionsState["qualityIds"],
-            [option]: isChecked,
-        },
-    });
 }

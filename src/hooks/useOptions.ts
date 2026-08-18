@@ -1,22 +1,25 @@
-import { getAllFromSyncCache } from "@lib/cache";
-import { useEffect, useState } from "react";
-import type { OptionsMap } from "@app-types/types";
+import { getAllFromSyncCache, setToSyncCache } from "@lib/cache";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function useOptions() {
-    const [optionsState, setOptionsState] = useState<OptionsMap>({});
-    const [error, setError] = useState<Error | undefined>();
+    const queryClient = useQueryClient();
+    const query = useQuery({
+        queryKey: ["options"],
+        queryFn: async () => (await getAllFromSyncCache()) ?? {},
+    });
 
-    useEffect(() => {
-        void (async () => {
-            try {
-                const options = await getAllFromSyncCache();
-                setOptionsState(options);
-            } catch (err) {
-                console.error("Failed to load options from cache:", err);
-                setError(err as Error);
-            }
-        })();
-    }, []);
+    const mutation = useMutation({
+        mutationFn: setToSyncCache,
 
-    return { optionsState, setOptionsState, error };
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["options"] });
+        },
+    });
+
+    return {
+        query,
+        updateOptions: mutation.mutate,
+        updateIsPending: mutation.isPending,
+        updateIsError: mutation.isError,
+    };
 }

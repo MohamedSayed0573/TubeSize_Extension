@@ -1,5 +1,3 @@
-import { removeFromLocalCache } from "@lib/cache";
-import { useState } from "react";
 import Chart from "./chart";
 import {
     isEmptyUsageByDay,
@@ -89,59 +87,61 @@ function UsageChartSection({
     );
 }
 
-function ClearUsageButton({ setUsage }: { setUsage: (UsageByDay: UsageByDay) => void }) {
-    const [isClearing, setIsClearing] = useState(false);
-    const [clearStatus, setClearStatus] = useState<"idle" | "success" | "error">("idle");
-    const handleClearUsageData = async () => {
-        if (!confirm("Are you sure you want to clear all usage data?")) return;
-        setIsClearing(true);
-        try {
-            await clearAllUsageData();
-            setUsage({});
-            setClearStatus("success");
-        } catch (err) {
-            console.error("Failed to clear usage data", err);
-            setClearStatus("error");
-        } finally {
-            setTimeout(() => {
-                setClearStatus("idle");
-                setIsClearing(false);
-            }, 1500);
-        }
-    };
+function ClearUsageButton() {
+    const { clearUsage, isClearing, isClearingError, isClearingSuccess } = useUsage();
 
-    const clearButtonText =
-        clearStatus === "success"
-            ? "Usage Data Cleared Successfully!"
-            : clearStatus === "error"
-              ? "Failed to Clear Usage Data. Try Again."
-              : "Clear All Usage Data";
+    // const handleClearUsageData = () => {
+    //     if (!confirm("Are you sure you want to clear all usage data?")) return;
+    //     try {
+    //         setClearStatus("success");
+    //     } catch (err) {
+    //         console.error("Failed to clear usage data", err);
+    //         setClearStatus("error");
+    //     } finally {
+    //         setTimeout(() => {
+    //             setClearStatus("idle");
+    //             setIsClearing(false);
+    //         }, 1500);
+    //     }
+    // };
+
+    // const clearButtonText =
+    //     clearStatus === "success"
+    //         ? "Usage Data Cleared Successfully!"
+    //         : clearStatus === "error"
+    //           ? "Failed to Clear Usage Data. Try Again."
+    //           : "Clear All Usage Data";
+    //
 
     return (
         <button
             className="mt-2.5 cursor-pointer rounded-xl border border-neutral-800 bg-[#221718] px-3 py-2.5 font-mono text-xs font-semibold tracking-widest text-red-400 uppercase transition-colors hover:bg-[#2a1b1c]"
-            onClick={() => void handleClearUsageData()}
+            onClick={() => clearUsage()}
             disabled={isClearing}
         >
-            {clearButtonText}
+            {isClearing && "Clearing"}
+            {isClearingError && "Failed To Clear Usage Data. Try Again."}
+            {isClearingSuccess && "Usage Data was Cleared Successfully"}
+            {!isClearing && !isClearingError && "Clear All Usage  Data"}
         </button>
     );
 }
 
-async function clearAllUsageData() {
-    await removeFromLocalCache("usageByDay");
-}
-
 export default function Analytics() {
-    const { usage, setUsage, error } = useUsage();
+    const { query } = useUsage();
+    const { data: usage, isPending, isError } = query;
+
+    if (isPending) return <div>isLoading</div>;
+    if (isError) return <div>Error</div>;
+    if (!usage) return <div>No usage data available.</div>;
 
     return (
         <>
             <AnalyticsHeader />
             <div className="flex flex-1 flex-col bg-neutral-950/70 px-8 pt-1 pb-3.5">
                 <StatsRow usage={usage} />
-                <UsageChartSection usage={usage} errorMessage={error?.message} />
-                <ClearUsageButton setUsage={setUsage} />
+                <UsageChartSection usage={usage} errorMessage={undefined} />
+                <ClearUsageButton />
             </div>
         </>
     );

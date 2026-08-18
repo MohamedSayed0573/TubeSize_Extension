@@ -196,6 +196,7 @@ function handleSetBadge(
     return sendResponse({ success: true });
 }
 
+// Show the badge if the tab is a YouTube page
 const lastUrlByTab = new Map<number, string>();
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status !== "complete") return;
@@ -215,6 +216,8 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 async function showBadge(tabId: number) {
     const usageByDay = await getUsageByDay();
+    if (!usageByDay) return;
+
     const total = getUsageNumber(getTodayUsage(usageByDay));
 
     setBadge(badgeFormatter(total), tabId);

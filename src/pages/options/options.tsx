@@ -9,7 +9,12 @@ import Divider from "./divider";
 import { OptionsFooter } from "./optionsFooter";
 
 export default function Options() {
-    const { optionsState, setOptionsState } = useOptions();
+    const { query } = useOptions();
+
+    const { data: optionsState, isPending, isError } = query;
+    if (isPending) return <div>Loading...</div>;
+    if (isError) return <div>Error loading options.</div>;
+
     return (
         <div className="w-72.5">
             <HeaderOptions />
@@ -20,12 +25,7 @@ export default function Options() {
                 <div className="grid grid-cols-3 gap-2.5">
                     {CONFIG.optionIDs.map((option) => {
                         return (
-                            <OptionItem
-                                key={option}
-                                option={option}
-                                optionsState={optionsState}
-                                setOptionsState={setOptionsState}
-                            />
+                            <OptionItem key={option} option={option} optionsState={optionsState} />
                         );
                     })}
                 </div>

@@ -42,6 +42,7 @@
     "dependencies": {
         "@fontsource-variable/jetbrains-mono": "^5.2.8",
         "@tailwindcss/vite": "^4.3.3",
+        "@tanstack/react-query": "^5.101.4",
         "clsx": "^2.1.1",
         "filesize": "^11.0.22",
         "humanize-duration": "^3.34.0",
@@ -56,6 +57,7 @@
     "devDependencies": {
         "@crxjs/vite-plugin": "^2.7.1",
         "@eslint/js": "^10.0.1",
+        "@tanstack/eslint-plugin-query": "^5.101.4",
         "@types/chrome": "^0.2.2",
         "@types/humanize-duration": "^3.27.4",
         "@types/jest": "^30.0.0",

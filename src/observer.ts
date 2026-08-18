@@ -26,9 +26,9 @@ void (async () => {
             if (!videoTag) continue;
 
             const date = getDateKey(new Date());
-            const usageByDay = await getUsageByDay();
-            usageByDay[date] ??= {};
-            usageByDay[date][videoTag] ??= {
+            const usageByDay = (await getUsageByDay()) ?? {};
+            const todayUsage = usageByDay[date] ?? {};
+            todayUsage[videoTag] = {
                 usage: 0,
                 title: undefined,
                 thumbnailUrl: undefined,
@@ -48,14 +48,15 @@ void (async () => {
                     continue;
                 }
 
-                usageByDay[date][videoTag].title =
+                todayUsage[videoTag].title =
                     res.data.type === "video" ? res.data.title : res.data.channelName || "Youtube";
-                usageByDay[date][videoTag].thumbnailUrl =
+                todayUsage[videoTag].thumbnailUrl =
                     res.data.thumbnailUrl || "https://www.youtube.com/img/desktop/yt_1200.png";
-                usageByDay[date][videoTag].channelName = res.data.channelName;
+                todayUsage[videoTag].channelName = res.data.channelName;
                 CACHED_VIDEOS.add(videoTag);
             }
-            usageByDay[date][videoTag].usage = oldUsage + pendingUsage;
+            todayUsage[videoTag].usage = oldUsage + pendingUsage;
+            usageByDay[date] = todayUsage;
             updateBadge(usageByDay);
             await setToLocalCache({ usageByDay });
 

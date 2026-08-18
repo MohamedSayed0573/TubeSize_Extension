@@ -1,25 +1,30 @@
-import { getUsageByDay, type UsageByDay } from "@/lib/analyticsUtils";
-import { useEffect, useState } from "react";
+import { removeFromLocalCache } from "@/lib/cache";
+import { getUsageByDay } from "@lib/analyticsUtils";
+import { useMutation, useQuery } from "@tanstack/react-query";
+
+async function clearAllUsageData() {
+    await removeFromLocalCache("usageByDay");
+}
 
 export default function useUsage() {
-    const [isLoading, setIsLoading] = useState(true);
-    const [usage, setUsage] = useState<UsageByDay>({});
-    const [error, setError] = useState<Error>();
-    useEffect(() => {
-        const fetchUsage = async () => {
-            try {
-                const usageByDay = await getUsageByDay();
-                setUsage(usageByDay);
-            } catch (err) {
-                console.error("Failed to load usage data", err);
-                setError(err instanceof Error ? err : new Error(String(err)));
-            } finally {
-                setIsLoading(false);
-            }
-        };
+    const query = useQuery({
+        queryKey: ["usage"],
+        queryFn: getUsageByDay,
+    });
 
-        void fetchUsage();
-    }, []);
+    const mutation = useMutation({
+        mutationFn: clearAllUsageData,
+    });
 
-    return { usage, setUsage, error, isLoading };
+    /*
+        I'm returning query itself here because I've faced issues with TS type narrowing when I returned specific properties.
+        Specifically, TS couldn't realize usage is not possibly undefined after checking againt isPending and isError.
+    */
+    return {
+        query,
+        clearUsage: mutation.mutate,
+        isClearing: mutation.isPending,
+        isClearingError: mutation.isError,
+        isClearingSuccess: mutation.isSuccess,
+    };
 }

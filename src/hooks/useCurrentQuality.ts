@@ -1,31 +1,22 @@
-import { delay } from "@lib/utils";
 import { sendMessageToContentScript } from "@/runtime";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
-export default function useCurrentQuality(tabId?: number, tabUrl?: string) {
-    const [currentQuality, setCurrentQuality] = useState<number | undefined>();
+export default function useCurrentQuality(tabId: number | undefined) {
+    const query = useQuery({
+        queryKey: ["current-quality", tabId],
+        queryFn: async () => {
+            const quality = await sendMessageToContentScript(tabId!, {
+                type: "getCurrentResolution",
+            });
 
-    useEffect(() => {
-        void (async () => {
-            try {
-                if (!tabId) return;
+            return { quality };
+        },
+        enabled: !!tabId,
+    });
 
-                for (let attempt = 0; attempt < 5; attempt++) {
-                    const quality = await sendMessageToContentScript(tabId, {
-                        type: "getCurrentResolution",
-                    });
-
-                    if (typeof quality === "number") {
-                        setCurrentQuality(quality);
-                        return;
-                    }
-
-                    await delay(500);
-                }
-            } catch (err) {
-                console.error("Failed to get current quality:", err);
-            }
-        })();
-    }, [tabId, tabUrl]);
-    return { currentQuality };
+    return {
+        currentQuality: query.data,
+        isError: query.isError,
+        isPending: query.isPending,
+    };
 }

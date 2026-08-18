@@ -1,4 +1,4 @@
-import { useYoutubeData } from "@/hooks/useYoutubeData";
+import { useYoutubeData } from "@hooks/useYoutubeData";
 import Header from "../../header";
 import InfoCard from "@components/infoCard";
 import YoutubeFormats from "./youtubeFormats";
@@ -18,9 +18,9 @@ export function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: number }
             />
 
             <div className="flex flex-col gap-2 px-3 py-1.5 text-xs text-zinc-400">
-                <PopupUsage tabId={tabId} />
+                <PopupUsage />
                 {message && <InfoCard message={message} />}
-                {data && <YoutubeFormats data={data} tabId={tabId} tabUrl={tabUrl} />}
+                {data && <YoutubeFormats data={data} tabId={tabId} />}
             </div>
         </>
     );
