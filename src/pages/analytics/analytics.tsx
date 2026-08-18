@@ -42,19 +42,19 @@ function StatsCard({ title, number }: { title: string; number: number }) {
 function StatsRow({ usage }: { usage: UsageByDay }) {
     return (
         <div className="grid grid-cols-4 gap-2 py-2.5">
-            <Link to="/today">
+            <Link to="today">
                 <StatsCard title="Today" number={getUsageNumber(getTodayUsage(usage))} />
             </Link>
-            <Link to="/week">
+            <Link to="week">
                 <StatsCard title="This Week" number={getUsageNumber(getLast7DaysUsage(usage))} />
             </Link>
-            <Link to="/month">
+            <Link to="month">
                 <StatsCard
                     title="Last 30 Days"
                     number={getUsageNumber(getLast30DaysUsage(usage))}
                 />
             </Link>
-            <Link to="/lifetime">
+            <Link to="lifetime">
                 <StatsCard title="Lifetime" number={getUsageNumber(usage)} />
             </Link>
         </div>

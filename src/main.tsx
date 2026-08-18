@@ -34,11 +34,11 @@ root.render(
 
                     <Route path="/analytics" element={<AnalyticsLayout />}>
                         <Route index element={<Analytics />} />
-                        <Route path="/:date" element={<UsageDetails />} />
-                        <Route path="/today" element={<TodayUsage />} />
-                        <Route path="/week" element={<WeekUsage />} />
-                        <Route path="/month" element={<MonthUsage />} />
-                        <Route path="/lifetime" element={<LifetimeUsage />} />
+                        <Route path=":date" element={<UsageDetails />} />
+                        <Route path="today" element={<TodayUsage />} />
+                        <Route path="week" element={<WeekUsage />} />
+                        <Route path="month" element={<MonthUsage />} />
+                        <Route path="lifetime" element={<LifetimeUsage />} />
                     </Route>
                 </Routes>
             </ErrorBoundary>
