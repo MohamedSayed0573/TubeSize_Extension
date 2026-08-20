@@ -32,7 +32,7 @@ export default function Options() {
             </div>
 
             <Divider />
-            <CacheSettings />
+            <CacheSettings optionsState={optionsState} />
 
             <Divider />
             <ToasterSettings />
