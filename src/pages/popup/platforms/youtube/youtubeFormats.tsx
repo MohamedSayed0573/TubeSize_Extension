@@ -2,7 +2,7 @@ import type { OptionsMap, YoutubeData } from "@app-types/types";
 import CONFIG from "@lib/constants";
 import useOptions from "@hooks/useOptions";
 import useCurrentQuality from "@hooks/useCurrentQuality";
-import FormatItem from "../formatItem";
+import FormatItem from "@pages/popup/platforms/formatItem";
 import InfoCard from "@components/infoCard";
 
 function getEnabledOptions(optionsState: OptionsMap | undefined) {

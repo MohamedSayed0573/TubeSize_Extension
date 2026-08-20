@@ -15,8 +15,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@styles/global.css";
 import "@fontsource-variable/jetbrains-mono/wght.css";
 import { StrictMode } from "react";
-import { PopupLayout } from "./layouts/popupLayout";
-import AnalyticsLayout from "./layouts/analyticsLayout";
+import { PopupLayout } from "@layouts/popupLayout";
+import AnalyticsLayout from "@layouts/analyticsLayout";
 
 const domRoot = document.querySelector("#root") as HTMLElement;
 

@@ -2,7 +2,7 @@ import Header from "@pages/popup/header";
 import InfoCard from "@components/infoCard";
 import Spinner from "@components/spinner";
 import { useTwitchData } from "@/hooks/useTwitchData";
-import TwitchFormats from "./twitchFormats";
+import TwitchFormats from "@pages/popup/platforms/twitch/twitchFormats";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
 
 export function TwitchView({ tabUrl }: { tabUrl: string }) {

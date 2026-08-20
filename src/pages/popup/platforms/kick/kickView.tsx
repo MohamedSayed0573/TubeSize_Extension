@@ -1,7 +1,7 @@
 import { useKickData } from "@/hooks/useKickData";
 import Header from "@pages/popup/header";
 import InfoCard from "@components/infoCard";
-import KickFormats from "./kickFormats";
+import KickFormats from "@pages/popup/platforms/kick/kickFormats";
 import Spinner from "@components/spinner";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
 

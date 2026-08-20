@@ -5,8 +5,8 @@ import {
     formatDate,
 } from "@lib/analyticsUtils";
 import { useParams } from "react-router";
-import AnalyticsHeader from "./analyticsHeader";
-import AnalyticsBody from "./analyticsBody";
+import AnalyticsHeader from "@pages/analytics/analyticsHeader";
+import AnalyticsBody from "@pages/analytics/analyticsBody";
 import useUsage from "@/hooks/useUsage";
 
 export function UsageDetails() {

@@ -1,5 +1,5 @@
 import CONFIG from "@lib/constants";
-import OptionItem from "./optionItem";
+import OptionItem from "@pages/options/optionItem";
 import type { OptionsMap } from "@app-types/types";
 
 export default function ResolutionsOptions({ optionsState }: { optionsState: OptionsMap }) {

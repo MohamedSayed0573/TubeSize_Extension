@@ -5,8 +5,8 @@ import {
     formatDate,
     getLast7DaysUsage,
 } from "@lib/analyticsUtils";
-import AnalyticsHeader from "./analyticsHeader";
-import AnalyticsBody from "./analyticsBody";
+import AnalyticsHeader from "@pages/analytics/analyticsHeader";
+import AnalyticsBody from "@pages/analytics/analyticsBody";
 import useUsage from "@/hooks/useUsage";
 
 export default function WeekUsage() {

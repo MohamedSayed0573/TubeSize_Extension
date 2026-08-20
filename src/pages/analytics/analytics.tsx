@@ -1,4 +1,4 @@
-import Chart from "./chart";
+import Chart from "@pages/analytics/chart";
 import {
     isEmptyUsageByDay,
     type UsageByDay,

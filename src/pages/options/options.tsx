@@ -1,11 +1,11 @@
-import HeaderOptions from "./headerOptions";
-import CacheSettings from "./cacheSettings";
-import ToasterSettings from "./toasterSettings";
-import QualityMenu from "./qualityMenu";
+import HeaderOptions from "@pages/options/headerOptions";
+import CacheSettings from "@pages/options/cacheSettings";
+import ToasterSettings from "@pages/options/toasterSettings";
+import QualityMenu from "@pages/options/qualityMenu";
 import useOptions from "@hooks/useOptions";
-import Divider from "./divider";
-import { OptionsFooter } from "./optionsFooter";
-import ResolutionsOptions from "./resolutionsOptions";
+import Divider from "@pages/options/divider";
+import { OptionsFooter } from "@pages/options/optionsFooter";
+import ResolutionsOptions from "@pages/options/resolutionsOptions";
 
 export default function Options() {
     const { query } = useOptions();
