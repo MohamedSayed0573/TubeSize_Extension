@@ -1,7 +1,7 @@
 import { getFromSyncCache, setToSyncCache } from "@lib/cache";
+import { cn } from "@lib/cn";
 import CONFIG from "@lib/constants";
 import { useEffect, useState } from "react";
-import clsx from "clsx";
 
 export default function ToasterSettings() {
     const [toasterThreshold, setToasterThreshold] = useState<number>(
@@ -47,7 +47,7 @@ export default function ToasterSettings() {
                 Show a warning when internet usage gets too high.
             </div>
             <div
-                className={clsx(
+                className={cn(
                     "rounded-md border border-transparent bg-white/4 px-2.5 py-2 transition-colors duration-300",
                     !toasterEnabled && "bg-white/1 opacity-80",
                 )}
@@ -72,7 +72,7 @@ export default function ToasterSettings() {
                     />
                 </div>
                 <div
-                    className={clsx(
+                    className={cn(
                         "mt-3 rounded-lg border border-white/5 bg-white/3 p-2.5 transition-all duration-300 ease-in-out hover:border-white/10 hover:bg-white/6",
                         !toasterEnabled && "bg-white/1 opacity-60",
                     )}

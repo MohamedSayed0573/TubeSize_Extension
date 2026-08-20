@@ -1,13 +1,7 @@
 import useOptions from "@hooks/useOptions";
 import CONFIG from "@lib/constants";
 import type { OptionsMap } from "@app-types/types";
-
-const stateStyles = {
-    idle: "border-red-500/20 bg-red-500/8 text-red-400 hover:border-red-500/40 hover:bg-red-500/18",
-    success: "border-green-500/40 bg-green-500/8 text-green-500",
-    error: "border-red-500/20 bg-red-500/8 text-red-400",
-    pending: "",
-} as const;
+import { cn } from "@lib/cn";
 
 export default function CacheSettings({ optionsState }: { optionsState: OptionsMap }) {
     const { updateOptionsMutation } = useOptions();
@@ -50,7 +44,18 @@ export default function CacheSettings({ optionsState }: { optionsState: OptionsM
             </div>
             <button
                 id="resetCache"
-                className={`w-full cursor-pointer rounded-md border px-2.5 py-2 text-center text-xs font-medium transition-all disabled:cursor-default ${stateStyles[clearingStatus]}`}
+                className={cn(
+                    "w-full cursor-pointer rounded-md border px-2.5 py-2 text-center text-xs font-medium transition-all disabled:cursor-default",
+                    {
+                        "border-red-500/20 bg-red-500/8 text-red-400 hover:border-red-500/40 hover:bg-red-500/18":
+                            clearingStatus === "idle",
+
+                        "border-green-500/40 bg-green-500/8 text-green-500":
+                            clearingStatus === "success",
+
+                        "border-red-500/20 bg-red-500/8 text-red-400": clearingStatus === "error",
+                    },
+                )}
                 disabled={clearingIsPending}
                 onClick={() => {
                     clearLocalCache();
