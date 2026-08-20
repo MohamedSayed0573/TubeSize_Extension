@@ -67,15 +67,12 @@ export async function startYoutubeToastTracking(youtubeResponse: YoutubeData) {
 }
 
 async function getToasterThreshold() {
-    return (
-        ((await getFromSyncCache("toasterThreshold")) as number) || CONFIG.DEFAULT_TOASTER_THRESHOLD
-    );
+    return (await getFromSyncCache("toasterThreshold")) || CONFIG.DEFAULT_TOASTER_THRESHOLD;
 }
 
 async function getToasterThresholdUnit() {
     return (
-        ((await getFromSyncCache("toasterThresholdUnit")) as
-            "mbPerMinute" | "mbPerHour" | undefined) || CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT
+        (await getFromSyncCache("toasterThresholdUnit")) || CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT
     );
 }
 

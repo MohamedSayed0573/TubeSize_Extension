@@ -17,7 +17,7 @@ function getCurrentTabUrl() {
 }
 
 void (async () => {
-    const CACHED_VIDEOS = new Set<string>();
+    const cachedVideos = new Set<string>();
     do {
         try {
             if (pendingUsage === 0) continue;
@@ -26,19 +26,22 @@ void (async () => {
             if (!videoTag) continue;
 
             const date = getDateKey(new Date());
-            const usageByDay = await getUsageByDay();
-            usageByDay[date] ??= {};
-            usageByDay[date][videoTag] ??= {
+            const usageByDay = (await getUsageByDay()) ?? {};
+
+            let todayUsage = usageByDay[date];
+            if (!todayUsage) {
+                todayUsage = {};
+                usageByDay[date] = todayUsage;
+            }
+            const videoUsage = (todayUsage[videoTag] ??= {
                 usage: 0,
                 title: undefined,
                 thumbnailUrl: undefined,
                 channelName: undefined,
-            };
+            });
 
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            const oldUsage = usageByDay?.[date]?.[videoTag]?.usage || 0;
-
-            if (!CACHED_VIDEOS.has(videoTag)) {
+            // Get video info from background script if not cached
+            if (!cachedVideos.has(videoTag)) {
                 const res = await sendMessageToBackground({
                     type: "youtubeVideo",
                     videoTag,
@@ -48,14 +51,15 @@ void (async () => {
                     continue;
                 }
 
-                usageByDay[date][videoTag].title =
+                videoUsage.title =
                     res.data.type === "video" ? res.data.title : res.data.channelName || "Youtube";
-                usageByDay[date][videoTag].thumbnailUrl =
+                videoUsage.thumbnailUrl =
                     res.data.thumbnailUrl || "https://www.youtube.com/img/desktop/yt_1200.png";
-                usageByDay[date][videoTag].channelName = res.data.channelName;
-                CACHED_VIDEOS.add(videoTag);
+                videoUsage.channelName = res.data.channelName;
+                cachedVideos.add(videoTag);
             }
-            usageByDay[date][videoTag].usage = oldUsage + pendingUsage;
+            videoUsage.usage += pendingUsage;
+
             updateBadge(usageByDay);
             await setToLocalCache({ usageByDay });
 
@@ -68,8 +72,6 @@ void (async () => {
         }
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition , no-constant-condition
     } while (true);
-})().catch((err) => {
-    console.error("Error in usage tracking loop:", err);
 });
 
 observer.observe({

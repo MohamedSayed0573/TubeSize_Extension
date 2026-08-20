@@ -2,8 +2,8 @@ import CONFIG from "@lib/constants";
 import type { KickData, OptionsMap, StorageData, TwitchData, YoutubeData } from "@app-types/types";
 import { getDateKey } from "@lib/analyticsUtils";
 
-async function getCacheTTLSetting(): Promise<number> {
-    const cacheTTL = (await getFromSyncCache("cacheTTL")) as number;
+async function getCacheTTLSetting() {
+    const cacheTTL = await getFromSyncCache("cacheTTL");
     return cacheTTL || CONFIG.DEFAULT_CACHE_TTL;
 }
 
@@ -18,26 +18,71 @@ export async function setToSyncCache(input: OptionsMap) {
     return setToCache<OptionsMap>("sync", input);
 }
 
-async function getFromCache<T>(storage: "local" | "sync", key?: string | string[]): Promise<T> {
-    if (!key) {
-        return await chrome.storage[storage].get();
+function getFromCache<T>(storage: "local" | "sync"): Promise<Record<string, T> | undefined>;
+
+function getFromCache<T>(storage: "local" | "sync", key: string): Promise<T | undefined>;
+
+function getFromCache<T>(
+    storage: "local" | "sync",
+    key: string[],
+): Promise<Record<string, T> | undefined>;
+
+async function getFromCache<T>(
+    storage: "local" | "sync",
+    key?: string | string[],
+): Promise<Record<string, T> | T | undefined> {
+    // Return all values if no key is provided
+    if (key === undefined) {
+        return (await chrome.storage[storage].get()) as Record<string, T> | undefined;
     }
-    // If key is a single string/number, return just that value
-    // If key is an array, return the object with all requested keys
+
     const data = await chrome.storage[storage].get(key);
 
-    return (Array.isArray(key) ? data : data[key]) as T;
+    // If key is an array, return the object with all requested keys
+    if (Array.isArray(key)) {
+        return data as Record<string, T> | undefined;
+    }
+
+    // If key is a single string/number, return just that value
+    return data[key] as T | undefined;
 }
-export async function getFromLocalCache(key?: string | string[]) {
-    return getFromCache("local", key);
+
+export function getFromLocalCache<T>(): Promise<Record<string, T> | undefined>;
+export function getFromLocalCache<T>(key: string): Promise<T | undefined>;
+export function getFromLocalCache<T>(key: string[]): Promise<Record<string, T> | undefined>;
+export async function getFromLocalCache<T>(key?: string | string[]) {
+    if (key === undefined) {
+        return getFromCache<T>("local");
+    }
+    if (Array.isArray(key)) {
+        return getFromCache<T>("local", key);
+    }
+    return getFromCache<T>("local", key);
 }
-export async function getAllFromSyncCache(): Promise<OptionsMap> {
+
+export async function getAllFromSyncCache() {
     return getFromCache<OptionsMap>("sync");
 }
-export async function getFromSyncCache<T extends keyof OptionsMap>(
+
+export function getFromSyncCache<T extends keyof OptionsMap, K extends OptionsMap[T]>(): Promise<
+    Record<string, K>
+>;
+export function getFromSyncCache<T extends keyof OptionsMap, K extends OptionsMap[T]>(
+    key: T,
+): Promise<K>;
+export function getFromSyncCache<T extends keyof OptionsMap, K extends OptionsMap[T]>(
+    key: T[],
+): Promise<Record<string, K>>;
+export async function getFromSyncCache<T extends keyof OptionsMap, K extends OptionsMap[T]>(
     key?: T | T[],
-): Promise<OptionsMap[T]> {
-    return getFromCache("sync", key);
+) {
+    if (!key) {
+        return getFromCache<K>("sync");
+    }
+    if (Array.isArray(key)) {
+        return getFromCache<K>("sync", key as string[]);
+    }
+    return getFromCache<K>("sync", key as string);
 }
 
 async function removeFromCache(storage: "local" | "sync", key: string | string[]) {

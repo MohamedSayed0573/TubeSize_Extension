@@ -1,3 +1,5 @@
+import type { OptionsMap } from "@app-types/types";
+
 const VIDEO_ITAGS = new Map([
     [144, [394, 330, 278, 160]],
     [240, [395, 331, 242, 133]],
@@ -10,11 +12,19 @@ const VIDEO_ITAGS = new Map([
     [4320, [402, 571, 272, 138]],
 ]);
 
-const ttlInSecondsOptions: Map<string, number> = new Map([
-    ["1", 1 * 24 * 60 * 60],
-    ["3", 3 * 24 * 60 * 60],
-    ["7", 7 * 24 * 60 * 60],
-]);
+const ttlInSecondsOptions = {
+    "1": 1 * 24 * 60 * 60,
+    "3": 3 * 24 * 60 * 60,
+    "7": 7 * 24 * 60 * 60,
+} as const;
+
+const ttlInSecondsToDays = Object.fromEntries(
+    Object.entries(ttlInSecondsOptions).map(([key, value]) => [value, key]),
+);
+
+const DEFAULT_CACHE_TTL = ttlInSecondsOptions["3"];
+
+const DEFAULT_TOASTER_THRESHOLD_UNIT: OptionsMap["toasterThresholdUnit"] = "mbPerHour";
 
 const optionIDs = ["p144", "p240", "p360", "p480", "p720", "p1080", "p1440", "p2160", "p4320"];
 
@@ -24,8 +34,9 @@ const CONFIG = {
     liveResolutions: [248, 247, 244, 243, 242, 278],
     AUDIO_ITAG: 251,
     LIVE_AUDIO_ITAG: 140,
-    DEFAULT_CACHE_TTL: 3 * 24 * 60 * 60, // 3 Days
+    DEFAULT_CACHE_TTL,
     ttlInSecondsOptions,
+    ttlInSecondsToDays,
     optionIDs,
     DEFAULT_MAX_RETRIES: 3,
     RANGE_RESOLUTION_THRESHOLD: 1080,
@@ -33,7 +44,7 @@ const CONFIG = {
     YT_INITIAL_PLAYER_REGEX: /ytInitialPlayerResponse\s*=\s*(\{.+?\});/s,
     CACHE_JUST_NOW_THRESHOLD: 5000,
     DEFAULT_TOASTER_THRESHOLD: 500,
-    DEFAULT_TOASTER_THRESHOLD_UNIT: "mbPerHour",
+    DEFAULT_TOASTER_THRESHOLD_UNIT,
     TOASTER_POLLING_INTERVAL: 5000,
     DEFAULT_TOASTER_ENABLED: true,
     DEFAULT_QUALITY_MENU_ENABLED: true,

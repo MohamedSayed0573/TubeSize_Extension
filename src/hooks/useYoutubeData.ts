@@ -1,54 +1,42 @@
-import { extractVideoTag, isShortsVideo } from "@/lib/utils";
+import { extractVideoTag, isShortsVideo, isYoutubePage } from "@/lib/utils";
 import { sendMessageToBackground } from "@/runtime";
-import type { YoutubeData } from "@/types/types";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 export function useYoutubeData(tabUrl: string, tabId: number) {
-    const [message, setMessage] = useState<string>();
-    const [error, setError] = useState<Error>();
-    const [data, setData] = useState<YoutubeData>();
-    const [createdAt, setCreatedAt] = useState<string | undefined>();
-    const [isLoading, setIsLoading] = useState(true);
+    const isYoutubeVideo = isYoutubePage(tabUrl) && !!extractVideoTag(tabUrl);
+    const query = useQuery({
+        queryKey: ["youtube", tabUrl, tabId],
+        queryFn: async () => {
+            const videoTag = extractVideoTag(tabUrl)!;
 
-    useEffect(() => {
-        const getYoutubeData = async () => {
-            try {
-                if (!tabUrl || !tabId) return;
-                const videoTag = extractVideoTag(tabUrl);
-                if (!videoTag) {
-                    setMessage("Open a Youtube video");
-                    return;
-                }
+            const response = await sendMessageToBackground({
+                type: "youtubeVideo",
+                videoTag,
+                tabId,
+            });
 
-                const response = await sendMessageToBackground({
-                    type: "youtubeVideo",
-                    videoTag,
-                    tabId,
-                });
-
-                if (!response.success) {
-                    throw new Error(response.message);
-                }
-
-                if (response.data.formats.length === 0) {
-                    throw new Error("No video formats found for this video");
-                }
-
-                if (response.data.type === "video" && isShortsVideo(tabUrl)) {
-                    response.data.isShorts = true;
-                }
-
-                setData(response.data);
-                setCreatedAt(response.createdAt);
-            } catch (err) {
-                setError(err instanceof Error ? err : new Error(String(err)));
-            } finally {
-                setIsLoading(false);
+            if (!response.success) {
+                throw new Error(response.message);
             }
-        };
 
-        void getYoutubeData();
-    }, [tabId, tabUrl]);
+            if (response.data.formats.length === 0) {
+                throw new Error("No video formats found for this video");
+            }
 
-    return { message, data, createdAt, error, isLoading };
+            if (response.data.type === "video" && isShortsVideo(tabUrl)) {
+                response.data.isShorts = true;
+            }
+
+            return {
+                data: response.data,
+                createdAt: response.createdAt,
+            };
+        },
+        enabled: isYoutubeVideo,
+    });
+
+    return {
+        query,
+        isYoutubeVideo,
+    };
 }

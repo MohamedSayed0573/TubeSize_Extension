@@ -24,7 +24,6 @@
         "noUncheckedSideEffectImports": true,
         "noUncheckedIndexedAccess": true,
         "paths": {
-            "@/*": ["./src/*"],
             "@components/*": ["./src/components/*"],
             "@styles/*": ["./src/styles/*"],
             "@pages/*": ["./src/pages/*"],
@@ -33,7 +32,8 @@
             "@assets/*": ["./src/assets/*"],
             "@hooks/*": ["./src/hooks/*"],
             "@app-types/*": ["./src/types/*"],
-            "@layouts/*": ["./src/layouts/*"]
+            "@layouts/*": ["./src/layouts/*"],
+            "@/*": ["./src/*"]
         }
     },
     "include": ["./src", "./src/types", "vite.config.ts"]

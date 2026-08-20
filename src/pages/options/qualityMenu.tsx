@@ -1,21 +1,11 @@
-import { getFromSyncCache, setToSyncCache } from "@lib/cache";
+import type { OptionsMap } from "@app-types/types";
+import useOptions from "@hooks/useOptions";
 import CONFIG from "@lib/constants";
-import { useEffect, useState } from "react";
 
-export default function QualityMenu() {
-    const [qualityMenuEnabled, setQualityMenuEnabled] = useState<boolean>(
-        CONFIG.DEFAULT_QUALITY_MENU_ENABLED,
-    );
-
-    useEffect(() => {
-        void (async () => {
-            const isQualityMenuEnabled =
-                (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
-            if (typeof isQualityMenuEnabled === "boolean") {
-                setQualityMenuEnabled(isQualityMenuEnabled);
-            }
-        })();
-    }, []);
+export default function QualityMenu({ optionsState }: { optionsState: OptionsMap }) {
+    const isQualityMenuEnabled = optionsState.qualityMenu ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
+    const { updateOptionsMutation } = useOptions();
+    const { mutate: updateOptions } = updateOptionsMutation;
 
     return (
         <div className="p-3.5">
@@ -32,12 +22,11 @@ export default function QualityMenu() {
                 <input
                     id="qualityMenuToggle"
                     type="checkbox"
-                    checked={qualityMenuEnabled}
+                    checked={isQualityMenuEnabled}
                     onChange={(event) => {
-                        const { checked } = event.target;
-                        void setToSyncCache({
-                            qualityMenu: checked,
-                        }).then(() => setQualityMenuEnabled(checked));
+                        updateOptions({
+                            qualityMenu: event.target.checked,
+                        });
                     }}
                 ></input>
             </div>

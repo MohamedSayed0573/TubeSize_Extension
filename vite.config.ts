@@ -16,7 +16,6 @@ export default defineConfig(({ mode }) => ({
     },
     resolve: {
         alias: {
-            "@": path.resolve(__dirname, "src"),
             "@components": path.resolve(__dirname, "src/components"),
             "@styles": path.resolve(__dirname, "src/styles"),
             "@pages": path.resolve(__dirname, "src/pages"),
@@ -26,6 +25,7 @@ export default defineConfig(({ mode }) => ({
             "@hooks": path.resolve(__dirname, "src/hooks"),
             "@app-types": path.resolve(__dirname, "src/types"),
             "@layouts": path.resolve(__dirname, "src/layouts"),
+            "@": path.resolve(__dirname, "src"),
         },
     },
     plugins: [

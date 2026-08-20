@@ -2,10 +2,10 @@ import type { OptionsMap, YoutubeData } from "@app-types/types";
 import CONFIG from "@lib/constants";
 import useOptions from "@hooks/useOptions";
 import useCurrentQuality from "@hooks/useCurrentQuality";
-import FormatItem from "../formatItem";
+import FormatItem from "@pages/popup/platforms/formatItem";
 import InfoCard from "@components/infoCard";
 
-function getEnabledOptions(optionsState: OptionsMap | null) {
+function getEnabledOptions(optionsState: OptionsMap | undefined) {
     const qualityIds = optionsState?.["qualityIds"] ?? {};
     return CONFIG.optionIDs.filter((option) => qualityIds[option] ?? true);
 }
@@ -13,16 +13,16 @@ function getEnabledOptions(optionsState: OptionsMap | null) {
 export default function YoutubeFormats({
     data,
     tabId,
-    tabUrl,
 }: {
     data: YoutubeData;
     tabId: number | undefined;
-    tabUrl: string | undefined;
 }) {
-    const { currentQuality } = useCurrentQuality(tabId, tabUrl);
+    const { currentQuality } = useCurrentQuality(tabId);
 
-    const { optionsState, error: optionsError } = useOptions();
-    if (optionsError) throw optionsError;
+    const { query } = useOptions();
+    const { data: optionsState, isError, error, isPending } = query;
+    if (isError) throw error;
+    if (isPending) return null;
 
     const enabledOptions = getEnabledOptions(optionsState);
 
@@ -40,7 +40,7 @@ export default function YoutubeFormats({
                     <FormatItem
                         key={item.resolution}
                         item={item}
-                        currentQuality={currentQuality}
+                        currentQuality={currentQuality?.quality}
                         isShorts={false}
                         isLive={true}
                     />
@@ -58,7 +58,7 @@ export default function YoutubeFormats({
                     item={item}
                     isLive={false}
                     isShorts={data.isShorts || false}
-                    currentQuality={currentQuality}
+                    currentQuality={currentQuality?.quality}
                     durationSeconds={data.durationSeconds}
                 />
             );

@@ -196,25 +196,23 @@ function handleSetBadge(
     return sendResponse({ success: true });
 }
 
-const lastUrlByTab = new Map<number, string>();
+// Show the badge if the tab is a YouTube page
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status !== "complete") return;
-    if (!tab.url || tab.url === lastUrlByTab.get(tabId)) return;
-    lastUrlByTab.set(tabId, tab.url);
+    if (changeInfo.status !== "complete" || !tab.url) return;
     if (isYoutubePage(tab.url)) {
-        void showBadge(tabId);
+        void updateUsageBadge(tabId);
     } else {
         removeBadge(tabId);
     }
 });
 
-// Clean up map entries when a tab is closed to avoid memory leaks
-chrome.tabs.onRemoved.addListener((tabId) => {
-    lastUrlByTab.delete(tabId);
-});
-
-async function showBadge(tabId: number) {
+async function updateUsageBadge(tabId: number) {
     const usageByDay = await getUsageByDay();
+    if (!usageByDay) {
+        removeBadge(tabId);
+        return;
+    }
+
     const total = getUsageNumber(getTodayUsage(usageByDay));
 
     setBadge(badgeFormatter(total), tabId);

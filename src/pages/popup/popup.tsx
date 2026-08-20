@@ -1,24 +1,23 @@
 import { isYoutubePage, isTwitchPage, isKickPage } from "@lib/utils";
-import Header from "./header";
+import Header from "@pages/popup/header";
 import useTab from "@hooks/useTab";
 import InfoCard from "@components/infoCard";
 import Spinner from "@components/spinner";
-import { YoutubeView } from "./platforms/youtube/youtubeView";
-import { TwitchView } from "./platforms/twitch/twitchView";
-import { KickView } from "./platforms/kick/kickView";
+import { YoutubeView } from "@pages/popup/platforms/youtube/youtubeView";
+import { TwitchView } from "@pages/popup/platforms/twitch/twitchView";
+import { KickView } from "@pages/popup/platforms/kick/kickView";
 
 export default function Popup() {
-    const { tabUrl, tabId, error, isLoading } = useTab();
-
-    if (error) throw error;
-
-    if (isLoading) {
+    const { data: tab, error, isPending, isError } = useTab();
+    if (isError) throw error;
+    if (isPending)
         return (
             <div className="flex w-60 items-center justify-center p-4">
                 <Spinner />
             </div>
         );
-    }
+
+    const { tabUrl, tabId } = tab;
 
     // 2. Platform sub-views
     if (tabUrl && tabId) {

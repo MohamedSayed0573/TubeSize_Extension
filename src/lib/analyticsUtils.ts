@@ -21,8 +21,8 @@ export type UsageByDay = {
 //     };
 // };
 
-export async function getUsageByDay(): Promise<UsageByDay> {
-    return ((await getFromLocalCache("usageByDay")) ?? {}) as UsageByDay;
+export async function getUsageByDay() {
+    return await getFromLocalCache<UsageByDay>("usageByDay");
 }
 
 /**

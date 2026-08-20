@@ -5,7 +5,7 @@ import {
     totalSizeVideoDisplay,
 } from "@lib/formatting";
 import type { StreamInfo, YoutubeData, YoutubeVideoFormat } from "@app-types/types";
-import clsx from "clsx";
+import { cn } from "@lib/cn";
 
 interface Props {
     item: YoutubeData["formats"][number] | StreamInfo;
@@ -37,7 +37,7 @@ export default function FormatItem({
 
     return (
         <div
-            className={clsx(
+            className={cn(
                 "flex cursor-pointer items-center justify-between rounded-lg border border-teal-950 px-3 py-2.5",
                 { "bg-red-800/80 hover:border-red-600": resolution === currentQuality },
                 { "bg-stone-800 hover:border-teal-800": resolution !== currentQuality },

@@ -1,11 +1,11 @@
 import type { TwitchData } from "@app-types/types";
 import useCurrentQuality from "@hooks/useCurrentQuality";
 import useTab from "@hooks/useTab";
-import FormatItem from "../formatItem";
+import FormatItem from "@pages/popup/platforms/formatItem";
 
 export default function TwitchFormats({ data }: { data: TwitchData }) {
-    const { tabId, tabUrl } = useTab();
-    const { currentQuality } = useCurrentQuality(tabId, tabUrl);
+    const { data: tabData } = useTab();
+    const { currentQuality } = useCurrentQuality(tabData?.tabId);
 
     return data.data.map((item) => {
         return (
@@ -13,7 +13,7 @@ export default function TwitchFormats({ data }: { data: TwitchData }) {
                 key={item.resolution}
                 item={item}
                 durationSeconds={data.type === "vod" ? data.durationSeconds : undefined}
-                currentQuality={currentQuality}
+                currentQuality={currentQuality?.quality}
                 isLive={data.type === "live"}
             />
         );

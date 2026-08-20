@@ -1,46 +1,40 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
-import { useEffect, useState } from "react";
-import { getTodayUsage, getUsageByDay, getUsageNumber } from "@lib/analyticsUtils";
+import { useEffect } from "react";
+import { getTodayUsage, getUsageNumber } from "@lib/analyticsUtils";
+import useUsage from "@hooks/useUsage";
+import { useQueryClient } from "@tanstack/react-query";
 
-async function getTodaysTotalUsage(tabId: number | undefined) {
-    if (!tabId) return;
-    const usageByDay = await getUsageByDay();
-
-    const totalTodaysUsage = getUsageNumber(getTodayUsage(usageByDay));
-    return totalTodaysUsage;
-}
-
-export default function PopupUsage({ tabId }: { tabId: number | undefined }) {
-    const [todayUsage, setTodayUsage] = useState<number | undefined>();
+export default function PopupUsage() {
+    const queryClient = useQueryClient();
+    const { query } = useUsage();
+    const { data: usageByDay } = query;
 
     useEffect(() => {
-        const updateUsage = async () => {
-            const total = await getTodaysTotalUsage(tabId);
-            setTodayUsage(total);
-        };
-        const handleUpdateUsage = () => {
-            void updateUsage();
+        const handleStorageChange = () => {
+            void queryClient.invalidateQueries({ queryKey: ["usage"] });
         };
 
-        void updateUsage();
-        chrome.storage.onChanged.addListener(handleUpdateUsage);
+        chrome.storage.onChanged.addListener(handleStorageChange);
+        return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+    }, [queryClient]);
 
-        return () => chrome.storage.onChanged.removeListener(handleUpdateUsage);
-    }, [tabId]);
+    const todayUsage = usageByDay ? getUsageNumber(getTodayUsage(usageByDay)) : 0;
 
     return (
         <>
-            {todayUsage !== undefined && (
+            {
                 <div>
                     <button
                         className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-white/12 bg-white/3 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-white/6"
-                        onClick={() => void chrome.tabs.create({ url: "index.html#/today" })}
+                        onClick={() =>
+                            void chrome.tabs.create({ url: "index.html#/analytics/today" })
+                        }
                     >
                         <span>{"YouTube Usage Today: "}</span>
                         <span>{totalSizeVideoDisplay(todayUsage)}</span>
                     </button>
                 </div>
-            )}
+            }
         </>
     );
 }

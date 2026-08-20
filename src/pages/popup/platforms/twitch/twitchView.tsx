@@ -1,25 +1,41 @@
-import Header from "../../header";
+import Header from "@pages/popup/header";
 import InfoCard from "@components/infoCard";
 import Spinner from "@components/spinner";
 import { useTwitchData } from "@/hooks/useTwitchData";
-import TwitchFormats from "./twitchFormats";
+import TwitchFormats from "@pages/popup/platforms/twitch/twitchFormats";
+import { PopupViewContainer } from "@pages/popup/popupViewContainer";
 
 export function TwitchView({ tabUrl }: { tabUrl: string }) {
-    const { data, error, message, isLoading, createdAt } = useTwitchData(tabUrl);
+    const { query, isTwitchRelated } = useTwitchData(tabUrl);
+    const { isPending, isError, data, error } = query;
 
-    if (isLoading) return <Spinner />;
-    if (error) throw error;
+    if (!isTwitchRelated) {
+        return (
+            <>
+                <Header />
+                <PopupViewContainer>
+                    <InfoCard message="Open a Twitch stream or VOD" />
+                </PopupViewContainer>
+            </>
+        );
+    }
+
+    if (isPending) return <Spinner />;
+    if (isError) throw error;
 
     return (
         <>
             <Header
-                data={data ? { platform: "twitch", data, cacheCreatedAt: createdAt } : undefined}
+                data={{
+                    platform: "twitch",
+                    data: data.data,
+                    cacheCreatedAt: data.createdAt,
+                }}
             />
 
-            <div className="flex flex-col gap-2 px-3 py-1.5 text-xs text-zinc-400">
-                {message && <InfoCard message={message} />}
-                {data && <TwitchFormats data={data} />}
-            </div>
+            <PopupViewContainer>
+                <TwitchFormats data={data.data} />
+            </PopupViewContainer>
         </>
     );
 }
