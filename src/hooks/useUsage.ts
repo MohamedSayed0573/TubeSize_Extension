@@ -1,19 +1,25 @@
 import { removeFromLocalCache } from "@/lib/cache";
 import { getUsageByDay } from "@lib/analyticsUtils";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 async function clearAllUsageData() {
     await removeFromLocalCache("usageByDay");
 }
 
 export default function useUsage() {
+    const queryClient = useQueryClient();
+
     const query = useQuery({
         queryKey: ["usage"],
-        queryFn: getUsageByDay,
+        queryFn: async () => (await getUsageByDay()) ?? null,
     });
 
-    const mutation = useMutation({
+    const clearUsageMutation = useMutation({
         mutationFn: clearAllUsageData,
+
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["usage"] });
+        },
     });
 
     /*
@@ -22,9 +28,6 @@ export default function useUsage() {
     */
     return {
         query,
-        clearUsage: mutation.mutate,
-        isClearing: mutation.isPending,
-        isClearingError: mutation.isError,
-        isClearingSuccess: mutation.isSuccess,
+        clearUsageMutation,
     };
 }

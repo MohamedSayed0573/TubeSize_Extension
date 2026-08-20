@@ -9,14 +9,16 @@ export default function useCurrentQuality(tabId: number | undefined) {
                 type: "getCurrentResolution",
             });
 
+            if (!quality) throw new Error("Couldn't get the current quality.");
+
             return { quality };
         },
         enabled: !!tabId,
+        retry: 5,
+        retryDelay: 500,
     });
 
     return {
         currentQuality: query.data,
-        isError: query.isError,
-        isPending: query.isPending,
     };
 }

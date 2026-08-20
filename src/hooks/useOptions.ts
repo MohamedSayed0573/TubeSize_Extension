@@ -18,6 +18,12 @@ export default function useOptions() {
 
     const clearCacheMutation = useMutation({
         mutationFn: clearLocalCache,
+
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["youtube"] });
+            await queryClient.invalidateQueries({ queryKey: ["twitch"] });
+            await queryClient.invalidateQueries({ queryKey: ["kick"] });
+        },
     });
 
     return {

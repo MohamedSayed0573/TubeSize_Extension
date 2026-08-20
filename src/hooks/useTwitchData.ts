@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 export function useTwitchData(tabUrl: string) {
     const isTwitchRelated = isTwitchPage(tabUrl);
     const query = useQuery({
-        queryKey: [tabUrl],
+        queryKey: ["twitch", tabUrl],
         queryFn: async () => {
             if (isTwitchVod(tabUrl)) {
                 const vodId = extractTwitchVodId(tabUrl);

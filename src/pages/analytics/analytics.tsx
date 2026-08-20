@@ -88,41 +88,32 @@ function UsageChartSection({
 }
 
 function ClearUsageButton() {
-    const { clearUsage, isClearing, isClearingError, isClearingSuccess } = useUsage();
-
-    // const handleClearUsageData = () => {
-    //     if (!confirm("Are you sure you want to clear all usage data?")) return;
-    //     try {
-    //         setClearStatus("success");
-    //     } catch (err) {
-    //         console.error("Failed to clear usage data", err);
-    //         setClearStatus("error");
-    //     } finally {
-    //         setTimeout(() => {
-    //             setClearStatus("idle");
-    //             setIsClearing(false);
-    //         }, 1500);
-    //     }
-    // };
-
-    // const clearButtonText =
-    //     clearStatus === "success"
-    //         ? "Usage Data Cleared Successfully!"
-    //         : clearStatus === "error"
-    //           ? "Failed to Clear Usage Data. Try Again."
-    //           : "Clear All Usage Data";
-    //
+    const { clearUsageMutation } = useUsage();
+    const {
+        mutate: clearUsage,
+        isPending: isClearingPending,
+        isError: isClearingError,
+        isSuccess: isClearingSuccess,
+        reset: resetClearing,
+        isIdle: isClearingIdle,
+    } = clearUsageMutation;
 
     return (
         <button
             className="mt-2.5 cursor-pointer rounded-xl border border-neutral-800 bg-[#221718] px-3 py-2.5 font-mono text-xs font-semibold tracking-widest text-red-400 uppercase transition-colors hover:bg-[#2a1b1c]"
-            onClick={() => clearUsage()}
-            disabled={isClearing}
+            onClick={() => {
+                clearUsage();
+
+                setTimeout(() => {
+                    resetClearing();
+                }, 2500);
+            }}
+            disabled={isClearingPending}
         >
-            {isClearing && "Clearing"}
+            {isClearingPending && "Clearing"}
             {isClearingError && "Failed To Clear Usage Data. Try Again."}
             {isClearingSuccess && "Usage Data was Cleared Successfully"}
-            {!isClearing && !isClearingError && "Clear All Usage  Data"}
+            {isClearingIdle && "Clear All Usage Data"}
         </button>
     );
 }

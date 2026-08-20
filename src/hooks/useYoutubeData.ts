@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 export function useYoutubeData(tabUrl: string, tabId: number) {
     const isYoutubeVideo = isYoutubePage(tabUrl) && !!extractVideoTag(tabUrl);
     const query = useQuery({
-        queryKey: [tabUrl, tabId],
+        queryKey: ["youtube", tabUrl, tabId],
         queryFn: async () => {
             const videoTag = extractVideoTag(tabUrl)!;
 
