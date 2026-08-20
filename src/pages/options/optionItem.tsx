@@ -8,7 +8,8 @@ export default function OptionItem({
     option: string;
     optionsState: OptionsMap;
 }) {
-    const { updateOptions } = useOptions();
+    const { updateOptionsMutation } = useOptions();
+    const { mutate: updateOptions } = updateOptionsMutation;
 
     return (
         <div className="flex cursor-pointer items-center justify-between rounded-lg border border-transparent bg-white/3 px-3 py-2.5 pl-3 transition-all hover:border-white/20 hover:bg-white/8">
@@ -21,7 +22,7 @@ export default function OptionItem({
                 checked={optionsState["qualityIds"]?.[option] ?? true}
                 onChange={(event) => {
                     const { checked } = event.target;
-                    void updateOptions({
+                    updateOptions({
                         qualityIds: {
                             ...optionsState["qualityIds"],
                             [option]: checked,

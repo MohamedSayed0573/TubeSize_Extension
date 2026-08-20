@@ -1,3 +1,5 @@
+import type { OptionsMap } from "@app-types/types";
+
 const VIDEO_ITAGS = new Map([
     [144, [394, 330, 278, 160]],
     [240, [395, 331, 242, 133]],
@@ -22,6 +24,8 @@ const ttlInSecondsToDays = Object.fromEntries(
 
 const DEFAULT_CACHE_TTL = ttlInSecondsOptions["3"];
 
+const DEFAULT_TOASTER_THRESHOLD_UNIT: OptionsMap["toasterThresholdUnit"] = "mbPerHour";
+
 const optionIDs = ["p144", "p240", "p360", "p480", "p720", "p1080", "p1440", "p2160", "p4320"];
 
 const CONFIG = {
@@ -40,7 +44,7 @@ const CONFIG = {
     YT_INITIAL_PLAYER_REGEX: /ytInitialPlayerResponse\s*=\s*(\{.+?\});/s,
     CACHE_JUST_NOW_THRESHOLD: 5000,
     DEFAULT_TOASTER_THRESHOLD: 500,
-    DEFAULT_TOASTER_THRESHOLD_UNIT: "mbPerHour",
+    DEFAULT_TOASTER_THRESHOLD_UNIT,
     TOASTER_POLLING_INTERVAL: 5000,
     DEFAULT_TOASTER_ENABLED: true,
     DEFAULT_QUALITY_MENU_ENABLED: true,
