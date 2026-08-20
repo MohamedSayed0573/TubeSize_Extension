@@ -6,21 +6,33 @@ import PopupUsage from "../../popupUsage";
 import Spinner from "@components/spinner";
 
 export function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
-    const { data, error, message, createdAt, isLoading } = useYoutubeData(tabUrl, tabId);
+    const { query, isYoutubeVideo } = useYoutubeData(tabUrl, tabId);
+    const { isPending, isError, data, error } = query;
 
-    if (isLoading) return <Spinner />;
-    if (error) throw error;
+    if (!isYoutubeVideo) {
+        return (
+            <>
+                <Header />
+                <div className="flex flex-col gap-2 px-3 py-1.5 text-xs text-zinc-400">
+                    <PopupUsage />
+                    <InfoCard message="Open a Youtube video" />
+                </div>
+            </>
+        );
+    }
+
+    if (isPending) return <Spinner />;
+    if (isError) throw error;
 
     return (
         <>
             <Header
-                data={data ? { platform: "youtube", data, cacheCreatedAt: createdAt } : undefined}
+                data={{ platform: "youtube", data: data.data, cacheCreatedAt: data.createdAt }}
             />
 
             <div className="flex flex-col gap-2 px-3 py-1.5 text-xs text-zinc-400">
                 <PopupUsage />
-                {message && <InfoCard message={message} />}
-                {data && <YoutubeFormats data={data} tabId={tabId} />}
+                <YoutubeFormats data={data.data} tabId={tabId} />
             </div>
         </>
     );

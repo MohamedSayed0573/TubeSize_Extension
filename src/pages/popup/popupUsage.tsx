@@ -1,28 +1,28 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { getTodayUsage, getUsageNumber } from "@lib/analyticsUtils";
 import useUsage from "@hooks/useUsage";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function PopupUsage() {
-    const [todayUsage, setTodayUsage] = useState<number>();
+    const queryClient = useQueryClient();
     const { query } = useUsage();
     const { data: usageByDay } = query;
 
     useEffect(() => {
-        const handleUpdateUsage = () => {
-            const total = usageByDay ? getUsageNumber(getTodayUsage(usageByDay)) : 0;
-            setTodayUsage(total);
+        const handleStorageChange = () => {
+            void queryClient.invalidateQueries({ queryKey: ["usage"] });
         };
 
-        void handleUpdateUsage();
-        chrome.storage.onChanged.addListener(handleUpdateUsage);
+        chrome.storage.onChanged.addListener(handleStorageChange);
+        return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+    }, [queryClient]);
 
-        return () => chrome.storage.onChanged.removeListener(handleUpdateUsage);
-    }, [usageByDay]);
+    const todayUsage = usageByDay ? getUsageNumber(getTodayUsage(usageByDay)) : 0;
 
     return (
         <>
-            {todayUsage !== undefined && (
+            {
                 <div>
                     <button
                         className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-white/12 bg-white/3 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-white/6"
@@ -34,7 +34,7 @@ export default function PopupUsage() {
                         <span>{totalSizeVideoDisplay(todayUsage)}</span>
                     </button>
                 </div>
-            )}
+            }
         </>
     );
 }
