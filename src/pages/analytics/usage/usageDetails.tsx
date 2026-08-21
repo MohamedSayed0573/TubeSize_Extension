@@ -5,19 +5,21 @@ import {
     formatDate,
 } from "@lib/analyticsUtils";
 import { useParams } from "react-router";
-import AnalyticsHeader from "@pages/analytics/analyticsHeader";
-import AnalyticsBody from "@pages/analytics/analyticsBody";
-import useUsage from "@/hooks/useUsage";
+import AnalyticsHeader from "@pages/analytics/components/analyticsHeader";
+import AnalyticsBody from "@pages/analytics/components/analyticsBody";
+import NoUsageData from "@pages/analytics/components/noUsageData";
+import UsageDetailsSkeleton from "@pages/analytics/components/usageDetailsSkeleton";
+import useUsage from "@hooks/useUsage";
 
 export function UsageDetails() {
     const { query } = useUsage();
-    const { data: usage, isPending, isError } = query;
+    const { data: usage, isPending, isError, error } = query;
     const { date } = useParams();
 
     if (!date) return;
-    if (isPending) return <div>Loading...</div>;
-    if (isError) return <div>Error loading usage.</div>;
-    if (!usage) return <div>No usage data available.</div>;
+    if (isPending) return <UsageDetailsSkeleton />;
+    if (isError) throw error;
+    if (!usage) return <NoUsageData />;
 
     const daysUsage = getUsageByDate(usage, date);
 

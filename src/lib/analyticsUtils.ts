@@ -22,6 +22,7 @@ export type UsageByDay = {
 // };
 
 export async function getUsageByDay() {
+    //throw new Error("test error");
     return await getFromLocalCache<UsageByDay>("usageByDay");
 }
 

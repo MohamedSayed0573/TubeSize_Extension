@@ -1,4 +1,4 @@
-import { extractChannelName, extractTwitchVodId, isTwitchPage, isTwitchVod } from "@/lib/utils";
+import { extractChannelName, extractTwitchVodId, isTwitchPage, isTwitchVod } from "@lib/utils";
 import { sendMessageToBackground } from "@/runtime";
 import { useQuery } from "@tanstack/react-query";
 

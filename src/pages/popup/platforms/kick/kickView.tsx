@@ -1,4 +1,4 @@
-import { useKickData } from "@/hooks/useKickData";
+import { useKickData } from "@hooks/useKickData";
 import Header from "@pages/popup/header";
 import InfoCard from "@components/infoCard";
 import KickFormats from "@pages/popup/platforms/kick/kickFormats";

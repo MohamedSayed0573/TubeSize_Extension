@@ -1,5 +1,5 @@
-import { getSortedVideoUsageRows, type UsageByDay } from "@/lib/analyticsUtils";
-import VideoTableRow from "@pages/analytics/videoTableRow";
+import { getSortedVideoUsageRows, type UsageByDay } from "@lib/analyticsUtils";
+import VideoTableRow from "@pages/analytics/components/videoTableRow";
 import { useMemo } from "react";
 
 export default function VideosTable({ usage }: { usage: UsageByDay }) {

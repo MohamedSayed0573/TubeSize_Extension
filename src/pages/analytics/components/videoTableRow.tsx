@@ -1,4 +1,4 @@
-import { formatBytes } from "@/lib/analyticsUtils";
+import { formatBytes } from "@lib/analyticsUtils";
 import { Link } from "react-router";
 
 function getVideoUrl(videoTag: string) {

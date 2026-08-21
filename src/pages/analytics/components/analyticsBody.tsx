@@ -1,5 +1,5 @@
-import { isEmptyUsageByDay, type UsageByDay } from "@/lib/analyticsUtils";
-import VideosTable from "@pages/analytics/videosTable";
+import { isEmptyUsageByDay, type UsageByDay } from "@lib/analyticsUtils";
+import VideosTable from "@pages/analytics/components/videosTable";
 
 export default function AnalyticsBody({ usage }: { usage: UsageByDay }) {
     return (

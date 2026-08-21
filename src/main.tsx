@@ -1,15 +1,13 @@
 import { createRoot } from "react-dom/client";
-import ErrorBoundary from "@components/errorBoundary.tsx";
 import ErrorPage from "@pages/error.tsx";
 import { Routes, Route, HashRouter } from "react-router";
 import Popup from "@pages/popup/popup";
 import Options from "@pages/options/options";
 import Analytics from "@pages/analytics/analytics";
-import { UsageDetails } from "@pages/analytics/usageDetails";
-import TodayUsage from "@pages/analytics/todayUsage";
-import WeekUsage from "@pages/analytics/weekUsage";
-import MonthUsage from "@pages/analytics/monthUsage";
-import LifetimeUsage from "@pages/analytics/lifeTimeUsage";
+import { UsageDetails } from "@pages/analytics/usage/usageDetails";
+import RangeUsage from "@pages/analytics/usage/rangeUsage";
+import AnalyticsErrorPage from "@pages/analytics/analyticsErrorPage";
+import OptionsErrorPage from "@pages/options/optionsErrorPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import "@styles/global.css";
@@ -27,24 +25,30 @@ root.render(
     <StrictMode>
         <QueryClientProvider client={queryClient}>
             <HashRouter>
-                <ErrorBoundary errorComponent={(err) => <ErrorPage errorMessage={err.message} />}>
-                    <Routes>
-                        <Route path="/" element={<PopupLayout />}>
-                            <Route index element={<Popup />} />
-                        </Route>
+                <Routes>
+                    <Route path="/" errorElement={<ErrorPage />} element={<PopupLayout />}>
+                        <Route index element={<Popup />} />
+                    </Route>
 
-                        <Route path="/options" element={<Options />} />
+                    <Route
+                        path="/options"
+                        errorElement={<OptionsErrorPage />}
+                        element={<Options />}
+                    />
 
-                        <Route path="/analytics" element={<AnalyticsLayout />}>
-                            <Route index element={<Analytics />} />
-                            <Route path=":date" element={<UsageDetails />} />
-                            <Route path="today" element={<TodayUsage />} />
-                            <Route path="week" element={<WeekUsage />} />
-                            <Route path="month" element={<MonthUsage />} />
-                            <Route path="lifetime" element={<LifetimeUsage />} />
-                        </Route>
-                    </Routes>
-                </ErrorBoundary>
+                    <Route
+                        path="/analytics"
+                        errorElement={<AnalyticsErrorPage />}
+                        element={<AnalyticsLayout />}
+                    >
+                        <Route index element={<Analytics />} />
+                        <Route path=":date" element={<UsageDetails />} />
+                        <Route path="today" element={<RangeUsage range="today" />} />
+                        <Route path="week" element={<RangeUsage range="week" />} />
+                        <Route path="month" element={<RangeUsage range="month" />} />
+                        <Route path="lifetime" element={<RangeUsage range="lifetime" />} />
+                    </Route>
+                </Routes>
             </HashRouter>
         </QueryClientProvider>
     </StrictMode>,
