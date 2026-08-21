@@ -22,7 +22,7 @@ import {
     stopResolutionTracking,
 } from "@/resolution";
 import { getKickHtml, getKickStreamId } from "@lib/kick";
-import type { KickBackgroundResponse } from "@app-types/types";
+import type { KickBackgroundResponse } from "@app-types/platforms.types";
 import { waitForElement } from "@lib/dom";
 
 function getCurrentUrl() {

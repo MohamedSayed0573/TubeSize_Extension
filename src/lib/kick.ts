@@ -2,7 +2,8 @@ import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import type { PlaylistItem } from "m3u8-parser";
 import { fetchAndRetry } from "@lib/utils";
 import { estimateHlsStreamSizes } from "@lib/hlsSize";
-import type { KickBackgroundResponse, KickLiveMessage, KickVodMessage } from "@app-types/types";
+import type { KickBackgroundResponse } from "@app-types/platforms.types";
+import type { KickLiveMessage, KickVodMessage } from "@app-types/types";
 import { kickPlaybackResponseSchema } from "@lib/schema";
 
 export async function getKickHtml(url: string): Promise<string> {

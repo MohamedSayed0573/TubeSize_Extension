@@ -1,9 +1,10 @@
-import type { OptionsMap, YoutubeData } from "@app-types/types";
+import type { YoutubeData } from "@app-types/platforms.types";
 import CONFIG from "@lib/constants";
 import useOptions from "@hooks/useOptions";
 import useCurrentQuality from "@hooks/useCurrentQuality";
 import FormatItem from "@pages/popup/platforms/formatItem";
 import InfoCard from "@components/infoCard";
+import type { OptionsMap } from "@app-types/types";
 
 function getEnabledOptions(optionsState: OptionsMap | undefined) {
     const qualityIds = optionsState?.["qualityIds"] ?? {};
@@ -42,7 +43,6 @@ export default function YoutubeFormats({
                         item={item}
                         currentQuality={currentQuality?.quality}
                         isShorts={false}
-                        isLive={true}
                     />
                 );
             });
@@ -56,10 +56,8 @@ export default function YoutubeFormats({
                 <FormatItem
                     key={item.formatId}
                     item={item}
-                    isLive={false}
                     isShorts={data.isShorts || false}
                     currentQuality={currentQuality?.quality}
-                    durationSeconds={data.durationSeconds}
                 />
             );
         });

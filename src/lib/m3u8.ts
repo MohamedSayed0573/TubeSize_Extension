@@ -1,7 +1,7 @@
 import { Parser } from "m3u8-parser";
 import type { Manifest, PlaylistItem } from "m3u8-parser";
 import { fetchAndRetry } from "@lib/utils";
-import type { StreamInfo } from "@app-types/types";
+import type { StreamInfo } from "@app-types/platforms.types";
 
 export function parseM3U8(m3u8Data: string): Manifest {
     const parser = new Parser();
@@ -37,6 +37,7 @@ export function filterM3u8(m3u8Data: PlaylistItem[]): StreamInfo[] {
         .filter((item) => item.attributes.RESOLUTION?.height && item.attributes.BANDWIDTH)
         .map((item) => {
             return {
+                type: "live" as const,
                 resolution: item.attributes.RESOLUTION!.height,
                 sizePerSecondBytes: item.attributes.BANDWIDTH! / 8,
             };

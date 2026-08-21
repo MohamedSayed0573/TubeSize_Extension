@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import type { TwitchData, YoutubeData } from "@app-types/types";
+import type { TwitchData, YoutubeData } from "@app-types/platforms.types";
 import Toast from "@components/toast";
 import { sizePerMinute } from "@lib/formatting";
 

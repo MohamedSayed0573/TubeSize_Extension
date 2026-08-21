@@ -3,7 +3,7 @@ import type {
     StreamInfo,
     YoutubeVideoFormat,
     ytInitialPlayerResponse,
-} from "@app-types/types";
+} from "@app-types/platforms.types";
 import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
 import { ytInitialSchema } from "@lib/schema";
@@ -29,6 +29,7 @@ export function parseVideoFormats(formats: RawFormat): YoutubeVideoFormat[] {
         const data = format;
         delete data.bitrateBitsPerSecond;
         return {
+            type: "video" as const,
             ...data,
             sizePerSecondBytes: format.sizeBytes / formats.durationSeconds,
         };
@@ -63,6 +64,7 @@ export function parseLiveStreamInfo(formats: RawFormat): StreamInfo[] {
     const audioSizeBytes = getAverageAudioSize(formats.audioFormats);
 
     return formats.formats.map((format) => ({
+        type: "live" as const,
         resolution: format.height,
         sizePerSecondBytes: (format.sizeBytes + audioSizeBytes) / 3600,
     }));

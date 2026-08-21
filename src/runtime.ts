@@ -1,9 +1,9 @@
 import type {
-    FrontEndMessage,
     KickBackgroundResponse,
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
-} from "@app-types/types";
+} from "@app-types/platforms.types";
+import type { FrontEndMessage } from "@app-types/types";
 
 type MessageResponseMap = {
     youtubeVideo: YoutubeBackgroundResponse;
@@ -40,8 +40,7 @@ export async function sendMessageToBackground<T extends FrontEndMessage>(
 }
 
 type ContentScriptMessage =
-    | { type: "getCurrentResolution" }
-    | { type: "getKick"; isFromPopup?: boolean };
+    { type: "getCurrentResolution" } | { type: "getKick"; isFromPopup?: boolean };
 type ContentScriptResponseMap = {
     getCurrentResolution: number | undefined;
     getKick: KickBackgroundResponse | undefined;

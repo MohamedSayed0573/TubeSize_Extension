@@ -1,14 +1,11 @@
 import type {
     YoutubeBackgroundResponse,
     TwitchBackgroundResponse,
-    YoutubeMessage,
-    FrontEndMessage,
-    TwitchMessage,
     KickBackgroundResponse,
-    KickMessage,
     YoutubeVideoData,
     YoutubeData,
-} from "@app-types/types";
+} from "@app-types/platforms.types";
+import type { YoutubeMessage, FrontEndMessage, TwitchMessage, KickMessage } from "@app-types/types";
 import { clearMediaCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { badgeFormatter, removeBadge, setBadge } from "@/badge";
 import {
