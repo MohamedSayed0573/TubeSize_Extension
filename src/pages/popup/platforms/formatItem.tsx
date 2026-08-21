@@ -1,6 +1,6 @@
 import { perHourDisplay, perMinuteDisplay, totalSizeVideoDisplay } from "@lib/formatting";
 import type { YoutubeData } from "@app-types/platforms.types";
-import { cn } from "@lib/cn";
+import { cn } from "@lib/utils";
 
 interface Props {
     item: YoutubeData["formats"][number];

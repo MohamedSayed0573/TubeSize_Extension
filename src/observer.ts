@@ -72,7 +72,7 @@ void (async () => {
         }
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition , no-constant-condition
     } while (true);
-});
+})();
 
 observer.observe({
     type: "resource",

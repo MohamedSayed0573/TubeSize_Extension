@@ -6,6 +6,7 @@ import Spinner from "@components/spinner";
 import { YoutubeView } from "@pages/popup/platforms/youtube/youtubeView";
 import { TwitchView } from "@pages/popup/platforms/twitch/twitchView";
 import { KickView } from "@pages/popup/platforms/kick/kickView";
+import { PopupViewContainer } from "@pages/popup/popupViewContainer";
 
 export default function Popup() {
     const { data: tab, error, isPending, isError } = useTab();
@@ -36,9 +37,9 @@ export default function Popup() {
     return (
         <>
             <Header />
-            <div className="flex flex-col gap-2 px-3 py-1.5 text-xs text-zinc-400">
+            <PopupViewContainer>
                 <InfoCard message="TubeSize works on YouTube, Twitch and Kick." />
-            </div>
+            </PopupViewContainer>
         </>
     );
 }

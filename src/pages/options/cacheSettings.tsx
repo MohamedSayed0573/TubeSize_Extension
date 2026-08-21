@@ -1,7 +1,7 @@
 import useOptions from "@hooks/useOptions";
 import CONFIG from "@lib/constants";
 import type { OptionsMap } from "@app-types/types";
-import { cn } from "@lib/cn";
+import { cn } from "@lib/utils";
 
 export default function CacheSettings({ optionsState }: { optionsState: OptionsMap }) {
     const { updateOptionsMutation } = useOptions();

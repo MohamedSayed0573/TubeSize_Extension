@@ -21,9 +21,7 @@ export default function YoutubeFormats({
     const { currentQuality } = useCurrentQuality(tabId);
 
     const { query } = useOptions();
-    const { data: optionsState, isError, error, isPending } = query;
-    if (isError) throw error;
-    if (isPending) return null;
+    const { data: optionsState } = query;
 
     const enabledOptions = getEnabledOptions(optionsState);
 
