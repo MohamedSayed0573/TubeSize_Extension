@@ -14,7 +14,7 @@ export default function AnalyticsErrorPage() {
                     <span className="text-xs text-neutral-500">
                         Failed to load your usage data.
                     </span>
-                    <div className="rounded border-l-3 border-red-400 bg-red-400/12 p-3 text-left text-xs break-words text-rose-400">
+                    <div className="rounded border-l-3 border-red-400 bg-red-400/12 p-3 text-left text-xs text-rose-400">
                         {message}
                     </div>
                 </div>

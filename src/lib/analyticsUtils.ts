@@ -57,15 +57,6 @@ export function formatDate(date: Date | Date[]) {
     return dtf.formatRange(new Date(date[0]!), new Date(date.at(-1)!));
 }
 
-export function isEmptyUsageByDay(usage: UsageByDay) {
-    return (
-        Object.keys(usage).length === 0 ||
-        Object.values(usage).every((videos) =>
-            Object.values(videos).every((video) => video.usage === 0),
-        )
-    );
-}
-
 export function getLastDays(count: number): Date[] {
     const days = Array.from({ length: count }, (_, index) => {
         const date = new Date();

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="213" height="120" viewBox="0 0 213 120">
+    <rect width="213" height="120" fill="#262626" />
+    <text
+        x="106.5"
+        y="60"
+        fill="#737373"
+        font-family="Roboto, system-ui, sans-serif"
+        font-size="13"
+        text-anchor="middle"
+        dominant-baseline="central"
+    >
+        Unknown
+    </text>
+</svg>

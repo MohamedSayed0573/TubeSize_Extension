@@ -1,12 +1,10 @@
-import Chart from "@pages/analytics/components/chart";
 import {
-    isEmptyUsageByDay,
-    type UsageByDay,
     getLast7DaysUsage,
     getLast30DaysUsage,
     getTodayUsage,
     getUsageNumber,
     formatBytes,
+    type UsageByDay,
 } from "@lib/analyticsUtils";
 import { Link } from "react-router";
 import useUsage from "@hooks/useUsage";
@@ -14,6 +12,7 @@ import { AnalyticsSkeleton } from "@pages/analytics/components/analyticsSkeleton
 import AnalyticsBanner from "@pages/analytics/components/analyticsBanner";
 import ClearUsageButton from "@pages/analytics/components/clearUsageButton";
 import NoUsageData from "@pages/analytics/components/noUsageData";
+import { Chart } from "./components/chart";
 
 function StatsCard({ title, number }: { title: string; number: number }) {
     const formattedNumber = formatBytes(number);
@@ -52,30 +51,17 @@ function StatsRow({ usage }: { usage: UsageByDay }) {
     );
 }
 
-function UsageChartSection({
-    usage,
-    errorMessage,
-}: {
-    usage: UsageByDay;
-    errorMessage: string | undefined;
-}) {
+function UsageChartSection({ usage }: { usage: UsageByDay }) {
     const dayCount = Object.keys(usage).length;
     return (
-        <div className="flex flex-1 flex-col rounded-lg border border-neutral-800 bg-neutral-900 px-5 pt-3.5">
-            <div className="mb-2.5 flex items-center justify-between">
+        <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-neutral-800 bg-neutral-900 px-5 pt-3.5">
+            <div className="flex items-center justify-between">
                 <div className="text-base font-bold text-stone-200">Data Usage per day (MB)</div>
                 <div className="rounded-xl border border-teal-400 px-2 py-1 font-mono text-sm text-teal-400">
                     {dayCount} {dayCount === 1 ? `Day` : `Days`}
                 </div>
             </div>
-            {errorMessage || isEmptyUsageByDay(usage) ? (
-                <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-neutral-700 bg-neutral-900 font-mono text-base text-teal-400">
-                    {errorMessage ||
-                        "No data available. Watch a YouTube video to see your usage statistics."}
-                </div>
-            ) : (
-                <Chart usage={usage} />
-            )}
+            <Chart usage={usage} />
         </div>
     );
 }
@@ -93,7 +79,7 @@ export default function Analytics() {
             <AnalyticsBanner />
             <div className="flex flex-1 flex-col bg-neutral-950/70 px-8 pt-1 pb-3.5">
                 <StatsRow usage={usage} />
-                <UsageChartSection usage={usage} errorMessage={undefined} />
+                <UsageChartSection usage={usage} />
                 <ClearUsageButton />
             </div>
         </>

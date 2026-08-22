@@ -1,14 +1,9 @@
 import useUsage from "@hooks/useUsage";
 import { AlertDialogBasic } from "@components/alertDialogBasic";
-import { delay } from "@lib/utils";
 
 export default function ClearUsageButton() {
     const { clearUsageMutation } = useUsage();
-    const {
-        mutate: clearUsage,
-        isPending: isClearingPending,
-        reset: resetClearing,
-    } = clearUsageMutation;
+    const { mutate: clearUsage, isPending: isClearingPending } = clearUsageMutation;
 
     return (
         <AlertDialogBasic
@@ -17,9 +12,7 @@ export default function ClearUsageButton() {
             className="mt-2.5"
             disabled={isClearingPending}
             onConfirm={() => {
-                void delay(3000)
-                    .then(() => clearUsage())
-                    .then(() => resetClearing());
+                clearUsage();
             }}
         />
     );
