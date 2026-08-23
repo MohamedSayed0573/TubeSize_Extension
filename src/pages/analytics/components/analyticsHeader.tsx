@@ -1,4 +1,4 @@
-import { formatBytes } from "@/lib/analyticsUtils";
+import { formatBytes } from "@lib/analyticsUtils";
 import { useNavigate } from "react-router";
 
 function HeaderStat({ label, value }: { label: string; value: number | string }) {

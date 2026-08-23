@@ -10,7 +10,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 
 export default defineConfig([
-    globalIgnores(["dist", "coverage"]),
+    globalIgnores(["dist", "coverage", "src/components/ui"]),
     {
         files: ["**/*.{ts,tsx}"],
         extends: [

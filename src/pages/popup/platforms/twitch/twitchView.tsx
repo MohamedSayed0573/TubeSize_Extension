@@ -1,7 +1,7 @@
 import Header from "@pages/popup/header";
 import InfoCard from "@components/infoCard";
 import Spinner from "@components/spinner";
-import { useTwitchData } from "@/hooks/useTwitchData";
+import { useTwitchData } from "@hooks/useTwitchData";
 import TwitchFormats from "@pages/popup/platforms/twitch/twitchFormats";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
 

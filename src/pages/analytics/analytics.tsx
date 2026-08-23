@@ -1,26 +1,18 @@
-import Chart from "@pages/analytics/chart";
 import {
-    isEmptyUsageByDay,
-    type UsageByDay,
     getLast7DaysUsage,
     getLast30DaysUsage,
     getTodayUsage,
     getUsageNumber,
     formatBytes,
+    type UsageByDay,
 } from "@lib/analyticsUtils";
 import { Link } from "react-router";
-import useUsage from "@/hooks/useUsage";
-
-function AnalyticsHeader() {
-    return (
-        <div className="flex items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-5 py-3.5 text-gray-300">
-            <img className="h-6 w-6" src="/icons/icon-32.png" alt="Analytics Icon" />
-            <span className="font-mono text-sm font-bold tracking-wider uppercase">
-                Usage Analytics for YouTube
-            </span>
-        </div>
-    );
-}
+import useUsage from "@hooks/useUsage";
+import { AnalyticsSkeleton } from "@pages/analytics/components/analyticsSkeleton";
+import AnalyticsBanner from "@pages/analytics/components/analyticsBanner";
+import ClearUsageButton from "@pages/analytics/components/clearUsageButton";
+import NoUsageData from "@pages/analytics/components/noUsageData";
+import { Chart } from "./components/chart";
 
 function StatsCard({ title, number }: { title: string; number: number }) {
     const formattedNumber = formatBytes(number);
@@ -59,79 +51,35 @@ function StatsRow({ usage }: { usage: UsageByDay }) {
     );
 }
 
-function UsageChartSection({
-    usage,
-    errorMessage,
-}: {
-    usage: UsageByDay;
-    errorMessage: string | undefined;
-}) {
+function UsageChartSection({ usage }: { usage: UsageByDay }) {
     const dayCount = Object.keys(usage).length;
     return (
-        <div className="flex flex-1 flex-col rounded-lg border border-neutral-800 bg-neutral-900 px-5 pt-3.5">
-            <div className="mb-2.5 flex items-center justify-between">
+        <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-neutral-800 bg-neutral-900 px-5 pt-3.5">
+            <div className="flex items-center justify-between">
                 <div className="text-base font-bold text-stone-200">Data Usage per day (MB)</div>
                 <div className="rounded-xl border border-teal-400 px-2 py-1 font-mono text-sm text-teal-400">
                     {dayCount} {dayCount === 1 ? `Day` : `Days`}
                 </div>
             </div>
-            {errorMessage || isEmptyUsageByDay(usage) ? (
-                <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-neutral-700 bg-neutral-900 font-mono text-base text-teal-400">
-                    {errorMessage ||
-                        "No data available. Watch a YouTube video to see your usage statistics."}
-                </div>
-            ) : (
-                <Chart usage={usage} />
-            )}
+            <Chart usage={usage} />
         </div>
-    );
-}
-
-function ClearUsageButton() {
-    const { clearUsageMutation } = useUsage();
-    const {
-        mutate: clearUsage,
-        isPending: isClearingPending,
-        isError: isClearingError,
-        isSuccess: isClearingSuccess,
-        reset: resetClearing,
-        isIdle: isClearingIdle,
-    } = clearUsageMutation;
-
-    return (
-        <button
-            className="mt-2.5 cursor-pointer rounded-xl border border-neutral-800 bg-[#221718] px-3 py-2.5 font-mono text-xs font-semibold tracking-widest text-red-400 uppercase transition-colors hover:bg-[#2a1b1c]"
-            onClick={() => {
-                clearUsage();
-
-                setTimeout(() => {
-                    resetClearing();
-                }, 2500);
-            }}
-            disabled={isClearingPending}
-        >
-            {isClearingPending && "Clearing"}
-            {isClearingError && "Failed To Clear Usage Data. Try Again."}
-            {isClearingSuccess && "Usage Data was Cleared Successfully"}
-            {isClearingIdle && "Clear All Usage Data"}
-        </button>
     );
 }
 
 export default function Analytics() {
     const { query } = useUsage();
-    const { data: usage, isPending, isError } = query;
+    const { data: usage, isPending, isError, error } = query;
 
-    if (isPending) return <div>isLoading</div>;
-    if (isError) return <div>Error</div>;
-    if (!usage) return <div>No usage data available.</div>;
+    if (isPending) return <AnalyticsSkeleton />;
+    if (isError) throw error;
+    if (!usage || getUsageNumber(usage) === 0) return <NoUsageData />;
 
     return (
         <>
-            <AnalyticsHeader />
+            <AnalyticsBanner />
             <div className="flex flex-1 flex-col bg-neutral-950/70 px-8 pt-1 pb-3.5">
                 <StatsRow usage={usage} />
-                <UsageChartSection usage={usage} errorMessage={undefined} />
+                <UsageChartSection usage={usage} />
                 <ClearUsageButton />
             </div>
         </>

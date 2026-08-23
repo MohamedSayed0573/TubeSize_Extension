@@ -1,5 +1,7 @@
 import CONFIG from "@lib/constants";
 import humanize from "humanize-duration";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function isYoutubePage(url: string): boolean {
     try {
@@ -221,4 +223,8 @@ export function humanizeDuration(ms: number) {
 
 export async function delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs));
 }

@@ -1,4 +1,3 @@
-import HeaderOptions from "@pages/options/headerOptions";
 import CacheSettings from "@pages/options/cacheSettings";
 import ToasterSettings from "@pages/options/toasterSettings";
 import QualityMenu from "@pages/options/qualityMenu";
@@ -6,18 +5,17 @@ import useOptions from "@hooks/useOptions";
 import Divider from "@pages/options/divider";
 import { OptionsFooter } from "@pages/options/optionsFooter";
 import ResolutionsOptions from "@pages/options/resolutionsOptions";
+import Spinner from "@components/spinner";
 
 export default function Options() {
     const { query } = useOptions();
 
-    const { data: optionsState, isPending, isError } = query;
-    if (isPending) return <div>Loading...</div>;
-    if (isError) return <div>Error loading options.</div>;
+    const { data: optionsState, error, isPending, isError } = query;
+    if (isError) throw error;
+    if (isPending) return <Spinner />;
 
     return (
-        <div className="w-72.5">
-            <HeaderOptions />
-
+        <>
             <ResolutionsOptions optionsState={optionsState} />
 
             <Divider />
@@ -31,6 +29,6 @@ export default function Options() {
 
             <Divider />
             <OptionsFooter />
-        </div>
+        </>
     );
 }

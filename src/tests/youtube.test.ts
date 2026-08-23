@@ -1,9 +1,8 @@
-import type { ytInitialPlayerResponse, RawFormat } from "@app-types/types";
+import type { ytInitialPlayerResponse, RawFormat } from "@app-types/platforms.types";
 import fs from "node:fs";
 import path from "node:path";
 import {
     extractYtInitialResponse,
-    sizePerMinute,
     getAverageAudioSize,
     mergeAudioWithVideo,
     parseDataFromYtInitial,
@@ -23,21 +22,6 @@ describe("extractYtInitialResponse", () => {
         await expect(extractYtInitialResponse("I82j7AzMU80", html)).resolves.toEqual(
             ytInitialSchema.parse(JSON.parse(ytInitialPlayerResponse)),
         );
-    });
-});
-
-describe("sizePerMinute", () => {
-    test("returns the size per minute for a 10 minute video", () => {
-        expect(sizePerMinute(60_000_000, 600)).toBe(6);
-    });
-    test("rounds to 2 decimal places", () => {
-        expect(sizePerMinute(50_000_000, 420)).toBe(7.14);
-    });
-    test("returns 0 when duration is 0", () => {
-        expect(sizePerMinute(10_000_000, 0)).toBe(0);
-    });
-    test("returns the size per minute for live streams from the hourly estimate", () => {
-        expect(sizePerMinute(60_000_000, 0, true)).toBe(1);
     });
 });
 

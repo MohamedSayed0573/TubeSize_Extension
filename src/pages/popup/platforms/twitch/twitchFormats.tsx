@@ -1,4 +1,4 @@
-import type { TwitchData } from "@app-types/types";
+import type { TwitchData } from "@app-types/platforms.types";
 import useCurrentQuality from "@hooks/useCurrentQuality";
 import useTab from "@hooks/useTab";
 import FormatItem from "@pages/popup/platforms/formatItem";
@@ -12,9 +12,7 @@ export default function TwitchFormats({ data }: { data: TwitchData }) {
             <FormatItem
                 key={item.resolution}
                 item={item}
-                durationSeconds={data.type === "vod" ? data.durationSeconds : undefined}
                 currentQuality={currentQuality?.quality}
-                isLive={data.type === "live"}
             />
         );
     });

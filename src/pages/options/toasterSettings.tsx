@@ -1,6 +1,6 @@
 import type { OptionsMap } from "@app-types/types";
 import useOptions from "@hooks/useOptions";
-import { cn } from "@lib/cn";
+import { cn } from "@lib/utils";
 import CONFIG from "@lib/constants";
 
 export default function ToasterSettings({ optionsState }: { optionsState: OptionsMap }) {

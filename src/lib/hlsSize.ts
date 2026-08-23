@@ -1,4 +1,4 @@
-import type { StreamInfo } from "@app-types/types";
+import type { StreamInfo } from "@app-types/platforms.types";
 import CONFIG from "@lib/constants";
 import type { Manifest, PlaylistItem } from "m3u8-parser";
 import { fetchMediaM3u8, mediaPlaylistUrlByHeight } from "@lib/m3u8";
@@ -100,6 +100,7 @@ export async function estimateHlsStreamSizes(
             }
 
             return {
+                type: "live" as const,
                 resolution,
                 sizePerSecondBytes: totalDuration >= 4 ? totalBytes / totalDuration : 0,
             };
@@ -121,6 +122,7 @@ export async function estimateHlsStreamSizes(
         .map((result) => {
             if (result.status === "rejected") {
                 return {
+                    type: "live" as const,
                     resolution: 0,
                     sizePerSecondBytes: 0,
                 };

@@ -1,4 +1,4 @@
-import { extractVideoTag, isShortsVideo, isYoutubePage } from "@/lib/utils";
+import { extractVideoTag, isShortsVideo, isYoutubePage } from "@lib/utils";
 import { sendMessageToBackground } from "@/runtime";
 import { useQuery } from "@tanstack/react-query";
 

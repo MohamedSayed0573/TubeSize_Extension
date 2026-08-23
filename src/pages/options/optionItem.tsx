@@ -1,4 +1,4 @@
-import useOptions from "@/hooks/useOptions";
+import useOptions from "@hooks/useOptions";
 import type { OptionsMap } from "@app-types/types";
 
 export default function OptionItem({

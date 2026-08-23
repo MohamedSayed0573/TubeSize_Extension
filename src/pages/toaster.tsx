@@ -1,7 +1,6 @@
 import { createRoot } from "react-dom/client";
-import type { TwitchData, YoutubeData } from "@app-types/types";
+import type { TwitchData, YoutubeData } from "@app-types/platforms.types";
 import Toast from "@components/toast";
-import { sizePerMinute } from "@lib/formatting";
 
 const HOST_ID = "TubeSize-Toast-Host";
 
@@ -16,6 +15,10 @@ function ensureRoot() {
     }
 
     return root!;
+}
+
+function sizePerMinute(sizePerSecondBytes: number): number {
+    return (sizePerSecondBytes * 60) / 1_000_000;
 }
 
 let shouldSuppressToast: boolean = false;
@@ -46,8 +49,7 @@ export function showYoutubeToast(
         const format = youtubeData.formats.find((format) => format.resolution === currentQuality);
         if (!format) return;
 
-        const sizePerMinuteMB = (format.sizePerSecondBytes / 1000 / 1000) * 60;
-        if (sizePerMinuteMB > toasterThresholdMbpm) {
+        if (sizePerMinute(format.sizePerSecondBytes) > toasterThresholdMbpm) {
             ensureRoot().render(
                 <Toast
                     currentQuality={currentQuality}
@@ -70,8 +72,7 @@ export function showTwitchToast(
 
     const format = videoFormats.find((format) => format.resolution === currentQuality);
     if (!format) return;
-    const sizePerMinuteMB = (format.sizePerSecondBytes / 1000 / 1000) * 60;
-    if (sizePerMinuteMB > toasterThresholdMbpm) {
+    if (sizePerMinute(format.sizePerSecondBytes) > toasterThresholdMbpm) {
         ensureRoot().render(
             <Toast
                 currentQuality={currentQuality}

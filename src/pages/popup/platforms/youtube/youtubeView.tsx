@@ -4,6 +4,7 @@ import InfoCard from "@components/infoCard";
 import YoutubeFormats from "@pages/popup/platforms/youtube/youtubeFormats";
 import PopupUsage from "@pages/popup/popupUsage";
 import Spinner from "@components/spinner";
+import { PopupViewContainer } from "@pages/popup/popupViewContainer";
 
 export function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
     const { query, isYoutubeVideo } = useYoutubeData(tabUrl, tabId);
@@ -13,10 +14,10 @@ export function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: number }
         return (
             <>
                 <Header />
-                <div className="flex flex-col gap-2 px-3 py-1.5 text-xs text-zinc-400">
+                <PopupViewContainer>
                     <PopupUsage />
                     <InfoCard message="Open a Youtube video" />
-                </div>
+                </PopupViewContainer>
             </>
         );
     }
@@ -24,16 +25,16 @@ export function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: number }
     if (isPending) return <Spinner />;
     if (isError) throw error;
 
+    const { data: youtubeData, createdAt } = data;
+
     return (
         <>
-            <Header
-                data={{ platform: "youtube", data: data.data, cacheCreatedAt: data.createdAt }}
-            />
+            <Header data={{ platform: "youtube", data: youtubeData, cacheCreatedAt: createdAt }} />
 
-            <div className="flex flex-col gap-2 px-3 py-1.5 text-xs text-zinc-400">
+            <PopupViewContainer>
                 <PopupUsage />
-                <YoutubeFormats data={data.data} tabId={tabId} />
-            </div>
+                <YoutubeFormats data={youtubeData} tabId={tabId} />
+            </PopupViewContainer>
         </>
     );
 }

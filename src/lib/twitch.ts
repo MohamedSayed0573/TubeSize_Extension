@@ -1,12 +1,9 @@
 import type {
     TwitchBackgroundResponse,
     TwitchLiveData,
-    TwitchLiveMessage,
-    TwitchMessage,
     TwitchTokenData,
     TwitchVodData,
-    TwitchVodMessage,
-} from "@app-types/types";
+} from "@app-types/platforms.types";
 import type { PlaylistItem } from "m3u8-parser";
 import CONFIG from "@lib/constants";
 import { estimateHlsStreamSizes } from "@lib/hlsSize";
@@ -14,6 +11,7 @@ import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import { getFromStorage, saveToStorage } from "@lib/cache";
 import { fetchAndRetry } from "@lib/utils";
 import { twitchGqlResponseSchema } from "@lib/schema";
+import type { TwitchLiveMessage, TwitchMessage, TwitchVodMessage } from "@app-types/types";
 
 export async function getTwitchClientId(message: TwitchMessage): Promise<string> {
     const url =

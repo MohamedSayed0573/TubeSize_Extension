@@ -66,13 +66,16 @@ void (async () => {
             pendingUsage = 0; // eslint-disable-line unicorn/no-top-level-assignment-in-function
         } catch (err) {
             console.error("Error in usage tracking loop:", err);
+            if (err instanceof Error && err.message.includes("Extension context invalidated")) {
+                return;
+            }
             continue;
         } finally {
             await delay(5000);
         }
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition , no-constant-condition
     } while (true);
-});
+})();
 
 observer.observe({
     type: "resource",
