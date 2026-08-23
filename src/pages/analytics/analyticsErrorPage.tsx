@@ -1,8 +1,7 @@
-import { useRouteError } from "react-router";
 import AnalyticsBanner from "@pages/analytics/components/analyticsBanner";
 
-export default function AnalyticsErrorPage() {
-    const routeError = useRouteError();
+export default function AnalyticsErrorPage({ error }: { error: unknown }) {
+    const routeError = error;
     const message = routeError instanceof Error ? routeError.message : String(routeError);
     return (
         <>
