@@ -20,7 +20,13 @@ export function TwitchView({ tabUrl }: { tabUrl: string }) {
         );
     }
 
-    if (isPending) return <Spinner />;
+    if (isPending)
+        return (
+            <>
+                <Header />
+                <Spinner />
+            </>
+        );
     if (isError) throw error;
 
     return (
