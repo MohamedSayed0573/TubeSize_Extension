@@ -48,7 +48,7 @@ function hasNonLiveSegments(manifest: Manifest): boolean {
     return liveSegments.length < 4;
 }
 
-async function mediaPlaylistHasAds(url: string | URL | undefined): Promise<boolean> {
+async function hasMediaPlaylistAds(url: string | URL | undefined): Promise<boolean> {
     if (!url) return false;
     const manifest = await fetchMediaM3u8(url);
     const hasAds = hasNonLiveSegments(manifest);
@@ -60,7 +60,7 @@ export async function estimateHlsStreamSizes(
 ): Promise<StreamInfo[]> {
     const mediaUrlByHeight = mediaPlaylistUrlByHeight(masterM3U8Data);
 
-    if (await mediaPlaylistHasAds(mediaUrlByHeight.values().next().value)) {
+    if (await hasMediaPlaylistAds(mediaUrlByHeight.values().next().value)) {
         return filterM3u8(masterM3U8Data);
     }
 

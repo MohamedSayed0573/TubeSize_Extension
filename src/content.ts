@@ -53,7 +53,7 @@ async function handlePageNavigation() {
                 await injectQualityMenu(youtubeResponse);
             }
 
-            const isToasterEnable = await getToasterEnabled();
+            const isToasterEnable = await isToasterEnabled();
             if (isToasterEnable) {
                 await startYoutubeToastTracking(youtubeResponse);
             }
@@ -65,13 +65,13 @@ async function handlePageNavigation() {
             if (!tag) return;
 
             const twitchResponse = await initTwitch(tag, isLive);
-            const isToasterEnable = await getToasterEnabled();
+            const isToasterEnable = await isToasterEnabled();
             if (isToasterEnable) {
                 await startToastTwitchPolling(twitchResponse);
             }
         } else if (isKickPage(url)) {
             stopResolutionTracking();
-            const isToasterEnable = await getToasterEnabled();
+            const isToasterEnable = await isToasterEnabled();
             if (isToasterEnable) {
                 const kickData = await initKick(false);
                 if (!kickData.success) {
@@ -91,7 +91,7 @@ if (isYoutubePage(getCurrentUrl())) {
     });
 }
 
-async function getToasterEnabled() {
+async function isToasterEnabled() {
     return (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
 }
 
