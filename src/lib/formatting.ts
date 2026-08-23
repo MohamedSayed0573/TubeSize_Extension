@@ -1,7 +1,7 @@
 import { filesize } from "filesize";
 
 /**
- * @example perHourDisplay(1_000_000) => "3600.00 MB/hour"
+ * @example perHourDisplay(1_000_000) => "3.60 GB/hour"
  */
 export function perHourDisplay(sizePerSecondBytes: number): string {
     const sizePerHourMB = sizePerHour(sizePerSecondBytes);
@@ -29,7 +29,7 @@ export function perMinuteDisplay(sizePerSecondBytes: number): string {
 /**
  * @example sizePerMinute(1_000_000) => 60.0
  */
-export function sizePerMinute(sizePerSecondBytes: number): number {
+function sizePerMinute(sizePerSecondBytes: number): number {
     return (sizePerSecondBytes * 60) / 1_000_000;
 }
 

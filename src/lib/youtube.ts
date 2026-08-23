@@ -8,20 +8,6 @@ import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
 import { ytInitialSchema } from "@lib/schema";
 
-export function sizePerMinute(
-    sizeInBytes: number,
-    durationInSeconds: number,
-    isLive = false,
-): number {
-    const durationInMinutes = durationInSeconds / 60;
-    const sizeInMB = sizeInBytes / 1_000_000;
-
-    if (isLive) return Number((sizeInMB / 60).toFixed(2));
-    if (durationInSeconds === 0) return 0;
-
-    return Number((sizeInMB / durationInMinutes).toFixed(2));
-}
-
 export function parseVideoFormats(formats: RawFormat): YoutubeVideoFormat[] {
     const audioSize = getAverageAudioSize(formats.audioFormats);
     const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);
