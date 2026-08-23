@@ -214,10 +214,12 @@ describe("filterM3u8", () => {
 
         expect(filterM3u8(parseM3U8(m3u8Data).playlists ?? [])).toEqual([
             {
+                type: "live",
                 sizePerSecondBytes: 325_302.25,
                 resolution: 720,
             },
             {
+                type: "live",
                 sizePerSecondBytes: 203_427.25,
                 resolution: 480,
             },
