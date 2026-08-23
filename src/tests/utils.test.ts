@@ -4,6 +4,7 @@ import {
     extractVideoTag,
     fetchAndRetry,
     isTwitchPage,
+    isTwitchLive,
     isTwitchVod,
     extractTwitchVodId,
     extractChannelName,
@@ -66,10 +67,36 @@ describe("isTwitchPage", () => {
         expect(isTwitchPage("https://www.twitch.com/somechannel")).toBe(true);
     });
     test("should return false for twitch.com/videos", () => {
-        expect(isTwitchPage("https://www.twitch.com/videos")).toBe(false);
+        expect(isTwitchPage("https://www.twitch.com/videos")).toBe(true);
     });
-    test("should return false for a URL with a different path than videos", () => {
-        expect(isTwitchPage("https://www.twitch.tv/live/somechannel")).toBe(false);
+    test("should return true for a URL with a different path than videos", () => {
+        expect(isTwitchPage("https://www.twitch.tv/live/somechannel")).toBe(true);
+    });
+});
+
+describe("isTwitchLive", () => {
+    test("should return true for a live channel URL", () => {
+        expect(isTwitchLive("https://www.twitch.tv/raidbullys")).toBe(true);
+    });
+
+    test("should return false for a VOD URL", () => {
+        expect(isTwitchLive("https://www.twitch.tv/videos/2848875813")).toBe(false);
+    });
+
+    test("should return false for the bare videos path", () => {
+        expect(isTwitchLive("https://www.twitch.tv/videos")).toBe(false);
+    });
+
+    test("should return false for non-stream paths like directory", () => {
+        expect(isTwitchLive("https://www.twitch.tv/directory")).toBe(false);
+    });
+
+    test("should return false for multi-segment paths", () => {
+        expect(isTwitchLive("https://www.twitch.tv/somechannel/about")).toBe(false);
+    });
+
+    test("should return false for a non-Twitch URL", () => {
+        expect(isTwitchLive("https://www.example.com/somechannel")).toBe(false);
     });
 });
 
