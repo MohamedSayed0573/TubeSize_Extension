@@ -5,8 +5,9 @@ import {
     extractVideoTag,
     isKickPage,
     isKickVod,
+    isKickStream,
     isTwitchPage,
-    isTwitchVod,
+    isTwitchLive,
     isYoutubePage,
     delay,
 } from "@lib/utils";
@@ -58,7 +59,7 @@ async function handlePageNavigation() {
                 await startYoutubeToastTracking(youtubeResponse);
             }
         } else if (isTwitchPage(url)) {
-            const isLive = !isTwitchVod(url);
+            const isLive = isTwitchLive(url);
             const tag = isLive ? extractChannelName(url) : extractTwitchVodId(url);
 
             stopResolutionTracking();
@@ -72,7 +73,7 @@ async function handlePageNavigation() {
         } else if (isKickPage(url)) {
             stopResolutionTracking();
             const isToasterEnable = await isToasterEnabled();
-            if (isToasterEnable) {
+            if (isToasterEnable && (isKickStream(url) || isKickVod(url))) {
                 const kickData = await initKick(false);
                 if (!kickData.success) {
                     throw new Error(kickData.message || "Failed to initialize Kick data");

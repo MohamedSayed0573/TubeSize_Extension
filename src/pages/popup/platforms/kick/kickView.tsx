@@ -14,13 +14,19 @@ export function KickView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
             <>
                 <Header />
                 <PopupViewContainer>
-                    <InfoCard message="Open a Kick Stream" />
+                    <InfoCard message="Open a Kick Stream or Video" />
                 </PopupViewContainer>
             </>
         );
     }
 
-    if (isPending) return <Spinner />;
+    if (isPending)
+        return (
+            <>
+                <Header />
+                <Spinner />
+            </>
+        );
     if (isError) throw error;
 
     return (

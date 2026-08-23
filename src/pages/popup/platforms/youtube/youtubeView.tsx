@@ -22,7 +22,13 @@ export function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: number }
         );
     }
 
-    if (isPending) return <Spinner />;
+    if (isPending)
+        return (
+            <>
+                <Header />
+                <Spinner />
+            </>
+        );
     if (isError) throw error;
 
     const { data: youtubeData, createdAt } = data;

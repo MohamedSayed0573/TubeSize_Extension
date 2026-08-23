@@ -90,7 +90,12 @@ export default function Header({ data }: Props) {
                 <div className="truncate text-sm font-semibold" title={title}>
                     {title}
                 </div>
-                {isLive && <span className="text-sm font-medium text-red-500">Live</span>}
+                {isLive && (
+                    <div className="flex items-center gap-1">
+                        <span className="size-2 animate-pulse rounded-full bg-red-600"></span>
+                        <span className="animate-pulse text-sm font-bold text-red-500">Live</span>
+                    </div>
+                )}
                 {duration && (
                     <span className="shrink-0 text-xs font-medium text-zinc-400">{duration}</span>
                 )}

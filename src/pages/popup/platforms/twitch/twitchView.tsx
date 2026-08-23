@@ -14,13 +14,19 @@ export function TwitchView({ tabUrl }: { tabUrl: string }) {
             <>
                 <Header />
                 <PopupViewContainer>
-                    <InfoCard message="Open a Twitch stream or VOD" />
+                    <InfoCard message="Open a Twitch stream or video" />
                 </PopupViewContainer>
             </>
         );
     }
 
-    if (isPending) return <Spinner />;
+    if (isPending)
+        return (
+            <>
+                <Header />
+                <Spinner />
+            </>
+        );
     if (isError) throw error;
 
     return (
