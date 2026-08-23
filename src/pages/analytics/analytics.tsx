@@ -72,7 +72,7 @@ export default function Analytics() {
 
     if (isPending) return <AnalyticsSkeleton />;
     if (isError) throw error;
-    if (!usage) return <NoUsageData />;
+    if (!usage || getUsageNumber(usage) === 0) return <NoUsageData />;
 
     return (
         <>
