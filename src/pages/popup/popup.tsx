@@ -11,12 +11,14 @@ import { PopupViewContainer } from "@pages/popup/popupViewContainer";
 export default function Popup() {
     const { data: tab, error, isPending, isError } = useTab();
     if (isError) throw error;
-    if (isPending)
+    if (isPending) {
         return (
-            <div className="flex w-60 items-center justify-center p-4">
+            <>
+                <Header />
                 <Spinner />
-            </div>
+            </>
         );
+    }
 
     const { tabUrl, tabId } = tab;
 
