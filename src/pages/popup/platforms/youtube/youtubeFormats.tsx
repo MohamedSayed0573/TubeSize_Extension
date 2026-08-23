@@ -6,8 +6,8 @@ import FormatItem from "@pages/popup/platforms/formatItem";
 import InfoCard from "@components/infoCard";
 import type { OptionsMap } from "@app-types/types";
 
-function getEnabledOptions(optionsState: OptionsMap | undefined) {
-    const qualityIds = optionsState?.["qualityIds"] ?? {};
+function getEnabledOptions(optionsState: OptionsMap) {
+    const qualityIds = optionsState["qualityIds"] ?? {};
     return CONFIG.optionIDs.filter((option) => qualityIds[option] ?? true);
 }
 
@@ -21,7 +21,10 @@ export default function YoutubeFormats({
     const { currentQuality } = useCurrentQuality(tabId);
 
     const { query } = useOptions();
-    const { data: optionsState } = query;
+    const { data: optionsState, isError, isPending, error } = query;
+
+    if (isError) throw error;
+    if (isPending) return null;
 
     const enabledOptions = getEnabledOptions(optionsState);
 
