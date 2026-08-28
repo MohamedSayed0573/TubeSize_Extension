@@ -35,7 +35,6 @@ chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResp
 });
 
 let total = 0;
-let counter = 0;
 chrome.webRequest.onCompleted.addListener(
     (details) => {
         if (details.tabId === -1) return; // requests not tied to a tab (extensions, service workers)
@@ -49,15 +48,13 @@ chrome.webRequest.onCompleted.addListener(
         if (!contentLength || !contentLength.value || Number(contentLength.value) <= 0) return;
 
         total += Number(contentLength.value);
-        counter += 1;
-        console.log(details);
     },
     { urls: ["<all_urls>"] },
     ["responseHeaders"],
 );
 
 setInterval(() => {
-    console.log(total, counter);
+    void addUsage(total);
 }, 7000);
 
 function getTabId(

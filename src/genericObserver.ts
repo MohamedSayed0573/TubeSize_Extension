@@ -26,30 +26,6 @@ globalThis.fetch = async (...args) => {
     return response;
 };
 
-let totalObserver = 0;
-let counterObserver = 0;
-const observer = new PerformanceObserver((entries, _) => {
-    const _entries = entries.getEntries();
-    for (const entry of _entries) {
-        const resource = entry as PerformanceResourceTiming & {
-            deliveryType: "cache" | "cache-storage" | "";
-        };
-
-        if (resource.initiatorType === "fetch") continue; // We already monkey-patch the fetch function
-        if (resource.deliveryType === "cache" || resource.deliveryType === "cache-storage")
-            continue;
-
-        totalObserver += resource.transferSize;
-        counterObserver += 1;
-        console.log(resource, counterObserver);
-    }
-});
-observer.observe({ type: "resource", buffered: true });
-
-setInterval(() => {
-    console.log(totalObserver, counterObserver);
-}, 7000);
-
 setInterval(() => {
     window.postMessage(
         {

@@ -21,13 +21,8 @@ export default function PopupUsage() {
         <>
             {
                 <div>
-                    <button
-                        className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-white/12 bg-white/3 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-white/6"
-                        onClick={() =>
-                            void chrome.tabs.create({ url: "index.html#/analytics/today" })
-                        }
-                    >
-                        <span>{"YouTube Usage Today: "}</span>
+                    <button className="flex w-full items-center justify-between rounded-lg border border-white/12 bg-white/3 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-white/6">
+                        <span>{"Total Usage Today: "}</span>
                         <span>{totalSizeVideoDisplay(totalUsage ?? 0)}</span>
                     </button>
                 </div>
