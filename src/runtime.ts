@@ -2,6 +2,8 @@ import type {
     KickBackgroundResponse,
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
+    GetUsageResponse,
+    AddUsageResponse,
 } from "@app-types/platforms.types";
 import type { FrontEndMessage } from "@app-types/types";
 
@@ -11,6 +13,8 @@ type MessageResponseMap = {
     twitchLive: TwitchBackgroundResponse;
     kickLive: KickBackgroundResponse;
     kickVod: KickBackgroundResponse;
+    getUsage: GetUsageResponse;
+    addUsage: AddUsageResponse;
     setBadge: { success: boolean };
     removeBadge: { success: boolean };
 };

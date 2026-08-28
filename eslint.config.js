@@ -63,6 +63,7 @@ export default defineConfig([
             "unicorn/name-replacements": "off",
             "unicorn/no-computed-property-existence-check": "off",
             "unicorn/no-null": "off",
+            "unicorn/no-top-level-assignment-in-function": "off",
         },
     },
     {

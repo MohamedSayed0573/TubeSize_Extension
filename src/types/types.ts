@@ -21,8 +21,19 @@ export type FrontEndMessage =
     | TwitchLiveMessage
     | KickLiveMessage
     | KickVodMessage
+    | GetUsageMessage
+    | AddUsageMessage
     | { type: "removeBadge"; tabId: number }
     | { type: "setBadge"; text: string };
+
+export type GetUsageMessage = {
+    type: "getUsage";
+};
+
+export type AddUsageMessage = {
+    type: "addUsage";
+    usage: number;
+};
 
 export type YoutubeMessage = {
     type: "youtubeVideo";
@@ -56,3 +67,13 @@ export type KickVodMessage = {
 };
 
 export type KickMessage = KickLiveMessage | KickVodMessage;
+
+export type DailyUsage = {
+    date: string;
+    totalBytes: number;
+};
+
+export type UsageMessage = {
+    type: string;
+    bytes: number;
+};

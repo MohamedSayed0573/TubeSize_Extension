@@ -4,8 +4,16 @@ import type {
     KickBackgroundResponse,
     YoutubeVideoData,
     YoutubeData,
+    GetUsageResponse,
+    AddUsageResponse,
 } from "@app-types/platforms.types";
-import type { YoutubeMessage, FrontEndMessage, TwitchMessage, KickMessage } from "@app-types/types";
+import type {
+    YoutubeMessage,
+    FrontEndMessage,
+    TwitchMessage,
+    KickMessage,
+    AddUsageMessage,
+} from "@app-types/types";
 import { clearMediaCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { badgeFormatter, removeBadge, setBadge } from "@/badge";
 import {
@@ -19,11 +27,38 @@ import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
 import { isYoutubePage } from "@lib/utils";
 import { getUsageByDay, getUsageNumber, getTodayUsage } from "@lib/analyticsUtils";
+import { addUsage, getUsage } from "./db";
 
 chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
     void handleMessage(message, sender, sendResponse);
     return true;
 });
+
+let total = 0;
+let counter = 0;
+chrome.webRequest.onCompleted.addListener(
+    (details) => {
+        if (details.tabId === -1) return; // requests not tied to a tab (extensions, service workers)
+        if (details.url.startsWith("chrome-extension://")) return;
+        if (details.fromCache) return;
+        if (details.type === "xmlhttprequest") return;
+
+        const contentLength = details.responseHeaders?.find((header) => {
+            return header.name.toLowerCase() === "content-length";
+        });
+        if (!contentLength || !contentLength.value || Number(contentLength.value) <= 0) return;
+
+        total += Number(contentLength.value);
+        counter += 1;
+        console.log(details);
+    },
+    { urls: ["<all_urls>"] },
+    ["responseHeaders"],
+);
+
+setInterval(() => {
+    console.log(total, counter);
+}, 7000);
 
 function getTabId(
     sender: chrome.runtime.MessageSender,
@@ -58,10 +93,45 @@ async function handleMessage(
         case "kickVod": {
             return await handleKick(message, sendResponse);
         }
+        case "addUsage": {
+            return await handleAddUsage(message, sendResponse);
+        }
+        case "getUsage": {
+            return await handleGetUsage(sendResponse);
+        }
         default: {
             console.error("Unknown message type:", message);
             return;
         }
+    }
+}
+
+async function handleAddUsage(
+    message: AddUsageMessage,
+    sendResposne: (response: AddUsageResponse) => void,
+) {
+    try {
+        await addUsage(message.usage);
+        sendResposne({ success: true, data: null });
+    } catch (err) {
+        console.error(err);
+        sendResposne({ success: false, message: err instanceof Error ? err.message : String(err) });
+        return;
+    }
+}
+
+async function handleGetUsage(sendResponse: (response: GetUsageResponse) => void) {
+    try {
+        const usage = await getUsage();
+        sendResponse({
+            success: true,
+            data: usage,
+        });
+    } catch (err) {
+        sendResponse({
+            success: false,
+            message: err instanceof Error ? err.message : String(err),
+        });
     }
 }
 

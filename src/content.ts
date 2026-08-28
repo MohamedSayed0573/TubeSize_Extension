@@ -25,6 +25,7 @@ import {
 import { getKickHtml, getKickStreamId } from "@lib/kick";
 import type { KickBackgroundResponse } from "@app-types/platforms.types";
 import { waitForElement } from "@lib/dom";
+import type { UsageMessage } from "@app-types/types";
 
 function getCurrentUrl() {
     return location.href;
@@ -85,6 +86,20 @@ async function handlePageNavigation() {
         console.error("[content] Error handling page navigation", err);
     }
 }
+
+addEventListener("message", (event) => {
+    const message = event.data as UsageMessage;
+    if (message.type !== "TUBESIZE_USAGE") return;
+
+    const updateUsage = async () => {
+        await sendMessageToBackground({
+            type: "addUsage",
+            usage: message.bytes,
+        });
+    };
+
+    void updateUsage();
+});
 
 if (isYoutubePage(getCurrentUrl())) {
     addEventListener("yt-navigate-finish", () => {

@@ -1,24 +1,21 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { useEffect } from "react";
-import { getTodayUsage, getUsageNumber } from "@lib/analyticsUtils";
-import useUsage from "@hooks/useUsage";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTotalUsage } from "@hooks/useTotalUsage";
 
 export default function PopupUsage() {
+    const { data: totalUsage } = useTotalUsage();
     const queryClient = useQueryClient();
-    const { query } = useUsage();
-    const { data: usageByDay } = query;
 
     useEffect(() => {
         const handleStorageChange = () => {
-            void queryClient.invalidateQueries({ queryKey: ["usage"] });
+            void queryClient.invalidateQueries({ queryKey: ["totalUsage"] });
         };
 
-        chrome.storage.onChanged.addListener(handleStorageChange);
-        return () => chrome.storage.onChanged.removeListener(handleStorageChange);
-    }, [queryClient]);
+        const interval = setInterval(handleStorageChange, 3000);
 
-    const todayUsage = usageByDay ? getUsageNumber(getTodayUsage(usageByDay)) : 0;
+        return () => clearInterval(interval);
+    }, [queryClient]);
 
     return (
         <>
@@ -31,7 +28,7 @@ export default function PopupUsage() {
                         }
                     >
                         <span>{"YouTube Usage Today: "}</span>
-                        <span>{totalSizeVideoDisplay(todayUsage)}</span>
+                        <span>{totalSizeVideoDisplay(totalUsage ?? 0)}</span>
                     </button>
                 </div>
             }

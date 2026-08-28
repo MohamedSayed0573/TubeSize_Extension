@@ -102,3 +102,6 @@ type KickVodData = {
 
 export type KickData = KickLiveData | KickVodData;
 export type KickBackgroundResponse = BackgroundResponse<KickData>;
+
+export type AddUsageResponse = BackgroundResponse<null>;
+export type GetUsageResponse = BackgroundResponse<number | undefined>;
