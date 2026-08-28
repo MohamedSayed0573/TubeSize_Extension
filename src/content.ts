@@ -88,17 +88,17 @@ async function handlePageNavigation() {
 }
 
 addEventListener("message", (event) => {
+    // eslint-disable-next-line unicorn/prefer-global-this
+    if (event.source !== window) return;
+
     const message = event.data as UsageMessage;
     if (message.type !== "TUBESIZE_USAGE") return;
+    if (typeof message.bytes !== "number") return;
 
-    const updateUsage = async () => {
-        await sendMessageToBackground({
-            type: "addUsage",
-            usage: message.bytes,
-        });
-    };
-
-    void updateUsage();
+    void sendMessageToBackground({
+        type: "addUsage",
+        usage: message.bytes,
+    });
 });
 
 if (isYoutubePage(getCurrentUrl())) {
