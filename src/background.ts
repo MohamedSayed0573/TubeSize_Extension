@@ -34,6 +34,9 @@ chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResp
     return true;
 });
 
+// Track total bytes.
+// Fetch responses are skipped because the Fetch monkey patch already catches them.
+// XMLHttpRequest responses are skipped because they are already counted by the PerformanceObserver in genericObserver.ts
 let total = 0;
 chrome.webRequest.onCompleted.addListener(
     (details) => {
@@ -109,7 +112,7 @@ async function handleAddUsage(
     sendResposne: (response: AddUsageResponse) => void,
 ) {
     try {
-        if (!isValidUsageBytes(message.usage)) return;
+        if (!isValidUsageBytes(message.usage)) throw new Error("Invalid usage bytes");
 
         await addUsage(message.usage);
         sendResposne({ success: true, data: null });

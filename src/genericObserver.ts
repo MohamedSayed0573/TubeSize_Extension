@@ -1,8 +1,9 @@
 import type { UsageMessage } from "@app-types/types";
 
-const _fetch = fetch;
-
 let total = 0;
+
+// Monkey patch fetch to count bytes
+const _fetch = fetch;
 // eslint-disable-next-line unicorn/no-global-object-property-assignment
 globalThis.fetch = async (...args) => {
     const response = await _fetch(...args);
