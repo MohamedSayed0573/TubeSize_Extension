@@ -93,7 +93,6 @@ addEventListener("message", (event) => {
 
     const message = event.data as UsageMessage;
     if (message.type !== "TUBESIZE_USAGE") return;
-    if (typeof message.bytes !== "number") return;
 
     void sendMessageToBackground({
         type: "addUsage",

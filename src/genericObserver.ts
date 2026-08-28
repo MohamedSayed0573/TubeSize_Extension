@@ -1,6 +1,7 @@
 import type { UsageMessage } from "@app-types/types";
 
 const _fetch = fetch;
+// eslint-disable-next-line @typescript-eslint/unbound-method
 const _xhrSend = XMLHttpRequest.prototype.send;
 
 let total = 0;

@@ -109,6 +109,8 @@ async function handleAddUsage(
     sendResposne: (response: AddUsageResponse) => void,
 ) {
     try {
+        if (!isValidUsageBytes(message.usage)) return;
+
         await addUsage(message.usage);
         sendResposne({ success: true, data: null });
     } catch (err) {
@@ -116,6 +118,10 @@ async function handleAddUsage(
         sendResposne({ success: false, message: err instanceof Error ? err.message : String(err) });
         return;
     }
+}
+
+function isValidUsageBytes(usage: unknown): usage is number {
+    return typeof usage === "number" && Number.isFinite(usage) && usage >= 0;
 }
 
 async function handleGetUsage(sendResponse: (response: GetUsageResponse) => void) {
