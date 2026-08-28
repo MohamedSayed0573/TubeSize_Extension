@@ -55,6 +55,7 @@ chrome.webRequest.onCompleted.addListener(
 
 setInterval(() => {
     void addUsage(total);
+    total = 0;
 }, 7000);
 
 function getTabId(
