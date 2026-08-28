@@ -1,8 +1,6 @@
 import type { UsageMessage } from "@app-types/types";
 
 const _fetch = fetch;
-// eslint-disable-next-line @typescript-eslint/unbound-method
-const _xhrSend = XMLHttpRequest.prototype.send;
 
 let total = 0;
 // eslint-disable-next-line unicorn/no-global-object-property-assignment
@@ -28,33 +26,24 @@ globalThis.fetch = async (...args) => {
     return response;
 };
 
-XMLHttpRequest.prototype.send = function (body?: Document | XMLHttpRequestBodyInit | null) {
-    this.addEventListener(
-        "loadend",
-        () => {
-            let bytes = 0;
+// chrome.webRequest skips both Fetch and XHR. We already monkey-patch the fetch function.
+// Thus, we only need to observe XMLHttpRequest entries here.
+const observer = new PerformanceObserver((entries, _) => {
+    const _entries = entries.getEntries();
+    for (const entry of _entries) {
+        const resource = entry as PerformanceResourceTiming & {
+            deliveryType: "cache" | "cache-storage" | "";
+        };
 
-            try {
-                const responseType = this.responseType;
+        if (resource.deliveryType === "cache" || resource.deliveryType === "cache-storage")
+            continue;
 
-                if (responseType === "arraybuffer") {
-                    bytes = (this.response as ArrayBuffer).byteLength;
-                } else if (responseType === "blob") {
-                    bytes = (this.response as Blob).size;
-                } else if (responseType === "" || responseType === "text") {
-                    bytes = new TextEncoder().encode(this.responseText).length;
-                } else if (responseType === "json") {
-                    bytes = new TextEncoder().encode(JSON.stringify(this.response)).length;
-                }
-            } catch {}
-
-            total += bytes;
-        },
-        { once: true },
-    );
-
-    return _xhrSend.call(this, body);
-};
+        if (resource.initiatorType === "xmlhttprequest") {
+            total += resource.transferSize;
+        }
+    }
+});
+observer.observe({ type: "resource", buffered: true });
 
 setInterval(() => {
     window.postMessage(
@@ -64,6 +53,5 @@ setInterval(() => {
         } satisfies UsageMessage,
         "*",
     );
-    console.log(`We have used ${total}`);
     total = 0;
 }, 10_000);
