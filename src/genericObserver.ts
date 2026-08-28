@@ -1,6 +1,7 @@
 import type { UsageMessage } from "@app-types/types";
 
 const _fetch = fetch;
+const _xhrSend = XMLHttpRequest.prototype.send;
 
 let total = 0;
 // eslint-disable-next-line unicorn/no-global-object-property-assignment
@@ -24,6 +25,34 @@ globalThis.fetch = async (...args) => {
     })().catch((err) => console.log(err));
 
     return response;
+};
+
+XMLHttpRequest.prototype.send = function (body?: Document | XMLHttpRequestBodyInit | null) {
+    this.addEventListener(
+        "loadend",
+        () => {
+            let bytes = 0;
+
+            try {
+                const responseType = this.responseType;
+
+                if (responseType === "arraybuffer") {
+                    bytes = (this.response as ArrayBuffer).byteLength;
+                } else if (responseType === "blob") {
+                    bytes = (this.response as Blob).size;
+                } else if (responseType === "" || responseType === "text") {
+                    bytes = new TextEncoder().encode(this.responseText).length;
+                } else if (responseType === "json") {
+                    bytes = new TextEncoder().encode(JSON.stringify(this.response)).length;
+                }
+            } catch {}
+
+            total += bytes;
+        },
+        { once: true },
+    );
+
+    return _xhrSend.call(this, body);
 };
 
 setInterval(() => {

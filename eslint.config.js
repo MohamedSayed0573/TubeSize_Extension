@@ -64,6 +64,8 @@ export default defineConfig([
             "unicorn/no-computed-property-existence-check": "off",
             "unicorn/no-null": "off",
             "unicorn/no-top-level-assignment-in-function": "off",
+            "unicorn/prefer-switch": "off",
+            "unicorn/no-this-outside-of-class": "off",
         },
     },
     {
