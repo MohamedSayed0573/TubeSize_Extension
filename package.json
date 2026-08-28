@@ -31,7 +31,8 @@
             "src/background.ts",
             "src/content.ts",
             "src/observer.ts",
-            "scripts/generate-firefox-manifest.cjs"
+            "scripts/generate-firefox-manifest.cjs",
+            "src/genericObserver.ts"
         ],
         "ignoreBinaries": [
             "wslview"

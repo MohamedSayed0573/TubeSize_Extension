@@ -4,7 +4,7 @@ const DB_NAME = "tubesize";
 const DB_VERSION = 1;
 const STORE_NAME = "dailyUsage";
 
-export async function openDB(): Promise<IDBDatabase> {
+async function openDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
