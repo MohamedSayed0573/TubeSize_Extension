@@ -69,6 +69,7 @@ export default defineConfig([
             // "unicorn/prefer-iterator-helpers": "off",
             "unicorn/prefer-spread": "off",
             "unicorn/prefer-iterator-helpers": "off",
+            "unicorn/prefer-await": "off",
         },
     },
     {

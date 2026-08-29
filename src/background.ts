@@ -67,10 +67,26 @@ chrome.webRequest.onCompleted.addListener(
 setInterval(() => {
     if (originToTotal.size === 0) return;
 
-    void addUsage(originToTotal).finally(() => {
-        originToTotal.clear();
-    });
+    retry(async () => await addUsage(originToTotal))
+        .then(() => {
+            return originToTotal.clear();
+        })
+        .catch((err) => {
+            console.log(err instanceof Error ? err.message : String(err));
+        });
 }, 7000);
+
+async function retry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            return await fn();
+        } catch (err) {
+            if (attempt === retries) throw err;
+        }
+    }
+
+    throw new Error("Unreachable");
+}
 
 function getTabId(
     sender: chrome.runtime.MessageSender,
@@ -126,7 +142,8 @@ async function handleAddUsage(
         if (!isValidUsageBytes(message.usage)) throw new Error("Invalid usage bytes");
 
         const map = new Map([[message.origin, message.usage]]);
-        await addUsage(map);
+        await retry(async () => await addUsage(map));
+
         sendResposne({ success: true, data: null });
     } catch (err) {
         console.error(err);
