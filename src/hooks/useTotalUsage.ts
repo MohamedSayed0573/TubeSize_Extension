@@ -11,6 +11,7 @@ export function useTotalUsage() {
                 console.error("Failed to get usage:", usage.message);
                 return null;
             }
+
             return usage.data ?? null;
         },
     });

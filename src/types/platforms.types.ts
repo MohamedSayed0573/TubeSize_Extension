@@ -104,4 +104,4 @@ export type KickData = KickLiveData | KickVodData;
 export type KickBackgroundResponse = BackgroundResponse<KickData>;
 
 export type AddUsageResponse = BackgroundResponse<null>;
-export type GetUsageResponse = BackgroundResponse<number | undefined>;
+export type GetUsageResponse = BackgroundResponse<Record<string, number> | undefined>;

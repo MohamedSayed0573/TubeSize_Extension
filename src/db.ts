@@ -21,7 +21,7 @@ async function openDB(): Promise<IDBDatabase> {
     });
 }
 
-export async function addUsage(delta: number): Promise<void> {
+export async function addUsage(originToUsage: Map<string, number>): Promise<void> {
     const db = await openDB();
 
     return new Promise((resolve, reject) => {
@@ -29,10 +29,16 @@ export async function addUsage(delta: number): Promise<void> {
         const store = transaction.objectStore(STORE_NAME);
 
         const date = getDateKey(new Date());
-        const existing = store.get(date);
+        const existing = store.get(date) as IDBRequest<Map<string, number> | undefined>;
 
         existing.addEventListener("success", () => {
-            store.put(delta + ((existing.result as number | undefined) ?? 0), date);
+            const updatedOriginToUsage = existing.result ?? new Map<string, number>();
+
+            for (const [origin, usage] of originToUsage) {
+                updatedOriginToUsage.set(origin, (updatedOriginToUsage.get(origin) ?? 0) + usage);
+            }
+
+            store.put(updatedOriginToUsage, date);
         });
 
         transaction.addEventListener("complete", () => {
@@ -52,7 +58,7 @@ export async function addUsage(delta: number): Promise<void> {
     });
 }
 
-export async function getUsage(): Promise<number | undefined> {
+export async function getUsage(): Promise<Map<string, number> | undefined> {
     const db = await openDB();
 
     return new Promise((resolve, reject) => {
@@ -64,7 +70,7 @@ export async function getUsage(): Promise<number | undefined> {
         const request = store.get(date);
 
         request.addEventListener("success", () => {
-            resolve(request.result as number | undefined);
+            resolve(request.result as Map<string, number>);
         });
 
         request.addEventListener("error", () => {

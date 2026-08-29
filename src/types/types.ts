@@ -33,6 +33,7 @@ type GetUsageMessage = {
 export type AddUsageMessage = {
     type: "addUsage";
     usage: number;
+    origin: string;
 };
 
 export type YoutubeMessage = {
@@ -68,7 +69,4 @@ export type KickVodMessage = {
 
 export type KickMessage = KickLiveMessage | KickVodMessage;
 
-export type UsageMessage = {
-    type: string;
-    bytes: number;
-};
+export type UsageMessage = { type: string; origin: string; usage: number };

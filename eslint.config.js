@@ -66,6 +66,9 @@ export default defineConfig([
             "unicorn/no-top-level-assignment-in-function": "off",
             "unicorn/prefer-switch": "off",
             "unicorn/no-this-outside-of-class": "off",
+            // "unicorn/prefer-iterator-helpers": "off",
+            "unicorn/prefer-spread": "off",
+            "unicorn/prefer-iterator-helpers": "off",
         },
     },
     {

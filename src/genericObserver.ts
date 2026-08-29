@@ -22,7 +22,7 @@ globalThis.fetch = async (...args) => {
             bytes += value.byteLength;
         }
         total += bytes;
-    })().catch((err) => console.log(err));
+    })().catch((err) => console.error(err));
 
     return response;
 };
@@ -47,10 +47,12 @@ const observer = new PerformanceObserver((entries, _) => {
 observer.observe({ type: "resource", buffered: true });
 
 setInterval(() => {
+    if (total === 0) return;
     window.postMessage(
         {
             type: "TUBESIZE_USAGE",
-            bytes: total,
+            origin: location.origin,
+            usage: total,
         } satisfies UsageMessage,
         "*",
     );

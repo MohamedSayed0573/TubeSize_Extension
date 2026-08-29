@@ -91,12 +91,17 @@ addEventListener("message", (event) => {
     // eslint-disable-next-line unicorn/prefer-global-this
     if (event.source !== window) return;
 
-    const message = event.data as UsageMessage;
-    if (message.type !== "TUBESIZE_USAGE") return;
+    const { origin, type, usage } = event.data as UsageMessage;
+
+    if (type !== "TUBESIZE_USAGE") return;
+    if (typeof usage !== "number") return;
+    if (typeof origin !== "string") return;
+    if (usage === 0) return;
 
     void sendMessageToBackground({
         type: "addUsage",
-        usage: message.bytes,
+        usage,
+        origin,
     });
 });
 

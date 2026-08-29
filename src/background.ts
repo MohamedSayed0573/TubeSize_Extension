@@ -37,28 +37,39 @@ chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResp
 // Track total bytes.
 // Fetch responses are skipped because the Fetch monkey patch already catches them.
 // XMLHttpRequest responses are skipped because they are already counted by the PerformanceObserver in genericObserver.ts
-let total = 0;
+const originToTotal = new Map<string, number>();
 chrome.webRequest.onCompleted.addListener(
     (details) => {
-        if (details.tabId === -1) return; // requests not tied to a tab (extensions, service workers)
-        if (details.url.startsWith("chrome-extension://")) return;
-        if (details.fromCache) return;
-        if (details.type === "xmlhttprequest") return;
+        if (details.tabId === -1) return; // requests not tied to a tab (extensions, service workers) should be skipped
+        if (details.url.startsWith("chrome-extension://")) return; // requests from the extension itself should not be counted as wire usage
+        if (details.fromCache) return; // responses from the browser cache should not be counted as wire usage
+        if (details.type === "xmlhttprequest") return; // XMLHttpRequest responses are already counted by the PerformanceObserver in genericObserver.ts
+        if (details.method === "HEAD") return; // HEAD requests have content length of a body that is never sent.
 
         const contentLength = details.responseHeaders?.find((header) => {
             return header.name.toLowerCase() === "content-length";
         });
-        if (!contentLength || !contentLength.value || Number(contentLength.value) <= 0) return;
+        if (!contentLength || !contentLength.value || Number(contentLength.value) <= 0) return; // responses with no content length should be skipped
+        if (!details.initiator) {
+            // requests without an origin should be skipped
+            console.log(details);
+            return;
+        }
 
-        total += Number(contentLength.value);
+        const origin = details.initiator;
+
+        originToTotal.set(origin, (originToTotal.get(origin) ?? 0) + Number(contentLength.value));
     },
     { urls: ["<all_urls>"] },
     ["responseHeaders"],
 );
 
 setInterval(() => {
-    void addUsage(total);
-    total = 0;
+    if (originToTotal.size === 0) return;
+
+    void addUsage(originToTotal).finally(() => {
+        originToTotal.clear();
+    });
 }, 7000);
 
 function getTabId(
@@ -114,7 +125,8 @@ async function handleAddUsage(
     try {
         if (!isValidUsageBytes(message.usage)) throw new Error("Invalid usage bytes");
 
-        await addUsage(message.usage);
+        const map = new Map([[message.origin, message.usage]]);
+        await addUsage(map);
         sendResposne({ success: true, data: null });
     } catch (err) {
         console.error(err);
@@ -129,7 +141,9 @@ function isValidUsageBytes(usage: unknown): usage is number {
 
 async function handleGetUsage(sendResponse: (response: GetUsageResponse) => void) {
     try {
-        const usage = await getUsage();
+        const mapUsage = await getUsage();
+        const usage = mapUsage ? Object.fromEntries(mapUsage) : undefined;
+
         sendResponse({
             success: true,
             data: usage,
