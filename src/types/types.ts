@@ -48,7 +48,7 @@ export type AddWatchHistoryMessage = {
     bytes: number;
 };
 
-export type GetWatchHistoryMessage = {
+type GetWatchHistoryMessage = {
     type: "getWatchHistory";
 };
 
