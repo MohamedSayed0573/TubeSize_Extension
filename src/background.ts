@@ -26,8 +26,8 @@ import {
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
 import { isYoutubePage } from "@lib/utils";
-import { getUsageByDay, getUsageNumber, getTodayUsage } from "@lib/analyticsUtils";
-import { addUsage, getUsage } from "./db";
+import { getUsageByDay, getUsageNumber, getTodayUsage, getDateKey } from "@lib/analyticsUtils";
+import { addSiteUsage, getSiteUsage } from "./db";
 
 chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
     void handleMessage(message, sender, sendResponse);
@@ -37,7 +37,7 @@ chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResp
 // Track total bytes.
 // Fetch responses are skipped because the Fetch monkey patch already catches them.
 // XMLHttpRequest responses are skipped because they are already counted by the PerformanceObserver in genericObserver.ts
-const originToTotal = new Map<string, number>();
+let originToTotal: Record<string, number> = {};
 chrome.webRequest.onCompleted.addListener(
     (details) => {
         if (details.tabId === -1) return; // requests not tied to a tab (extensions, service workers) should be skipped
@@ -58,35 +58,19 @@ chrome.webRequest.onCompleted.addListener(
 
         const origin = details.initiator;
 
-        originToTotal.set(origin, (originToTotal.get(origin) ?? 0) + Number(contentLength.value));
+        originToTotal[origin] = (originToTotal[origin] ?? 0) + Number(contentLength.value);
     },
     { urls: ["<all_urls>"] },
     ["responseHeaders"],
 );
 
 setInterval(() => {
-    if (originToTotal.size === 0) return;
-
-    retry(async () => await addUsage(originToTotal))
+    addSiteUsage(originToTotal)
         .then(() => {
-            return originToTotal.clear();
+            return (originToTotal = {});
         })
-        .catch((err) => {
-            console.log(err instanceof Error ? err.message : String(err));
-        });
-}, 7000);
-
-async function retry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-            return await fn();
-        } catch (err) {
-            if (attempt === retries) throw err;
-        }
-    }
-
-    throw new Error("Unreachable");
-}
+        .catch((err) => console.error(err));
+}, 3000);
 
 function getTabId(
     sender: chrome.runtime.MessageSender,
@@ -139,10 +123,10 @@ async function handleAddUsage(
     sendResposne: (response: AddUsageResponse) => void,
 ) {
     try {
-        if (!isValidUsageBytes(message.usage)) throw new Error("Invalid usage bytes");
+        const { origin, usage } = message;
+        if (!isValidUsageBytes(usage)) throw new Error("Invalid usage bytes");
 
-        const map = new Map([[message.origin, message.usage]]);
-        await retry(async () => await addUsage(map));
+        await addSiteUsage({ [origin]: usage });
 
         sendResposne({ success: true, data: null });
     } catch (err) {
@@ -158,12 +142,11 @@ function isValidUsageBytes(usage: unknown): usage is number {
 
 async function handleGetUsage(sendResponse: (response: GetUsageResponse) => void) {
     try {
-        const mapUsage = await getUsage();
-        const usage = mapUsage ? Object.fromEntries(mapUsage) : undefined;
+        const usage = await getSiteUsage(getDateKey(new Date()));
 
         sendResponse({
             success: true,
-            data: usage,
+            data: usage?.usage,
         });
     } catch (err) {
         sendResponse({

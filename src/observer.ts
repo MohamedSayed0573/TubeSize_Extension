@@ -8,7 +8,7 @@ let pendingUsage: number = 0;
 const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
         const resource = entry as PerformanceResourceTiming;
-        pendingUsage += resource.transferSize; // eslint-disable-line unicorn/no-top-level-assignment-in-function
+        pendingUsage += resource.transferSize;
     }
 });
 
@@ -63,7 +63,7 @@ void (async () => {
             updateBadge(usageByDay);
             await setToLocalCache({ usageByDay });
 
-            pendingUsage = 0; // eslint-disable-line unicorn/no-top-level-assignment-in-function
+            pendingUsage = 0;
         } catch (err) {
             console.error("Error in usage tracking loop:", err);
             if (err instanceof Error && err.message.includes("Extension context invalidated")) {
