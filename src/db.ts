@@ -1,36 +1,33 @@
 import { getDateKey } from "@lib/analyticsUtils";
-import { Dexie, type EntityTable } from "dexie";
+import { Dexie, type Table } from "dexie";
 
 interface SiteUsage {
-    day: string;
     usage: Record<string, number>;
     // origin -> bytes
 }
 
 interface WatchHistory {
-    day: string;
     videos: Record<string, number>;
     // videoTag -> bytes
 }
 
 interface VideoMetadata {
-    videoTag: string;
     title: string;
     channelName: string;
     thumbnailUrl: string;
 }
 
 const database = new Dexie("TubeSize") as Dexie & {
-    siteUsage: EntityTable<SiteUsage, "day">;
-    watchHistory: EntityTable<WatchHistory, "day">;
-    videoMetaData: EntityTable<VideoMetadata, "videoTag">;
+    siteUsage: Table<SiteUsage, string>;
+    watchHistory: Table<WatchHistory, string>;
+    videoMetaData: Table<VideoMetadata, string>;
 };
 
 // eslint-disable-next-line unicorn/no-top-level-side-effects
 database.version(1).stores({
-    siteUsage: "day",
-    watchHistory: "day",
-    videoMetaData: "videoTag",
+    siteUsage: "",
+    watchHistory: "",
+    videoMetaData: "",
 });
 
 export async function addSiteUsage(siteUsage: Record<string, number>) {
@@ -45,12 +42,9 @@ export async function addSiteUsage(siteUsage: Record<string, number>) {
                 existing.usage[origin] = (existing.usage[origin] ?? 0) + bytes;
             }
 
-            await database.siteUsage.put(existing);
+            await database.siteUsage.put(existing, day);
         } else {
-            await database.siteUsage.add({
-                day,
-                usage: siteUsage,
-            });
+            await database.siteUsage.add({ usage: siteUsage }, day);
         }
     });
 }
@@ -71,12 +65,9 @@ export async function addWatchHistory(watchHistory: Record<string, number>) {
                 existing.videos[videoTag] = (existing.videos[videoTag] ?? 0) + bytes;
             }
 
-            await database.watchHistory.put(existing);
+            await database.watchHistory.put(existing, day);
         } else {
-            await database.watchHistory.add({
-                day,
-                videos: watchHistory,
-            });
+            await database.watchHistory.add({ videos: watchHistory }, day);
         }
     });
 }
@@ -85,8 +76,8 @@ export async function getWatchHistory(day = getDateKey(new Date())) {
     return await database.watchHistory.get(day);
 }
 
-export async function addVideoMetadata(metadata: VideoMetadata) {
-    await database.videoMetaData.put(metadata);
+export async function addVideoMetadata(videoTag: string, metadata: VideoMetadata) {
+    await database.videoMetaData.put(metadata, videoTag);
 }
 
 export async function getVideoMetadata(videoTag: string) {

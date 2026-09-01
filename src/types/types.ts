@@ -38,7 +38,7 @@ type GetUsageMessage = {
 
 export type AddUsageMessage = {
     type: "addUsage";
-    usage: number;
+    bytes: number;
     origin: string;
 };
 

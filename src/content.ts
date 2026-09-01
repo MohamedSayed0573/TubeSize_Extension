@@ -99,7 +99,7 @@ addEventListener("message", (event) => {
         if (bytes === 0) return;
         void sendMessageToBackground({
             type: "addUsage",
-            usage: bytes,
+            bytes,
             origin: event.origin,
         });
         //eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

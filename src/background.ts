@@ -83,8 +83,7 @@ async function recordVideoMetadata(videoTag: string) {
         if (!response.success) return;
 
         const { data } = response;
-        await addVideoMetadata({
-            videoTag,
+        await addVideoMetadata(videoTag, {
             title: data.type === "video" ? data.title : data.channelName || "Youtube",
             channelName: data.channelName ?? "",
             thumbnailUrl: data.thumbnailUrl ?? "https://www.youtube.com/img/desktop/yt_1200.png",
@@ -200,10 +199,10 @@ async function handleAddUsage(
     sendResposne: (response: AddUsageResponse) => void,
 ) {
     try {
-        const { origin, usage } = message;
-        if (!isValidUsageBytes(usage)) throw new Error("Invalid usage bytes");
+        const { bytes, origin } = message;
+        if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
 
-        await addSiteUsage({ [origin]: usage });
+        await addSiteUsage({ [origin]: bytes });
 
         sendResposne({ success: true, data: null });
     } catch (err) {
