@@ -13,6 +13,7 @@ import type {
     TwitchMessage,
     KickMessage,
     AddUsageMessage,
+    AddWatchHistoryMessage,
 } from "@app-types/types";
 import { clearMediaCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
 import { badgeFormatter, removeBadge, setBadge } from "@/badge";
@@ -25,19 +26,79 @@ import {
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
-import { isYoutubePage } from "@lib/utils";
+import { extractVideoTag, isYoutubePage, isYoutubeVideo } from "@lib/utils";
 import { getUsageByDay, getUsageNumber, getTodayUsage, getDateKey } from "@lib/analyticsUtils";
-import { addSiteUsage, getSiteUsage } from "./db";
+import {
+    addSiteUsage,
+    addWatchHistory,
+    addVideoMetadata,
+    getVideoMetadata,
+    getSiteUsage,
+    getWatchHistory,
+} from "./db";
 
 chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
     void handleMessage(message, sender, sendResponse);
     return true;
 });
 
+const tabIdToVideoTag: Map<number, string> = new Map();
+chrome.tabs.onUpdated.addListener((tabId, _, tab) => {
+    const { url } = tab;
+    if (!url) return;
+    if (isYoutubeVideo(url)) {
+        const videoTag = extractVideoTag(url)!;
+        tabIdToVideoTag.set(tabId, videoTag);
+        void recordVideoMetadata(videoTag);
+    } else {
+        tabIdToVideoTag.delete(tabId);
+    }
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+    tabIdToVideoTag.delete(tabId);
+});
+
+// The service worker can be killed and restarted at any time, which wipes the map above.
+// Top-level code runs on every wake, so rebuild the mapping for tabs that are already open.
+void chrome.tabs.query({}).then((tabs) => {
+    for (const tab of tabs) {
+        if (tab.id === undefined || !tab.url) continue;
+        if (isYoutubeVideo(tab.url)) {
+            tabIdToVideoTag.set(tab.id, extractVideoTag(tab.url)!);
+        }
+    }
+    return;
+});
+
+async function recordVideoMetadata(videoTag: string) {
+    try {
+        const existing = await getVideoMetadata(videoTag);
+        if (existing) return;
+
+        let response!: YoutubeBackgroundResponse;
+        await handleYoutube({ type: "youtubeVideo", videoTag }, (result) => {
+            response = result;
+        });
+        if (!response.success) return;
+
+        const { data } = response;
+        await addVideoMetadata({
+            videoTag,
+            title: data.type === "video" ? data.title : data.channelName || "Youtube",
+            channelName: data.channelName ?? "",
+            thumbnailUrl: data.thumbnailUrl ?? "https://www.youtube.com/img/desktop/yt_1200.png",
+        });
+    } catch (err) {
+        console.error("Failed to record video metadata:", err);
+    }
+}
+
 // Track total bytes.
 // Fetch responses are skipped because the Fetch monkey patch already catches them.
 // XMLHttpRequest responses are skipped because they are already counted by the PerformanceObserver in genericObserver.ts
 let originToTotal: Record<string, number> = {};
+let watchHistory: Record<string, number> = {};
 chrome.webRequest.onCompleted.addListener(
     (details) => {
         if (details.tabId === -1) return; // requests not tied to a tab (extensions, service workers) should be skipped
@@ -52,24 +113,34 @@ chrome.webRequest.onCompleted.addListener(
         if (!contentLength || !contentLength.value || Number(contentLength.value) <= 0) return; // responses with no content length should be skipped
         if (!details.initiator) {
             // requests without an origin should be skipped
-            console.log(details);
             return;
         }
 
         const origin = details.initiator;
-
         originToTotal[origin] = (originToTotal[origin] ?? 0) + Number(contentLength.value);
+
+        const tabId = details.tabId;
+        if (tabIdToVideoTag.has(tabId)) {
+            const videoTag = tabIdToVideoTag.get(tabId)!;
+            watchHistory[videoTag] = (watchHistory[videoTag] ?? 0) + Number(contentLength.value);
+        }
     },
     { urls: ["<all_urls>"] },
-    ["responseHeaders"],
+    ["responseHeaders", "extraHeaders"],
 );
 
 setInterval(() => {
-    addSiteUsage(originToTotal)
-        .then(() => {
-            return (originToTotal = {});
-        })
-        .catch((err) => console.error(err));
+    void (async () => {
+        try {
+            await addSiteUsage(originToTotal);
+            await addWatchHistory(watchHistory);
+
+            watchHistory = {};
+            originToTotal = {};
+        } catch (err) {
+            console.error(err);
+        }
+    })();
 }, 3000);
 
 function getTabId(
@@ -111,6 +182,12 @@ async function handleMessage(
         case "getUsage": {
             return await handleGetUsage(sendResponse);
         }
+        case "addWatchHistory": {
+            return await handleAddWatchHistory(message, sendResponse);
+        }
+        case "getWatchHistory": {
+            return await handleGetWatchHistory(sendResponse);
+        }
         default: {
             console.error("Unknown message type:", message);
             return;
@@ -133,6 +210,38 @@ async function handleAddUsage(
         console.error(err);
         sendResposne({ success: false, message: err instanceof Error ? err.message : String(err) });
         return;
+    }
+}
+
+async function handleAddWatchHistory(
+    message: AddWatchHistoryMessage,
+    sendResponse: (response: any) => void,
+) {
+    try {
+        const { bytes, videoTag } = message;
+        if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
+
+        await addWatchHistory({ [videoTag]: bytes });
+        sendResponse({ success: true, data: null });
+    } catch (err) {
+        console.log(err);
+        sendResponse({ success: false, message: err instanceof Error ? err.message : String(err) });
+        return;
+    }
+}
+async function handleGetWatchHistory(sendResponse: (response: any) => void) {
+    try {
+        const usage = await getWatchHistory(getDateKey(new Date()));
+
+        sendResponse({
+            success: true,
+            data: usage?.videos,
+        });
+    } catch (err) {
+        sendResponse({
+            success: false,
+            message: err instanceof Error ? err.message : String(err),
+        });
     }
 }
 

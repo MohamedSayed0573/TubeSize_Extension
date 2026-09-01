@@ -25,7 +25,7 @@ import {
 import { getKickHtml, getKickStreamId } from "@lib/kick";
 import type { KickBackgroundResponse } from "@app-types/platforms.types";
 import { waitForElement } from "@lib/dom";
-import type { UsageMessage } from "@app-types/types";
+import type { WindowMessage } from "@app-types/types";
 
 function getCurrentUrl() {
     return location.href;
@@ -91,18 +91,30 @@ addEventListener("message", (event) => {
     // eslint-disable-next-line unicorn/prefer-global-this
     if (event.source !== window) return;
 
-    const { origin, type, usage } = event.data as UsageMessage;
+    const message = event.data as WindowMessage;
 
-    if (type !== "TUBESIZE_USAGE") return;
-    if (typeof usage !== "number") return;
-    if (typeof origin !== "string") return;
-    if (usage === 0) return;
+    if (message.type === "SITE_USAGE") {
+        const { bytes } = message;
+        if (typeof bytes !== "number") return;
+        if (bytes === 0) return;
+        void sendMessageToBackground({
+            type: "addUsage",
+            usage: bytes,
+            origin: event.origin,
+        });
+        //eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    } else if (message.type === "WATCH_HISTORY") {
+        const { bytes, videoTag } = message;
+        if (bytes === 0) return;
+        if (typeof bytes !== "number") return;
+        if (typeof videoTag !== "string") return;
 
-    void sendMessageToBackground({
-        type: "addUsage",
-        usage,
-        origin,
-    });
+        void sendMessageToBackground({
+            type: "addWatchHistory",
+            videoTag,
+            bytes,
+        });
+    }
 });
 
 if (isYoutubePage(getCurrentUrl())) {

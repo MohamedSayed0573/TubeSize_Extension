@@ -1,5 +1,9 @@
 import type { KickData, TwitchData, YoutubeData } from "./platforms.types";
 
+type Prettify<T> = {
+    [K in keyof T]: T[K];
+} & {};
+
 export type StorageData<T extends YoutubeData | TwitchData | KickData> = {
     data: T;
     expiry?: number;
@@ -23,6 +27,8 @@ export type FrontEndMessage =
     | KickVodMessage
     | GetUsageMessage
     | AddUsageMessage
+    | AddWatchHistoryMessage
+    | GetWatchHistoryMessage
     | { type: "removeBadge"; tabId: number }
     | { type: "setBadge"; text: string };
 
@@ -34,6 +40,16 @@ export type AddUsageMessage = {
     type: "addUsage";
     usage: number;
     origin: string;
+};
+
+export type AddWatchHistoryMessage = {
+    type: "addWatchHistory";
+    videoTag: string;
+    bytes: number;
+};
+
+export type GetWatchHistoryMessage = {
+    type: "getWatchHistory";
 };
 
 export type YoutubeMessage = {
@@ -69,4 +85,8 @@ export type KickVodMessage = {
 
 export type KickMessage = KickLiveMessage | KickVodMessage;
 
-export type UsageMessage = { type: string; origin: string; usage: number };
+export type UsageMessage = { type: "SITE_USAGE"; bytes: number };
+
+export type WatchHistoryMessage = { type: "WATCH_HISTORY"; videoTag: string; bytes: number };
+
+export type WindowMessage = Prettify<UsageMessage | WatchHistoryMessage>;

@@ -1,4 +1,5 @@
-import type { UsageMessage } from "@app-types/types";
+import type { UsageMessage, WatchHistoryMessage } from "@app-types/types";
+import { extractVideoTag, isYoutubeVideo } from "@lib/utils";
 
 let total = 0;
 
@@ -50,11 +51,23 @@ setInterval(() => {
     if (total === 0) return;
     window.postMessage(
         {
-            type: "TUBESIZE_USAGE",
-            origin: location.origin,
-            usage: total,
+            type: "SITE_USAGE",
+            bytes: total,
         } satisfies UsageMessage,
         "*",
     );
+
+    if (isYoutubeVideo(location.href)) {
+        const videoTag = extractVideoTag(location.href)!;
+        window.postMessage(
+            {
+                type: "WATCH_HISTORY",
+                videoTag,
+                bytes: total,
+            } satisfies WatchHistoryMessage,
+            "*",
+        );
+    }
+
     total = 0;
 }, 3000);

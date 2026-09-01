@@ -4,6 +4,8 @@ import type {
     YoutubeBackgroundResponse,
     GetUsageResponse,
     AddUsageResponse,
+    AddWatchHistoryResponse,
+    GetWatchHistoryResponse,
 } from "@app-types/platforms.types";
 import type { FrontEndMessage } from "@app-types/types";
 
@@ -15,6 +17,8 @@ type MessageResponseMap = {
     kickVod: KickBackgroundResponse;
     getUsage: GetUsageResponse;
     addUsage: AddUsageResponse;
+    addWatchHistory: AddWatchHistoryResponse;
+    getWatchHistory: GetWatchHistoryResponse;
     setBadge: { success: boolean };
     removeBadge: { success: boolean };
 };

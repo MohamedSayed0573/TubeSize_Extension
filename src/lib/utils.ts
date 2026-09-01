@@ -12,11 +12,21 @@ export function isYoutubePage(url: string): boolean {
     }
 }
 
+export function isYoutubeVideo(url: string): boolean {
+    try {
+        if (!isYoutubePage(url)) return false;
+        const videoTag = new URL(url).searchParams.get("v");
+        return !!videoTag || isShortsVideo(url);
+    } catch {
+        return false;
+    }
+}
+
 export function isShortsVideo(url: string): boolean {
     if (!isYoutubePage(url)) return false;
     try {
         const parsedUrl = new URL(url);
-        return parsedUrl.pathname.startsWith("/shorts");
+        return parsedUrl.pathname.startsWith("/shorts/");
     } catch {
         return false;
     }
