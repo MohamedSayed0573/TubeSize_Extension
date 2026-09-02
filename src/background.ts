@@ -47,7 +47,8 @@ chrome.tabs.onUpdated.addListener((tabId, _, tab) => {
     const { url } = tab;
     if (!url) return;
     if (isYoutubeVideo(url)) {
-        const videoTag = extractVideoTag(url)!;
+        const videoTag = extractVideoTag(url);
+        if (!videoTag) return;
         tabIdToVideoTag.set(tabId, videoTag);
         void recordVideoMetadata(videoTag);
     } else {
