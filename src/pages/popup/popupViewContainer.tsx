@@ -24,11 +24,19 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
         <div className="flex flex-col gap-2 px-3 py-1.5 text-xs text-zinc-400">
             <>
                 <PopupUsage text="Total Usage Today:" usage={totalUsage} />
-                {originUsage ? (
-                    <PopupUsage text={`${origin} Usage Today :`} usage={originUsage} />
+                {originUsage && origin ? (
+                    <PopupUsage
+                        text={`${getOriginText(origin)} Usage Today:`}
+                        usage={originUsage}
+                    />
                 ) : null}
                 {children}
             </>
         </div>
     );
+}
+
+function getOriginText(origin: string) {
+    const websiteName = new URL(origin).hostname.replace(/^www\./, "").split(".")[0]!;
+    return websiteName[0]?.toUpperCase() + websiteName.slice(1);
 }
