@@ -1,18 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
-import { sendMessageToBackground } from "@/runtime";
-import { getDateKey } from "@lib/analyticsUtils";
+import { useLiveQuery } from "dexie-react-hooks";
+import { getSiteUsage } from "@/db";
+import { getUsageNumber } from "@lib/dashboardUtils";
 
 export function useTotalUsage() {
-    return useQuery({
-        queryKey: ["totalUsage", getDateKey(new Date())],
-        queryFn: async () => {
-            const usage = await sendMessageToBackground({ type: "getUsage" });
-            if (!usage.success) {
-                console.error("Failed to get usage:", usage.message);
-                return null;
-            }
+    return useLiveQuery(
+        async () => {
+            const siteUsage = await getSiteUsage();
 
-            return usage.data ?? null;
+            return siteUsage ? getUsageNumber(siteUsage.usage) : 0;
         },
-    });
+        [],
+        0,
+    );
 }
