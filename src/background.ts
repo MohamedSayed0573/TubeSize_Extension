@@ -16,7 +16,7 @@ import type {
     AddWatchHistoryMessage,
 } from "@app-types/types";
 import { clearMediaCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
-import { badgeFormatter, removeBadge, setBadge } from "@/badge";
+import { removeBadge, setUsageBadge } from "@/badge";
 import {
     extractYtInitialResponse,
     parseDataFromYtInitial,
@@ -26,8 +26,8 @@ import {
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
-import { extractVideoTag, isYoutubePage, isYoutubeVideo } from "@lib/utils";
-import { getUsageByDay, getUsageNumber, getTodayUsage, getDateKey } from "@lib/analyticsUtils";
+import { extractVideoTag, isYoutubeVideo } from "@lib/utils";
+import { getDateKey } from "@lib/analyticsUtils";
 import {
     addSiteUsage,
     addWatchHistory,
@@ -36,9 +36,10 @@ import {
     getSiteUsage,
     getWatchHistory,
 } from "./db";
+import { getUsageNumber } from "@lib/dashboardUtils";
 
-chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
-    void handleMessage(message, sender, sendResponse);
+chrome.runtime.onMessage.addListener((message: FrontEndMessage, _sender, sendResponse) => {
+    void handleMessage(message, sendResponse);
     return true;
 });
 
@@ -111,10 +112,7 @@ chrome.webRequest.onCompleted.addListener(
             return header.name.toLowerCase() === "content-length";
         });
         if (!contentLength || !contentLength.value || Number(contentLength.value) <= 0) return; // responses with no content length should be skipped
-        if (!details.initiator) {
-            // requests without an origin should be skipped
-            return;
-        }
+        if (!details.initiator) return;
 
         const origin = details.initiator;
         originToTotal[origin] = (originToTotal[origin] ?? 0) + Number(contentLength.value);
@@ -143,28 +141,25 @@ setInterval(() => {
     })();
 }, 3000);
 
-function getTabId(
-    sender: chrome.runtime.MessageSender,
-    message: FrontEndMessage,
-): number | undefined {
-    // If the message is sent from the content script, use sender.tab.id, otherwise use message.tabId (sent from popup)
-    return sender.tab?.id ?? (message.type === "youtubeVideo" ? message.tabId : undefined);
-}
+setInterval(() => {
+    void (async () => {
+        try {
+            const siteUsage = await getSiteUsage();
+            const todayTotalUsage = siteUsage ? getUsageNumber(siteUsage.usage) : 0;
+            if (todayTotalUsage > 0) {
+                setUsageBadge(todayTotalUsage);
+            } else {
+                removeBadge();
+            }
+        } catch {}
+    })();
+}, 5000);
 
 async function handleMessage(
     message: FrontEndMessage,
-    sender: chrome.runtime.MessageSender,
     sendResponse: (response: any) => void,
 ): Promise<void> {
-    const tabId = getTabId(sender, message);
-
     switch (message.type) {
-        case "removeBadge": {
-            return handleRemoveBadge(tabId, sendResponse);
-        }
-        case "setBadge": {
-            return handleSetBadge(message, tabId, sendResponse);
-        }
         case "youtubeVideo": {
             return await handleYoutube(message, sendResponse);
         }
@@ -375,42 +370,3 @@ chrome.runtime.onInstalled.addListener((details) => {
         console.error("Failed to clear sync cache", err);
     });
 });
-
-function handleRemoveBadge(
-    tabId: number | undefined,
-    sendResponse: (response: { success: boolean }) => void,
-) {
-    removeBadge(tabId);
-    return sendResponse({ success: true });
-}
-
-function handleSetBadge(
-    message: { type: "setBadge"; text: string },
-    tabId: number | undefined,
-    sendResponse: (response: { success: boolean }) => void,
-) {
-    setBadge(message.text, tabId);
-    return sendResponse({ success: true });
-}
-
-// Show the badge if the tab is a YouTube page
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status !== "complete" || !tab.url) return;
-    if (isYoutubePage(tab.url)) {
-        void updateUsageBadge(tabId);
-    } else {
-        removeBadge(tabId);
-    }
-});
-
-async function updateUsageBadge(tabId: number) {
-    const usageByDay = await getUsageByDay();
-    if (!usageByDay) {
-        removeBadge(tabId);
-        return;
-    }
-
-    const total = getUsageNumber(getTodayUsage(usageByDay));
-
-    setBadge(badgeFormatter(total), tabId);
-}

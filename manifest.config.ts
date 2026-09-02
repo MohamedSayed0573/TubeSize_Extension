@@ -25,10 +25,6 @@ export default defineManifest({
             js: ["src/content.ts"],
         },
         {
-            matches: ["https://*.youtube.com/*"],
-            js: ["src/observer.ts"],
-        },
-        {
             matches: ["<all_urls>"],
             js: ["src/genericObserver.ts"],
             world: "MAIN",

@@ -28,9 +28,7 @@ export type FrontEndMessage =
     | GetUsageMessage
     | AddUsageMessage
     | AddWatchHistoryMessage
-    | GetWatchHistoryMessage
-    | { type: "removeBadge"; tabId: number }
-    | { type: "setBadge"; text: string };
+    | GetWatchHistoryMessage;
 
 type GetUsageMessage = {
     type: "getUsage";

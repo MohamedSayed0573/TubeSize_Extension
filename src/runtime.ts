@@ -19,8 +19,6 @@ type MessageResponseMap = {
     addUsage: AddUsageResponse;
     addWatchHistory: AddWatchHistoryResponse;
     getWatchHistory: GetWatchHistoryResponse;
-    setBadge: { success: boolean };
-    removeBadge: { success: boolean };
 };
 export async function sendMessageToBackground<T extends FrontEndMessage>(
     message: T,
