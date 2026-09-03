@@ -85,7 +85,8 @@ async function recordVideoMetadata(videoTag: string) {
         if (!response.success) return;
 
         const { data } = response;
-        await addVideoMetadata(videoTag, {
+        await addVideoMetadata({
+            videoTag,
             title: data.type === "video" ? data.title : data.channelName || "Youtube",
             channelName: data.channelName ?? "",
             thumbnailUrl: data.thumbnailUrl ?? "https://www.youtube.com/img/desktop/yt_1200.png",
