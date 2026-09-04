@@ -8,6 +8,7 @@ import Analytics from "@pages/analytics/analytics";
 import { UsageDetails } from "@pages/analytics/usage/usageDetails";
 import RangeUsage from "@pages/analytics/usage/rangeUsage";
 import AnalyticsErrorPage from "@pages/analytics/analyticsErrorPage";
+import AnalyticsNotFound from "@pages/analytics/analyticsNotFound";
 import OptionsErrorPage from "@pages/options/optionsErrorPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -64,6 +65,7 @@ root.render(
                         <Route path="week" element={<RangeUsage range="week" />} />
                         <Route path="month" element={<RangeUsage range="month" />} />
                         <Route path="lifetime" element={<RangeUsage range="lifetime" />} />
+                        <Route path="*" element={<AnalyticsNotFound />} />
                     </Route>
                 </Routes>
             </HashRouter>
