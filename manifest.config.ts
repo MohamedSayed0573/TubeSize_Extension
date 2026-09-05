@@ -29,6 +29,7 @@ export default defineManifest({
             js: ["src/genericObserver.ts"],
             world: "MAIN",
             run_at: "document_start",
+            all_frames: true,
         },
     ],
     background: {
