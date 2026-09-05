@@ -96,6 +96,7 @@ addEventListener("message", (event) => {
     if (message.type === "SITE_USAGE") {
         const { bytes } = message;
         if (typeof bytes !== "number") return;
+        if (!Number.isFinite(bytes) || bytes < 0) return;
         if (bytes === 0) return;
         void sendMessageToBackground({
             type: "addUsage",
@@ -107,6 +108,7 @@ addEventListener("message", (event) => {
         const { bytes, platform, videoId } = message;
         if (bytes === 0) return;
         if (typeof bytes !== "number") return;
+        if (!Number.isFinite(bytes) || bytes < 0) return;
         if (typeof videoId !== "string") return;
         if (typeof platform !== "string") return;
 

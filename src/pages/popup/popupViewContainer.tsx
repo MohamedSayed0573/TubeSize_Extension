@@ -39,6 +39,6 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
 }
 
 function getOriginText(origin: string) {
-    const websiteName = getDomainWithoutSuffix(origin) ?? "";
+    const websiteName = getDomainWithoutSuffix(origin) ?? origin;
     return capitalize(websiteName);
 }

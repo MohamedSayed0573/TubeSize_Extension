@@ -57,15 +57,14 @@ export function formatDate(date: Date | Date[]) {
         year: "numeric",
     });
 
-    if (!Array.isArray(date)) {
-        return dtf.format(new Date(date));
+    if (Array.isArray(date)) {
+        if (date.length === 0) throw new Error("formatDate expected a non-empty date array");
+
+        const sortedDates = date.toSorted((a, b) => a.getTime() - b.getTime());
+        return dtf.formatRange(new Date(sortedDates[0]!), new Date(sortedDates.at(-1)!));
     }
 
-    if (date.length === 0) {
-        return "No data";
-    }
-
-    return dtf.formatRange(new Date(date[0]!), new Date(date.at(-1)!));
+    return dtf.format(new Date(date));
 }
 
 /**

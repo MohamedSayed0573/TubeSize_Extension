@@ -13,18 +13,18 @@ import { filterHistoryBasedOnScope } from "@lib/dashboardUtils";
 import { useWatchHistory } from "@hooks/useWatchHistory";
 import { capitalize } from "@lib/utils";
 import type { PlatformId } from "@app-types/types";
+import AnalyticsNotFound from "../analyticsNotFound";
 
 export default function PlatformUsage() {
     const { platformId } = useParams();
-    if (platformId !== "youtube" && platformId !== "twitch" && platformId !== "kick") {
-        throw new Error(`Unknown platform: ${platformId}`);
-    }
-    const platform: PlatformId = platformId;
 
     const [searchParams] = useSearchParams();
     const scope = parseUsageScope(searchParams);
 
     const historyQuery = useWatchHistory();
+    if (platformId !== "youtube" && platformId !== "twitch" && platformId !== "kick") {
+        return <AnalyticsNotFound />;
+    }
 
     if (historyQuery.isPending) return <UsageDetailsSkeleton />;
     if (historyQuery.isError) throw historyQuery.error;
@@ -36,6 +36,7 @@ export default function PlatformUsage() {
 
     // Merge Watch History and Video Metadata into one Array shape.
     // Filter based on the platform
+    const platform: PlatformId = platformId;
     const rows: VideoRowDetails[] = filteredHistory.flatMap(({ day, videos }) => {
         return Object.entries(videos).flatMap(([videoKey, bytes]) => {
             const { platform, videoTag } = parseVideoKey(videoKey);
