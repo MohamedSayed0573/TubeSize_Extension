@@ -13,11 +13,9 @@ import {
 } from "@lib/dashboardUtils";
 import { useParams } from "react-router";
 import AnalyticsNotFound from "../analyticsNotFound";
-import type { UsageScope } from "@app-types/types";
+import type { UsageRange, UsageScope } from "@app-types/types";
 import PlatformCards from "../components/platformCards";
 import SiteTable from "../components/siteTable";
-
-export type UsageRange = "today" | "week" | "month" | "lifetime";
 
 const rangeFilters: Record<UsageRange, (usage: SiteUsage[]) => SiteUsage[]> = {
     today: getTodaySiteUsage,
