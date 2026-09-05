@@ -254,3 +254,7 @@ export async function delay(ms: number): Promise<void> {
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
+
+export function capitalize(str: string) {
+    return str[0]?.toUpperCase() + str.slice(1);
+}

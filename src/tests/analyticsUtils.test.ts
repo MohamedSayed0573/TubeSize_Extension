@@ -1,4 +1,4 @@
-import { formatDate } from "@lib/analyticsUtils";
+import { formatDate } from "@lib/dashboardUtils";
 
 describe("formatDate", () => {
     test("Should return formatted date if the input is not array", () => {

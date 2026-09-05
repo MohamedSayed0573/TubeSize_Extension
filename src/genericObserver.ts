@@ -58,11 +58,12 @@ setInterval(() => {
     );
 
     if (isYoutubeVideo(location.href)) {
-        const videoTag = extractVideoTag(location.href)!;
+        const ytVideoTag = extractVideoTag(location.href)!;
         window.postMessage(
             {
                 type: "WATCH_HISTORY",
-                videoTag,
+                videoId: ytVideoTag,
+                platform: "youtube",
                 bytes: total,
             } satisfies WatchHistoryMessage,
             "*",

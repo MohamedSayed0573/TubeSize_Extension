@@ -1,3 +1,4 @@
+import type CONFIG from "@lib/constants";
 import type { KickData, TwitchData, YoutubeData } from "./platforms.types";
 
 type Prettify<T> = {
@@ -40,11 +41,9 @@ export type AddUsageMessage = {
     origin: string;
 };
 
-export type AddWatchHistoryMessage = {
-    type: "addWatchHistory";
-    videoTag: string;
-    bytes: number;
-};
+export type AddWatchHistoryMessage = Prettify<
+    Omit<WatchHistoryMessage, "type"> & { type: "addWatchHistory" }
+>;
 
 type GetWatchHistoryMessage = {
     type: "getWatchHistory";
@@ -85,6 +84,17 @@ export type KickMessage = KickLiveMessage | KickVodMessage;
 
 export type UsageMessage = { type: "SITE_USAGE"; bytes: number };
 
-export type WatchHistoryMessage = { type: "WATCH_HISTORY"; videoTag: string; bytes: number };
+export type WatchHistoryMessage = {
+    type: "WATCH_HISTORY";
+    videoId: string;
+    bytes: number;
+    platform: PlatformId;
+};
 
 export type WindowMessage = Prettify<UsageMessage | WatchHistoryMessage>;
+
+export type PlatformId = (typeof CONFIG.PLATFORMS)[number];
+
+export type UsageRange = (typeof CONFIG.RANGES)[number];
+
+export type UsageScope = { type: "date"; date: string } | { type: "range"; range: UsageRange };

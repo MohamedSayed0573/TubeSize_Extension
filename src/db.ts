@@ -1,17 +1,19 @@
-import { getDateKey } from "@lib/analyticsUtils";
+import type { PlatformId } from "@app-types/types";
+import { getDateKey } from "@lib/dashboardUtils";
 import { Dexie, type Table } from "dexie";
 
-interface SiteUsage {
+export interface SiteUsage {
     day: string;
-    usage: Record<string, number>;
+    usage: Record<string, number>; // Site Origin -> Bytes
 }
 
-interface WatchHistory {
+export interface WatchHistory {
     day: string;
-    videos: Record<string, number>;
+    videos: Record<string, number>; // videoKey -> Bytes
 }
 
-interface VideoMetadata {
+export interface VideoMetadata {
+    videoKey: string;
     videoTag: string;
     title: string;
     channelName: string;
@@ -28,7 +30,7 @@ const database = new Dexie("TubeSize") as Dexie & {
 database.version(1).stores({
     siteUsage: "day",
     watchHistory: "day",
-    videoMetaData: "videoTag",
+    videoMetaData: "videoKey",
 });
 
 export async function addSiteUsage(siteUsage: Record<string, number>) {
@@ -55,7 +57,8 @@ export async function getSiteUsage(day = getDateKey(new Date())) {
 }
 
 export async function getAllSiteUsage() {
-    return database.siteUsage.toArray();
+    const siteUsage = await database.siteUsage.toArray();
+    return siteUsage.length === 0 ? undefined : siteUsage;
 }
 
 export async function addWatchHistory(watchHistory: Record<string, number>) {
@@ -81,22 +84,26 @@ export async function getWatchHistory(day = getDateKey(new Date())) {
     return await database.watchHistory.get(day);
 }
 
-export async function addVideoMetadata(metadata: VideoMetadata) {
-    await database.videoMetaData.put(metadata);
+export async function getAllWatchHistory() {
+    return await database.watchHistory.toArray();
 }
 
-export async function getVideoMetadata(videoTag: string) {
-    return await database.videoMetaData.get(videoTag);
+export async function addVideoMetadata(
+    metadata: Omit<VideoMetadata, "videoKey">,
+    platform: PlatformId,
+) {
+    const videoKey = `${platform}:${metadata.videoTag}`;
+    await database.videoMetaData.put({ ...metadata, videoKey });
 }
 
-// export async function getAllVideoMetadata() {
-//     return await database.videoMetaData.toArray();
-// }
+export async function getVideoMetadata(videoTag: string, platform: PlatformId) {
+    return await database.videoMetaData.get(`${platform}:${videoTag}`);
+}
 
-// export async function deleteVideoMetadata(videoTag: string) {
-//     await database.videoMetaData.delete(videoTag);
-// }
+export async function getAllVideoMetadata() {
+    return await database.videoMetaData.toArray();
+}
 
-// export async function clearVideoMetadata() {
-//     await database.videoMetaData.clear();
-// }
+export async function clearDatabaseData() {
+    return await database.delete();
+}

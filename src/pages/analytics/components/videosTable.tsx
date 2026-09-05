@@ -1,8 +1,17 @@
-import { getSortedVideoUsageRows, type UsageByDay } from "@lib/analyticsUtils";
+import type { PlatformId } from "@app-types/types";
 import VideoTableRow from "@pages/analytics/components/videoTableRow";
+import type { VideoRowDetails } from "@pages/analytics/components/videoTableRow";
 
-export default function VideosTable({ usage }: { usage: UsageByDay }) {
-    const allVideos = getSortedVideoUsageRows(usage);
+export type { VideoRowDetails } from "@pages/analytics/components/videoTableRow";
+
+export default function VideosTable({
+    rows,
+    platform,
+}: {
+    rows: VideoRowDetails[];
+    platform: PlatformId;
+}) {
+    const sorted = rows.toSorted((a, b) => b.usage - a.usage);
 
     return (
         <table className="border-collapse border-spacing-0">
@@ -14,12 +23,13 @@ export default function VideosTable({ usage }: { usage: UsageByDay }) {
                 </tr>
             </thead>
             <tbody>
-                {allVideos.map((videoDetails, index) => {
+                {sorted.map((videoDetails, index) => {
                     return (
                         <VideoTableRow
                             key={`${videoDetails.date}-${videoDetails.videoTag}`}
                             videoDetails={videoDetails}
                             index={index + 1}
+                            platform={platform}
                         />
                     );
                 })}

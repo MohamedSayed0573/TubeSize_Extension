@@ -10,7 +10,8 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from "@components/ui/chart";
-import type { UsageByDay } from "@lib/analyticsUtils";
+import type { SiteUsage } from "@/db";
+import { getUsageNumber } from "@lib/dashboardUtils";
 
 const chartConfig = {
     usage: {
@@ -19,14 +20,12 @@ const chartConfig = {
     },
 } satisfies ChartConfig;
 
-export function Chart({ usage: usage }: { usage: UsageByDay }) {
+export function Chart({ usage }: { usage: SiteUsage[] }) {
     const navigate = useNavigate();
-    const usageData = Object.entries(usage).map(([date, videos]) => {
+    const usageData = usage.map(({ day, usage }) => {
         return {
-            date,
-            usage:
-                Object.values(videos).reduce((total, video) => total + video.usage, 0) /
-                (1024 * 1024),
+            date: day,
+            usage: getUsageNumber([{ day, usage }]) / (1024 * 1024),
         };
     });
 

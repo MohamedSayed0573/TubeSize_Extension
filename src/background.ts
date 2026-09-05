@@ -26,8 +26,18 @@ import {
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
-import { extractVideoTag, isYoutubeVideo } from "@lib/utils";
-import { getDateKey } from "@lib/analyticsUtils";
+import {
+    extractChannelName,
+    extractKickVodId,
+    extractTwitchVodId,
+    extractVideoTag,
+    isKickStream,
+    isKickVod,
+    isTwitchLive,
+    isTwitchVod,
+    isYoutubeVideo,
+} from "@lib/utils";
+import { getDateKey } from "@lib/dashboardUtils";
 import {
     addSiteUsage,
     addWatchHistory,
@@ -43,39 +53,59 @@ chrome.runtime.onMessage.addListener((message: FrontEndMessage, _sender, sendRes
     return true;
 });
 
-const tabIdToVideoTag: Map<number, string> = new Map();
+const tabIdToVideoKey: Map<number, string> = new Map();
 chrome.tabs.onUpdated.addListener((tabId, _, tab) => {
     const { url } = tab;
     if (!url) return;
+
     if (isYoutubeVideo(url)) {
         const videoTag = extractVideoTag(url);
-        if (!videoTag) return;
-        tabIdToVideoTag.set(tabId, videoTag);
+        if (!videoTag) {
+            tabIdToVideoKey.delete(tabId);
+            return;
+        }
+        tabIdToVideoKey.set(tabId, `youtube:${videoTag}`);
         void recordVideoMetadata(videoTag);
+    } else if (isTwitchVod(url)) {
+        const vodId = extractTwitchVodId(url);
+        if (!vodId) {
+            tabIdToVideoKey.delete(tabId);
+            return;
+        }
+        tabIdToVideoKey.set(tabId, `twitch:${vodId}`);
+    } else if (isTwitchLive(url)) {
+        const channelName = extractChannelName(url);
+        if (!channelName) {
+            tabIdToVideoKey.delete(tabId);
+            return;
+        }
+        tabIdToVideoKey.set(tabId, `twitch:${channelName}`);
+    } else if (isKickVod(url)) {
+        const vodId = extractKickVodId(url);
+        if (!vodId) {
+            tabIdToVideoKey.delete(tabId);
+            return;
+        }
+        tabIdToVideoKey.set(tabId, `kick:${vodId}`);
+    } else if (isKickStream(url)) {
+        const channelName = extractChannelName(url);
+        if (!channelName) {
+            tabIdToVideoKey.delete(tabId);
+            return;
+        }
+        tabIdToVideoKey.set(tabId, `kick:${channelName}`);
     } else {
-        tabIdToVideoTag.delete(tabId);
+        tabIdToVideoKey.delete(tabId);
     }
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-    tabIdToVideoTag.delete(tabId);
-});
-
-// The service worker can be killed and restarted at any time, which wipes the map above.
-// Top-level code runs on every wake, so rebuild the mapping for tabs that are already open.
-void chrome.tabs.query({}).then((tabs) => {
-    for (const tab of tabs) {
-        if (tab.id === undefined || !tab.url) continue;
-        if (isYoutubeVideo(tab.url)) {
-            tabIdToVideoTag.set(tab.id, extractVideoTag(tab.url)!);
-        }
-    }
-    return;
+    tabIdToVideoKey.delete(tabId);
 });
 
 async function recordVideoMetadata(videoTag: string) {
     try {
-        const existing = await getVideoMetadata(videoTag);
+        const existing = await getVideoMetadata(videoTag, "youtube");
         if (existing) return;
 
         let response!: YoutubeBackgroundResponse;
@@ -85,12 +115,16 @@ async function recordVideoMetadata(videoTag: string) {
         if (!response.success) return;
 
         const { data } = response;
-        await addVideoMetadata({
-            videoTag,
-            title: data.type === "video" ? data.title : data.channelName || "Youtube",
-            channelName: data.channelName ?? "",
-            thumbnailUrl: data.thumbnailUrl ?? "https://www.youtube.com/img/desktop/yt_1200.png",
-        });
+        await addVideoMetadata(
+            {
+                videoTag,
+                title: data.type === "video" ? data.title : data.channelName || "Youtube",
+                channelName: data.channelName ?? "",
+                thumbnailUrl:
+                    data.thumbnailUrl ?? "https://www.youtube.com/img/desktop/yt_1200.png",
+            },
+            "youtube",
+        );
     } catch (err) {
         console.error("Failed to record video metadata:", err);
     }
@@ -119,9 +153,9 @@ chrome.webRequest.onCompleted.addListener(
         originToTotal[origin] = (originToTotal[origin] ?? 0) + Number(contentLength.value);
 
         const tabId = details.tabId;
-        if (tabIdToVideoTag.has(tabId)) {
-            const videoTag = tabIdToVideoTag.get(tabId)!;
-            watchHistory[videoTag] = (watchHistory[videoTag] ?? 0) + Number(contentLength.value);
+        if (tabIdToVideoKey.has(tabId)) {
+            const videoKey = tabIdToVideoKey.get(tabId)!;
+            watchHistory[videoKey] = (watchHistory[videoKey] ?? 0) + Number(contentLength.value);
         }
     },
     { urls: ["<all_urls>"] },
@@ -146,7 +180,7 @@ setInterval(() => {
     void (async () => {
         try {
             const siteUsage = await getSiteUsage();
-            const todayTotalUsage = siteUsage ? getUsageNumber(siteUsage.usage) : 0;
+            const todayTotalUsage = siteUsage ? getUsageNumber([siteUsage]) : 0;
             if (todayTotalUsage > 0) {
                 setUsageBadge(todayTotalUsage);
             } else {
@@ -214,10 +248,12 @@ async function handleAddWatchHistory(
     sendResponse: (response: any) => void,
 ) {
     try {
-        const { bytes, videoTag } = message;
+        const { bytes, platform, videoId } = message;
         if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
 
-        await addWatchHistory({ [videoTag]: bytes });
+        const videoKey = `${platform}:${videoId}`;
+
+        await addWatchHistory({ [videoKey]: bytes });
         sendResponse({ success: true, data: null });
     } catch (err) {
         console.log(err);

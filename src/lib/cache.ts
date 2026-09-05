@@ -1,6 +1,6 @@
 import CONFIG from "@lib/constants";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
-import { getDateKey } from "@lib/analyticsUtils";
+import { getDateKey } from "@lib/dashboardUtils";
 import type { OptionsMap, StorageData } from "@app-types/types";
 
 async function getCacheTTLSetting() {

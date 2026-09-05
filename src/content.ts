@@ -104,14 +104,16 @@ addEventListener("message", (event) => {
         });
         //eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     } else if (message.type === "WATCH_HISTORY") {
-        const { bytes, videoTag } = message;
+        const { bytes, platform, videoId } = message;
         if (bytes === 0) return;
         if (typeof bytes !== "number") return;
-        if (typeof videoTag !== "string") return;
+        if (typeof videoId !== "string") return;
+        if (typeof platform !== "string") return;
 
         void sendMessageToBackground({
             type: "addWatchHistory",
-            videoTag,
+            videoId,
+            platform,
             bytes,
         });
     }
