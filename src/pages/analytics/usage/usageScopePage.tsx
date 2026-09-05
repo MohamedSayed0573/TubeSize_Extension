@@ -101,7 +101,7 @@ export function UsageScopePage() {
             />
             <div className="flex flex-1 flex-col bg-neutral-900">
                 <PlatformCards scope={scope} />
-                <SiteTable usage={usage} />
+                <SiteTable usage={filteredUsage} />
             </div>
         </>
     );
