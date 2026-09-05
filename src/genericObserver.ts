@@ -8,6 +8,11 @@ const _fetch = fetch;
 // eslint-disable-next-line unicorn/no-global-object-property-assignment
 globalThis.fetch = async (...args) => {
     const response = await _fetch(...args);
+    const hasContentLength = response.headers.has("content-length");
+    if (hasContentLength) {
+        total += Number(response.headers.get("content-length"));
+        return response;
+    }
 
     const clone = response.clone();
 

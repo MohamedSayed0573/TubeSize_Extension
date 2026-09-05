@@ -42,7 +42,7 @@ export default function PlatformUsage() {
 
             if (platform !== platformId) return [];
 
-            const videoMetadata = metadata.find((m) => m.videoTag === videoTag);
+            const videoMetadata = metadata.find((m) => m.videoKey === videoKey);
 
             return [
                 {
