@@ -1,9 +1,0 @@
-{
-    "permissions": {
-        "allow": [
-            "Bash(git mv:*)",
-            "Bash(git diff src/background.ts src/db.ts src/types/types.ts src/lib/constants.ts | head -300)",
-            "Bash(ls src/pages/analytics/platform/ && wc -l src/pages/analytics/platform/* src/hooks/useSiteUsage.ts src/hooks/useWatchHistory.ts src/pages/analytics/components/platformCards.tsx src/pages/analytics/components/siteTable.tsx src/pages/analytics/components/platformUtils.ts)"
-        ]
-    }
-}
