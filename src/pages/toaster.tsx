@@ -11,7 +11,7 @@ function ensureRoot() {
         host = document.createElement("div");
         host.id = HOST_ID;
         document.body.append(host);
-        root = createRoot(host); // eslint-disable-line unicorn/no-top-level-assignment-in-function
+        root = createRoot(host);
     }
 
     return root!;
@@ -89,13 +89,13 @@ function okOnClick() {
     unmountToast();
 }
 function dontShowAgainOnClick() {
-    shouldSuppressToast = true; // eslint-disable-line unicorn/no-top-level-assignment-in-function
+    shouldSuppressToast = true;
     unmountToast();
 }
 
 function unmountToast() {
     if (root) root.unmount();
-    root = undefined; // eslint-disable-line unicorn/no-top-level-assignment-in-function
+    root = undefined;
 
     const host = document.querySelector(`#${HOST_ID}`);
     if (host) host.remove();

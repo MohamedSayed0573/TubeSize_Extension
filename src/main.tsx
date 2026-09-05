@@ -5,9 +5,10 @@ import { Routes, Route, HashRouter } from "react-router";
 import Popup from "@pages/popup/popup";
 import Options from "@pages/options/options";
 import Analytics from "@pages/analytics/analytics";
-import { UsageDetails } from "@pages/analytics/usage/usageDetails";
-import RangeUsage from "@pages/analytics/usage/rangeUsage";
+import { UsageScopePage } from "@pages/analytics/usage/usageScopePage";
+import PlatformUsage from "@pages/analytics/platform/platformUsage";
 import AnalyticsErrorPage from "@pages/analytics/analyticsErrorPage";
+import AnalyticsNotFound from "@pages/analytics/analyticsNotFound";
 import OptionsErrorPage from "@pages/options/optionsErrorPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -59,11 +60,9 @@ root.render(
                         }
                     >
                         <Route index element={<Analytics />} />
-                        <Route path=":date" element={<UsageDetails />} />
-                        <Route path="today" element={<RangeUsage range="today" />} />
-                        <Route path="week" element={<RangeUsage range="week" />} />
-                        <Route path="month" element={<RangeUsage range="month" />} />
-                        <Route path="lifetime" element={<RangeUsage range="lifetime" />} />
+                        <Route path=":date" element={<UsageScopePage />} />
+                        <Route path="platform/:platformId" element={<PlatformUsage />} />
+                        <Route path="*" element={<AnalyticsNotFound />} />
                     </Route>
                 </Routes>
             </HashRouter>

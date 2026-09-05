@@ -4,10 +4,19 @@ import type {
     KickBackgroundResponse,
     YoutubeVideoData,
     YoutubeData,
+    GetUsageResponse,
+    AddUsageResponse,
 } from "@app-types/platforms.types";
-import type { YoutubeMessage, FrontEndMessage, TwitchMessage, KickMessage } from "@app-types/types";
+import type {
+    YoutubeMessage,
+    FrontEndMessage,
+    TwitchMessage,
+    KickMessage,
+    AddUsageMessage,
+    AddWatchHistoryMessage,
+} from "@app-types/types";
 import { clearMediaCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
-import { badgeFormatter, removeBadge, setBadge } from "@/badge";
+import { removeBadge, setUsageBadge } from "@/badge";
 import {
     extractYtInitialResponse,
     parseDataFromYtInitial,
@@ -17,36 +26,175 @@ import {
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
-import { isYoutubePage } from "@lib/utils";
-import { getUsageByDay, getUsageNumber, getTodayUsage } from "@lib/analyticsUtils";
+import {
+    extractChannelName,
+    extractKickVodId,
+    extractTwitchVodId,
+    extractVideoTag,
+    isKickStream,
+    isKickVod,
+    isTwitchLive,
+    isTwitchVod,
+    isYoutubeVideo,
+} from "@lib/utils";
+import { getDateKey } from "@lib/dashboardUtils";
+import {
+    addSiteUsage,
+    addWatchHistory,
+    addVideoMetadata,
+    getVideoMetadata,
+    getSiteUsage,
+    getWatchHistory,
+} from "./db";
+import { getUsageNumber } from "@lib/dashboardUtils";
 
-chrome.runtime.onMessage.addListener((message: FrontEndMessage, sender, sendResponse) => {
-    void handleMessage(message, sender, sendResponse);
+chrome.runtime.onMessage.addListener((message: FrontEndMessage, _sender, sendResponse) => {
+    void handleMessage(message, sendResponse);
     return true;
 });
 
-function getTabId(
-    sender: chrome.runtime.MessageSender,
-    message: FrontEndMessage,
-): number | undefined {
-    // If the message is sent from the content script, use sender.tab.id, otherwise use message.tabId (sent from popup)
-    return sender.tab?.id ?? (message.type === "youtubeVideo" ? message.tabId : undefined);
+const tabIdToVideoKey: Map<number, string> = new Map();
+chrome.tabs.onUpdated.addListener((tabId, _, tab) => {
+    const { url } = tab;
+    if (!url) return;
+
+    if (isYoutubeVideo(url)) {
+        const videoTag = extractVideoTag(url);
+        if (!videoTag) {
+            tabIdToVideoKey.delete(tabId);
+            return;
+        }
+        tabIdToVideoKey.set(tabId, `youtube:${videoTag}`);
+        void recordVideoMetadata(videoTag);
+    } else if (isTwitchVod(url)) {
+        const vodId = extractTwitchVodId(url);
+        if (!vodId) {
+            tabIdToVideoKey.delete(tabId);
+            return;
+        }
+        tabIdToVideoKey.set(tabId, `twitch:${vodId}`);
+    } else if (isTwitchLive(url)) {
+        const channelName = extractChannelName(url);
+        if (!channelName) {
+            tabIdToVideoKey.delete(tabId);
+            return;
+        }
+        tabIdToVideoKey.set(tabId, `twitch:${channelName}`);
+    } else if (isKickVod(url)) {
+        const vodId = extractKickVodId(url);
+        if (!vodId) {
+            tabIdToVideoKey.delete(tabId);
+            return;
+        }
+        tabIdToVideoKey.set(tabId, `kick:${vodId}`);
+    } else if (isKickStream(url)) {
+        const channelName = extractChannelName(url);
+        if (!channelName) {
+            tabIdToVideoKey.delete(tabId);
+            return;
+        }
+        tabIdToVideoKey.set(tabId, `kick:${channelName}`);
+    } else {
+        tabIdToVideoKey.delete(tabId);
+    }
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+    tabIdToVideoKey.delete(tabId);
+});
+
+async function recordVideoMetadata(videoTag: string) {
+    try {
+        const existing = await getVideoMetadata(videoTag, "youtube");
+        if (existing) return;
+
+        let response!: YoutubeBackgroundResponse;
+        await handleYoutube({ type: "youtubeVideo", videoTag }, (result) => {
+            response = result;
+        });
+        if (!response.success) return;
+
+        const { data } = response;
+        await addVideoMetadata(
+            {
+                videoTag,
+                title: data.type === "video" ? data.title : data.channelName || "Youtube",
+                channelName: data.channelName ?? "",
+                thumbnailUrl:
+                    data.thumbnailUrl ?? "https://www.youtube.com/img/desktop/yt_1200.png",
+            },
+            "youtube",
+        );
+    } catch (err) {
+        console.error("Failed to record video metadata:", err);
+    }
 }
+
+// Track total bytes.
+// Fetch responses are skipped because the Fetch monkey patch already catches them.
+// XMLHttpRequest responses are skipped because they are already counted by the PerformanceObserver in genericObserver.ts
+let originToTotal: Record<string, number> = {};
+let watchHistory: Record<string, number> = {};
+chrome.webRequest.onCompleted.addListener(
+    (details) => {
+        if (details.tabId === -1) return; // requests not tied to a tab (extensions, service workers) should be skipped
+        if (details.url.startsWith("chrome-extension://")) return; // requests from the extension itself should not be counted as wire usage
+        if (details.fromCache) return; // responses from the browser cache should not be counted as wire usage
+        if (details.type === "xmlhttprequest") return; // XMLHttpRequest responses are already counted by the PerformanceObserver in genericObserver.ts
+        if (details.method === "HEAD") return; // HEAD requests have content length of a body that is never sent.
+
+        const contentLength = details.responseHeaders?.find((header) => {
+            return header.name.toLowerCase() === "content-length";
+        });
+        if (!contentLength || !contentLength.value || Number(contentLength.value) <= 0) return; // responses with no content length should be skipped
+        if (!details.initiator) return;
+
+        const origin = details.initiator;
+        originToTotal[origin] = (originToTotal[origin] ?? 0) + Number(contentLength.value);
+
+        const tabId = details.tabId;
+        if (tabIdToVideoKey.has(tabId)) {
+            const videoKey = tabIdToVideoKey.get(tabId)!;
+            watchHistory[videoKey] = (watchHistory[videoKey] ?? 0) + Number(contentLength.value);
+        }
+    },
+    { urls: ["<all_urls>"] },
+    ["responseHeaders", "extraHeaders"],
+);
+
+setInterval(() => {
+    void (async () => {
+        try {
+            await addSiteUsage(originToTotal);
+            await addWatchHistory(watchHistory);
+
+            watchHistory = {};
+            originToTotal = {};
+        } catch (err) {
+            console.error(err);
+        }
+    })();
+}, 3000);
+
+setInterval(() => {
+    void (async () => {
+        try {
+            const siteUsage = await getSiteUsage();
+            const todayTotalUsage = siteUsage ? getUsageNumber([siteUsage]) : 0;
+            if (todayTotalUsage > 0) {
+                setUsageBadge(todayTotalUsage);
+            } else {
+                removeBadge();
+            }
+        } catch {}
+    })();
+}, 5000);
 
 async function handleMessage(
     message: FrontEndMessage,
-    sender: chrome.runtime.MessageSender,
     sendResponse: (response: any) => void,
 ): Promise<void> {
-    const tabId = getTabId(sender, message);
-
     switch (message.type) {
-        case "removeBadge": {
-            return handleRemoveBadge(tabId, sendResponse);
-        }
-        case "setBadge": {
-            return handleSetBadge(message, tabId, sendResponse);
-        }
         case "youtubeVideo": {
             return await handleYoutube(message, sendResponse);
         }
@@ -58,10 +206,94 @@ async function handleMessage(
         case "kickVod": {
             return await handleKick(message, sendResponse);
         }
+        case "addUsage": {
+            return await handleAddUsage(message, sendResponse);
+        }
+        case "getUsage": {
+            return await handleGetUsage(sendResponse);
+        }
+        case "addWatchHistory": {
+            return await handleAddWatchHistory(message, sendResponse);
+        }
+        case "getWatchHistory": {
+            return await handleGetWatchHistory(sendResponse);
+        }
         default: {
             console.error("Unknown message type:", message);
             return;
         }
+    }
+}
+
+async function handleAddUsage(
+    message: AddUsageMessage,
+    sendResposne: (response: AddUsageResponse) => void,
+) {
+    try {
+        const { bytes, origin } = message;
+        if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
+
+        await addSiteUsage({ [origin]: bytes });
+
+        sendResposne({ success: true, data: null });
+    } catch (err) {
+        console.error(err);
+        sendResposne({ success: false, message: err instanceof Error ? err.message : String(err) });
+        return;
+    }
+}
+
+async function handleAddWatchHistory(
+    message: AddWatchHistoryMessage,
+    sendResponse: (response: any) => void,
+) {
+    try {
+        const { bytes, platform, videoId } = message;
+        if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
+
+        const videoKey = `${platform}:${videoId}`;
+
+        await addWatchHistory({ [videoKey]: bytes });
+        sendResponse({ success: true, data: null });
+    } catch (err) {
+        console.log(err);
+        sendResponse({ success: false, message: err instanceof Error ? err.message : String(err) });
+        return;
+    }
+}
+async function handleGetWatchHistory(sendResponse: (response: any) => void) {
+    try {
+        const usage = await getWatchHistory(getDateKey(new Date()));
+
+        sendResponse({
+            success: true,
+            data: usage?.videos,
+        });
+    } catch (err) {
+        sendResponse({
+            success: false,
+            message: err instanceof Error ? err.message : String(err),
+        });
+    }
+}
+
+function isValidUsageBytes(usage: unknown): usage is number {
+    return typeof usage === "number" && Number.isFinite(usage) && usage >= 0;
+}
+
+async function handleGetUsage(sendResponse: (response: GetUsageResponse) => void) {
+    try {
+        const usage = await getSiteUsage(getDateKey(new Date()));
+
+        sendResponse({
+            success: true,
+            data: usage?.usage,
+        });
+    } catch (err) {
+        sendResponse({
+            success: false,
+            message: err instanceof Error ? err.message : String(err),
+        });
     }
 }
 
@@ -175,42 +407,3 @@ chrome.runtime.onInstalled.addListener((details) => {
         console.error("Failed to clear sync cache", err);
     });
 });
-
-function handleRemoveBadge(
-    tabId: number | undefined,
-    sendResponse: (response: { success: boolean }) => void,
-) {
-    removeBadge(tabId);
-    return sendResponse({ success: true });
-}
-
-function handleSetBadge(
-    message: { type: "setBadge"; text: string },
-    tabId: number | undefined,
-    sendResponse: (response: { success: boolean }) => void,
-) {
-    setBadge(message.text, tabId);
-    return sendResponse({ success: true });
-}
-
-// Show the badge if the tab is a YouTube page
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status !== "complete" || !tab.url) return;
-    if (isYoutubePage(tab.url)) {
-        void updateUsageBadge(tabId);
-    } else {
-        removeBadge(tabId);
-    }
-});
-
-async function updateUsageBadge(tabId: number) {
-    const usageByDay = await getUsageByDay();
-    if (!usageByDay) {
-        removeBadge(tabId);
-        return;
-    }
-
-    const total = getUsageNumber(getTodayUsage(usageByDay));
-
-    setBadge(badgeFormatter(total), tabId);
-}

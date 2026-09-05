@@ -49,6 +49,8 @@ const CONFIG = {
     DEFAULT_TOASTER_ENABLED: true,
     DEFAULT_QUALITY_MENU_ENABLED: true,
     NUMBER_OF_SEGMENTS_TO_CHECK: 10,
+    RANGES: ["today", "week", "month", "lifetime"],
+    PLATFORMS: ["youtube", "twitch", "kick"],
     TWITCH_GQL_GRAPHQL_QUERY: `
         query PlaybackAccessToken_Template(
         $login: String!,

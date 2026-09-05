@@ -1,18 +1,13 @@
-import {
-    getLast7DaysUsage,
-    getLast30DaysUsage,
-    getTodayUsage,
-    getUsageNumber,
-    formatBytes,
-    type UsageByDay,
-} from "@lib/analyticsUtils";
+import { formatBytes } from "@lib/dashboardUtils";
 import { Link } from "react-router";
-import useUsage from "@hooks/useUsage";
 import { AnalyticsSkeleton } from "@pages/analytics/components/analyticsSkeleton";
 import AnalyticsBanner from "@pages/analytics/components/analyticsBanner";
 import ClearUsageButton from "@pages/analytics/components/clearUsageButton";
 import NoUsageData from "@pages/analytics/components/noUsageData";
 import { Chart } from "./components/chart";
+import { useSiteUsage } from "@hooks/useSiteUsage";
+import type { SiteUsage } from "@/db";
+import { getLastNDays, getUsageNumber } from "@lib/dashboardUtils";
 
 function StatsCard({ title, number }: { title: string; number: number }) {
     const formattedNumber = formatBytes(number);
@@ -29,20 +24,21 @@ function StatsCard({ title, number }: { title: string; number: number }) {
     );
 }
 
-function StatsRow({ usage }: { usage: UsageByDay }) {
+function StatsRow({ usage }: { usage: SiteUsage[] }) {
+    const todayUsage = usage.find((u) => getLastNDays(1).includes(u.day));
+    const last7DaysUsage = usage.filter((u) => getLastNDays(7).includes(u.day));
+    const last30DaysUsage = usage.filter((u) => getLastNDays(30).includes(u.day));
+
     return (
         <div className="grid grid-cols-4 gap-2 py-2.5">
             <Link to="today">
-                <StatsCard title="Today" number={getUsageNumber(getTodayUsage(usage))} />
+                <StatsCard title="Today" number={todayUsage ? getUsageNumber([todayUsage]) : 0} />
             </Link>
             <Link to="week">
-                <StatsCard title="This Week" number={getUsageNumber(getLast7DaysUsage(usage))} />
+                <StatsCard title="This Week" number={getUsageNumber(last7DaysUsage)} />
             </Link>
             <Link to="month">
-                <StatsCard
-                    title="Last 30 Days"
-                    number={getUsageNumber(getLast30DaysUsage(usage))}
-                />
+                <StatsCard title="Last 30 Days" number={getUsageNumber(last30DaysUsage)} />
             </Link>
             <Link to="lifetime">
                 <StatsCard title="Lifetime" number={getUsageNumber(usage)} />
@@ -51,8 +47,8 @@ function StatsRow({ usage }: { usage: UsageByDay }) {
     );
 }
 
-function UsageChartSection({ usage }: { usage: UsageByDay }) {
-    const dayCount = Object.keys(usage).length;
+function UsageChartSection({ usage }: { usage: SiteUsage[] }) {
+    const dayCount = usage.length;
     return (
         <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-neutral-800 bg-neutral-900 px-5 pt-3.5">
             <div className="flex items-center justify-between">
@@ -67,12 +63,11 @@ function UsageChartSection({ usage }: { usage: UsageByDay }) {
 }
 
 export default function Analytics() {
-    const { query } = useUsage();
-    const { data: usage, isPending, isError, error } = query;
+    const { data: usage, isPending, isError, error } = useSiteUsage();
 
     if (isPending) return <AnalyticsSkeleton />;
     if (isError) throw error;
-    if (!usage || getUsageNumber(usage) === 0) return <NoUsageData />;
+    if (!usage) return <NoUsageData />;
 
     return (
         <>

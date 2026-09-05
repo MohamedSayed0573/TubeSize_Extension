@@ -1,35 +1,47 @@
-import { formatBytes } from "@lib/analyticsUtils";
+import { formatBytes } from "@lib/dashboardUtils";
 import { Link } from "react-router";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import type { PlatformId } from "@app-types/types";
 
 const PLACEHOLDER_IMAGE = "/thumbnail-placeholder.svg";
 
-function getVideoUrl(videoTag: string) {
-    return `https://youtube.com/watch?v=${videoTag}`;
+function getVideoUrl(platform: PlatformId, videoTag: string) {
+    switch (platform) {
+        case "youtube": {
+            return `https://youtube.com/watch?v=${videoTag}`;
+        }
+        case "twitch": {
+            return `https://www.twitch.tv/videos/${videoTag}`;
+        }
+        case "kick": {
+            return `https://kick.com/video/${videoTag}`;
+        }
+    }
 }
 
-type VideoDetails = {
+export interface VideoRowDetails {
+    videoTag: string;
     usage: number;
     title: string | undefined;
     thumbnailUrl: string | undefined;
     channelName: string | undefined;
-    videoTag: string;
     date: string;
-};
+}
 
 export default function VideoTableRow({
     videoDetails,
     index,
+    platform,
 }: {
-    videoDetails: VideoDetails;
+    videoDetails: VideoRowDetails;
     index: number;
+    platform: PlatformId;
 }) {
     const { date, usage } = videoDetails;
-    const url = getVideoUrl(videoDetails.videoTag);
+    const url = getVideoUrl(platform, videoDetails.videoTag);
 
     const imageUrl = videoDetails.thumbnailUrl || PLACEHOLDER_IMAGE;
-
-    const videoTitle = videoDetails.title || "Youtube";
+    const videoTitle = videoDetails.title || platform;
 
     return (
         <tr className="hover:cursor-pointer hover:bg-neutral-800">
@@ -58,13 +70,8 @@ export default function VideoTableRow({
                         </a>
                     </span>
                     {videoDetails.channelName && (
-                        <span className="truncate text-sm">
-                            <a
-                                className="text-gray-500 no-underline hover:underline"
-                                href={"https://www.youtube.com/@" + videoDetails.channelName}
-                            >
-                                {videoDetails.channelName}
-                            </a>
+                        <span className="truncate text-sm text-gray-500">
+                            {videoDetails.channelName}
                         </span>
                     )}
                     <span className="truncate text-sm font-normal text-gray-400">

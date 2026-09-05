@@ -1,5 +1,3 @@
-/* eslint-disable unicorn/no-top-level-assignment-in-function */
-
 import { showTwitchToast, showYoutubeToast } from "@pages/toaster";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
 import CONFIG from "@lib/constants";
