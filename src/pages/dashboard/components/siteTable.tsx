@@ -8,7 +8,7 @@ import {
     TableHeader,
     TableRow,
 } from "@components/ui/table";
-import { formatBytes, getOriginDisplayName } from "@lib/dashboardUtils";
+import { formatBytes, getDomainName } from "@lib/dashboardUtils";
 
 function getSiteIconUrl(origin: string) {
     try {
@@ -68,7 +68,7 @@ export default function SiteTable({ usage }: { usage: SiteUsage[] }) {
                                                 </span>
                                             )}
                                             <span className="block truncate text-stone-200">
-                                                {getOriginDisplayName(origin)}
+                                                {getDomainName(origin)}
                                             </span>
                                         </div>
                                     </TableCell>

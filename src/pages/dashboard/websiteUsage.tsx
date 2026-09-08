@@ -11,7 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from "@components/ui/table";
-import { formatBytes, getOriginText } from "@lib/dashboardUtils";
+import { formatBytes, getOriginWithoutSuffix } from "@lib/dashboardUtils";
 
 export function WebsiteUsage() {
     const { siteName } = useParams();
@@ -25,7 +25,7 @@ export function WebsiteUsage() {
     const dayToBytes: Map<string, number> = new Map();
     data.forEach(({ day, usage }) => {
         const bytes = Object.entries(usage)
-            .filter(([origin]) => getOriginText(origin) === siteName)
+            .filter(([origin]) => getOriginWithoutSuffix(origin) === siteName)
             .map(([, bytes]) => bytes)
             .reduce((sum, current) => sum + current, 0);
 

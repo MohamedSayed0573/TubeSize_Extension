@@ -100,7 +100,7 @@ function ChartSwitchBtn({ to, label }: { to: string; label: string }) {
             to={to}
             className={({ isActive }) =>
                 cn(
-                    "px-2 py-1 text-[10px] font-medium ring-0 transition-colors",
+                    "px-2 py-1 text-[11px] font-semibold ring-0 transition-colors",
                     isActive ? "bg-zinc-700 text-zinc-100" : "text-zinc-500 hover:text-zinc-200",
                 )
             }

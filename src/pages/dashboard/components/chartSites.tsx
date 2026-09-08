@@ -2,7 +2,7 @@ import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import type { SiteUsage } from "@/db";
-import { formatBytes, getOriginDisplayName, getOriginText } from "@lib/dashboardUtils";
+import { formatBytes, getDomainName, getOriginWithoutSuffix } from "@lib/dashboardUtils";
 import { getSiteColor } from "./siteColors";
 import { useNavigate } from "react-router";
 
@@ -59,7 +59,7 @@ function ChartSitesTooltipContent({
 
                     {/* Website Name */}
                     <span className="max-w-35 truncate text-neutral-300">
-                        {getOriginDisplayName(data.site)}
+                        {getDomainName(data.site)}
                     </span>
                 </span>
 
@@ -100,7 +100,7 @@ export default function ChartSites({ usage }: { usage: SiteUsage[] }) {
                             axisLine={false}
                             width={110}
                             fontWeight={"bold"}
-                            tickFormatter={(data: string) => getOriginDisplayName(data)}
+                            tickFormatter={(data: string) => getDomainName(data)}
                         />
                         <ChartTooltip cursor={false} content={<ChartSitesTooltipContent />} />
                         <Bar
@@ -109,7 +109,9 @@ export default function ChartSites({ usage }: { usage: SiteUsage[] }) {
                             maxBarSize={28}
                             cursor="pointer"
                             onClick={(data) => {
-                                const site = getOriginText((data.payload as ChartSiteItem).site);
+                                const site = getOriginWithoutSuffix(
+                                    (data.payload as ChartSiteItem).site,
+                                );
                                 void navigate(`/dashboard/site/${site}`);
                             }}
                         >

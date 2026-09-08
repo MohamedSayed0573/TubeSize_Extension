@@ -2,7 +2,7 @@ import { useTotalUsage } from "@hooks/useTotalUsage";
 import { useOriginUsage } from "@hooks/useOriginUsage";
 import useTab from "@hooks/useTab";
 import PopupUsage from "./popupUsage";
-import { getOriginText } from "@lib/dashboardUtils";
+import { getOriginWithoutSuffix } from "@lib/dashboardUtils";
 
 function getTabOrigin(tabUrl: string | undefined) {
     if (!tabUrl) return;
@@ -32,7 +32,10 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
                 />
 
                 {origin && (
-                    <PopupUsage text={`${getOriginText(origin)} Usage:`} usage={originUsage} />
+                    <PopupUsage
+                        text={`${getOriginWithoutSuffix(origin)} Usage:`}
+                        usage={originUsage}
+                    />
                 )}
             </div>
 

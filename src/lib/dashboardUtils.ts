@@ -1,7 +1,7 @@
 import type { SiteUsage } from "@/db";
 import type { DateKey, UsageScope } from "@app-types/types";
 import { filesize } from "filesize";
-import { getDomainWithoutSuffix } from "tldts";
+import { getDomain, getDomainWithoutSuffix } from "tldts";
 import { capitalize } from "./utils";
 
 export function getUsageNumber(usage: SiteUsage[] | undefined): number {
@@ -79,21 +79,16 @@ type DayKeyQuery = { kind: "all" } | { kind: "days"; days: DateKey[] };
 export function scopeToDateKey(scope: UsageScope): DayKeyQuery {
     if (scope.type === "date") return { kind: "days", days: [scope.date] };
     if (scope.range === "lifetime") return { kind: "all" };
-
     if (scope.range === "today") return { kind: "days", days: getLastNDays(1) };
     if (scope.range === "week") return { kind: "days", days: getLastNDays(7) };
     return { kind: "days", days: getLastNDays(30) };
 }
 
-export function getOriginDisplayName(origin: string) {
-    try {
-        return new URL(origin).hostname.replace(/^www\./, "");
-    } catch {
-        return origin;
-    }
+export function getDomainName(origin: string) {
+    return getDomain(origin) ?? origin;
 }
 
-export function getOriginText(origin: string) {
+export function getOriginWithoutSuffix(origin: string) {
     const websiteName = getDomainWithoutSuffix(origin) ?? origin;
     return capitalize(websiteName);
 }

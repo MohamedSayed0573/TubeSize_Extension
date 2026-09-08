@@ -6,12 +6,7 @@ import "@styles/chart.css";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@components/ui/chart";
 import type { SiteUsage } from "@/db";
-import {
-    formatBytes,
-    getOriginDisplayName,
-    getUsageNumber,
-    parseDateKey,
-} from "@lib/dashboardUtils";
+import { formatBytes, getDomainName, getUsageNumber, parseDateKey } from "@lib/dashboardUtils";
 import type { DateKey } from "@app-types/types";
 import { getSiteColor } from "./siteColors";
 
@@ -78,7 +73,7 @@ function ChartTooltipContentCustom({
                                     }}
                                 />
                                 <span className="max-w-35 truncate text-neutral-300">
-                                    {getOriginDisplayName(origin)}
+                                    {getDomainName(origin)}
                                 </span>
                             </span>
                             <span className="font-mono text-stone-200 tabular-nums">

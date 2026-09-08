@@ -51,7 +51,7 @@ export default function VideoTableRow({
             <TableCell className="px-3 py-3 text-center">{index}</TableCell>
 
             <TableCell className="flex items-center gap-5 p-3">
-                <AspectRatio ratio={16 / 9} className="w-40 shrink-0">
+                <AspectRatio ratio={16 / 9} className="w-30 shrink-0">
                     <a target="_blank" rel="noreferrer" href={url}>
                         <img
                             className="h-full w-full rounded-lg object-cover"
@@ -66,7 +66,7 @@ export default function VideoTableRow({
 
                 <div className="flex flex-col gap-1">
                     <span className="truncate text-base">
-                        <a href={url} target="_blank" rel="noreferrer">
+                        <a href={url} target="_blank" rel="noreferrer" className="font-sans">
                             {videoTitle}
                         </a>
                     </span>
