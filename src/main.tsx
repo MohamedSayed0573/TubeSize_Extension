@@ -18,6 +18,7 @@ import { StrictMode } from "react";
 import { PopupLayout } from "@layouts/popupLayout";
 import DashboardLayout from "@layouts/dashboardLayout";
 import { OptionsLayout } from "@layouts/optionsLayout";
+import { WebsiteUsage } from "@pages/dashboard/websiteUsage";
 
 const domRoot = document.querySelector("#root") as HTMLElement;
 
@@ -64,6 +65,7 @@ root.render(
                         <Route path="sites" element={<Dashboard chart={"sites"} />} />
                         <Route path=":date" element={<UsageScopePage />} />
                         <Route path="platform/:platformId" element={<PlatformUsage />} />
+                        <Route path="site/:siteName" element={<WebsiteUsage />} />
                         <Route path="*" element={<DashboardNotFound />} />
                     </Route>
                 </Routes>

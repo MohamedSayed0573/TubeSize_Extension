@@ -18,16 +18,16 @@ function StatsCard({ title }: { title: string }) {
 function StatsRow() {
     return (
         <div className="grid grid-cols-4 gap-2 py-2.5">
-            <Link to="today">
+            <Link to="/dashboard/today">
                 <StatsCard title="Today" />
             </Link>
-            <Link to="week">
+            <Link to="/dashboard/week">
                 <StatsCard title="This Week" />
             </Link>
-            <Link to="month">
+            <Link to="/dashboard/month">
                 <StatsCard title="Last 30 Days" />
             </Link>
-            <Link to="lifetime">
+            <Link to="dashboard/lifetime">
                 <StatsCard title="Lifetime" />
             </Link>
         </div>
@@ -71,7 +71,7 @@ export function DashboardSkeleton() {
     return (
         <>
             <DashboardBanner />
-            <div className="flex flex-1 flex-col bg-neutral-950/70 px-8 pt-1 pb-3.5">
+            <div className="flex flex-1 flex-col bg-neutral-950/70 px-6 pt-1 pb-3.5">
                 <StatsRow />
                 <ChartSkeleton />
                 <ClearUsageButton />

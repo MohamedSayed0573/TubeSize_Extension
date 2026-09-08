@@ -1,9 +1,8 @@
-import { getDomainWithoutSuffix } from "tldts";
 import { useTotalUsage } from "@hooks/useTotalUsage";
 import { useOriginUsage } from "@hooks/useOriginUsage";
 import useTab from "@hooks/useTab";
 import PopupUsage from "./popupUsage";
-import { capitalize } from "@lib/utils";
+import { getOriginText } from "@lib/dashboardUtils";
 
 function getTabOrigin(tabUrl: string | undefined) {
     if (!tabUrl) return;
@@ -40,9 +39,4 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
             {children}
         </div>
     );
-}
-
-function getOriginText(origin: string) {
-    const websiteName = getDomainWithoutSuffix(origin) ?? origin;
-    return capitalize(websiteName);
 }

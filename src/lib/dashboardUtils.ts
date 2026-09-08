@@ -1,6 +1,8 @@
 import type { SiteUsage } from "@/db";
 import type { DateKey, UsageScope } from "@app-types/types";
 import { filesize } from "filesize";
+import { getDomainWithoutSuffix } from "tldts";
+import { capitalize } from "./utils";
 
 export function getUsageNumber(usage: SiteUsage[] | undefined): number {
     if (!usage) return 0;
@@ -89,4 +91,9 @@ export function getOriginDisplayName(origin: string) {
     } catch {
         return origin;
     }
+}
+
+export function getOriginText(origin: string) {
+    const websiteName = getDomainWithoutSuffix(origin) ?? origin;
+    return capitalize(websiteName);
 }

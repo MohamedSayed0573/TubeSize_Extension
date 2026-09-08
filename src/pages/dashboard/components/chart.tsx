@@ -13,6 +13,7 @@ import {
     parseDateKey,
 } from "@lib/dashboardUtils";
 import type { DateKey } from "@app-types/types";
+import { getSiteColor } from "./siteColors";
 
 const chartConfig = {
     usage: {
@@ -26,10 +27,6 @@ type ChartUsageItem = { date: string; usage: number; sites: Record<string, numbe
 type TooltipPayloadEntry = { payload: ChartUsageItem };
 
 const MAX_VISIBLE_SITES = 3;
-
-// Stable, high-contrast colors for the per-site squares (matches dark tooltip)
-// One color per visible site row, so the length must match MAX_VISIBLE_SITES
-const SITE_COLORS = ["#f87171", "#f472b6", "#fb923c"] as const;
 
 function ChartTooltipContentCustom({
     active,
@@ -59,45 +56,41 @@ function ChartTooltipContentCustom({
 
             {/* List of websites/origins */}
             <div className="grid gap-1">
-                {siteEntries.length === 0 ? (
-                    <span className="text-neutral-500 italic">No usage recorded</span>
-                ) : (
-                    <>
-                        {/* Total row */}
-                        <div className="flex items-center justify-between gap-6">
-                            <span className="flex items-center gap-1.5">
-                                <span className="size-3 shrink-0 rounded bg-white" />
-                                <span className="text-neutral-300">All</span>
+                <>
+                    {/* Total row */}
+                    <div className="flex items-center justify-between gap-6">
+                        <span className="flex items-center gap-1.5">
+                            <span className="size-3 shrink-0 rounded bg-white" />
+                            <span className="text-neutral-300">All</span>
+                        </span>
+                        <span className="font-mono text-stone-200 tabular-nums">
+                            {formatBytes(data.usage * 1024 * 1024)}
+                        </span>
+                    </div>
+
+                    {visibleEntries.map(([origin, bytes], index) => (
+                        <div key={origin} className="flex items-center justify-between gap-6">
+                            <span className="flex min-w-0 items-center gap-1.5">
+                                <span
+                                    className="size-3 shrink-0 rounded-lg"
+                                    style={{
+                                        backgroundColor: getSiteColor(index),
+                                    }}
+                                />
+                                <span className="max-w-35 truncate text-neutral-300">
+                                    {getOriginDisplayName(origin)}
+                                </span>
                             </span>
                             <span className="font-mono text-stone-200 tabular-nums">
-                                {formatBytes(data.usage * 1024 * 1024)}
+                                {formatBytes(bytes)}
                             </span>
                         </div>
+                    ))}
 
-                        {visibleEntries.map(([origin, bytes], index) => (
-                            <div key={origin} className="flex items-center justify-between gap-6">
-                                <span className="flex min-w-0 items-center gap-1.5">
-                                    <span
-                                        className="size-3 shrink-0 rounded-lg"
-                                        style={{
-                                            backgroundColor: SITE_COLORS[index],
-                                        }}
-                                    />
-                                    <span className="max-w-35 truncate text-neutral-300">
-                                        {getOriginDisplayName(origin)}
-                                    </span>
-                                </span>
-                                <span className="font-mono text-stone-200 tabular-nums">
-                                    {formatBytes(bytes)}
-                                </span>
-                            </div>
-                        ))}
-
-                        {hiddenCount > 0 && (
-                            <span className="text-neutral-500">+{hiddenCount} more</span>
-                        )}
-                    </>
-                )}
+                    {hiddenCount > 0 && (
+                        <span className="text-neutral-500">+{hiddenCount} more</span>
+                    )}
+                </>
             </div>
         </div>
     );
@@ -151,7 +144,7 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
                             dataKey="usage"
                             fill="var(--color-usage)"
                             cursor="pointer"
-                            radius={10}
+                            radius={[5, 5, 0, 0]}
                             maxBarSize={38}
                             onClick={(data) => {
                                 const date = (data.payload as ChartUsageItem).date;

@@ -73,6 +73,8 @@ export default defineConfig([
             "unicorn/prefer-ternary": "off",
             "unicorn/no-useless-else": "off",
             "unicorn/no-break-in-nested-loop": "off",
+            "unicorn/no-for-each": "off",
+            "unicorn/prefer-array-from-map": "off",
         },
     },
     {

@@ -25,7 +25,7 @@ function StatsCard({
     accentClass: string;
 }) {
     return (
-        <div className="flex flex-col justify-center gap-2.5 rounded-lg border border-neutral-800 bg-[#1d1d1d] py-4 pr-2.5 pl-5.5 hover:cursor-pointer hover:bg-neutral-800">
+        <div className="flex flex-col justify-center gap-2.5 rounded-lg border border-white/8 bg-[#1d1d1d] py-4 pr-2.5 pl-5.5 hover:cursor-pointer hover:bg-neutral-800">
             <div className="flex items-center gap-2 font-mono text-sm font-semibold text-teal-400 uppercase">
                 <span
                     className={cn(
@@ -54,28 +54,28 @@ function StatsRow({ usage }: { usage: SiteUsage[] }) {
 
     const cards = [
         {
-            to: `today`,
+            to: `/dashboard/today`,
             title: "today",
             value: formatBytes(todayUsage ? getUsageNumber([todayUsage]) : 0),
             icon: CalendarDays,
             accentClass: "bg-sky-500/10 text-sky-400",
         },
         {
-            to: `week`,
+            to: `/dashboard/week`,
             title: "last 7 days",
             value: formatBytes(getUsageNumber(last7DaysUsage)),
             icon: CalendarRange,
             accentClass: "bg-emerald-500/10 text-emerald-400",
         },
         {
-            to: `month`,
+            to: `/dashboard/month`,
             title: "last 30 days",
             value: formatBytes(getUsageNumber(last30DaysUsage)),
             icon: Activity,
             accentClass: "bg-violet-500/10 text-violet-400",
         },
         {
-            to: `lifetime`,
+            to: `/dashboard/lifetime`,
             title: "lifetime",
             value: formatBytes(getUsageNumber(usage)),
             icon: Database,
@@ -97,7 +97,7 @@ function StatsRow({ usage }: { usage: SiteUsage[] }) {
 function UsageChartSection({ usage, chart }: { usage: SiteUsage[]; chart: "bar" | "sites" }) {
     const dayCount = usage.length;
     return (
-        <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-neutral-800 bg-[#1d1d1d] px-5 pt-3.5">
+        <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-white/8 bg-[#1d1d1d] px-5 pt-3.5">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1">
                     <span className="flex items-center justify-center rounded-md bg-emerald-500/10 p-1 text-emerald-400">
@@ -140,7 +140,7 @@ function UsageChartSection({ usage, chart }: { usage: SiteUsage[]; chart: "bar" 
                 </div>
             </div>
 
-            {chart === "bar" ? <Chart usage={usage} /> : <ChartSites />}
+            {chart === "bar" ? <Chart usage={usage} /> : <ChartSites usage={usage} />}
         </div>
     );
 }
@@ -155,7 +155,7 @@ export default function Dashboard({ chart }: { chart: "bar" | "sites" }) {
     return (
         <>
             <DashboardBanner />
-            <div className="flex flex-1 flex-col bg-neutral-950/70 px-8 pt-1 pb-3.5">
+            <div className="flex flex-1 flex-col bg-neutral-950/70 px-6 pt-1 pb-3.5">
                 <StatsRow usage={usage} />
                 <UsageChartSection chart={chart} usage={usage} />
                 <ClearUsageButton />
