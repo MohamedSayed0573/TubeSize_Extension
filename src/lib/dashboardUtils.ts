@@ -34,6 +34,11 @@ export function getDateKey(date?: Date): DateKey {
     return new Intl.DateTimeFormat("en-CA").format(date ?? new Date()) as DateKey;
 }
 
+export function parseDateKey(dateKey: DateKey): Date {
+    const d = new Date(`${dateKey}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? new Date(dateKey) : d;
+}
+
 /**
  * Formats a date or date range into a human-readable string.
  * @example "2023-05-15" -> "May 15, 2023"
@@ -76,4 +81,12 @@ export function scopeToDateKey(scope: UsageScope): DayKeyQuery {
     if (scope.range === "today") return { kind: "days", days: getLastNDays(1) };
     if (scope.range === "week") return { kind: "days", days: getLastNDays(7) };
     return { kind: "days", days: getLastNDays(30) };
+}
+
+export function getOriginDisplayName(origin: string) {
+    try {
+        return new URL(origin).hostname.replace(/^www\./, "");
+    } catch {
+        return origin;
+    }
 }

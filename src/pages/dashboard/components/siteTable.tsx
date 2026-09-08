@@ -8,15 +8,7 @@ import {
     TableHeader,
     TableRow,
 } from "@components/ui/table";
-import { formatBytes } from "@lib/dashboardUtils";
-
-function getOriginDisplayName(origin: string) {
-    try {
-        return new URL(origin).hostname.replace(/^www\./, "");
-    } catch {
-        return origin;
-    }
-}
+import { formatBytes, getOriginDisplayName } from "@lib/dashboardUtils";
 
 function getSiteIconUrl(origin: string) {
     try {
