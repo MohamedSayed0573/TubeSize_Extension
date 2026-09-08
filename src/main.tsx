@@ -60,8 +60,8 @@ root.render(
                             </ErrorBoundary>
                         }
                     >
-                        <Route index element={<Navigate to="bar" replace />} />
-                        <Route path="bar" element={<Dashboard chart={"bar"} />} />
+                        <Route index element={<Navigate to="daily" replace />} />
+                        <Route path="daily" element={<Dashboard chart={"daily"} />} />
                         <Route path="sites" element={<Dashboard chart={"sites"} />} />
                         <Route path=":date" element={<UsageScopePage />} />
                         <Route path="platform/:platformId" element={<PlatformUsage />} />

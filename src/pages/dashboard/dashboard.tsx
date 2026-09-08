@@ -94,7 +94,23 @@ function StatsRow({ usage }: { usage: SiteUsage[] }) {
     );
 }
 
-function UsageChartSection({ usage, chart }: { usage: SiteUsage[]; chart: "bar" | "sites" }) {
+function ChartSwitchBtn({ to, label }: { to: string; label: string }) {
+    return (
+        <NavLink
+            to={to}
+            className={({ isActive }) =>
+                cn(
+                    "px-2 py-1 text-[10px] font-medium ring-0 transition-colors",
+                    isActive ? "bg-zinc-700 text-zinc-100" : "text-zinc-500 hover:text-zinc-200",
+                )
+            }
+        >
+            {label}
+        </NavLink>
+    );
+}
+
+function UsageChartSection({ usage, chart }: { usage: SiteUsage[]; chart: "daily" | "sites" }) {
     const dayCount = usage.length;
     return (
         <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-white/8 bg-[#1d1d1d] px-5 pt-3.5">
@@ -107,32 +123,8 @@ function UsageChartSection({ usage, chart }: { usage: SiteUsage[]; chart: "bar" 
                 </div>
                 <div className="flex gap-3">
                     <div className="flex rounded-md border border-white/8 bg-black/20 p-0.5">
-                        <NavLink
-                            to="/dashboard/bar"
-                            className={({ isActive }) =>
-                                cn(
-                                    "px-2 py-1 text-[10px] font-medium transition-colors",
-                                    isActive
-                                        ? "bg-zinc-700 text-zinc-100"
-                                        : "text-zinc-500 hover:text-zinc-200",
-                                )
-                            }
-                        >
-                            Bar
-                        </NavLink>
-                        <NavLink
-                            to="/dashboard/sites"
-                            className={({ isActive }) =>
-                                cn(
-                                    "px-2 py-1 text-[10px] font-medium transition-colors",
-                                    isActive
-                                        ? "bg-zinc-700 text-zinc-100"
-                                        : "text-zinc-500 hover:text-zinc-200",
-                                )
-                            }
-                        >
-                            Sites
-                        </NavLink>
+                        <ChartSwitchBtn label="By Day" to="/dashboard/daily" />
+                        <ChartSwitchBtn label="By Site" to="/dashboard/sites" />
                     </div>
                     <div className="rounded-xl border border-teal-400 px-2 py-1 font-mono text-sm text-teal-400">
                         {dayCount} {dayCount === 1 ? `Day` : `Days`}
@@ -140,12 +132,12 @@ function UsageChartSection({ usage, chart }: { usage: SiteUsage[]; chart: "bar" 
                 </div>
             </div>
 
-            {chart === "bar" ? <Chart usage={usage} /> : <ChartSites usage={usage} />}
+            {chart === "daily" ? <Chart usage={usage} /> : <ChartSites usage={usage} />}
         </div>
     );
 }
 
-export default function Dashboard({ chart }: { chart: "bar" | "sites" }) {
+export default function Dashboard({ chart }: { chart: "daily" | "sites" }) {
     const { data: usage, isPending, isError, error } = useSiteUsage();
 
     if (isPending) return <DashboardSkeleton />;

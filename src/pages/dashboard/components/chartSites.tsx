@@ -50,10 +50,10 @@ function ChartSitesTooltipContent({
     return (
         <div className="min-w-32 rounded-xl border border-neutral-800 bg-[#0a0a0a] px-3 py-2 text-xs shadow-xl">
             <div className="flex items-center justify-between gap-6">
-                <span className="flex min-w-0 items-center">
+                <span className="items-stratch flex min-w-0 gap-1.5">
                     {/* Indicator */}
                     <span
-                        className="w-1 shrink-0 self-stretch rounded-xs"
+                        className="w-1 shrink-0 rounded-xs"
                         style={{ backgroundColor: data.fill }}
                     />
 
