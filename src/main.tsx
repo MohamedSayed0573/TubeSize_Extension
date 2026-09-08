@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import ErrorPage from "@pages/error.tsx";
 import { ErrorBoundary } from "react-error-boundary";
-import { Routes, Route, HashRouter } from "react-router";
+import { Routes, Route, HashRouter, Navigate } from "react-router";
 import Popup from "@pages/popup/popup";
 import Options from "@pages/options/options";
 import Dashboard from "@pages/dashboard/dashboard";
@@ -59,7 +59,9 @@ root.render(
                             </ErrorBoundary>
                         }
                     >
-                        <Route index element={<Dashboard />} />
+                        <Route index element={<Navigate to="bar" replace />} />
+                        <Route path="bar" element={<Dashboard chart={"bar"} />} />
+                        <Route path="sites" element={<Dashboard chart={"sites"} />} />
                         <Route path=":date" element={<UsageScopePage />} />
                         <Route path="platform/:platformId" element={<PlatformUsage />} />
                         <Route path="*" element={<DashboardNotFound />} />

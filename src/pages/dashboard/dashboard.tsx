@@ -1,5 +1,5 @@
 import { formatBytes } from "@lib/dashboardUtils";
-import { Link } from "react-router";
+import { Link, NavLink } from "react-router";
 import { DashboardSkeleton } from "@pages/dashboard/components/dashboardSkeleton";
 import DashboardBanner from "@pages/dashboard/components/dashboardBanner";
 import ClearUsageButton from "@pages/dashboard/components/clearUsageButton";
@@ -11,6 +11,7 @@ import { getLastNDays, getUsageNumber } from "@lib/dashboardUtils";
 import { Activity, CalendarDays, CalendarRange, Database } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@lib/utils";
+import ChartSites from "./components/chartSites";
 
 function StatsCard({
     title,
@@ -93,7 +94,7 @@ function StatsRow({ usage }: { usage: SiteUsage[] }) {
     );
 }
 
-function UsageChartSection({ usage }: { usage: SiteUsage[] }) {
+function UsageChartSection({ usage, chart }: { usage: SiteUsage[]; chart: "bar" | "sites" }) {
     const dayCount = usage.length;
     return (
         <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-neutral-800 bg-[#1d1d1d] px-5 pt-3.5">
@@ -104,16 +105,47 @@ function UsageChartSection({ usage }: { usage: SiteUsage[] }) {
                     </span>
                     <h2 className="text-base font-bold text-stone-200">Data Usage per day (MB)</h2>
                 </div>
-                <div className="rounded-xl border border-teal-400 px-2 py-1 font-mono text-sm text-teal-400">
-                    {dayCount} {dayCount === 1 ? `Day` : `Days`}
+                <div className="flex gap-3">
+                    <div className="flex rounded-md border border-white/8 bg-black/20 p-0.5">
+                        <NavLink
+                            to="/dashboard/bar"
+                            className={({ isActive }) =>
+                                cn(
+                                    "px-2 py-1 text-[10px] font-medium transition-colors",
+                                    isActive
+                                        ? "bg-zinc-700 text-zinc-100"
+                                        : "text-zinc-500 hover:text-zinc-200",
+                                )
+                            }
+                        >
+                            Bar
+                        </NavLink>
+                        <NavLink
+                            to="/dashboard/sites"
+                            className={({ isActive }) =>
+                                cn(
+                                    "px-2 py-1 text-[10px] font-medium transition-colors",
+                                    isActive
+                                        ? "bg-zinc-700 text-zinc-100"
+                                        : "text-zinc-500 hover:text-zinc-200",
+                                )
+                            }
+                        >
+                            Sites
+                        </NavLink>
+                    </div>
+                    <div className="rounded-xl border border-teal-400 px-2 py-1 font-mono text-sm text-teal-400">
+                        {dayCount} {dayCount === 1 ? `Day` : `Days`}
+                    </div>
                 </div>
             </div>
-            <Chart usage={usage} />
+
+            {chart === "bar" ? <Chart usage={usage} /> : <ChartSites />}
         </div>
     );
 }
 
-export default function Dashboard() {
+export default function Dashboard({ chart }: { chart: "bar" | "sites" }) {
     const { data: usage, isPending, isError, error } = useSiteUsage();
 
     if (isPending) return <DashboardSkeleton />;
@@ -125,7 +157,7 @@ export default function Dashboard() {
             <DashboardBanner />
             <div className="flex flex-1 flex-col bg-neutral-950/70 px-8 pt-1 pb-3.5">
                 <StatsRow usage={usage} />
-                <UsageChartSection usage={usage} />
+                <UsageChartSection chart={chart} usage={usage} />
                 <ClearUsageButton />
             </div>
         </>
