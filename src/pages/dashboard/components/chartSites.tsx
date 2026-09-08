@@ -64,9 +64,7 @@ function ChartSitesTooltipContent({
                 </span>
 
                 {/* Formatted Usage */}
-                <span className="font-mono text-stone-200 tabular-nums">
-                    {formatBytes(data.bytes)}
-                </span>
+                <span className="font-mono text-stone-200">{formatBytes(data.bytes)}</span>
             </div>
         </div>
     );

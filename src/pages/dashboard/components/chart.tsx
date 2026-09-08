@@ -53,18 +53,18 @@ function ChartTooltipContentCustom({
             <div className="grid gap-1">
                 <>
                     {/* Total row */}
-                    <div className="flex items-center justify-between gap-6">
+                    <div className="flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                             <span className="size-3 shrink-0 rounded bg-white" />
                             <span className="text-neutral-300">All</span>
                         </span>
-                        <span className="font-mono text-stone-200 tabular-nums">
+                        <span className="font-mono text-stone-200">
                             {formatBytes(data.usage * 1024 * 1024)}
                         </span>
                     </div>
 
                     {visibleEntries.map(([origin, bytes], index) => (
-                        <div key={origin} className="flex items-center justify-between gap-6">
+                        <div key={origin} className="flex items-center justify-between">
                             <span className="flex min-w-0 items-center gap-1.5">
                                 <span
                                     className="size-3 shrink-0 rounded-lg"
@@ -76,9 +76,7 @@ function ChartTooltipContentCustom({
                                     {getDomainName(origin)}
                                 </span>
                             </span>
-                            <span className="font-mono text-stone-200 tabular-nums">
-                                {formatBytes(bytes)}
-                            </span>
+                            <span className="font-mono text-stone-200">{formatBytes(bytes)}</span>
                         </div>
                     ))}
 

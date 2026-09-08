@@ -39,8 +39,8 @@ export default function SiteTable({ usage }: { usage: SiteUsage[] }) {
                         <TableRow className="border-neutral-800 hover:bg-transparent">
                             <TableHead className="w-14 px-3 py-3 text-center">#</TableHead>
                             <TableHead className="px-4 py-3">Website</TableHead>
-                            <TableHead className="w-32 px-4 py-3 text-right">Data used</TableHead>
                             <TableHead className="w-40 px-4 py-3 text-right">Share</TableHead>
+                            <TableHead className="w-32 px-4 py-3 text-right">Data used</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -53,7 +53,7 @@ export default function SiteTable({ usage }: { usage: SiteUsage[] }) {
                                     key={origin}
                                     className="border-neutral-800/80 transition-colors hover:bg-neutral-800/50"
                                 >
-                                    <TableCell className="px-3 py-3 text-center text-neutral-500 tabular-nums">
+                                    <TableCell className="px-3 py-3 text-center text-neutral-500">
                                         {index + 1}
                                     </TableCell>
                                     <TableCell className="px-4 py-3">
@@ -62,7 +62,6 @@ export default function SiteTable({ usage }: { usage: SiteUsage[] }) {
                                                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-neutral-700 bg-neutral-950 p-1">
                                                     <img
                                                         src={iconUrl}
-                                                        alt=""
                                                         className="h-full w-full rounded-sm"
                                                     />
                                                 </span>
@@ -72,21 +71,15 @@ export default function SiteTable({ usage }: { usage: SiteUsage[] }) {
                                             </span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="px-4 py-3 text-right font-medium whitespace-nowrap text-stone-200 tabular-nums">
-                                        {formatBytes(bytes)}
-                                    </TableCell>
                                     <TableCell className="px-4 py-3">
                                         <div className="flex items-center justify-end gap-2">
-                                            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-neutral-800">
-                                                <div
-                                                    className="h-full rounded-full bg-teal-500"
-                                                    style={{ width: `${Math.max(share, 2)}%` }}
-                                                />
-                                            </div>
-                                            <span className="w-12 text-right text-teal-400 tabular-nums">
+                                            <span className="w-12 text-right text-teal-400">
                                                 {share.toFixed(1)}%
                                             </span>
                                         </div>
+                                    </TableCell>
+                                    <TableCell className="px-4 py-3 text-right font-medium whitespace-nowrap text-stone-200">
+                                        {formatBytes(bytes)}
                                     </TableCell>
                                 </TableRow>
                             );
@@ -95,16 +88,14 @@ export default function SiteTable({ usage }: { usage: SiteUsage[] }) {
                     <TableFooter className="border-neutral-800 bg-neutral-800/40">
                         <TableRow className="border-0 hover:bg-transparent">
                             <TableHead
-                                colSpan={2}
+                                colSpan={3}
                                 className="px-4 py-3 text-left text-sm text-stone-200"
                             >
                                 Total
                             </TableHead>
-                            <TableCell className="px-4 py-3 text-right whitespace-nowrap text-stone-100 tabular-nums">
+
+                            <TableCell className="px-4 py-3 text-right whitespace-nowrap text-stone-100">
                                 {formatBytes(totalUsage)}
-                            </TableCell>
-                            <TableCell className="px-4 py-3 text-right text-teal-400 tabular-nums">
-                                100.0%
                             </TableCell>
                         </TableRow>
                     </TableFooter>

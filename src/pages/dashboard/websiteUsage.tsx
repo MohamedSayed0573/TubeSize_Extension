@@ -1,6 +1,6 @@
 import DashboardHeader from "@pages/dashboard/components/dashboardHeader";
 import NoUsageData from "@pages/dashboard/components/noUsageData";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { useSiteUsage } from "@hooks/useSiteUsage";
 import {
     Table,
@@ -66,6 +66,7 @@ export default function SiteTable({
                         <TableRow className="border-neutral-800 hover:bg-transparent">
                             <TableHead className="w-14 px-3 py-3 text-center">#</TableHead>
                             <TableHead className="px-4 py-3">Date</TableHead>
+                            <TableHead className="w-24 px-4 py-3 text-right">Share</TableHead>
                             <TableHead className="w-32 px-4 py-3 text-right">Data used</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -73,20 +74,25 @@ export default function SiteTable({
                         {usage.map(({ bytes, day }, index) => {
                             return (
                                 <TableRow
-                                    key={origin}
+                                    key={day}
                                     className="border-neutral-800/80 transition-colors hover:bg-neutral-800/50"
                                 >
-                                    <TableCell className="px-3 py-3 text-center text-neutral-500 tabular-nums">
+                                    <TableCell className="px-3 py-3 text-center text-neutral-500">
                                         {index + 1}
                                     </TableCell>
                                     <TableCell className="px-4 py-3">
-                                        <div className="flex min-w-0 items-center gap-2.5">
-                                            <span className="block truncate text-stone-200">
-                                                {day}
-                                            </span>
+                                        <div className="group flex min-w-0 items-center gap-2.5">
+                                            <Link to={`/dashboard/${day}`}>
+                                                <span className="block truncate text-stone-200 underline-offset-2 transition-colors hover:text-teal-200 hover:underline">
+                                                    {day}
+                                                </span>
+                                            </Link>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="px-4 py-3 text-right font-medium whitespace-nowrap text-stone-200 tabular-nums">
+                                    <TableCell className="truncate px-4 py-3 text-right text-neutral-400">
+                                        {((bytes / totalUsage) * 100).toFixed(1)}%
+                                    </TableCell>
+                                    <TableCell className="px-4 py-3 text-right font-medium whitespace-nowrap text-stone-200">
                                         {formatBytes(bytes)}
                                     </TableCell>
                                 </TableRow>
@@ -101,7 +107,8 @@ export default function SiteTable({
                             >
                                 Total
                             </TableHead>
-                            <TableCell className="px-4 py-3 text-right whitespace-nowrap text-stone-100 tabular-nums">
+                            <TableCell className="px-4 py-3" />
+                            <TableCell className="px-4 py-3 text-right whitespace-nowrap text-stone-100">
                                 {formatBytes(totalUsage)}
                             </TableCell>
                         </TableRow>
