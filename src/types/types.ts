@@ -14,7 +14,6 @@ export type StorageData<T extends YoutubeData | TwitchData | KickData> = {
 export type OptionsMap = {
     toasterEnabled?: boolean;
     toasterThreshold?: number;
-    toasterThresholdUnit?: "mbPerHour" | "mbPerMinute";
     cacheTTL?: number;
     qualityIds?: Record<string, boolean>;
     qualityMenu?: boolean;

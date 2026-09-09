@@ -5,10 +5,6 @@ import CONFIG from "@lib/constants";
 
 export default function ToasterSettings({ optionsState }: { optionsState: OptionsMap }) {
     const toasterThreshold = optionsState.toasterThreshold ?? CONFIG.DEFAULT_TOASTER_THRESHOLD;
-
-    const thresholdUnit =
-        optionsState.toasterThresholdUnit ?? CONFIG.DEFAULT_TOASTER_THRESHOLD_UNIT;
-
     const isToasterEnabled = optionsState.toasterEnabled ?? CONFIG.DEFAULT_TOASTER_ENABLED;
 
     const { updateOptionsMutation } = useOptions();
@@ -56,7 +52,7 @@ export default function ToasterSettings({ optionsState }: { optionsState: Option
                             className="text-xs font-medium whitespace-nowrap text-zinc-100"
                             htmlFor="toasterThreshold"
                         >
-                            Usage Limit
+                            Usage Limit (MB/hour)
                         </label>
                         <input
                             type="number"
@@ -74,81 +70,8 @@ export default function ToasterSettings({ optionsState }: { optionsState: Option
                             disabled={!isToasterEnabled}
                         />
                     </div>
-                    <div className="flex items-center justify-around gap-6 pt-2.5">
-                        <RadioOption
-                            id="toasterThresholdType1"
-                            name="toasterThresholdType"
-                            value="mbPerHour"
-                            checked={thresholdUnit === "mbPerHour"}
-                            disabled={!isToasterEnabled}
-                            onChange={() => {
-                                updateOptions({
-                                    toasterThresholdUnit: "mbPerHour",
-                                });
-                            }}
-                        >
-                            MB/hour
-                        </RadioOption>
-
-                        <RadioOption
-                            id="toasterThresholdType2"
-                            name="toasterThresholdType"
-                            value="mbPerMinute"
-                            checked={thresholdUnit === "mbPerMinute"}
-                            disabled={!isToasterEnabled}
-                            onChange={() => {
-                                updateOptions({
-                                    toasterThresholdUnit: "mbPerMinute",
-                                });
-                            }}
-                        >
-                            MB/minute
-                        </RadioOption>
-                    </div>
                 </section>
             </div>
         </div>
-    );
-}
-
-interface RadioOptionProps {
-    id: string;
-    name: string;
-    value: string;
-    checked: boolean;
-    disabled?: boolean;
-    onChange: () => void;
-    children: React.ReactNode;
-}
-
-function RadioOption({
-    id,
-    name,
-    value,
-    checked,
-    disabled = false,
-    onChange,
-    children,
-}: RadioOptionProps) {
-    return (
-        <label
-            htmlFor={id}
-            className={cn(
-                "flex cursor-pointer items-center gap-2 text-xs font-medium text-zinc-300",
-                disabled && "cursor-not-allowed text-zinc-500",
-            )}
-        >
-            <input
-                type="radio"
-                id={id}
-                name={name}
-                value={value}
-                checked={checked}
-                onChange={onChange}
-                disabled={disabled}
-                className="cursor-pointer accent-sky-400"
-            />
-            {children}
-        </label>
     );
 }

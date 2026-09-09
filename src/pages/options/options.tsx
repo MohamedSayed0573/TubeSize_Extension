@@ -1,4 +1,3 @@
-import CacheSettings from "@pages/options/cacheSettings";
 import ToasterSettings from "@pages/options/toasterSettings";
 import QualityMenu from "@pages/options/qualityMenu";
 import useOptions from "@hooks/useOptions";
@@ -17,9 +16,6 @@ export default function Options() {
     return (
         <>
             <ResolutionsOptions optionsState={optionsState} />
-
-            <Divider />
-            <CacheSettings optionsState={optionsState} />
 
             <Divider />
             <ToasterSettings optionsState={optionsState} />

@@ -3,11 +3,6 @@ import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.typ
 import { getDateKey } from "@lib/dashboardUtils";
 import type { OptionsMap, StorageData } from "@app-types/types";
 
-async function getCacheTTLSetting() {
-    const cacheTTL = await getFromSyncCache("cacheTTL");
-    return cacheTTL || CONFIG.DEFAULT_CACHE_TTL;
-}
-
 async function setToCache<T extends Record<string, unknown>>(storage: "local" | "sync", input: T) {
     await chrome.storage[storage].set(input);
 }
@@ -139,8 +134,7 @@ export async function saveToStorage(
     data: YoutubeData | TwitchData | KickData,
     target: "youtube" | "twitch" | "kick",
 ) {
-    const ttlInSecondsOptions = await getCacheTTLSetting();
-    const expiry = Date.now() + ttlInSecondsOptions * 1000;
+    const expiry = Date.now() + CONFIG.DEFAULT_CACHE_TTL * 1000;
 
     // If any of the formats have null sizes, we don't want to cache the response as it might be incomplete.
     if (data.type === "video") {

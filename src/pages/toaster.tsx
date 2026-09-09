@@ -17,15 +17,15 @@ function ensureRoot() {
     return root!;
 }
 
-function sizePerMinute(sizePerSecondBytes: number): number {
-    return (sizePerSecondBytes * 60) / 1_000_000;
+function sizePerHour(bytesPerSecond: number): number {
+    return (bytesPerSecond * 60 * 60) / 1_000_000;
 }
 
 let shouldSuppressToast: boolean = false;
 export function showYoutubeToast(
     currentQuality: number,
     youtubeData: YoutubeData,
-    toasterThresholdMbpm: number,
+    toasterThresholdMbph: number,
 ) {
     if (shouldSuppressToast) return;
 
@@ -33,7 +33,7 @@ export function showYoutubeToast(
         const format = youtubeData.formats.find((format) => format.height === currentQuality);
         if (!format) return;
 
-        if (sizePerMinute(format.sizePerSecondBytes) > toasterThresholdMbpm) {
+        if (sizePerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
             ensureRoot().render(
                 <Toast
                     currentQuality={currentQuality}
@@ -49,7 +49,7 @@ export function showYoutubeToast(
         const format = youtubeData.formats.find((format) => format.resolution === currentQuality);
         if (!format) return;
 
-        if (sizePerMinute(format.sizePerSecondBytes) > toasterThresholdMbpm) {
+        if (sizePerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
             ensureRoot().render(
                 <Toast
                     currentQuality={currentQuality}
@@ -65,14 +65,14 @@ export function showYoutubeToast(
 export function showTwitchToast(
     currentQuality: number,
     videoFormats: TwitchData["data"],
-    toasterThresholdMbpm: number,
+    toasterThresholdMbph: number,
     isLive: boolean = true,
 ) {
     if (shouldSuppressToast) return;
 
     const format = videoFormats.find((format) => format.resolution === currentQuality);
     if (!format) return;
-    if (sizePerMinute(format.sizePerSecondBytes) > toasterThresholdMbpm) {
+    if (sizePerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
         ensureRoot().render(
             <Toast
                 currentQuality={currentQuality}
@@ -88,6 +88,7 @@ export function showTwitchToast(
 function okOnClick() {
     unmountToast();
 }
+
 function dontShowAgainOnClick() {
     shouldSuppressToast = true;
     unmountToast();
