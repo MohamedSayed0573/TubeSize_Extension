@@ -51,7 +51,7 @@ export function WebsiteUsage() {
     );
 }
 
-export default function SiteTable({
+function SiteTable({
     usage,
     totalUsage,
 }: {

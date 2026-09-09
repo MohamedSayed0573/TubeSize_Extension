@@ -71,17 +71,17 @@ export default function PlatformUsage() {
         <>
             <DashboardHeader title={getTitle(scope, platform)} totalDataUsage={totalDataUsage} />
             <div className="flex flex-1 flex-col bg-neutral-950 p-8">
-                <div className="mb-4 flex items-center gap-4">
+                <div className="mb-4 flex flex-wrap items-center gap-4">
                     <PlatformLogo platform={platform} />
-                    <div className="flex flex-col">
-                        <span className="font-mono text-lg font-bold text-stone-100">{label}</span>
-                        <span className="font-mono text-xs text-teal-400">
+                    <h2 className="font-mono text-xl font-bold text-stone-100">{label}</h2>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-teal-900/60 bg-teal-950/40 px-3 py-1 font-mono text-xs font-medium text-teal-400">
                             {getScopeLabel(scope)}
                         </span>
-                        <span className="font-mono text-sm text-stone-400">
+                        <span className="rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 font-mono text-xs text-stone-400">
                             {rows.length === 0
-                                ? "No videos tracked yet"
-                                : `${rows.length} ${rows.length === 1 ? "video" : "videos"} tracked`}
+                                ? "No videos yet"
+                                : `${rows.length} ${rows.length === 1 ? "video" : "videos"}`}
                         </span>
                     </div>
                 </div>

@@ -71,7 +71,6 @@
         "@crxjs/vite-plugin": "^2.7.1",
         "@eslint/js": "^10.0.1",
         "@tanstack/eslint-plugin-query": "^5.102.8",
-        "@types/cheerio": "^1.0.0",
         "@types/chrome": "^0.2.9",
         "@types/humanize-duration": "^3.27.4",
         "@types/jest": "^30.0.0",

@@ -264,7 +264,7 @@ async function handleMessage(
 
 async function handleAddUsage(
     message: AddUsageMessage,
-    sendResposne: (response: AddUsageResponse) => void,
+    sendResponse: (response: AddUsageResponse) => void,
 ) {
     try {
         const { bytes, origin } = message;
@@ -272,10 +272,10 @@ async function handleAddUsage(
 
         await addSiteUsage({ [origin]: bytes });
 
-        sendResposne({ success: true, data: null });
+        sendResponse({ success: true, data: null });
     } catch (err) {
         console.error(err);
-        sendResposne({ success: false, message: err instanceof Error ? err.message : String(err) });
+        sendResponse({ success: false, message: err instanceof Error ? err.message : String(err) });
         return;
     }
 }

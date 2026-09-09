@@ -1,6 +1,6 @@
-import { Button } from "@components/ui/button";
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { chromeNavigate } from "@lib/utils";
+import { Button } from "@components/ui/button";
 
 export default function PopupUsage({
     text,

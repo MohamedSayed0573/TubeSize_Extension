@@ -24,16 +24,16 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
 
     return (
         <div className="flex flex-col gap-2 px-3 py-1.5 text-xs text-zinc-400">
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col gap-0.5">
                 <PopupUsage
-                    text="Total Usage Today:"
+                    text="Total Usage Today"
                     usage={totalUsage}
                     navigateTo="dashboard/today"
                 />
 
                 {origin && (
                     <PopupUsage
-                        text={`${getOriginWithoutSuffix(origin)} Usage:`}
+                        text={`${getOriginWithoutSuffix(origin)} Usage`}
                         usage={originUsage}
                         navigateTo={`dashboard/site/${getOriginWithoutSuffix(origin)}`}
                     />
