@@ -1,6 +1,6 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
-import { chromeNavigate, cn, getSiteIconUrl } from "@lib/utils";
-import { CalendarDays, ChevronRight } from "lucide-react";
+import { chromeNavigate, getSiteIconUrl } from "@lib/utils";
+import { CalendarDays, ChevronRight, Globe } from "lucide-react";
 
 function splitSize(formatted: string): { value: string; unit: string } {
     const [value, unit] = formatted.split(" ");
@@ -23,19 +23,8 @@ export default function PopupUsage({ text, usage, navigateTo, variant, origin }:
 
     const content = (
         <>
-            <span
-                className={cn(
-                    "flex size-8 items-center justify-center rounded-md border",
-                    variant === "todayUsage"
-                        ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
-                        : "border-sky-400/20 bg-sky-400/10 text-sky-300",
-                )}
-            >
-                {variant === "todayUsage" ? (
-                    <CalendarDays className="size-4" strokeWidth={2} />
-                ) : (
-                    <img src={getSiteIconUrl(origin) ?? ""} className="size-4" />
-                )}
+            <span className={"flex size-7 items-center justify-center overflow-hidden rounded-md"}>
+                <UsageIcon variant={variant} origin={origin} />
             </span>
             <span className="flex flex-1 flex-col gap-0.5">
                 <span className="truncate text-[13px] font-medium text-zinc-400">{text}</span>
@@ -57,4 +46,13 @@ export default function PopupUsage({ text, usage, navigateTo, variant, origin }:
             {content}
         </button>
     );
+}
+
+function UsageIcon({ variant, origin }: { variant?: string; origin?: string }) {
+    if (variant === "todayUsage") return <CalendarDays className="size-6" strokeWidth={2} />;
+
+    const siteIconUrl = getSiteIconUrl(origin);
+    if (!siteIconUrl) return <Globe className="size-6" />;
+
+    return <img src={siteIconUrl} className="h-full w-full object-cover" alt="" />;
 }
