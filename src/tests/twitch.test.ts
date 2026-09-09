@@ -1,4 +1,9 @@
-import { getTwitchClientId, getTwitchMasterM3u8, getTwitchToken } from "@lib/twitch";
+import {
+    getTwitchClientId,
+    getTwitchMasterM3u8,
+    getTwitchToken,
+    parseTwitchPageMetadata,
+} from "@lib/twitch";
 import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import path from "node:path";
 import fs from "node:fs";
@@ -234,5 +239,127 @@ audio-only.m3u8
 `;
 
         expect(filterM3u8(parseM3U8(m3u8Data).playlists ?? [])).toEqual([]);
+    });
+});
+
+function twitchPageHtml(ldJson: string, metaDescription?: string) {
+    return `<!doctype html>
+<html>
+    <head>
+        ${metaDescription ? `<meta name="description" content="${metaDescription}" />` : ""}
+        <script type="application/ld+json">${ldJson}</script>
+    </head>
+    <body></body>
+</html>`;
+}
+
+describe("parseTwitchPageMetadata", () => {
+    const vodGraph = JSON.stringify({
+        "@graph": [
+            {
+                "@type": "VideoObject",
+                name: "[612/730] 🔴 NEW CLASH ROYALE SEASON 🔴",
+                description: "jynxzi went live on Twitch. Catch up on their Clash Royale VOD now.",
+                thumbnailUrl: [
+                    "https://vod-secure.twitch.tv/thumb-80x45.jpg",
+                    "https://vod-secure.twitch.tv/thumb-640x360.jpg",
+                ],
+            },
+        ],
+    });
+
+    // Live pages embed a top-level VideoObject only while the channel is live.
+    const liveGraph = JSON.stringify({
+        "@graph": [
+            { "@type": "Person", alternateName: "summit1g", url: "https://www.twitch.tv/summit1g" },
+            { "@type": "BreadcrumbList", itemListElement: [] },
+            {
+                "@type": "ItemList",
+                itemListElement: [{ "@type": "VideoObject", name: "older vod" }],
+            },
+            {
+                "@type": "VideoObject",
+                name: "summit1g - Twitch",
+                description: "chillin vanilla Extinction difficulty - !starforge",
+                thumbnailUrl: [
+                    "https://static-cdn.jtvnw.net/previews-ttv/live_user_summit1g-80x45.jpg",
+                ],
+            },
+        ],
+    });
+
+    const offlineLiveGraph = JSON.stringify({
+        "@graph": [
+            { "@type": "Person", alternateName: "summit1g" },
+            { "@type": "BreadcrumbList", itemListElement: [] },
+            { "@type": "ItemList", itemListElement: [] },
+        ],
+    });
+
+    test("should parse vod title and channel from the meta description", () => {
+        const metadata = parseTwitchPageMetadata(
+            twitchPageHtml(vodGraph, "jynxzi went live on Twitch. Catch up on their VOD now."),
+            "vod",
+        );
+
+        expect(metadata).toEqual({
+            title: "[612/730] 🔴 NEW CLASH ROYALE SEASON 🔴",
+            channelName: "jynxzi",
+            thumbnailUrl: "https://vod-secure.twitch.tv/thumb-80x45.jpg",
+        });
+    });
+
+    test("should parse the live title and the person alternate name while live", () => {
+        const metadata = parseTwitchPageMetadata(twitchPageHtml(liveGraph), "live");
+
+        expect(metadata).toEqual({
+            title: "chillin vanilla Extinction difficulty - !starforge",
+            channelName: "summit1g",
+            thumbnailUrl: "https://static-cdn.jtvnw.net/previews-ttv/live_user_summit1g-80x45.jpg",
+        });
+    });
+
+    test("should accept a plain string thumbnailUrl", () => {
+        const graph = JSON.stringify({
+            "@graph": [{ "@type": "VideoObject", name: "title", thumbnailUrl: "thumb.jpg" }],
+        });
+
+        expect(parseTwitchPageMetadata(twitchPageHtml(graph), "vod")?.thumbnailUrl).toBe(
+            "thumb.jpg",
+        );
+    });
+
+    test("should return an empty thumbnail while the vod is still processing", () => {
+        const graph = JSON.stringify({
+            "@graph": [
+                {
+                    "@type": "VideoObject",
+                    name: "title",
+                    thumbnailUrl: ["https://vod-secure.twitch.tv/_404/404_processing_640x360.png"],
+                },
+            ],
+        });
+
+        expect(parseTwitchPageMetadata(twitchPageHtml(graph), "vod")?.thumbnailUrl).toBe("");
+    });
+
+    test("should fall back to an empty thumbnail when thumbnailUrl is missing", () => {
+        const graph = JSON.stringify({ "@graph": [{ "@type": "VideoObject", name: "title" }] });
+
+        expect(parseTwitchPageMetadata(twitchPageHtml(graph), "vod")?.thumbnailUrl).toBe("");
+    });
+
+    test("should return undefined when the page has no ld+json script", () => {
+        expect(parseTwitchPageMetadata("<html><head></head></html>", "vod")).toBeUndefined();
+    });
+
+    test("should return undefined when the graph has no top-level VideoObject", () => {
+        expect(parseTwitchPageMetadata(twitchPageHtml(offlineLiveGraph), "live")).toBeUndefined();
+    });
+
+    test("should throw when the ld+json does not match the schema", () => {
+        const graph = JSON.stringify({ "@graph": [{ "@type": "VideoObject", name: 42 }] });
+
+        expect(() => parseTwitchPageMetadata(twitchPageHtml(graph), "vod")).toThrow();
     });
 });

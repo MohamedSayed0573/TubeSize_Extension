@@ -1,29 +1,16 @@
-import { getUsageNumber, getTodayUsage } from "@lib/analyticsUtils";
-import type { UsageByDay } from "@lib/analyticsUtils";
-import { sendMessageToBackground } from "@/runtime";
-
-export function removeBadge(tabId: number | undefined) {
-    if (!tabId) return;
+export function removeBadge(tabId?: number) {
     void chrome.action.setBadgeText({ tabId, text: "" });
 }
 
-export function setBadge(text: string, tabId: number | undefined) {
+export function setUsageBadge(number: number, tabId?: number) {
     void chrome.action.setBadgeText({
         tabId,
-        text,
+        text: badgeFormatter(number),
     });
     void chrome.action.setBadgeBackgroundColor({ tabId, color: "rgb(102, 126, 234)" });
 }
 
-export function updateBadge(usageByDay: UsageByDay) {
-    const total = getUsageNumber(getTodayUsage(usageByDay));
-    void sendMessageToBackground({
-        type: "setBadge",
-        text: badgeFormatter(total),
-    });
-}
-
-export function badgeFormatter(bytes: number) {
+function badgeFormatter(bytes: number) {
     if (bytes < 1024) return `${bytes}B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}K`;
     if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)}M`;

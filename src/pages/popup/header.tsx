@@ -1,6 +1,6 @@
 import type { PopupData } from "@app-types/uiTypes";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
-import { humanizeDuration } from "@lib/utils";
+import { chromeNavigate, humanizeDuration } from "@lib/utils";
 import { useNavigate } from "react-router";
 
 function getYoutubeTitle(youtubeData?: YoutubeData | null): string {
@@ -109,17 +109,11 @@ export default function Header({ data }: Props) {
                 </button>
                 <button
                     className="flex-1 cursor-pointer rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
-                    onClick={navigateToAnalytics}
+                    onClick={() => chromeNavigate("dashboard")}
                 >
-                    Analytics
+                    Dashboard
                 </button>
             </div>
         </div>
     );
-}
-
-function navigateToAnalytics() {
-    void chrome.tabs.create({
-        url: chrome.runtime.getURL("index.html#/analytics"),
-    });
 }

@@ -10,7 +10,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 
 export default defineConfig([
-    globalIgnores(["dist", "coverage", "src/components/ui"]),
+    globalIgnores(["dist", "coverage", "src/components/ui", "devTest"]),
     {
         files: ["**/*.{ts,tsx}"],
         extends: [
@@ -63,6 +63,18 @@ export default defineConfig([
             "unicorn/name-replacements": "off",
             "unicorn/no-computed-property-existence-check": "off",
             "unicorn/no-null": "off",
+            "unicorn/no-top-level-assignment-in-function": "off",
+            "unicorn/prefer-switch": "off",
+            "unicorn/no-this-outside-of-class": "off",
+            "unicorn/prefer-spread": "off",
+            "unicorn/prefer-iterator-helpers": "off",
+            "unicorn/prefer-await": "off",
+            "unicorn/prefer-split-limit": "off",
+            "unicorn/prefer-ternary": "off",
+            "unicorn/no-useless-else": "off",
+            "unicorn/no-break-in-nested-loop": "off",
+            "unicorn/no-for-each": "off",
+            "unicorn/prefer-array-from-map": "off",
         },
     },
     {

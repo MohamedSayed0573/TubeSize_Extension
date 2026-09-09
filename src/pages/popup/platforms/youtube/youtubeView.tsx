@@ -2,7 +2,6 @@ import { useYoutubeData } from "@hooks/useYoutubeData";
 import Header from "@pages/popup/header";
 import InfoCard from "@components/infoCard";
 import YoutubeFormats from "@pages/popup/platforms/youtube/youtubeFormats";
-import PopupUsage from "@pages/popup/popupUsage";
 import Spinner from "@components/spinner";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
 
@@ -15,7 +14,6 @@ export function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: number }
             <>
                 <Header />
                 <PopupViewContainer>
-                    <PopupUsage />
                     <InfoCard message="Open a Youtube video" />
                 </PopupViewContainer>
             </>
@@ -38,7 +36,6 @@ export function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: number }
             <Header data={{ platform: "youtube", data: youtubeData, cacheCreatedAt: createdAt }} />
 
             <PopupViewContainer>
-                <PopupUsage />
                 <YoutubeFormats data={youtubeData} tabId={tabId} />
             </PopupViewContainer>
         </>

@@ -25,6 +25,7 @@ import {
 import { getKickHtml, getKickStreamId } from "@lib/kick";
 import type { KickBackgroundResponse } from "@app-types/platforms.types";
 import { waitForElement } from "@lib/dom";
+import type { WindowMessage } from "@app-types/types";
 
 function getCurrentUrl() {
     return location.href;
@@ -85,6 +86,40 @@ async function handlePageNavigation() {
         console.error("[content] Error handling page navigation", err);
     }
 }
+
+addEventListener("message", (event) => {
+    // eslint-disable-next-line unicorn/prefer-global-this
+    if (event.source !== window) return;
+
+    const message = event.data as WindowMessage;
+
+    if (message.type === "SITE_USAGE") {
+        const { bytes } = message;
+        if (typeof bytes !== "number") return;
+        if (!Number.isFinite(bytes) || bytes < 0) return;
+        if (bytes === 0) return;
+        void sendMessageToBackground({
+            type: "addUsage",
+            bytes,
+            origin: event.origin,
+        });
+        //eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    } else if (message.type === "WATCH_HISTORY") {
+        const { bytes, platform, videoId } = message;
+        if (bytes === 0) return;
+        if (typeof bytes !== "number") return;
+        if (!Number.isFinite(bytes) || bytes < 0) return;
+        if (typeof videoId !== "string") return;
+        if (typeof platform !== "string") return;
+
+        void sendMessageToBackground({
+            type: "addWatchHistory",
+            videoId,
+            platform,
+            bytes,
+        });
+    }
+});
 
 if (isYoutubePage(getCurrentUrl())) {
     addEventListener("yt-navigate-finish", () => {

@@ -8,7 +8,7 @@ export function OptionsFooter() {
                     rel="noreferrer"
                     className="flex gap-2 text-xs text-zinc-500 no-underline transition-colors hover:text-zinc-400"
                 >
-                    <img src="icons/github.svg" alt="" width="14" height="14" />
+                    <img src="icons/github.svg" width="14" height="14" />
                     @Mohamed Sayed
                 </a>
             </div>
@@ -19,7 +19,7 @@ export function OptionsFooter() {
                     rel="noreferrer"
                     className="flex gap-2 text-xs text-zinc-500 no-underline transition-colors hover:text-zinc-400"
                 >
-                    <img src="icons/support.svg" alt="" width="14" height="14" />
+                    <img src="icons/support.svg" width="14" height="14" />
                     Support Me
                 </a>
             </div>

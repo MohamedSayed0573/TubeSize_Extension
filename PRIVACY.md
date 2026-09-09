@@ -6,7 +6,7 @@
 
 TubeSize is a browser extension that helps users estimate video and stream data usage across supported services, including YouTube, Twitch, and Kick.
 
-TubeSize does not require an account or login, does not process payments, does not show ads, does not use analytics or telemetry SDKs, and does not send data to a developer-owned backend. TubeSize does not sell user data.
+TubeSize does not require an account or login, does not process payments, does not show ads, does not use dashboard or telemetry SDKs, and does not send data to a developer-owned backend. TubeSize does not sell user data.
 
 This Privacy Policy explains what data the extension handles, how that data is used, how it is stored, and what third-party requests may occur while the extension provides its core features.
 
@@ -44,7 +44,7 @@ Cached Kick VOD metadata may include:
 - Stream variants
 - Bitrate or size estimates
 
-### YouTube usage analytics stored locally
+### YouTube usage dashboard stored locally
 
 TubeSize stores local YouTube usage information under the `usageByDay` key in `chrome.storage.local`.
 
@@ -92,11 +92,11 @@ TubeSize uses Chrome extension storage APIs.
 
 ### Local storage
 
-Media metadata cache and YouTube usage analytics are stored in `chrome.storage.local` on the user's device.
+Media metadata cache and YouTube usage dashboard are stored in `chrome.storage.local` on the user's device.
 
 Cached media metadata expires based on the selected cache duration. The default cache duration is 3 days, and users may choose supported durations such as 1, 3, or 7 days.
 
-Local cache and analytics data remain on the user's device unless:
+Local cache and dashboard data remain on the user's device unless:
 
 - The data expires according to the selected cache duration
 - The user clears it from TubeSize options
@@ -151,7 +151,7 @@ TubeSize does not sell user data.
 
 TubeSize does not send handled data to a developer-owned backend.
 
-TubeSize does not share handled data with advertisers, analytics providers, telemetry services, or data brokers.
+TubeSize does not share handled data with advertisers, dashboard providers, telemetry services, or data brokers.
 
 Data may be sent to YouTube, Twitch, Kick, or their related playback/CDN services when the extension makes HTTPS requests needed to provide its video size estimation features. Those services process requests according to their own privacy policies and account/session behavior.
 
@@ -161,13 +161,13 @@ TubeSize may disclose information if required by law or to protect the security,
 
 TubeSize uses HTTPS for reviewed network requests to supported video platforms and related playback/CDN endpoints.
 
-TubeSize stores extension data using Chrome extension storage APIs. Local cache and analytics data are stored on the user's device. Sync settings are handled by the browser's sync system when enabled.
+TubeSize stores extension data using Chrome extension storage APIs. Local cache and dashboard data are stored on the user's device. Sync settings are handled by the browser's sync system when enabled.
 
 No method of storage or transmission is completely secure, but TubeSize is designed to limit data handling to what is needed for its user-facing functionality.
 
 ## User controls and deletion
 
-Users can clear TubeSize local cache and local analytics data from:
+Users can clear TubeSize local cache and local dashboard data from:
 
 **Options > Cache > Clear Cache**
 
@@ -213,7 +213,7 @@ Used to identify and communicate with the currently active supported tab, such a
 
 ### `storage`
 
-Used to store local cache, local YouTube usage analytics, and user settings.
+Used to store local cache, local YouTube usage dashboard, and user settings.
 
 ### Host permissions and content scripts
 

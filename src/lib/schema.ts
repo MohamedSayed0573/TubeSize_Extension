@@ -19,6 +19,13 @@ export const ytInitialSchema = z.object({
             ),
         }),
     }),
+    microformat: z
+        .object({
+            playerMicroformatRenderer: z.object({
+                ownerProfileUrl: z.string().optional(),
+            }),
+        })
+        .optional(),
     streamingData: z.object({
         adaptiveFormats: z.array(
             z.object({
@@ -52,6 +59,18 @@ export const twitchGqlResponseSchema = z.object({
             })
             .optional(),
     }),
+});
+
+const twitchLdGraphNodeSchema = z.object({
+    "@type": z.string(),
+    name: z.string().nullish(),
+    description: z.string().nullish(),
+    alternateName: z.string().nullish(),
+    thumbnailUrl: z.union([z.string(), z.array(z.string())]).nullish(),
+});
+
+export const twitchPageLdJsonSchema = z.object({
+    "@graph": z.array(twitchLdGraphNodeSchema),
 });
 
 export const kickPlaybackResponseSchema = z.object({

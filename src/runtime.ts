@@ -2,6 +2,10 @@ import type {
     KickBackgroundResponse,
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
+    GetUsageResponse,
+    AddUsageResponse,
+    AddWatchHistoryResponse,
+    GetWatchHistoryResponse,
 } from "@app-types/platforms.types";
 import type { FrontEndMessage } from "@app-types/types";
 
@@ -11,8 +15,10 @@ type MessageResponseMap = {
     twitchLive: TwitchBackgroundResponse;
     kickLive: KickBackgroundResponse;
     kickVod: KickBackgroundResponse;
-    setBadge: { success: boolean };
-    removeBadge: { success: boolean };
+    getUsage: GetUsageResponse;
+    addUsage: AddUsageResponse;
+    addWatchHistory: AddWatchHistoryResponse;
+    getWatchHistory: GetWatchHistoryResponse;
 };
 export async function sendMessageToBackground<T extends FrontEndMessage>(
     message: T,

@@ -2,6 +2,11 @@ import CONFIG from "@lib/constants";
 import humanize from "humanize-duration";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { PlatformId } from "@app-types/types";
+
+export function isPlatformId(id: string): id is PlatformId {
+    return (CONFIG.PLATFORMS as readonly string[]).includes(id);
+}
 
 export function isYoutubePage(url: string): boolean {
     try {
@@ -12,11 +17,21 @@ export function isYoutubePage(url: string): boolean {
     }
 }
 
+export function isYoutubeVideo(url: string): boolean {
+    try {
+        if (!isYoutubePage(url)) return false;
+        const videoTag = new URL(url).searchParams.get("v");
+        return !!videoTag || isShortsVideo(url);
+    } catch {
+        return false;
+    }
+}
+
 export function isShortsVideo(url: string): boolean {
     if (!isYoutubePage(url)) return false;
     try {
         const parsedUrl = new URL(url);
-        return parsedUrl.pathname.startsWith("/shorts");
+        return parsedUrl.pathname.startsWith("/shorts/");
     } catch {
         return false;
     }
@@ -74,6 +89,12 @@ export function isTwitchLive(url: string): boolean {
     } catch {
         return false;
     }
+}
+
+export function getTwitchContentType(url: string): "vod" | "live" | undefined {
+    if (isTwitchVod(url)) return "vod";
+    if (isTwitchLive(url)) return "live";
+    return;
 }
 
 export function isKickPage(url: string): boolean {
@@ -243,4 +264,26 @@ export async function delay(ms: number): Promise<void> {
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
+}
+
+export function capitalize(str: string) {
+    if (str.length === 0) return str;
+    return str[0]?.toUpperCase() + str.slice(1);
+}
+
+export function chromeNavigate(pageName: string | undefined) {
+    if (!pageName) return;
+    void chrome.tabs.create({
+        url: chrome.runtime.getURL(`index.html#/${pageName}`),
+    });
+}
+
+export function getSiteIconUrl(origin: string | undefined) {
+    try {
+        if (!origin) return;
+        const domain = new URL(origin).hostname;
+        return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+    } catch {
+        return;
+    }
 }

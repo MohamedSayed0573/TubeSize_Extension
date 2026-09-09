@@ -1,5 +1,3 @@
-/* eslint-disable unicorn/no-top-level-assignment-in-function */
-
 import type { YoutubeData } from "@app-types/platforms.types";
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { waitForElement } from "@lib/dom";
