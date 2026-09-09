@@ -20,11 +20,11 @@ interface BaseVideoMetadata {
     thumbnailUrl: string;
 }
 
-export interface YoutubeMetadata extends BaseVideoMetadata {
+interface YoutubeMetadata extends BaseVideoMetadata {
     type: "youtube";
 }
 
-export interface TwitchMetadata extends BaseVideoMetadata {
+interface TwitchMetadata extends BaseVideoMetadata {
     type: "twitch";
     contentType: "live" | "vod";
     url: string;

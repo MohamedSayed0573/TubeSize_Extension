@@ -48,7 +48,6 @@
         "cheerio": "^1.2.0",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
-        "cn": "^0.2.6",
         "dexie": "^4.4.5",
         "dexie-react-hooks": "^4.4.0",
         "filesize": "^11.0.23",
