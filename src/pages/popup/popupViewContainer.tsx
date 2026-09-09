@@ -35,6 +35,7 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
                     <PopupUsage
                         text={`${getOriginWithoutSuffix(origin)} Usage:`}
                         usage={originUsage}
+                        navigateTo={`dashboard/site/${getOriginWithoutSuffix(origin)}`}
                     />
                 )}
             </div>

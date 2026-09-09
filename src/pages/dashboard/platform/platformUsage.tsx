@@ -13,6 +13,7 @@ import { useVideoMetadata } from "@hooks/useVideoMetadata";
 import { useWatchHistory } from "@hooks/useWatchHistory";
 import { capitalize, isPlatformId } from "@lib/utils";
 import DashboardNotFound from "../dashboardNotFound";
+import type { PlatformId, UsageScope } from "@app-types/types";
 
 export default function PlatformUsage() {
     const { platformId } = useParams();
@@ -68,7 +69,7 @@ export default function PlatformUsage() {
 
     return (
         <>
-            <DashboardHeader title={label} totalDataUsage={totalDataUsage} />
+            <DashboardHeader title={getTitle(scope, platform)} totalDataUsage={totalDataUsage} />
             <div className="flex flex-1 flex-col bg-neutral-950 p-8">
                 <div className="mb-4 flex items-center gap-4">
                     <PlatformLogo platform={platform} />
@@ -91,4 +92,17 @@ export default function PlatformUsage() {
             </div>
         </>
     );
+}
+
+function getTitle(scope: UsageScope, platform: PlatformId) {
+    let second = "";
+    if (scope.type === "range") {
+        if (scope.range === "today") second = "today";
+        else if (scope.range === "week") second = "this week";
+        else if (scope.range === "month") second = "this month";
+    } else {
+        second = `on ${scope.date}`;
+    }
+
+    return `Total Usage ${second} on ${capitalize(platform)}`;
 }

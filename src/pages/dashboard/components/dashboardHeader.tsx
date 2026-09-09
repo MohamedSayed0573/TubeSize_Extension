@@ -20,7 +20,7 @@ export default function DashboardHeader({ title, totalDataUsage }: DashboardHead
             </div>
 
             <div className="flex flex-1 items-center justify-end pr-4">
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex flex-col items-center gap-1">
                     <span className="font-mono text-[0.65rem] font-semibold tracking-wider text-teal-400 uppercase">
                         Total Data Used
                     </span>
