@@ -39,3 +39,22 @@ export function parseVideoKey(videoKey: string) {
     const videoTag = videoKey.split(":").at(1)!;
     return { platform, videoTag };
 }
+
+export function getChannelUrl(
+    platform: PlatformId,
+    channelName: string | undefined,
+): string | undefined {
+    if (!channelName) return;
+    switch (platform) {
+        case "twitch": {
+            return `https://www.twitch.tv/${channelName}`;
+        }
+        case "kick": {
+            return `https://kick.com/${channelName}`;
+        }
+        case "youtube": {
+            // Display names can't be mapped to channel URLs, so no link.
+            return;
+        }
+    }
+}

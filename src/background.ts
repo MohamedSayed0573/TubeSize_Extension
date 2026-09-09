@@ -24,13 +24,14 @@ import {
     parseLiveStreamInfo,
     getThumbnailUrl,
 } from "@lib/youtube";
-import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
+import { getTwitchLiveResponse, getTwitchVodResponse, parseTwitchPageMetadata } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
 import {
     extractChannelName,
     extractKickVodId,
     extractTwitchVodId,
     extractVideoTag,
+    getTwitchContentType,
     isKickStream,
     isKickVod,
     isTwitchLive,
@@ -68,6 +69,7 @@ chrome.tabs.onUpdated.addListener((tabId, _, tab) => {
         void recordVideoMetadata(videoTag);
     } else if (isTwitchVod(url)) {
         const vodId = extractTwitchVodId(url);
+        void recordTwitchMetadata(url);
         if (!vodId) {
             tabIdToVideoKey.delete(tabId);
             return;
@@ -75,6 +77,7 @@ chrome.tabs.onUpdated.addListener((tabId, _, tab) => {
         tabIdToVideoKey.set(tabId, `twitch:${vodId}`);
     } else if (isTwitchLive(url)) {
         const channelName = extractChannelName(url);
+        void recordTwitchMetadata(url);
         if (!channelName) {
             tabIdToVideoKey.delete(tabId);
             return;
@@ -99,6 +102,39 @@ chrome.tabs.onUpdated.addListener((tabId, _, tab) => {
     }
 });
 
+async function recordTwitchMetadata(url: string) {
+    try {
+        const contentType = getTwitchContentType(url);
+        if (!contentType) return;
+
+        const videoTag = contentType === "vod" ? extractTwitchVodId(url) : extractChannelName(url);
+        if (!videoTag) return;
+
+        const existing = await getVideoMetadata(videoTag, "twitch");
+        const hasUsableThumbnail = Boolean(
+            existing?.thumbnailUrl && !existing.thumbnailUrl.includes("404_processing"),
+        );
+        if (existing && contentType === "vod" && hasUsableThumbnail) return;
+
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const html = await res.text();
+
+        const metadata = parseTwitchPageMetadata(html, contentType);
+        if (!metadata) return;
+
+        await addVideoMetadata({
+            ...metadata,
+            type: "twitch",
+            contentType,
+            videoTag,
+            url,
+        });
+    } catch (err) {
+        console.error("Failed to record twitch metadata:", err);
+    }
+}
+
 chrome.tabs.onRemoved.addListener((tabId) => {
     tabIdToVideoKey.delete(tabId);
 });
@@ -115,17 +151,13 @@ async function recordVideoMetadata(videoTag: string) {
         if (!response.success) return;
 
         const { data } = response;
-        await addVideoMetadata(
-            {
-                videoTag,
-                title: data.type === "video" ? data.title : data.channelName || "Youtube",
-                channelName: data.channelName ?? "",
-                ownerProfileUrl: data.ownerProfileUrl,
-                thumbnailUrl:
-                    data.thumbnailUrl ?? "https://www.youtube.com/img/desktop/yt_1200.png",
-            },
-            "youtube",
-        );
+        await addVideoMetadata({
+            type: "youtube",
+            videoTag,
+            title: data.type === "video" ? data.title : data.channelName || "Youtube",
+            channelName: data.channelName ?? "",
+            thumbnailUrl: data.thumbnailUrl ?? "https://www.youtube.com/img/desktop/yt_1200.png",
+        });
     } catch (err) {
         console.error("Failed to record video metadata:", err);
     }
@@ -323,7 +355,7 @@ async function handleYoutube(
 
         const rawData = await extractYtInitialResponse(videoTag, html);
         const isLive = rawData.videoDetails.isLive;
-        const ownerProfileUrl = rawData.microformat?.playerMicroformatRenderer.ownerProfileUrl;
+        const channelUrl = rawData.microformat?.playerMicroformatRenderer.ownerProfileUrl;
 
         if (isLive) {
             const rawFormats = parseDataFromYtInitial(rawData);
@@ -335,7 +367,7 @@ async function handleYoutube(
                 formats: youtubeData.toSorted((a, b) => b.resolution - a.resolution),
                 type: "live",
                 thumbnailUrl,
-                ownerProfileUrl,
+                channelUrl,
             };
             await saveToStorage(videoTag, data, "youtube");
 
@@ -354,7 +386,7 @@ async function handleYoutube(
             id: rawData.videoDetails.videoId,
             thumbnailUrl: getThumbnailUrl(rawData),
             channelName: rawData.videoDetails.author,
-            ownerProfileUrl,
+            channelUrl,
         };
         await saveToStorage(videoTag, youtubeData, "youtube");
         return sendResponse({

@@ -91,6 +91,12 @@ export function isTwitchLive(url: string): boolean {
     }
 }
 
+export function getTwitchContentType(url: string): "vod" | "live" | undefined {
+    if (isTwitchVod(url)) return "vod";
+    if (isTwitchLive(url)) return "live";
+    return;
+}
+
 export function isKickPage(url: string): boolean {
     try {
         const parsedUrl = new URL(url);

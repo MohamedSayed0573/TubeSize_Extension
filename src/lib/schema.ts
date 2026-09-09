@@ -61,6 +61,18 @@ export const twitchGqlResponseSchema = z.object({
     }),
 });
 
+const twitchLdGraphNodeSchema = z.object({
+    "@type": z.string(),
+    name: z.string().nullish(),
+    description: z.string().nullish(),
+    alternateName: z.string().nullish(),
+    thumbnailUrl: z.union([z.string(), z.array(z.string())]).nullish(),
+});
+
+export const twitchPageLdJsonSchema = z.object({
+    "@graph": z.array(twitchLdGraphNodeSchema),
+});
+
 export const kickPlaybackResponseSchema = z.object({
     playback_url: z
         .object({

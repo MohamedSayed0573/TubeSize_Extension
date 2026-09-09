@@ -5,12 +5,13 @@ import type {
     TwitchVodData,
 } from "@app-types/platforms.types";
 import type { PlaylistItem } from "m3u8-parser";
+import * as cheerio from "cheerio";
 import CONFIG from "@lib/constants";
 import { estimateHlsStreamSizes } from "@lib/hlsSize";
 import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import { getFromStorage, saveToStorage } from "@lib/cache";
 import { fetchAndRetry } from "@lib/utils";
-import { twitchGqlResponseSchema } from "@lib/schema";
+import { twitchGqlResponseSchema, twitchPageLdJsonSchema } from "@lib/schema";
 import type { TwitchLiveMessage, TwitchMessage, TwitchVodMessage } from "@app-types/types";
 
 export async function getTwitchClientId(message: TwitchMessage): Promise<string> {
@@ -163,4 +164,40 @@ export async function getTwitchVodResponse(
         success: true,
         data: response,
     });
+}
+
+export interface TwitchPageMetadata {
+    title: string;
+    channelName: string;
+    thumbnailUrl: string;
+}
+
+export function parseTwitchPageMetadata(
+    html: string,
+    contentType: "live" | "vod",
+): TwitchPageMetadata | undefined {
+    const $ = cheerio.load(html);
+    const ldJson = $('script[type="application/ld+json"]').html();
+    if (!ldJson) return;
+
+    const data = JSON.parse(ldJson) as unknown;
+    const { "@graph": graph } = twitchPageLdJsonSchema.parse(data);
+
+    const item = graph.find((entry) => entry["@type"] === "VideoObject");
+    if (!item) return;
+
+    const title = (contentType === "live" ? item.description : item.name) ?? "Twitch";
+    const personName = graph.find((entry) => entry["@type"] === "Person")?.alternateName;
+    const vodChannelName = $('meta[name="description"]').attr("content")?.split(" ")[0];
+
+    const channelName = personName || vodChannelName || "Twitch Channel";
+    const rawThumbnail = Array.isArray(item.thumbnailUrl)
+        ? item.thumbnailUrl[0]
+        : item.thumbnailUrl;
+
+    // Twitch serves a 404_processing slate while a VOD has no thumbnail yet.
+    const thumbnailUrl =
+        rawThumbnail && !rawThumbnail.includes("404_processing") ? rawThumbnail : "";
+
+    return { title, channelName, thumbnailUrl };
 }

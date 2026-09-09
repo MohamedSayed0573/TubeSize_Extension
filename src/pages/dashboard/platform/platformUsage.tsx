@@ -55,8 +55,9 @@ export default function PlatformUsage() {
                     date: day,
                     title: videoMetadata?.title,
                     channelName: videoMetadata?.channelName,
-                    ownerProfileUrl: videoMetadata?.ownerProfileUrl,
                     thumbnailUrl: videoMetadata?.thumbnailUrl,
+                    contentType:
+                        videoMetadata?.type === "twitch" ? videoMetadata.contentType : undefined,
                 },
             ];
         });

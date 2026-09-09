@@ -1,4 +1,5 @@
 import { formatBytes } from "@lib/dashboardUtils";
+import { getChannelUrl } from "@pages/dashboard/components/platformUtils";
 import { Link } from "react-router";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import type { DateKey, PlatformId } from "@app-types/types";
@@ -7,13 +8,23 @@ import { TableCell, TableRow } from "@/components/ui/table";
 
 const PLACEHOLDER_IMAGE = "/thumbnail-placeholder.svg";
 
-function getVideoUrl(platform: PlatformId, videoTag: string) {
+const PLATFORM_PLACEHOLDER_IMAGE: Record<PlatformId, string> = {
+    youtube: PLACEHOLDER_IMAGE,
+    twitch: "/thumbnail-placeholder-twitch.svg",
+    kick: PLACEHOLDER_IMAGE,
+};
+
+function getVideoUrl(platform: PlatformId, videoTag: string, contentType?: "live" | "vod") {
     switch (platform) {
         case "youtube": {
             return `https://youtube.com/watch?v=${videoTag}`;
         }
         case "twitch": {
-            return `https://www.twitch.tv/videos/${videoTag}`;
+            const isVod =
+                contentType === undefined ? /^[0-9]+$/.test(videoTag) : contentType === "vod";
+            return isVod
+                ? `https://www.twitch.tv/videos/${videoTag}`
+                : `https://www.twitch.tv/${videoTag}`;
         }
         case "kick": {
             return `https://kick.com/video/${videoTag}`;
@@ -27,7 +38,7 @@ export interface VideoRowDetails {
     title: string | undefined;
     thumbnailUrl: string | undefined;
     channelName: string | undefined;
-    ownerProfileUrl: string | undefined;
+    contentType?: "live" | "vod";
     date: DateKey;
 }
 
@@ -41,9 +52,10 @@ export default function VideoTableRow({
     platform: PlatformId;
 }) {
     const { date, usage } = videoDetails;
-    const url = getVideoUrl(platform, videoDetails.videoTag);
+    const url = getVideoUrl(platform, videoDetails.videoTag, videoDetails.contentType);
+    const channelUrl = getChannelUrl(platform, videoDetails.channelName);
 
-    const imageUrl = videoDetails.thumbnailUrl || PLACEHOLDER_IMAGE;
+    const imageUrl = videoDetails.thumbnailUrl || PLATFORM_PLACEHOLDER_IMAGE[platform];
     const videoTitle = videoDetails.title || platform;
 
     return (
@@ -58,7 +70,7 @@ export default function VideoTableRow({
                             src={imageUrl}
                             alt="thumbnail"
                             onError={(e) => {
-                                e.currentTarget.src = PLACEHOLDER_IMAGE;
+                                e.currentTarget.src = PLATFORM_PLACEHOLDER_IMAGE[platform];
                             }}
                         />
                     </a>
@@ -72,10 +84,10 @@ export default function VideoTableRow({
                     </span>
                     {videoDetails.channelName && (
                         <span className="truncate text-sm text-gray-500">
-                            {videoDetails.ownerProfileUrl ? (
+                            {channelUrl ? (
                                 <a
                                     className="hover:underline"
-                                    href={videoDetails.ownerProfileUrl}
+                                    href={channelUrl}
                                     target="_blank"
                                     rel="noreferrer"
                                 >

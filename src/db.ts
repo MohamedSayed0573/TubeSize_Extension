@@ -1,4 +1,4 @@
-import type { DateKey, PlatformId } from "@app-types/types";
+import type { DateKey } from "@app-types/types";
 import { getDateKey } from "@lib/dashboardUtils";
 import { Dexie, type Table } from "dexie";
 
@@ -12,14 +12,28 @@ export interface WatchHistory {
     videos: Record<string, number>; // videoKey -> Bytes
 }
 
-export interface VideoMetadata {
+interface BaseVideoMetadata {
     videoKey: string;
     videoTag: string;
     title: string;
     channelName: string;
     thumbnailUrl: string;
-    ownerProfileUrl?: string;
 }
+
+export interface YoutubeMetadata extends BaseVideoMetadata {
+    type: "youtube";
+}
+
+export interface TwitchMetadata extends BaseVideoMetadata {
+    type: "twitch";
+    contentType: "live" | "vod";
+    url: string;
+}
+
+export type VideoMetadata = YoutubeMetadata | TwitchMetadata;
+
+export type VideoMetadataInput =
+    Omit<YoutubeMetadata, "videoKey"> | Omit<TwitchMetadata, "videoKey">;
 
 const database = new Dexie("TubeSize") as Dexie & {
     siteUsage: Table<SiteUsage, string>;
@@ -106,16 +120,13 @@ export async function getWatchHistoryByDate(day: DateKey | DateKey[]) {
         : database.watchHistory.get(day);
 }
 
-export async function addVideoMetadata(
-    metadata: Omit<VideoMetadata, "videoKey">,
-    platform: PlatformId,
-) {
-    const videoKey = `${platform}:${metadata.videoTag}`;
-    await database.videoMetaData.put({ ...metadata, videoKey });
+export async function addVideoMetadata(metadata: VideoMetadataInput) {
+    const videoKey = `${metadata.type}:${metadata.videoTag}`;
+    await database.videoMetaData.put({ ...metadata, videoKey } as VideoMetadata);
 }
 
-export async function getVideoMetadata(videoTag: string, platform: PlatformId) {
-    return await database.videoMetaData.get(`${platform}:${videoTag}`);
+export async function getVideoMetadata(videoTag: string, type: VideoMetadata["type"]) {
+    return await database.videoMetaData.get(`${type}:${videoTag}`);
 }
 
 export async function getAllVideoMetadata() {
