@@ -19,7 +19,7 @@ function getSiteIconUrl(origin: string) {
     }
 }
 
-export default function SiteTable({ usage }: { usage: SiteUsage[] }) {
+export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
     const usageByOrigin = new Map<string, number>();
 
     for (const { usage: originUsage } of usage) {

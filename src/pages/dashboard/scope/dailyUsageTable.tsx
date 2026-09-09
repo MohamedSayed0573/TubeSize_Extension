@@ -1,7 +1,4 @@
-import DashboardHeader from "@pages/dashboard/components/dashboardHeader";
-import NoUsageData from "@pages/dashboard/components/noUsageData";
-import { Link, useParams } from "react-router";
-import { useSiteUsage } from "@hooks/useSiteUsage";
+import { Link } from "react-router";
 import {
     Table,
     TableBody,
@@ -11,51 +8,18 @@ import {
     TableHeader,
     TableRow,
 } from "@components/ui/table";
-import { formatBytes, getOriginWithoutSuffix } from "@lib/dashboardUtils";
+import { formatBytes } from "@lib/dashboardUtils";
 
-export function WebsiteUsage() {
-    const { siteName } = useParams();
-    const { data, isPending, isError, error } = useSiteUsage();
-
-    if (!siteName) return;
-    if (isPending) return;
-    if (isError) throw error;
-    if (!data) return <NoUsageData />;
-
-    const dayToBytes: Map<string, number> = new Map();
-    data.forEach(({ day, usage }) => {
-        const bytes = Object.entries(usage)
-            .filter(([origin]) => getOriginWithoutSuffix(origin) === siteName)
-            .map(([, bytes]) => bytes)
-            .reduce((sum, current) => sum + current, 0);
-
-        dayToBytes.set(day, bytes);
-    });
-
-    const totolUsage = [...dayToBytes].reduce((sum, [, bytes]) => sum + bytes, 0);
-
-    const sortedUsage = Array.from(dayToBytes)
-        .filter(([, bytes]) => bytes > 0)
-        .toSorted(([, a], [, b]) => b - a)
-        .map(([day, bytes]) => {
-            return { day, bytes };
-        });
-
-    return (
-        <>
-            <DashboardHeader title={siteName} totalDataUsage={totolUsage} />
-            <div className="flex flex-1 flex-col gap-1 bg-neutral-950/70 pt-1">
-                <SiteTable usage={sortedUsage} totalUsage={totolUsage} />
-            </div>
-        </>
-    );
+export interface DailyUsage {
+    day: string;
+    bytes: number;
 }
 
-function SiteTable({
+export default function DailyUsageTable({
     usage,
     totalUsage,
 }: {
-    usage: { day: string; bytes: number }[];
+    usage: DailyUsage[];
     totalUsage: number;
 }) {
     return (

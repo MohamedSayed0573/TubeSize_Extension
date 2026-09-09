@@ -1,4 +1,4 @@
-import DashboardBanner from "@pages/dashboard/components/dashboardBanner";
+import DashboardBanner from "@pages/dashboard/overview/dashboardBanner";
 
 export default function DashboardErrorPage({ error }: { error: unknown }) {
     const routeError = error;

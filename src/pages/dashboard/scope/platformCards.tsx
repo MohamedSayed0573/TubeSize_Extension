@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { formatBytes } from "@lib/dashboardUtils";
-import { PlatformLogo } from "@pages/dashboard/components/platformLogos";
-import { buildPlatformSearch, parseVideoKey } from "@pages/dashboard/components/platformUtils";
+import { PlatformLogo } from "../platform/platformLogos";
+import { buildPlatformSearch, parseVideoKey } from "../platform/platformUtils";
 import { capitalize, cn } from "@lib/utils";
 import { useWatchHistory } from "@hooks/useWatchHistory";
 import { ArrowRight } from "lucide-react";

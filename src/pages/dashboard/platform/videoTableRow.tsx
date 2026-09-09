@@ -1,5 +1,5 @@
 import { formatBytes } from "@lib/dashboardUtils";
-import { getChannelUrl } from "@pages/dashboard/components/platformUtils";
+import { getChannelUrl } from "./platformUtils";
 import { Link } from "react-router";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import type { DateKey, PlatformId } from "@app-types/types";

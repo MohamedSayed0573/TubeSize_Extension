@@ -1,5 +1,6 @@
 import { formatBytes } from "@lib/dashboardUtils";
-import BackToDashBoardBtn from "./backToDashboardBtn";
+import { ArrowLeft } from "lucide-react";
+import ButtonLink from "@components/buttonLink";
 
 interface DashboardHeaderProps {
     title: string;
@@ -12,7 +13,10 @@ export default function DashboardHeader({ title, totalDataUsage }: DashboardHead
     return (
         <div className="flex items-center justify-between gap-5 border-b border-neutral-800 bg-neutral-900 px-4 py-3">
             <div className="flex flex-1 items-center justify-start">
-                <BackToDashBoardBtn />
+                <ButtonLink to="/dashboard" variant={"outline"} size={"lg"} className="font-mono">
+                    <ArrowLeft className="size-4" />
+                    Back to Dashboard
+                </ButtonLink>
             </div>
 
             <div className="flex flex-1 items-center justify-center truncate font-mono text-lg font-bold text-stone-100">

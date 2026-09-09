@@ -1,14 +1,14 @@
 import { formatDate } from "@lib/dashboardUtils";
-import DashboardHeader from "@pages/dashboard/components/dashboardHeader";
-import UsageDetailsSkeleton from "@pages/dashboard/components/usageDetailsSkeleton";
-import NoUsageData from "@pages/dashboard/components/noUsageData";
+import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
+import VideosTableSkeleton from "@pages/dashboard/platform/videosTableSkeleton";
+import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useSiteUsage } from "@hooks/useSiteUsage";
 import { getLastNDays, getUsageNumber } from "@lib/dashboardUtils";
 import { useParams } from "react-router";
-import DashboardNotFound from "../dashboardNotFound";
+import DashboardNotFound from "../shared/notFound";
 import type { DateKey, UsageRange, UsageScope } from "@app-types/types";
-import PlatformCards from "../components/platformCards";
-import SiteTable from "../components/siteTable";
+import PlatformCards from "./platformCards";
+import AllSitesTable from "./allSitesTable";
 
 function getTitle(range: UsageScope): string {
     if (range.type === "range") {
@@ -57,14 +57,14 @@ function isValidDate(value: string): boolean {
     return !Number.isNaN(date.getTime());
 }
 
-export function UsageScopePage() {
+export function ScopePage() {
     const { date } = useParams();
     const scope = getScope(date as DateKey);
 
     const { data: usage, isPending, isError, error } = useSiteUsage(scope);
 
     if (!scope) return <DashboardNotFound />;
-    if (isPending) return <UsageDetailsSkeleton />;
+    if (isPending) return <VideosTableSkeleton />;
     if (isError) throw error;
     if (!usage) return <NoUsageData />;
 
@@ -73,7 +73,7 @@ export function UsageScopePage() {
             <DashboardHeader title={getTitle(scope)} totalDataUsage={getUsageNumber(usage)} />
             <div className="flex flex-1 flex-col gap-1 bg-neutral-950/70 pt-1">
                 <PlatformCards scope={scope} />
-                <SiteTable usage={usage} />
+                <AllSitesTable usage={usage} />
             </div>
         </>
     );

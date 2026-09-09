@@ -1,18 +1,14 @@
 import { useParams, useSearchParams } from "react-router";
-import DashboardHeader from "@pages/dashboard/components/dashboardHeader";
-import NoUsageData from "@pages/dashboard/components/noUsageData";
-import UsageDetailsSkeleton from "@pages/dashboard/components/usageDetailsSkeleton";
-import VideosTable, { type VideoRowDetails } from "@pages/dashboard/components/videosTable";
-import { PlatformLogo } from "@pages/dashboard/components/platformLogos";
-import {
-    getScopeLabel,
-    parseUsageScope,
-    parseVideoKey,
-} from "@pages/dashboard/components/platformUtils";
+import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
+import NoUsageData from "@pages/dashboard/shared/noUsageData";
+import VideosTableSkeleton from "./videosTableSkeleton";
+import VideosTable, { type VideoRowDetails } from "./videosTable";
+import { PlatformLogo } from "./platformLogos";
+import { getScopeLabel, parseUsageScope, parseVideoKey } from "./platformUtils";
 import { useVideoMetadata } from "@hooks/useVideoMetadata";
 import { useWatchHistory } from "@hooks/useWatchHistory";
 import { capitalize, isPlatformId } from "@lib/utils";
-import DashboardNotFound from "../dashboardNotFound";
+import DashboardNotFound from "../shared/notFound";
 import type { PlatformId, UsageScope } from "@app-types/types";
 
 export default function PlatformUsage() {
@@ -30,9 +26,9 @@ export default function PlatformUsage() {
         return <DashboardNotFound />;
     }
 
-    if (historyQuery.isPending) return <UsageDetailsSkeleton />;
+    if (historyQuery.isPending) return <VideosTableSkeleton />;
     if (historyQuery.isError) throw historyQuery.error;
-    if (metadataQuery.isPending) return <UsageDetailsSkeleton />;
+    if (metadataQuery.isPending) return <VideosTableSkeleton />;
     if (metadataQuery.isError) throw metadataQuery.error;
 
     if (!watchHistory) return <NoUsageData />;

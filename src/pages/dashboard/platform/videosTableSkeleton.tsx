@@ -1,5 +1,5 @@
 import { Skeleton } from "@components/ui/skeleton";
-import VideoTableRowSkeleton from "@pages/dashboard/components/videoTableRowSkeleton";
+import VideoTableRowSkeleton from "./videoTableRowSkeleton";
 
 function HeaderStatSkeleton() {
     return (
@@ -10,7 +10,7 @@ function HeaderStatSkeleton() {
     );
 }
 
-export default function UsageDetailsSkeleton({ rows = 8 }: { rows?: number }) {
+export default function VideosTableSkeleton({ rows = 8 }: { rows?: number }) {
     return (
         <>
             <div className="flex items-center justify-between gap-5 border-b border-neutral-800 bg-neutral-900 px-4 py-3">

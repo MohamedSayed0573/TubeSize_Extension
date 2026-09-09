@@ -1,6 +1,6 @@
 import Header from "@pages/popup/header";
 
-export default function ErrorPage({ error }: { error: unknown }) {
+export default function popupError({ error }: { error: unknown }) {
     const routeError = error;
     const message = routeError instanceof Error ? routeError.message : String(routeError);
     return (
