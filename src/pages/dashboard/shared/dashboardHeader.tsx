@@ -28,7 +28,7 @@ export default function DashboardHeader({ title, totalDataUsage }: DashboardHead
                     <span className="font-mono text-[0.65rem] font-semibold tracking-wider text-teal-400 uppercase">
                         Total Data Used
                     </span>
-                    <span className="font-mono text-lg leading-none font-bold text-stone-100">
+                    <span className="font-mono text-lg font-bold text-stone-100">
                         {formattedDataUsage}
                     </span>
                 </div>
