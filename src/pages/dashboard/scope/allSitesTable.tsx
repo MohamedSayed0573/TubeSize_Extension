@@ -9,15 +9,7 @@ import {
     TableRow,
 } from "@components/ui/table";
 import { formatBytes, getDomainName } from "@lib/dashboardUtils";
-
-function getSiteIconUrl(origin: string) {
-    try {
-        const domain = new URL(origin).hostname;
-        return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-    } catch {
-        return null;
-    }
-}
+import { getSiteIconUrl } from "@lib/utils";
 
 export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
     const usageByOrigin = new Map<string, number>();

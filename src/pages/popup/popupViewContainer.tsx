@@ -38,6 +38,7 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
                         usage={originUsage}
                         navigateTo={`dashboard/site/${getOriginWithoutSuffix(origin)}`}
                         variant="siteUsage"
+                        origin={origin}
                     />
                 )}
             </div>

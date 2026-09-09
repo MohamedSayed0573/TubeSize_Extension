@@ -1,26 +1,23 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
-import { chromeNavigate, cn } from "@lib/utils";
-import { CalendarDays, ChevronRight, Globe } from "lucide-react";
+import { chromeNavigate, cn, getSiteIconUrl } from "@lib/utils";
+import { CalendarDays, ChevronRight } from "lucide-react";
 
 function splitSize(formatted: string): { value: string; unit: string } {
     const [value, unit] = formatted.split(" ");
     return { value: value ?? "", unit: unit ?? "" };
 }
 
-export default function PopupUsage({
-    text,
-    usage,
-    navigateTo,
-    variant,
-}: {
+interface PopupUsageProps {
     text: string;
     usage: number | undefined;
     navigateTo: string;
-    variant: "todayUsage" | "siteUsage";
-}) {
-    if (usage === undefined) return null;
+    variant?: "todayUsage" | "siteUsage";
+    origin?: string;
+}
 
-    const Icon = variant === "todayUsage" ? CalendarDays : Globe;
+export default function PopupUsage({ text, usage, navigateTo, variant, origin }: PopupUsageProps) {
+    if (!usage) return;
+
     const formatted = totalSizeVideoDisplay(usage);
     const { value, unit } = splitSize(formatted);
 
@@ -34,7 +31,11 @@ export default function PopupUsage({
                         : "border-sky-400/20 bg-sky-400/10 text-sky-300",
                 )}
             >
-                <Icon className="size-4" strokeWidth={2} />
+                {variant === "todayUsage" ? (
+                    <CalendarDays className="size-4" strokeWidth={2} />
+                ) : (
+                    <img src={getSiteIconUrl(origin) ?? ""} className="size-4" />
+                )}
             </span>
             <span className="flex flex-1 flex-col gap-0.5">
                 <span className="truncate text-[13px] font-medium text-zinc-400">{text}</span>
