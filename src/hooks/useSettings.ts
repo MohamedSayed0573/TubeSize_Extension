@@ -1,18 +1,18 @@
 import { clearLocalCache, getAllFromSyncCache, setToSyncCache } from "@lib/cache";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-export default function useOptions() {
+export default function useSettings() {
     const queryClient = useQueryClient();
     const query = useQuery({
-        queryKey: ["options"],
+        queryKey: ["settings"],
         queryFn: async () => (await getAllFromSyncCache()) ?? {},
     });
 
-    const updateOptionsMutation = useMutation({
+    const updateSettingsMutation = useMutation({
         mutationFn: setToSyncCache,
 
         onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["options"] });
+            await queryClient.invalidateQueries({ queryKey: ["settings"] });
         },
     });
 
@@ -28,7 +28,7 @@ export default function useOptions() {
 
     return {
         query,
-        updateOptionsMutation,
+        updateSettingsMutation,
         clearCacheMutation,
     };
 }

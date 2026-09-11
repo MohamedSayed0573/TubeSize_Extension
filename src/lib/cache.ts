@@ -1,7 +1,7 @@
 import CONFIG from "@lib/constants";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
 import { getDateKey } from "@lib/dashboardUtils";
-import type { OptionsMap, StorageData } from "@app-types/types";
+import type { SettingsMap, StorageData } from "@app-types/types";
 
 async function setToCache<T extends Record<string, unknown>>(storage: "local" | "sync", input: T) {
     await chrome.storage[storage].set(input);
@@ -10,8 +10,8 @@ export async function setToLocalCache(input: Record<string, unknown>) {
     return setToCache("local", input);
 }
 
-export async function setToSyncCache(input: OptionsMap) {
-    return setToCache<OptionsMap>("sync", input);
+export async function setToSyncCache(input: SettingsMap) {
+    return setToCache<SettingsMap>("sync", input);
 }
 
 function getFromCache<T>(storage: "local" | "sync"): Promise<Record<string, T> | undefined>;
@@ -57,19 +57,19 @@ export async function getFromLocalCache<T>(key?: string | string[]) {
 }
 
 export async function getAllFromSyncCache() {
-    return getFromCache<OptionsMap>("sync");
+    return getFromCache<SettingsMap>("sync");
 }
 
-export function getFromSyncCache<T extends keyof OptionsMap, K extends OptionsMap[T]>(): Promise<
+export function getFromSyncCache<T extends keyof SettingsMap, K extends SettingsMap[T]>(): Promise<
     Record<string, K>
 >;
-export function getFromSyncCache<T extends keyof OptionsMap, K extends OptionsMap[T]>(
+export function getFromSyncCache<T extends keyof SettingsMap, K extends SettingsMap[T]>(
     key: T,
 ): Promise<K>;
-export function getFromSyncCache<T extends keyof OptionsMap, K extends OptionsMap[T]>(
+export function getFromSyncCache<T extends keyof SettingsMap, K extends SettingsMap[T]>(
     key: T[],
 ): Promise<Record<string, K>>;
-export async function getFromSyncCache<T extends keyof OptionsMap, K extends OptionsMap[T]>(
+export async function getFromSyncCache<T extends keyof SettingsMap, K extends SettingsMap[T]>(
     key?: T | T[],
 ) {
     if (!key) {

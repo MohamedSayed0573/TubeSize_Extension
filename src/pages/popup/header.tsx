@@ -103,9 +103,9 @@ export default function Header({ data }: Props) {
             <div className="flex items-center justify-between gap-2.5">
                 <button
                     className="flex-1 cursor-pointer rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
-                    onClick={() => void navigate("/options")}
+                    onClick={() => void navigate("/settings")}
                 >
-                    Options
+                    Settings
                 </button>
                 <button
                     className="flex-2 cursor-pointer rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"

@@ -1,5 +1,5 @@
-import type { OptionsMap } from "@app-types/types";
-import useOptions from "@hooks/useOptions";
+import type { SettingsMap } from "@app-types/types";
+import useSettings from "@hooks/useSettings";
 import { cn } from "@lib/utils";
 import CONFIG from "@lib/constants";
 import { Switch } from "@/components/ui/switch";
@@ -14,13 +14,13 @@ import {
 import { Slider } from "@components/ui/slider";
 import { useState } from "react";
 
-export default function ToasterSettings({ optionsState }: { optionsState: OptionsMap }) {
-    const toasterThreshold = optionsState.toasterThreshold ?? CONFIG.DEFAULT_TOASTER_THRESHOLD;
-    const isToasterEnabled = optionsState.toasterEnabled ?? CONFIG.DEFAULT_TOASTER_ENABLED;
+export default function ToasterSettings({ settingsState }: { settingsState: SettingsMap }) {
+    const toasterThreshold = settingsState.toasterThreshold ?? CONFIG.DEFAULT_TOASTER_THRESHOLD;
+    const isToasterEnabled = settingsState.toasterEnabled ?? CONFIG.DEFAULT_TOASTER_ENABLED;
     const [threshold, setThreshold] = useState(toasterThreshold);
 
-    const { updateOptionsMutation } = useOptions();
-    const { mutate: updateOptions } = updateOptionsMutation;
+    const { updateSettingsMutation } = useSettings();
+    const { mutate: updateSettings } = updateSettingsMutation;
 
     return (
         <FieldSet className="mt-2 p-3.5">
@@ -44,7 +44,7 @@ export default function ToasterSettings({ optionsState }: { optionsState: Option
                         className="cursor-pointer"
                         checked={isToasterEnabled}
                         onClick={() => {
-                            updateOptions({ toasterEnabled: !isToasterEnabled });
+                            updateSettings({ toasterEnabled: !isToasterEnabled });
                         }}
                     />
                 </Field>
@@ -61,7 +61,7 @@ export default function ToasterSettings({ optionsState }: { optionsState: Option
                         value={threshold}
                         onValueChange={(value) => setThreshold(value as number)}
                         onValueCommitted={(value) =>
-                            updateOptions({ toasterThreshold: value as number })
+                            updateSettings({ toasterThreshold: value as number })
                         }
                         max={1000}
                         min={200}

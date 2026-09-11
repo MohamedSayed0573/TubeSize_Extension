@@ -1,9 +1,9 @@
 import CONFIG from "@lib/constants";
-import OptionItem from "@pages/options/optionItem";
-import type { OptionsMap } from "@app-types/types";
+import SettingItem from "@pages/settings/settingItem";
+import type { SettingsMap } from "@app-types/types";
 import { FieldLegend } from "@components/ui/field";
 
-export default function ResolutionsOptions({ optionsState }: { optionsState: OptionsMap }) {
+export default function ResolutionsSettings({ settingsState }: { settingsState: SettingsMap }) {
     return (
         <div className="p-3">
             <FieldLegend className="m-0 p-0">Resolutions</FieldLegend>
@@ -12,7 +12,9 @@ export default function ResolutionsOptions({ optionsState }: { optionsState: Opt
             </div>
             <div className="grid grid-cols-3 gap-2.5">
                 {CONFIG.optionIDs.map((option) => {
-                    return <OptionItem key={option} option={option} optionsState={optionsState} />;
+                    return (
+                        <SettingItem key={option} option={option} settingsState={settingsState} />
+                    );
                 })}
             </div>
         </div>

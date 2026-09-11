@@ -2,14 +2,14 @@ import { createRoot } from "react-dom/client";
 import { ErrorBoundary } from "react-error-boundary";
 import { Routes, Route, HashRouter, Navigate } from "react-router";
 import Popup from "@pages/popup/popup";
-import Options from "@pages/options/options";
+import Settings from "@pages/settings/settings";
 import Dashboard from "@pages/dashboard/overview/dashboard";
 import { ScopePage } from "@pages/dashboard/scope/scopePage";
 import PlatformUsage from "@pages/dashboard/platform/platformUsage";
 import DashboardErrorPage from "@pages/dashboard/shared/dashboardError";
 import PopupErrorPage from "@pages/popup/popupError";
 import DashboardNotFound from "@pages/dashboard/shared/notFound";
-import OptionsErrorPage from "@pages/options/optionsError";
+import SettingsErrorPage from "@pages/settings/settingsError";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import "@styles/global.css";
@@ -41,10 +41,10 @@ root.render(
                     </Route>
 
                     <Route
-                        path="/options"
+                        path="/settings"
                         element={
-                            <ErrorBoundary FallbackComponent={OptionsErrorPage}>
-                                <Options />
+                            <ErrorBoundary FallbackComponent={SettingsErrorPage}>
+                                <Settings />
                             </ErrorBoundary>
                         }
                     />

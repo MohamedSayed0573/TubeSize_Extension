@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
 
-export default function HeaderOptions() {
+export default function HeaderSettings() {
     return (
         <div className="flex items-center justify-between border-b border-b-white/8 bg-neutral-900 p-3 pr-5">
             <Link
@@ -11,7 +11,7 @@ export default function HeaderOptions() {
                 <ArrowLeft size={16} />
                 Back
             </Link>
-            <h3 className="text-sm font-semibold">Options</h3>
+            <h3 className="text-sm font-semibold">Settings</h3>
         </div>
     );
 }

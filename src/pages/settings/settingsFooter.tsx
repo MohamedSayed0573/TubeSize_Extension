@@ -1,4 +1,4 @@
-export function OptionsFooter() {
+export function SettingsFooter() {
     return (
         <div className="flex items-center justify-around p-3">
             <div>
