@@ -23,7 +23,7 @@ export default function ClearUsageButton() {
         <AlertDialogBasic
             descriptionText="This action cannot be undone. This will permanently delete your usage"
             buttonText={"Clear All Usage Data"}
-            className="mt-2.5"
+            className="w-full"
             disabled={isClearingPending}
             onConfirm={() => {
                 clearUsage();
