@@ -15,7 +15,7 @@ export default function DashboardBanner() {
                         rel="noreferrer"
                         className="flex gap-2 text-xs text-zinc-500 no-underline transition-colors hover:text-zinc-400"
                     >
-                        <img src="icons/github.svg" width="14" height="14" />
+                        <img src="icons/github.svg" width="14" height="14" alt="Github Icon" />
                         @Mohamed Sayed
                     </a>
                 </div>
@@ -26,7 +26,7 @@ export default function DashboardBanner() {
                         rel="noreferrer"
                         className="flex gap-2 text-xs text-zinc-500 no-underline transition-colors hover:text-zinc-400"
                     >
-                        <img src="icons/support.svg" width="14" height="14" />
+                        <img src="icons/support.svg" width="14" height="14" alt="Support Icon" />
                         Support Me
                     </a>
                 </div>

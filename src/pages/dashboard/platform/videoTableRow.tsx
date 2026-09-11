@@ -68,7 +68,7 @@ export default function VideoTableRow({
                         <img
                             className="h-full w-full rounded-lg object-cover"
                             src={imageUrl}
-                            alt="thumbnail"
+                            alt="Video Thumbnail"
                             onError={(e) => {
                                 e.currentTarget.src = PLATFORM_PLACEHOLDER_IMAGE[platform];
                             }}

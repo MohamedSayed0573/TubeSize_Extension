@@ -64,7 +64,7 @@ function UsageIcon({ variant, origin }: { variant?: string; origin?: string }) {
 
     return (
         <div className="size-6.5">
-            <img src={siteIconUrl} className="h-full w-full object-cover" alt="" />
+            <img src={siteIconUrl} className="h-full w-full object-cover" alt="Website Icon" />
         </div>
     );
 }
