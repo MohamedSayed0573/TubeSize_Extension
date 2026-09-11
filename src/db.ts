@@ -77,8 +77,10 @@ export async function getAllSiteUsage() {
 }
 
 export async function setAllSiteUsage(data: SiteUsage[]) {
-    await database.siteUsage.clear();
-    await database.siteUsage.bulkAdd(data);
+    await database.transaction("readwrite", database.siteUsage, async () => {
+        await database.siteUsage.clear();
+        await database.siteUsage.bulkAdd(data);
+    });
 }
 
 export async function getSiteUsageByDate(day: DateKey): Promise<SiteUsage | undefined>;
