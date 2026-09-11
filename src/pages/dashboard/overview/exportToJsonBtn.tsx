@@ -4,16 +4,17 @@ import { InvalidImportJson } from "@lib/errors";
 import * as z from "zod";
 
 function filterUsage(siteUsage: SiteUsage[]) {
-    return siteUsage.map(({ day, usage }) => {
+    return siteUsage.flatMap(({ day, usage }) => {
         const values = Object.entries(usage).filter(([url, bytes]) => {
             const urlResult = z.url().safeParse(url);
             const bytesResult = z.number().nonnegative().safeParse(bytes);
             return urlResult.success && bytesResult.success;
         });
 
+        if (values.length === 0) return [];
         const usageRecords = Object.fromEntries(values) as Record<string, number>;
 
-        return { day, usage: usageRecords };
+        return [{ day, usage: usageRecords }];
     });
 }
 
@@ -31,7 +32,7 @@ export function ExportToJsonBtn({
         if (filteredUsage.length === 0)
             return setError(new InvalidImportJson("There is no usage to export"));
 
-        const json = JSON.stringify(siteUsage);
+        const json = JSON.stringify(filteredUsage);
         const blob = new Blob([json]);
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
