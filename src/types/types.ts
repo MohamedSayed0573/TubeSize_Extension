@@ -11,13 +11,11 @@ export type StorageData<T extends YoutubeData | TwitchData | KickData> = {
     createdAt?: string;
 };
 
-export type OptionsMap = {
+export type SettingsMap = {
     toasterEnabled?: boolean;
     toasterThreshold?: number;
-    toasterThresholdUnit?: "mbPerHour" | "mbPerMinute";
     cacheTTL?: number;
     qualityIds?: Record<string, boolean>;
-    qualityMenu?: boolean;
 };
 
 export type FrontEndMessage =

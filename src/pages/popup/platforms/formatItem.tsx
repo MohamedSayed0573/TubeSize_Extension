@@ -18,7 +18,14 @@ export default function FormatItem({ item, isShorts, currentQuality }: Props) {
                 { "bg-red-800/80 hover:border-red-600": resolution === currentQuality },
             )}
         >
-            <div className="pr-2.5 text-sm font-semibold text-white"> {resolution}p </div>
+            <div className="flex items-center justify-between">
+                <div className="pr-2.5 text-sm font-semibold text-white"> {resolution}p </div>
+                {resolution === currentQuality && (
+                    <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[11px] font-bold tracking-wider text-white">
+                        Current
+                    </span>
+                )}
+            </div>
             <div className="flex flex-col items-end text-right text-sm font-semibold text-teal-200">
                 <span>
                     {item.type === "live"

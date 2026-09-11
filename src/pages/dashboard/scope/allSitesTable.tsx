@@ -55,6 +55,7 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
                                                     <img
                                                         src={iconUrl}
                                                         className="h-full w-full rounded-sm"
+                                                        alt="Website Icon"
                                                     />
                                                 </span>
                                             )}

@@ -49,11 +49,7 @@ async function handlePageNavigation() {
             if (!tag) return;
 
             const youtubeResponse = await initYoutube(tag);
-            const isQualityMenuEnabled =
-                (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
-            if (isQualityMenuEnabled) {
-                await injectQualityMenu(youtubeResponse);
-            }
+            await injectQualityMenu(youtubeResponse);
 
             const isToasterEnable = await isToasterEnabled();
             if (isToasterEnable) {
@@ -165,11 +161,6 @@ chrome.runtime.onMessage.addListener(
     },
 );
 
-/**
- * Returns the setting for the toaster threshold in MB per minute.
- * If the setting is not found or is invalid, it returns the default threshold defined in CONFIG.
- * @throws Will throw an error if there is an issue retrieving the setting from cache.
- */
 async function initYoutube(videoTag: string) {
     const scriptsArray = [...document.scripts];
     const ytInitialPlayerResponse = scriptsArray.find((script) => {

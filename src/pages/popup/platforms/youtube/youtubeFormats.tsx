@@ -1,13 +1,13 @@
 import type { YoutubeData } from "@app-types/platforms.types";
 import CONFIG from "@lib/constants";
-import useOptions from "@hooks/useOptions";
+import useSettings from "@hooks/useSettings";
 import useCurrentQuality from "@hooks/useCurrentQuality";
 import FormatItem from "@pages/popup/platforms/formatItem";
 import InfoCard from "@components/infoCard";
-import type { OptionsMap } from "@app-types/types";
+import type { SettingsMap } from "@app-types/types";
 
-function getEnabledOptions(optionsState: OptionsMap) {
-    const qualityIds = optionsState["qualityIds"] ?? {};
+function getEnabledSettings(settingsState: SettingsMap) {
+    const qualityIds = settingsState["qualityIds"] ?? {};
     return CONFIG.optionIDs.filter((option) => qualityIds[option] ?? true);
 }
 
@@ -20,22 +20,22 @@ export default function YoutubeFormats({
 }) {
     const { currentQuality } = useCurrentQuality(tabId);
 
-    const { query } = useOptions();
-    const { data: optionsState, isError, isPending, error } = query;
+    const { query } = useSettings();
+    const { data: settingsState, isError, isPending, error } = query;
 
     if (isError) throw error;
     if (isPending) return null;
 
-    const enabledOptions = getEnabledOptions(optionsState);
+    const enabledSettings = getEnabledSettings(settingsState);
 
-    if (enabledOptions.length === 0) {
-        return <InfoCard message="All Resolutions Disabled. Enable in options" />;
+    if (enabledSettings.length === 0) {
+        return <InfoCard message="All Resolutions Disabled. Enable in settings" />;
     }
 
     if (data.type === "live") {
         return data.formats
             .filter((item) => {
-                return enabledOptions.includes("p" + item.resolution);
+                return enabledSettings.includes("p" + item.resolution);
             })
             .map((item) => {
                 return (
@@ -50,7 +50,7 @@ export default function YoutubeFormats({
     }
     return data.formats
         .filter((item) => {
-            return enabledOptions.includes("p" + item.height);
+            return enabledSettings.includes("p" + item.height);
         })
         .map((item) => {
             return (
