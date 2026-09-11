@@ -1,4 +1,5 @@
 import { setAllSiteUsage, type SiteUsage } from "@/db";
+import { AlertDialogBasic } from "@components/alertDialogBasic";
 import { Button } from "@components/ui/button";
 import type { InvalidImportJson } from "@lib/errors";
 import { ImportSchema } from "@lib/zodSchema";
@@ -40,20 +41,21 @@ export function ImportJson({
     const queryClient = useQueryClient();
 
     return (
-        <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => {
-                setError(undefined);
-                importJson()
-                    .then(() => void queryClient.invalidateQueries({ queryKey: ["siteUsage"] }))
-                    .catch((err) => {
-                        console.log(err);
-                        setError(err as Error);
-                    });
-            }}
-        >
-            Import JSON
-        </Button>
+        <>
+            <AlertDialogBasic
+                descriptionText="Importing usage will COMPLETELY REPLACE your usage. Are you sure you want to continue?"
+                buttonText="Import JSON"
+                className="w-full"
+                onConfirm={() => {
+                    setError(undefined);
+                    importJson()
+                        .then(() => void queryClient.invalidateQueries({ queryKey: ["siteUsage"] }))
+                        .catch((err) => {
+                            console.log(err);
+                            setError(err as Error);
+                        });
+                }}
+            />
+        </>
     );
 }
