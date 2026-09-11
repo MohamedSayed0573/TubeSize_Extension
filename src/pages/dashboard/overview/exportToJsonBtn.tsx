@@ -1,14 +1,16 @@
 import { Button } from "@components/ui/button";
 import { getAllSiteUsage } from "@/db";
-import { useState } from "react";
-import { AlertDestructive } from "@components/alertDestructive";
+import { InvalidImportJson } from "@lib/errors";
 
-export function ExportToJsonBtn() {
-    const [isAlert, setAlert] = useState(false);
-
+export function ExportToJsonBtn({
+    setError,
+}: {
+    setError: React.Dispatch<React.SetStateAction<InvalidImportJson | undefined>>;
+}) {
     async function getData() {
         const siteUsage = await getAllSiteUsage();
-        if (!siteUsage || siteUsage.length === 0) setAlert(true);
+        if (!siteUsage || siteUsage.length === 0)
+            setError(new InvalidImportJson("There is no usage to export"));
 
         const json = JSON.stringify(siteUsage);
         const blob = new Blob([json]);
@@ -24,10 +26,9 @@ export function ExportToJsonBtn() {
             variant="outline"
             className="w-full"
             onClick={() => {
-                void getData();
+                getData().catch((err) => setError(err as Error));
             }}
         >
-            {isAlert && <AlertDestructive title="Failed to Export your data" />}
             Export To JSON
         </Button>
     );

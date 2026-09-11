@@ -3,7 +3,6 @@ import { Button } from "@components/ui/button";
 import type { InvalidImportJson } from "@lib/errors";
 import { ImportSchema } from "@lib/zodSchema";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 
 async function importJson() {
     return new Promise((resolve, reject) => {
@@ -33,11 +32,13 @@ async function importJson() {
     });
 }
 
-export function ImportJson() {
+export function ImportJson({
+    setError,
+}: {
+    setError: React.Dispatch<React.SetStateAction<InvalidImportJson | undefined>>;
+}) {
     const queryClient = useQueryClient();
-    const [error, setError] = useState<Error>();
 
-    if (error) throw error;
     return (
         <Button
             variant="outline"
