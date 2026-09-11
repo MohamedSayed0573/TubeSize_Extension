@@ -51,8 +51,8 @@ export function UsageChartSection({
                 </div>
                 <div className="flex gap-3">
                     <div className="flex rounded-md border border-white/8 bg-black/20 p-0.5">
-                        <ChartSwitchBtn label="By Day" to="/dashboard/daily" icon={Globe} />
-                        <ChartSwitchBtn label="By Site" to="/dashboard/sites" icon={CalendarDays} />
+                        <ChartSwitchBtn label="By Day" to="/dashboard/daily" icon={CalendarDays} />
+                        <ChartSwitchBtn label="By Site" to="/dashboard/sites" icon={Globe} />
                     </div>
                     <div className="flex items-center gap-1.5 rounded-md border border-teal-400/20 bg-teal-400/10 px-2 py-1">
                         <CalendarDays className="size-3.5 text-teal-400" />
