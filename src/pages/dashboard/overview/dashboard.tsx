@@ -19,9 +19,15 @@ export default function Dashboard({ chart }: { chart: "daily" | "sites" }) {
 
     return (
         <>
+            {btnError && (
+                <AlertDestructive
+                    title={btnError.message}
+                    description="Please try again"
+                    onClose={() => setError(undefined)}
+                />
+            )}
             <DashboardBanner />
             <div className="flex flex-1 flex-col bg-neutral-950/70 px-6 pt-1 pb-3.5">
-                {btnError && <AlertDestructive title={btnError.message} />}
                 <StatsRow usage={usage} />
                 <UsageChartSection chart={chart} usage={usage} />
                 <FooterBtns setError={setError} />

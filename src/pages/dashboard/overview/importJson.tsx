@@ -19,7 +19,7 @@ async function importJson() {
                 .then((textFile) => {
                     const siteUsage = JSON.parse(textFile) as SiteUsage[];
                     const result = ImportSchema.safeParse(siteUsage);
-                    if (!result.success) throw new Error("Invalid JSON");
+                    if (!result.success) throw new Error(result.error.message);
                     return result.data;
                 })
                 .then((data) => {
@@ -44,6 +44,7 @@ export function ImportJson({
             variant="outline"
             className="w-full"
             onClick={() => {
+                setError(undefined);
                 importJson()
                     .then(() => void queryClient.invalidateQueries({ queryKey: ["siteUsage"] }))
                     .catch((err) => {
