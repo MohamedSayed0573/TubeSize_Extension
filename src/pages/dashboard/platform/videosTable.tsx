@@ -1,7 +1,6 @@
 import type { PlatformId } from "@app-types/types";
 import VideoTableRow from "./videoTableRow";
 import type { VideoRowDetails } from "./videoTableRow";
-
 export type { VideoRowDetails } from "./videoTableRow";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 

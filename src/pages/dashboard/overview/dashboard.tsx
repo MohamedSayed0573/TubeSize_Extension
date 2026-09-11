@@ -1,6 +1,5 @@
 import { DashboardSkeleton } from "./dashboardSkeleton";
 import DashboardBanner from "./dashboardBanner";
-import NoUsageData from "../shared/noUsageData";
 import { useSiteUsage } from "@hooks/useSiteUsage";
 import { StatsRow } from "./statsRow";
 import { UsageChartSection } from "./chartSection";
@@ -15,20 +14,15 @@ export default function Dashboard({ chart }: { chart: "daily" | "sites" }) {
 
     if (isPending) return <DashboardSkeleton />;
     if (isError) throw error;
-    if (!usage) return <NoUsageData />;
 
     return (
         <>
             {btnError && (
-                <AlertDestructive
-                    title={btnError.message}
-                    description="Please try again"
-                    onClose={() => setError(undefined)}
-                />
+                <AlertDestructive title={btnError.message} onClose={() => setError(undefined)} />
             )}
             <DashboardBanner />
             <div className="flex flex-1 flex-col bg-neutral-950/70 px-6 pt-1 pb-3.5">
-                <StatsRow usage={usage} />
+                <StatsRow usage={usage ?? []} />
                 <UsageChartSection chart={chart} usage={usage} />
                 <FooterBtns setError={setError} />
             </div>

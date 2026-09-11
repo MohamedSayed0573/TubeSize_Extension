@@ -57,7 +57,14 @@ export function ScopePage() {
     if (!scope) return <DashboardNotFound />;
     if (isPending) return <VideosTableSkeleton />;
     if (isError) throw error;
-    if (!usage) return <NoUsageData />;
+
+    if (!usage || usage.length === 0)
+        return (
+            <>
+                <DashboardHeader title={getTitle(scope)} totalDataUsage={0} />
+                <NoUsageData />
+            </>
+        );
 
     return (
         <>

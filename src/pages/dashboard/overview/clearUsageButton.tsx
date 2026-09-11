@@ -25,9 +25,7 @@ export default function ClearUsageButton() {
             buttonText={"Clear All Usage Data"}
             className="w-full"
             disabled={isClearingPending}
-            onConfirm={() => {
-                clearUsage();
-            }}
+            onConfirm={clearUsage}
         />
     );
 }
