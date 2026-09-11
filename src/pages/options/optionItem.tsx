@@ -1,5 +1,6 @@
 import useOptions from "@hooks/useOptions";
 import type { OptionsMap } from "@app-types/types";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function OptionItem({
     option,
@@ -16,12 +17,10 @@ export default function OptionItem({
             <label className="cursor-pointer text-xs font-medium text-white" htmlFor={option}>
                 {option.slice(1) + "p"}
             </label>
-            <input
+            <Checkbox
                 id={option}
-                type="checkbox"
                 checked={optionsState["qualityIds"]?.[option] ?? true}
-                onChange={(event) => {
-                    const { checked } = event.target;
+                onCheckedChange={(checked) => {
                     updateOptions({
                         qualityIds: {
                             ...optionsState["qualityIds"],
@@ -29,7 +28,7 @@ export default function OptionItem({
                         },
                     });
                 }}
-            ></input>
+            />
         </div>
     );
 }
