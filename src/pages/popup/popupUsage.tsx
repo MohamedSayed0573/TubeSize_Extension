@@ -41,7 +41,7 @@ export default function PopupUsage({ text, usage, navigateTo, variant, origin }:
         <button
             type="button"
             onClick={() => chromeNavigate(navigateTo)}
-            className="group flex w-full cursor-pointer items-center gap-2.5 rounded-md border border-white/8 bg-white/4 px-2.5 py-2 text-left transition-all duration-150 hover:border-white/15 hover:bg-white/8"
+            className="group flex w-full cursor-pointer items-center gap-2.5 rounded-md border border-white/8 bg-white/4 px-3 py-2 text-left transition-all duration-150 hover:border-white/15 hover:bg-white/8"
         >
             {content}
         </button>
