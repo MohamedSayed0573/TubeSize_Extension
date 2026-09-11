@@ -1,5 +1,4 @@
 import ToasterSettings from "@pages/options/toasterSettings";
-import QualityMenu from "@pages/options/qualityMenu";
 import useOptions from "@hooks/useOptions";
 import Divider from "@pages/options/divider";
 import { OptionsFooter } from "@pages/options/optionsFooter";
@@ -19,9 +18,6 @@ export default function Options() {
 
             <Divider />
             <ToasterSettings optionsState={optionsState} />
-
-            <Divider />
-            <QualityMenu optionsState={optionsState} />
 
             <Divider />
             <OptionsFooter />

@@ -16,7 +16,6 @@ export type OptionsMap = {
     toasterThreshold?: number;
     cacheTTL?: number;
     qualityIds?: Record<string, boolean>;
-    qualityMenu?: boolean;
 };
 
 export type FrontEndMessage =

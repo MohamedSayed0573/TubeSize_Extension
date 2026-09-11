@@ -49,11 +49,7 @@ async function handlePageNavigation() {
             if (!tag) return;
 
             const youtubeResponse = await initYoutube(tag);
-            const isQualityMenuEnabled =
-                (await getFromSyncCache("qualityMenu")) ?? CONFIG.DEFAULT_QUALITY_MENU_ENABLED;
-            if (isQualityMenuEnabled) {
-                await injectQualityMenu(youtubeResponse);
-            }
+            await injectQualityMenu(youtubeResponse);
 
             const isToasterEnable = await isToasterEnabled();
             if (isToasterEnable) {
