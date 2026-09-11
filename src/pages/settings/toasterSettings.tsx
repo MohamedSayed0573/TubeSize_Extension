@@ -23,16 +23,16 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
     const { mutate: updateSettings } = updateSettingsMutation;
 
     return (
-        <FieldSet className="mt-2 p-3.5">
-            <FieldLegend className="m-0 p-0">Data Usage Alert</FieldLegend>
+        <FieldSet>
+            <FieldLegend>Data Usage Alert</FieldLegend>
             <FieldDescription className="text-xs text-zinc-400">
                 Show a warning when you watch a video that uses too much internet data.
             </FieldDescription>
 
             <FieldGroup
                 className={cn(
-                    "rounded-lg border border-white/5 bg-white/4 px-4 py-2 pb-4 transition-all duration-300 hover:border-white/15 hover:bg-white/8",
-                    !isToasterEnabled && "bg-white/1 opacity-80",
+                    "rounded-lg border border-white/5 bg-white/4 p-3 transition-all duration-300 hover:border-white/15 hover:bg-white/8",
+                    !isToasterEnabled && "bg-white/1 opacity-60",
                 )}
             >
                 <Field orientation="horizontal">
@@ -66,8 +66,9 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
                         max={1000}
                         min={200}
                         step={10}
-                        className="w-full"
+                        className={cn("w-full", !isToasterEnabled && "cursor-not-allowed")}
                         aria-label="Usage limit"
+                        disabled={!isToasterEnabled}
                     />
                 </Field>
             </FieldGroup>

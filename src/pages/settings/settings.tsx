@@ -1,10 +1,10 @@
 import ToasterSettings from "@pages/settings/toasterSettings";
 import useSettings from "@hooks/useSettings";
-import Divider from "@pages/settings/divider";
 import { SettingsFooter } from "@pages/settings/settingsFooter";
 import ResolutionsSettings from "@pages/settings/resolutionsSettings";
 import Spinner from "@components/spinner";
 import HeaderSettings from "./headerSettings";
+import { FieldSeparator } from "@components/ui/field";
 
 export default function Settings() {
     const { query } = useSettings();
@@ -17,12 +17,13 @@ export default function Settings() {
         <div className="w-72.5">
             <HeaderSettings />
 
-            <ResolutionsSettings settingsState={settingsState} />
+            <div className="flex flex-col gap-2 px-3 py-2">
+                <ResolutionsSettings settingsState={settingsState} />
+                <FieldSeparator />
+                <ToasterSettings settingsState={settingsState} />
+            </div>
 
-            <Divider />
-            <ToasterSettings settingsState={settingsState} />
-
-            <Divider />
+            <FieldSeparator />
             <SettingsFooter />
         </div>
     );
