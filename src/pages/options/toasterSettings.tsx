@@ -2,76 +2,75 @@ import type { OptionsMap } from "@app-types/types";
 import useOptions from "@hooks/useOptions";
 import { cn } from "@lib/utils";
 import CONFIG from "@lib/constants";
+import { Switch } from "@/components/ui/switch";
+import {
+    Field,
+    FieldDescription,
+    FieldGroup,
+    FieldLabel,
+    FieldLegend,
+    FieldSet,
+} from "@/components/ui/field";
+import { Slider } from "@components/ui/slider";
+import { useState } from "react";
 
 export default function ToasterSettings({ optionsState }: { optionsState: OptionsMap }) {
     const toasterThreshold = optionsState.toasterThreshold ?? CONFIG.DEFAULT_TOASTER_THRESHOLD;
     const isToasterEnabled = optionsState.toasterEnabled ?? CONFIG.DEFAULT_TOASTER_ENABLED;
+    const [threshold, setThreshold] = useState(toasterThreshold);
 
     const { updateOptionsMutation } = useOptions();
     const { mutate: updateOptions } = updateOptionsMutation;
 
     return (
-        <div className="p-3.5">
-            <div className="mb-2 text-xs font-semibold tracking-wide text-zinc-400 uppercase">
-                Data Usage Alert
-            </div>
-            <p className="mb-2 text-xs text-zinc-400">
-                Show a warning when internet usage gets too high.
-            </p>
-            <div
+        <FieldSet className="mt-2 p-3.5">
+            <FieldLegend className="m-0 p-0">Data Usage Alert</FieldLegend>
+            <FieldDescription className="text-xs text-zinc-400">
+                Show a warning when you watch a video that uses too much internet data.
+            </FieldDescription>
+
+            <FieldGroup
                 className={cn(
-                    "rounded-md border border-transparent bg-white/4 px-2.5 py-2 transition-colors duration-300",
+                    "rounded-lg border border-white/5 bg-white/4 px-4 py-2 pb-4 transition-all duration-300 hover:border-white/15 hover:bg-white/8",
                     !isToasterEnabled && "bg-white/1 opacity-80",
                 )}
             >
-                <section className="flex items-center justify-between rounded-md border border-transparent bg-white/4 px-4 py-2 transition-all duration-300 hover:border-white/15 hover:bg-white/8">
-                    <label
-                        className="cursor-pointer text-xs font-medium text-white"
-                        htmlFor="toasterThresholdToggle"
-                    >
+                <Field orientation="horizontal">
+                    <FieldLabel htmlFor="toasterThresholdToggle">
                         Enable Data Usage Alert
-                    </label>
-                    <input
-                        type="checkbox"
+                    </FieldLabel>
+                    <Switch
                         id="toasterThresholdToggle"
+                        className="cursor-pointer"
                         checked={isToasterEnabled}
-                        onChange={(event) => {
-                            const { checked } = event.target;
-                            updateOptions({ toasterEnabled: checked });
+                        onClick={() => {
+                            updateOptions({ toasterEnabled: !isToasterEnabled });
                         }}
                     />
-                </section>
-                <section
-                    className={cn(
-                        "mt-3 rounded-lg border border-white/5 bg-white/3 p-2.5 transition-all duration-300 ease-in-out hover:border-white/10 hover:bg-white/6",
-                        !isToasterEnabled && "bg-white/1 opacity-60",
-                    )}
-                >
-                    <div className="flex items-center gap-2.5">
-                        <label
-                            className="text-xs font-medium whitespace-nowrap text-zinc-100"
-                            htmlFor="toasterThreshold"
-                        >
-                            Usage Limit (MB/hour)
-                        </label>
-                        <input
-                            type="number"
-                            className="w-36 rounded-md border border-white/15 bg-zinc-800 px-2 py-1.5 text-xs text-zinc-100 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20"
-                            min="1"
-                            id="toasterThreshold"
-                            value={toasterThreshold}
-                            onChange={(event) => {
-                                const value = Number(event.target.value);
-                                if (value < 1 || value > 10_000 || Number.isNaN(value)) return;
-                                updateOptions({
-                                    toasterThreshold: value,
-                                });
-                            }}
-                            disabled={!isToasterEnabled}
-                        />
-                    </div>
-                </section>
-            </div>
-        </div>
+                </Field>
+
+                <Field className="gap-3.5">
+                    <FieldLabel
+                        className="text-xs font-medium whitespace-nowrap"
+                        htmlFor="toasterThreshold"
+                    >
+                        Usage Limit (MB/hour): {threshold}
+                    </FieldLabel>
+                    <Slider
+                        id="toasterThreshold"
+                        value={threshold}
+                        onValueChange={(value) => setThreshold(value as number)}
+                        onValueCommitted={(value) =>
+                            updateOptions({ toasterThreshold: value as number })
+                        }
+                        max={1000}
+                        min={200}
+                        step={10}
+                        className="w-full"
+                        aria-label="Usage limit"
+                    />
+                </Field>
+            </FieldGroup>
+        </FieldSet>
     );
 }

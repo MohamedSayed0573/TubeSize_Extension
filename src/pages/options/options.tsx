@@ -4,6 +4,7 @@ import Divider from "@pages/options/divider";
 import { OptionsFooter } from "@pages/options/optionsFooter";
 import ResolutionsOptions from "@pages/options/resolutionsOptions";
 import Spinner from "@components/spinner";
+import HeaderOptions from "./headerOptions";
 
 export default function Options() {
     const { query } = useOptions();
@@ -13,7 +14,9 @@ export default function Options() {
     if (isPending) return <Spinner />;
 
     return (
-        <>
+        <div className="w-72.5">
+            <HeaderOptions />
+
             <ResolutionsOptions optionsState={optionsState} />
 
             <Divider />
@@ -21,6 +24,6 @@ export default function Options() {
 
             <Divider />
             <OptionsFooter />
-        </>
+        </div>
     );
 }

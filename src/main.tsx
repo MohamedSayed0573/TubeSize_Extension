@@ -17,7 +17,6 @@ import "@fontsource-variable/jetbrains-mono/wght.css";
 import { StrictMode } from "react";
 import { PopupLayout } from "@layouts/popupLayout";
 import DashboardLayout from "@layouts/dashboardLayout";
-import { OptionsLayout } from "@layouts/optionsLayout";
 import { SiteDetailPage } from "@pages/dashboard/scope/siteDetailPage";
 
 const domRoot = document.querySelector("#root") as HTMLElement;
@@ -41,16 +40,14 @@ root.render(
                         />
                     </Route>
 
-                    <Route path="/options" element={<OptionsLayout />}>
-                        <Route
-                            index
-                            element={
-                                <ErrorBoundary FallbackComponent={OptionsErrorPage}>
-                                    <Options />
-                                </ErrorBoundary>
-                            }
-                        />
-                    </Route>
+                    <Route
+                        path="/options"
+                        element={
+                            <ErrorBoundary FallbackComponent={OptionsErrorPage}>
+                                <Options />
+                            </ErrorBoundary>
+                        }
+                    />
 
                     <Route
                         path="/dashboard"
