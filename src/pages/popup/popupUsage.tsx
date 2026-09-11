@@ -1,6 +1,6 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { chromeNavigate, getSiteIconUrl } from "@lib/utils";
-import { CalendarDays, ChevronRight, Globe } from "lucide-react";
+import { Calendar, ChevronRight, Globe } from "lucide-react";
 
 function splitSize(formatted: string): { value: string; unit: string } {
     const [value, unit] = formatted.split(" ");
@@ -49,10 +49,22 @@ export default function PopupUsage({ text, usage, navigateTo, variant, origin }:
 }
 
 function UsageIcon({ variant, origin }: { variant?: string; origin?: string }) {
-    if (variant === "todayUsage") return <CalendarDays className="size-6" strokeWidth={2} />;
+    if (variant === "todayUsage")
+        return (
+            <div className="relative">
+                <Calendar className="size-6.5" strokeWidth={2} />
+                <span className="absolute inset-0 flex items-center justify-center pt-1.5 text-[11px] font-semibold">
+                    {new Date().getDate()}
+                </span>
+            </div>
+        );
 
     const siteIconUrl = getSiteIconUrl(origin);
-    if (!siteIconUrl) return <Globe className="size-6" />;
+    if (!siteIconUrl) return <Globe className="size-6.5" />;
 
-    return <img src={siteIconUrl} className="h-full w-full object-cover" alt="" />;
+    return (
+        <div className="size-6.5">
+            <img src={siteIconUrl} className="h-full w-full object-cover" alt="" />
+        </div>
+    );
 }
