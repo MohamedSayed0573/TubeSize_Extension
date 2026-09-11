@@ -161,11 +161,6 @@ chrome.runtime.onMessage.addListener(
     },
 );
 
-/**
- * Returns the setting for the toaster threshold in MB per hour.
- * If the setting is not found or is invalid, it returns the default threshold defined in CONFIG.
- * @throws Will throw an error if there is an issue retrieving the setting from cache.
- */
 async function initYoutube(videoTag: string) {
     const scriptsArray = [...document.scripts];
     const ytInitialPlayerResponse = scriptsArray.find((script) => {
