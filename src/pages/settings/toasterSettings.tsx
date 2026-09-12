@@ -13,8 +13,10 @@ import {
 } from "@/components/ui/field";
 import { Slider } from "@components/ui/slider";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function ToasterSettings({ settingsState }: { settingsState: SettingsMap }) {
+    const { t } = useTranslation();
     const toasterThreshold = settingsState.toasterThreshold ?? CONFIG.DEFAULT_TOASTER_THRESHOLD;
     const isToasterEnabled = settingsState.toasterEnabled ?? CONFIG.DEFAULT_TOASTER_ENABLED;
     const [threshold, setThreshold] = useState(toasterThreshold);
@@ -24,9 +26,9 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
 
     return (
         <FieldSet>
-            <FieldLegend>Data Usage Alert</FieldLegend>
+            <FieldLegend>{t("settings.toaster.legend")}</FieldLegend>
             <FieldDescription className="text-xs text-zinc-400">
-                Show a warning when you watch a video that uses too much internet data.
+                {t("settings.toaster.description")}
             </FieldDescription>
 
             <FieldGroup
@@ -37,7 +39,7 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
             >
                 <Field orientation="horizontal">
                     <FieldLabel htmlFor="toasterThresholdToggle">
-                        Enable Data Usage Alert
+                        {t("settings.toaster.enable")}
                     </FieldLabel>
                     <Switch
                         id="toasterThresholdToggle"
@@ -54,7 +56,7 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
                         className="text-xs font-medium whitespace-nowrap"
                         htmlFor="toasterThreshold"
                     >
-                        Usage Limit (MB/hour): {threshold}
+                        {t("settings.toaster.usageLimit", { threshold })}
                     </FieldLabel>
                     <Slider
                         id="toasterThreshold"
@@ -67,7 +69,7 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
                         min={200}
                         step={10}
                         className={cn("w-full", !isToasterEnabled && "cursor-not-allowed")}
-                        aria-label="Usage limit"
+                        aria-label={t("settings.toaster.usageLimitAria")}
                         disabled={!isToasterEnabled}
                     />
                 </Field>

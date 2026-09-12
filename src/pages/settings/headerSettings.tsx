@@ -1,7 +1,9 @@
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 
 export default function HeaderSettings() {
+    const { t } = useTranslation();
     return (
         <div className="flex items-center justify-between border-b border-b-white/8 bg-neutral-900 p-3 pr-5">
             <Link
@@ -9,9 +11,9 @@ export default function HeaderSettings() {
                 to="/"
             >
                 <ArrowLeft size={16} />
-                Back
+                {t("settings.header.back")}
             </Link>
-            <h3 className="text-sm font-semibold">Settings</h3>
+            <h3 className="text-sm font-semibold">{t("settings.header.title")}</h3>
         </div>
     );
 }

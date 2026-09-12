@@ -18,6 +18,10 @@ import { StrictMode } from "react";
 import { PopupLayout } from "@layouts/popupLayout";
 import DashboardLayout from "@layouts/dashboardLayout";
 import { SiteDetailPage } from "@pages/dashboard/scope/siteDetailPage";
+import "./i18n/i18n";
+import { restorePersistedLanguage } from "./i18n/i18n";
+
+void restorePersistedLanguage();
 
 const domRoot = document.querySelector("#root") as HTMLElement;
 

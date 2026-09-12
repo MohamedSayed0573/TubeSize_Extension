@@ -5,6 +5,7 @@ import ResolutionsSettings from "@pages/settings/resolutionsSettings";
 import Spinner from "@components/spinner";
 import HeaderSettings from "./headerSettings";
 import { FieldSeparator } from "@components/ui/field";
+import { LanguageSettings } from "./langSettings";
 
 export default function Settings() {
     const { query } = useSettings();
@@ -18,6 +19,7 @@ export default function Settings() {
             <HeaderSettings />
 
             <div className="flex flex-col gap-2 px-3 py-2">
+                <LanguageSettings />
                 <ResolutionsSettings settingsState={settingsState} />
                 <FieldSeparator />
                 <ToasterSettings settingsState={settingsState} />
