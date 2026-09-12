@@ -1,4 +1,6 @@
 import { perHourDisplay, totalSizeVideoDisplay } from "@lib/formatting";
+import { useTranslation } from "react-i18next";
+import "../i18n/i18n";
 import "@styles/toast.css";
 
 export default function Toast({
@@ -16,29 +18,33 @@ export default function Toast({
     okOnClick: () => void;
     dontShowAgainOnClick: () => void;
 }) {
+    const { t } = useTranslation();
     return (
         <div className="container">
-            <div className="title">TubeSize | Warning: High Data Usage</div>
+            <div className="title">{t("toast.title")}</div>
             <div className="toast">
-                High Data Usage Detected for {currentQuality}p. It crosses the threshold specified
-                in your settings.
+                {t("toast.body", { quality: currentQuality })}
                 <div>
-                    <span className="current-quality">Current Quality: {currentQuality}p</span>
+                    <span className="current-quality">
+                        {t("toast.currentQuality", { quality: currentQuality })}
+                    </span>
                     <div className="toast-inner">
                         {!isLive && sizeBytes && (
-                            <span>Total Usage: {totalSizeVideoDisplay(sizeBytes)}</span>
+                            <span>
+                                {t("toast.totalUsage", { usage: totalSizeVideoDisplay(sizeBytes) })}
+                            </span>
                         )}
-                        <span>Per Hour Usage: {perHourDisplay(sizePerSecondBytes)}</span>
+                        <span>
+                            {t("toast.perHourUsage", { usage: perHourDisplay(sizePerSecondBytes) })}
+                        </span>
                     </div>
                 </div>
             </div>
             <div className="actions">
                 <button className="firstBtn" onClick={okOnClick}>
-                    OK
+                    {t("toast.ok")}
                 </button>
-                <button onClick={dontShowAgainOnClick}>
-                    Don&apos;t show again for this session
-                </button>
+                <button onClick={dontShowAgainOnClick}>{t("toast.dontShowAgain")}</button>
             </div>
         </div>
     );

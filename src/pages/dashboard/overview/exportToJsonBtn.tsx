@@ -2,6 +2,8 @@ import { Button } from "@components/ui/button";
 import { getAllSiteUsage, type SiteUsage } from "@/db";
 import { InvalidImportJson } from "@lib/errors";
 import * as z from "zod";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n/i18n";
 
 function filterUsage(siteUsage: SiteUsage[]) {
     return siteUsage.flatMap(({ day, usage }) => {
@@ -23,14 +25,16 @@ export function ExportToJsonBtn({
 }: {
     setError: React.Dispatch<React.SetStateAction<InvalidImportJson | undefined>>;
 }) {
+    const { t } = useTranslation();
+
     async function getData() {
         const siteUsage = await getAllSiteUsage();
         if (!siteUsage || siteUsage.length === 0)
-            return setError(new InvalidImportJson("There is no usage to export"));
+            return setError(new InvalidImportJson(i18n.t("dashboard.noUsageToExport")));
 
         const filteredUsage = filterUsage(siteUsage);
         if (filteredUsage.length === 0)
-            return setError(new InvalidImportJson("There is no usage to export"));
+            return setError(new InvalidImportJson(i18n.t("dashboard.noUsageToExport")));
 
         const json = JSON.stringify(filteredUsage);
         const blob = new Blob([json]);
@@ -53,7 +57,7 @@ export function ExportToJsonBtn({
                     .catch((err) => setError(err as Error));
             }}
         >
-            Export To JSON
+            {t("dashboard.exportJson")}
         </Button>
     );
 }

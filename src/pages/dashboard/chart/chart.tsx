@@ -9,10 +9,12 @@ import type { SiteUsage } from "@/db";
 import { formatBytes, getDomainName, getUsageNumber, parseDateKey } from "@lib/dashboardUtils";
 import type { DateKey } from "@app-types/types";
 import { getSiteColor } from "./siteColors";
+import i18n from "@/i18n/i18n";
+import { useTranslation } from "react-i18next";
 
 const chartConfig = {
     usage: {
-        label: "Usage (MB)",
+        label: "Usage",
         color: "var(--chart-1)",
     },
 } satisfies ChartConfig;
@@ -30,6 +32,7 @@ function ChartTooltipContentCustom({
     active?: boolean;
     payload?: TooltipPayloadEntry[];
 }) {
+    const { t } = useTranslation();
     const data = payload?.[0]?.payload;
     if (!active || !data) return null;
 
@@ -42,7 +45,7 @@ function ChartTooltipContentCustom({
         <div className="min-w-52 rounded-xl border border-neutral-800 bg-[#0a0a0a] px-3 py-2 text-xs shadow-xl">
             {/* Date header */}
             <div className="mb-1.5 font-medium text-stone-200">
-                {parseDateKey(data.date as DateKey).toLocaleDateString("en-US", {
+                {parseDateKey(data.date as DateKey).toLocaleDateString(i18n.language, {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
@@ -56,7 +59,7 @@ function ChartTooltipContentCustom({
                     <div className="flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                             <span className="size-3 shrink-0 rounded bg-white" />
-                            <span className="text-neutral-300">All</span>
+                            <span className="text-neutral-300">{t("dashboard.allSites")}</span>
                         </span>
                         <span className="font-mono text-stone-200">
                             {formatBytes(data.usage * 1024 * 1024)}
@@ -81,7 +84,9 @@ function ChartTooltipContentCustom({
                     ))}
 
                     {hiddenCount > 0 && (
-                        <span className="text-neutral-500">+{hiddenCount} more</span>
+                        <span className="text-neutral-500">
+                            {t("dashboard.moreSites", { count: hiddenCount })}
+                        </span>
                     )}
                 </>
             </div>
@@ -120,7 +125,7 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
                             minTickGap={32}
                             tickFormatter={(value: DateKey) => {
                                 const d = parseDateKey(value);
-                                return d.toLocaleDateString("en-CA", {
+                                return d.toLocaleDateString(i18n.language, {
                                     month: "short",
                                     day: "numeric",
                                 });

@@ -4,6 +4,7 @@ import type { SiteUsage } from "@/db";
 import { Activity, CalendarDays, CalendarRange, Database } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 
 function StatsCard({
     title,
@@ -16,6 +17,7 @@ function StatsCard({
     icon: LucideIcon;
     accentClass: string;
 }) {
+    const { t } = useTranslation();
     return (
         <div className="flex flex-col justify-center gap-2.5 rounded-lg border border-white/8 bg-[#1d1d1d] py-4 pr-2.5 pl-5.5 hover:cursor-pointer hover:bg-neutral-800">
             <div className="flex items-center gap-2 font-mono text-sm font-semibold text-teal-400 uppercase">
@@ -27,12 +29,12 @@ function StatsCard({
                 >
                     <Icon className="size-3.5" />
                 </span>
-                {title}
+                {t(`dashboard.${title}`)}
             </div>
             <div className="flex justify-between font-mono text-2xl font-bold text-stone-200">
                 {value}
                 <div className="flex items-end font-mono text-xs text-teal-600 underline">
-                    View Details →
+                    {t("dashboard.viewDetails")}
                 </div>
             </div>
         </div>
@@ -54,14 +56,14 @@ export function StatsRow({ usage }: { usage: SiteUsage[] }) {
         },
         {
             to: `/dashboard/week`,
-            title: "last 7 days",
+            title: "week",
             value: formatBytes(getUsageNumber(last7DaysUsage)),
             icon: CalendarRange,
             accentClass: "bg-emerald-500/10 text-emerald-400",
         },
         {
             to: `/dashboard/month`,
-            title: "last 30 days",
+            title: "month",
             value: formatBytes(getUsageNumber(last30DaysUsage)),
             icon: Activity,
             accentClass: "bg-violet-500/10 text-violet-400",

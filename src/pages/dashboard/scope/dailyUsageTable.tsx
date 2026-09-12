@@ -9,6 +9,7 @@ import {
     TableRow,
 } from "@components/ui/table";
 import { formatBytes } from "@lib/dashboardUtils";
+import { useTranslation } from "react-i18next";
 
 export interface DailyUsage {
     day: string;
@@ -22,6 +23,7 @@ export default function DailyUsageTable({
     usage: DailyUsage[];
     totalUsage: number;
 }) {
+    const { t } = useTranslation();
     return (
         <section className="flex-1 px-4 pt-4">
             <div className="mx-auto flex max-w-4xl flex-col overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900">
@@ -29,9 +31,13 @@ export default function DailyUsageTable({
                     <TableHeader className="bg-neutral-800/60 text-xs tracking-wider text-neutral-400 uppercase">
                         <TableRow className="border-neutral-800 hover:bg-transparent">
                             <TableHead className="w-14 px-3 py-3 text-center">#</TableHead>
-                            <TableHead className="px-4 py-3">Date</TableHead>
-                            <TableHead className="w-24 px-4 py-3 text-right">Share</TableHead>
-                            <TableHead className="w-32 px-4 py-3 text-right">Data used</TableHead>
+                            <TableHead className="px-4 py-3">{t("common.date")}</TableHead>
+                            <TableHead className="w-24 px-4 py-3 text-right">
+                                {t("common.share")}
+                            </TableHead>
+                            <TableHead className="w-32 px-4 py-3 text-right">
+                                {t("common.dataUsed")}
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -69,7 +75,7 @@ export default function DailyUsageTable({
                                 colSpan={2}
                                 className="px-8 py-3 text-left text-sm text-stone-200"
                             >
-                                Total
+                                {t("common.total")}
                             </TableHead>
                             <TableCell className="px-4 py-3" />
                             <TableCell className="px-4 py-3 text-right whitespace-nowrap text-stone-100">

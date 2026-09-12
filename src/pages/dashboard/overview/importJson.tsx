@@ -3,6 +3,7 @@ import { AlertDialogBasic } from "@components/alertDialogBasic";
 import type { InvalidImportJson } from "@lib/errors";
 import { ImportSchema } from "@lib/zodSchema";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 async function importJson() {
     return new Promise((resolve, reject) => {
@@ -38,12 +39,13 @@ export function ImportJson({
     setError: React.Dispatch<React.SetStateAction<InvalidImportJson | undefined>>;
 }) {
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
 
     return (
         <>
             <AlertDialogBasic
-                descriptionText="Importing usage will COMPLETELY REPLACE your usage. Are you sure you want to continue?"
-                buttonText="Import JSON"
+                descriptionText={t("dashboard.importWarning")}
+                buttonText={t("dashboard.importJson")}
                 className="w-full"
                 onConfirm={() => {
                     setError(undefined);

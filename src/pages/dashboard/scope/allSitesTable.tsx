@@ -10,8 +10,10 @@ import {
 } from "@components/ui/table";
 import { formatBytes, getDomainName } from "@lib/dashboardUtils";
 import { getSiteIconUrl } from "@lib/utils";
+import { useTranslation } from "react-i18next";
 
 export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
+    const { t } = useTranslation();
     const usageByOrigin = new Map<string, number>();
 
     for (const { usage: originUsage } of usage) {
@@ -30,9 +32,13 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
                     <TableHeader className="bg-neutral-800/60 text-xs tracking-wider text-neutral-400 uppercase">
                         <TableRow className="border-neutral-800 hover:bg-transparent">
                             <TableHead className="w-14 px-3 py-3 text-center">#</TableHead>
-                            <TableHead className="px-4 py-3">Website</TableHead>
-                            <TableHead className="w-40 px-4 py-3 text-right">Share</TableHead>
-                            <TableHead className="w-32 px-4 py-3 text-right">Data used</TableHead>
+                            <TableHead className="px-4 py-3">{t("common.website")}</TableHead>
+                            <TableHead className="w-40 px-4 py-3 text-right">
+                                {t("common.share")}
+                            </TableHead>
+                            <TableHead className="w-32 px-4 py-3 text-right">
+                                {t("common.dataUsed")}
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -55,7 +61,7 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
                                                     <img
                                                         src={iconUrl}
                                                         className="h-full w-full rounded-sm"
-                                                        alt="Website Icon"
+                                                        alt={t("common.website")}
                                                     />
                                                 </span>
                                             )}
@@ -84,7 +90,7 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
                                 colSpan={3}
                                 className="px-4 py-3 text-left text-sm text-stone-200"
                             >
-                                Total
+                                {t("common.total")}
                             </TableHead>
 
                             <TableCell className="px-4 py-3 text-right whitespace-nowrap text-stone-100">

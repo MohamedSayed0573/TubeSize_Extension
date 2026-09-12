@@ -3,6 +3,7 @@ import type { DateKey, UsageScope } from "@app-types/types";
 import { filesize } from "filesize";
 import { getDomain, getDomainWithoutSuffix } from "tldts";
 import { capitalize } from "./utils";
+import i18n from "../i18n/i18n";
 
 export function getUsageNumber(usage: SiteUsage[] | undefined): number {
     if (!usage) return 0;
@@ -47,7 +48,7 @@ export function parseDateKey(dateKey: DateKey): Date {
  * @example ["2023-05-15", "2023-05-16"] -> "May 15 – 16, 2023"
  */
 export function formatDate(date: DateKey | DateKey[]) {
-    const dtf = new Intl.DateTimeFormat("en-US", {
+    const dtf = new Intl.DateTimeFormat(i18n.language, {
         month: "short",
         day: "numeric",
         year: "numeric",

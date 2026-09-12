@@ -4,8 +4,10 @@ import InfoCard from "@components/infoCard";
 import YoutubeFormats from "@pages/popup/platforms/youtube/youtubeFormats";
 import Spinner from "@components/spinner";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
+import { useTranslation } from "react-i18next";
 
 export function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
+    const { t } = useTranslation();
     const { query, isYoutubeVideo } = useYoutubeData(tabUrl, tabId);
     const { isPending, isError, data, error } = query;
 
@@ -14,7 +16,7 @@ export function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: number }
             <>
                 <Header />
                 <PopupViewContainer>
-                    <InfoCard message="Open a Youtube video" />
+                    <InfoCard message={t("popup.openYoutubeVideo")} />
                 </PopupViewContainer>
             </>
         );

@@ -15,7 +15,7 @@ export function SettingsFooter() {
                         src="icons/github.svg"
                         width={14}
                         height={14}
-                        alt={t("settings.footer.githubAlt")}
+                        alt={t("common.githubAlt")}
                     />
                     @Mohamed Sayed
                 </a>
@@ -31,9 +31,9 @@ export function SettingsFooter() {
                         src="icons/support.svg"
                         width={14}
                         height={14}
-                        alt={t("settings.footer.supportAlt")}
+                        alt={t("common.supportAlt")}
                     />
-                    {t("settings.footer.support")}
+                    {t("common.support")}
                 </a>
             </div>
         </div>
