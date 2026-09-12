@@ -15,20 +15,23 @@ export function AlertDialogBasic({
     descriptionText,
     buttonText,
     disabled,
+    variant = "outline",
     className,
     onConfirm,
 }: {
     descriptionText: string;
     buttonText: string;
-    disabled: boolean;
+    disabled?: boolean;
     className?: string;
+    variant?:
+        "link" | "default" | "outline" | "secondary" | "ghost" | "destructive" | null | undefined;
     onConfirm: () => void;
 }) {
     return (
         <AlertDialog>
             <AlertDialogTrigger
                 render={
-                    <Button variant="outline" className={className} disabled={disabled}>
+                    <Button variant={variant} className={className} disabled={disabled}>
                         {buttonText}
                     </Button>
                 }

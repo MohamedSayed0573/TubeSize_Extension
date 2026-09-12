@@ -1,4 +1,4 @@
-import { formatDate } from "@lib/dashboardUtils";
+import { formatDate, isValidDateKey } from "@lib/dashboardUtils";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import VideosTableSkeleton from "@pages/dashboard/platform/videosTableSkeleton";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
@@ -40,21 +40,12 @@ function getScope(date: DateKey | undefined): UsageScope | undefined {
             range: date as UsageRange,
         };
     }
-    if (isValidDate(date)) {
+    if (isValidDateKey(date)) {
         return {
             type: "date",
             date,
         };
     }
-}
-
-function isValidDate(value: string): boolean {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        return false;
-    }
-
-    const date = new Date(`${value}T00:00:00`);
-    return !Number.isNaN(date.getTime());
 }
 
 export function ScopePage() {
@@ -66,7 +57,14 @@ export function ScopePage() {
     if (!scope) return <DashboardNotFound />;
     if (isPending) return <VideosTableSkeleton />;
     if (isError) throw error;
-    if (!usage) return <NoUsageData />;
+
+    if (!usage || usage.length === 0)
+        return (
+            <>
+                <DashboardHeader title={getTitle(scope)} totalDataUsage={0} />
+                <NoUsageData />
+            </>
+        );
 
     return (
         <>

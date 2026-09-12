@@ -19,7 +19,7 @@ export default function PlatformUsage() {
 
     const historyQuery = useWatchHistory(scope);
 
-    const watchHistory = historyQuery.data?.history;
+    const watchHistory = historyQuery.data?.history ?? [];
     const metadataQuery = useVideoMetadata();
 
     if (!platformId || !isPlatformId(platformId)) {
@@ -31,7 +31,6 @@ export default function PlatformUsage() {
     if (metadataQuery.isPending) return <VideosTableSkeleton />;
     if (metadataQuery.isError) throw metadataQuery.error;
 
-    if (!watchHistory) return <NoUsageData />;
     const metadata = metadataQuery.data ?? [];
 
     // Merge Watch History and Video Metadata into one Array shape.
@@ -83,7 +82,11 @@ export default function PlatformUsage() {
                 </div>
 
                 <div className="flex flex-1 flex-col rounded-2xl border border-neutral-800 bg-neutral-900">
-                    <VideosTable rows={rows} platform={platform} />
+                    {rows.length === 0 ? (
+                        <NoUsageData />
+                    ) : (
+                        <VideosTable rows={rows} platform={platform} />
+                    )}
                 </div>
             </div>
         </>

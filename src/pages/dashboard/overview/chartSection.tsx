@@ -4,6 +4,7 @@ import { NavLink } from "react-router";
 import { Chart } from "../chart/chart";
 import ChartSites from "../chart/chartSites";
 import { CalendarDays, Database, Globe, type LucideIcon } from "lucide-react";
+import NoUsageData from "../shared/noUsageData";
 
 function ChartSwitchBtn({
     to,
@@ -34,9 +35,13 @@ export function UsageChartSection({
     usage,
     chart,
 }: {
-    usage: SiteUsage[];
+    usage: SiteUsage[] | null;
     chart: "daily" | "sites";
 }) {
+    if (!usage) {
+        return <NoUsageData />;
+    }
+
     const dayCount = usage.length;
     return (
         <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-white/8 bg-[#1d1d1d] px-4 pt-3.5">
