@@ -98,6 +98,13 @@ export function isValidDateKey(value: string): boolean {
         return false;
     }
 
+    const [year, month, day] = value.split("-").map(Number);
+
     const date = new Date(`${value}T00:00:00`);
-    return !Number.isNaN(date.getTime());
+    if (Number.isNaN(date.getTime())) {
+        return false;
+    }
+
+    // If value is 2022-02-34, new Date() will normalize them instead of rejecting them. So we need to check manually
+    return date.getFullYear() === year && date.getMonth() + 1 === month && date.getDate() === day;
 }
