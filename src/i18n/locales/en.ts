@@ -103,7 +103,7 @@ export default {
             importJson: "Import JSON",
             importWarning:
                 "Importing usage will COMPLETELY REPLACE your usage. Are you sure you want to continue?",
-            noUsageToExport: "There is no usage to export",
+            noUsageToExport: "Nothing to export — start browsing to collect usage",
             bytesUsed: "{{size}} used",
         },
     },

@@ -37,7 +37,6 @@ export default function Popup() {
         }
     }
 
-    // Fallback for unsupported or restricted pages
     return (
         <>
             <Header />

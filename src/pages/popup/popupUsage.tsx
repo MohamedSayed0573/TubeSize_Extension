@@ -29,8 +29,8 @@ export default function PopupUsage({ text, usage, navigateTo, variant, origin }:
             </span>
             <span className="flex flex-1 flex-col gap-0.5">
                 <span className="truncate text-[13px] font-medium text-zinc-400">{text}</span>
-                <span>
-                    <span className="text-[13px] font-semibold text-zinc-50">{value}</span>
+                <span className="flex items-center">
+                    <span className="text-[13px] font-semibold text-white">{value}</span>
                     <span className="ms-1 text-[11px] font-medium text-zinc-400">{unit}</span>
                 </span>
             </span>

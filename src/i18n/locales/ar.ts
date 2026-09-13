@@ -106,7 +106,7 @@ export default {
             exportJson: "تصدير إلى JSON",
             importJson: "استيراد JSON",
             importWarning: "سيؤدي الاستيراد إلى استبدال جميع بياناتك بالكامل. هل تريد المتابعة؟",
-            noUsageToExport: "لا يوجد استهلاك للتصدير",
+            noUsageToExport: "لا يوجد شيء للتصدير — ابدأ التصفح لتجميع بيانات الاستهلاك",
             bytesUsed: "استُهلك {{size}}",
         },
     },
