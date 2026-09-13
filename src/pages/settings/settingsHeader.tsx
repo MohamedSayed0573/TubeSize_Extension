@@ -1,8 +1,8 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 
-export default function HeaderSettings() {
+export default function SettingsHeader() {
     const { t } = useTranslation();
     return (
         <div className="flex items-center justify-between border-b border-b-white/8 bg-neutral-900 p-3">
@@ -12,7 +12,7 @@ export default function HeaderSettings() {
                 to="/"
             >
                 {t("settings.header.back")}
-                <ArrowLeft size={16} className="rtl:rotate-180" />
+                <ArrowRight size={16} className="rtl:rotate-180" />
             </Link>
         </div>
     );
