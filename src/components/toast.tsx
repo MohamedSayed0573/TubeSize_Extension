@@ -19,8 +19,6 @@ export default function Toast({
     dontShowAgainOnClick: () => void;
 }) {
     const { t } = useTranslation();
-    // The toast renders inside the host page's document, so the direction and
-    // language are set on this container instead of the host <html> element.
     return (
         <div className="container" lang={i18nInstance.language} dir={i18nInstance.dir()}>
             <div className="title">{t("toast.title")}</div>

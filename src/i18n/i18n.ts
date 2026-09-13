@@ -27,13 +27,19 @@ function syncLanguage() {
     document.documentElement.dir = i18nInstance.dir(i18nInstance.language);
 }
 
-export async function applyDocumentLanguage() {
+export async function initLanguage() {
     const lang = (await getFromSyncCache("language")) ?? i18nInstance.language;
     await i18nInstance.changeLanguage(lang);
+}
+
+export async function applyDocumentLanguage() {
+    await initLanguage();
     syncLanguage();
 }
 
-i18nInstance.on("languageChanged", syncLanguage);
+export function startDocumentLanguageSync() {
+    i18nInstance.on("languageChanged", syncLanguage);
+}
 
 chrome.storage.sync.onChanged.addListener((changes) => {
     const lang = changes.language?.newValue;

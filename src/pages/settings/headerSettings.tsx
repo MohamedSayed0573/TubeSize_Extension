@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 
@@ -12,7 +12,7 @@ export default function HeaderSettings() {
                 to="/"
             >
                 {t("settings.header.back")}
-                <ArrowRight size={16} className="rtl:rotate-180" />
+                <ArrowLeft size={16} className="rtl:rotate-180" />
             </Link>
         </div>
     );

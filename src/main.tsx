@@ -20,8 +20,9 @@ import DashboardLayout from "@layouts/dashboardLayout";
 import { SiteDetailPage } from "@pages/dashboard/scope/siteDetailPage";
 import { AppProviders } from "@layouts/appProviders";
 import "./i18n/i18n";
-import { applyDocumentLanguage } from "./i18n/i18n";
+import { applyDocumentLanguage, startDocumentLanguageSync } from "./i18n/i18n";
 
+startDocumentLanguageSync();
 void applyDocumentLanguage();
 
 const domRoot = document.querySelector("#root") as HTMLElement;
