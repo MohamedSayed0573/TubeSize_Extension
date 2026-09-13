@@ -9,6 +9,7 @@ import {
     TableRow,
 } from "@components/ui/table";
 import { formatBytes } from "@lib/dashboardUtils";
+import { useTranslation } from "react-i18next";
 
 export interface DailyUsage {
     day: string;
@@ -22,16 +23,17 @@ export default function DailyUsageTable({
     usage: DailyUsage[];
     totalUsage: number;
 }) {
+    const { t } = useTranslation();
     return (
         <section className="flex-1 px-4 pt-4">
             <div className="mx-auto flex max-w-4xl flex-col overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900">
                 <Table className="font-mono text-sm">
                     <TableHeader className="bg-neutral-800/60 text-xs tracking-wider text-neutral-400 uppercase">
                         <TableRow className="border-neutral-800 hover:bg-transparent">
-                            <TableHead className="w-14 px-3 py-3 text-center">#</TableHead>
-                            <TableHead className="px-4 py-3">Date</TableHead>
-                            <TableHead className="w-24 px-4 py-3 text-right">Share</TableHead>
-                            <TableHead className="w-32 px-4 py-3 text-right">Data used</TableHead>
+                            <TableHead className="text-center">#</TableHead>
+                            <TableHead>{t("common.date")}</TableHead>
+                            <TableHead className="w-20/100">{t("common.share")}</TableHead>
+                            <TableHead className="w-30/100">{t("common.dataUsed")}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -39,24 +41,18 @@ export default function DailyUsageTable({
                             return (
                                 <TableRow
                                     key={day}
-                                    className="border-neutral-800/80 transition-colors hover:bg-neutral-800/50"
+                                    className="border-neutral-800/80 text-stone-200 transition-colors hover:bg-neutral-800/50"
                                 >
-                                    <TableCell className="px-3 py-3 text-center text-neutral-500">
+                                    <TableCell className="text-center text-neutral-500">
                                         {index + 1}
                                     </TableCell>
-                                    <TableCell className="px-4 py-3">
-                                        <div className="group flex min-w-0 items-center gap-2.5">
-                                            <Link to={`/dashboard/${day}`}>
-                                                <span className="block truncate text-stone-200 underline-offset-2 transition-colors hover:text-teal-200 hover:underline">
-                                                    {day}
-                                                </span>
-                                            </Link>
-                                        </div>
+                                    <TableCell className="hover:underline">
+                                        <Link to={`/dashboard/${day}`}>{day}</Link>
                                     </TableCell>
-                                    <TableCell className="truncate px-4 py-3 text-right text-neutral-400">
+                                    <TableCell className="text-neutral-400">
                                         {((bytes / totalUsage) * 100).toFixed(1)}%
                                     </TableCell>
-                                    <TableCell className="px-4 py-3 text-right font-medium whitespace-nowrap text-stone-200">
+                                    <TableCell className="font-medium">
                                         {formatBytes(bytes)}
                                     </TableCell>
                                 </TableRow>
@@ -65,14 +61,10 @@ export default function DailyUsageTable({
                     </TableBody>
                     <TableFooter className="border-neutral-800 bg-neutral-800/40">
                         <TableRow className="border-0 hover:bg-transparent">
-                            <TableHead
-                                colSpan={2}
-                                className="px-8 py-3 text-left text-sm text-stone-200"
-                            >
-                                Total
+                            <TableHead colSpan={2} className="text-center text-sm text-stone-200">
+                                {t("common.total")}
                             </TableHead>
-                            <TableCell className="px-4 py-3" />
-                            <TableCell className="px-4 py-3 text-right whitespace-nowrap text-stone-100">
+                            <TableCell className="text-center text-stone-100" colSpan={2}>
                                 {formatBytes(totalUsage)}
                             </TableCell>
                         </TableRow>

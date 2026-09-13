@@ -26,6 +26,7 @@ import { getKickHtml, getKickStreamId } from "@lib/kick";
 import type { KickBackgroundResponse } from "@app-types/platforms.types";
 import { waitForElement } from "@lib/dom";
 import type { WindowMessage } from "@app-types/types";
+import { initLanguage } from "@/i18n/i18n";
 
 function getCurrentUrl() {
     return location.href;
@@ -127,6 +128,7 @@ async function isToasterEnabled() {
     return (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
 }
 
+void initLanguage();
 void handlePageNavigation();
 
 type ResponseMessage = (number | undefined) | KickBackgroundResponse;

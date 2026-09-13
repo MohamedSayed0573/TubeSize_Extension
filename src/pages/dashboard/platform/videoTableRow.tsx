@@ -5,6 +5,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import type { DateKey, PlatformId } from "@app-types/types";
 
 import { TableCell, TableRow } from "@/components/ui/table";
+import { useTranslation } from "react-i18next";
 
 const PLACEHOLDER_IMAGE = "/thumbnail-placeholder.svg";
 
@@ -51,6 +52,7 @@ export default function VideoTableRow({
     index: number;
     platform: PlatformId;
 }) {
+    const { t } = useTranslation();
     const { date, usage } = videoDetails;
     const url = getVideoUrl(platform, videoDetails.videoTag, videoDetails.contentType);
     const channelUrl = getChannelUrl(platform, videoDetails.channelName);
@@ -60,15 +62,15 @@ export default function VideoTableRow({
 
     return (
         <TableRow className="text-stone-200 hover:cursor-pointer hover:bg-neutral-800">
-            <TableCell className="px-3 py-3 text-center">{index}</TableCell>
+            <TableCell className="p-3 text-center text-neutral-500">{index}</TableCell>
 
             <TableCell className="flex items-center gap-5 p-3">
-                <AspectRatio ratio={16 / 9} className="w-30 shrink-0">
+                <AspectRatio ratio={16 / 9} className="w-32">
                     <a target="_blank" rel="noreferrer" href={url}>
                         <img
                             className="h-full w-full rounded-lg object-cover"
                             src={imageUrl}
-                            alt="Video Thumbnail"
+                            alt={t("common.video")}
                             onError={(e) => {
                                 e.currentTarget.src = PLATFORM_PLACEHOLDER_IMAGE[platform];
                             }}
@@ -109,7 +111,7 @@ export default function VideoTableRow({
                 </div>
             </TableCell>
 
-            <TableCell className="text-base">{formatBytes(usage)}</TableCell>
+            <TableCell className="text-center text-base">{formatBytes(usage)}</TableCell>
         </TableRow>
     );
 }

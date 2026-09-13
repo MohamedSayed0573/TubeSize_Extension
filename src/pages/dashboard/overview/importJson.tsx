@@ -1,8 +1,11 @@
 import { setAllSiteUsage, type SiteUsage } from "@/db";
 import { AlertDialogBasic } from "@components/alertDialogBasic";
+import { Button } from "@components/ui/button";
+import { useSiteUsage } from "@hooks/useSiteUsage";
 import type { InvalidImportJson } from "@lib/errors";
 import { ImportSchema } from "@lib/zodSchema";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 async function importJson() {
     return new Promise((resolve, reject) => {
@@ -38,23 +41,34 @@ export function ImportJson({
     setError: React.Dispatch<React.SetStateAction<InvalidImportJson | undefined>>;
 }) {
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
+
+    const handleImport = () => {
+        setError(undefined);
+        importJson()
+            .then(() => void queryClient.invalidateQueries({ queryKey: ["siteUsage"] }))
+            .catch((err) => {
+                console.log(err);
+                setError(err as Error);
+            });
+    };
+
+    const siteUsageQuery = useSiteUsage();
+    const siteUsage = siteUsageQuery.data;
+
+    if (!siteUsage || siteUsage.length === 0)
+        return (
+            <Button variant="outline" onClick={handleImport} className="w-full">
+                {t("dashboard.importJson")}
+            </Button>
+        );
 
     return (
-        <>
-            <AlertDialogBasic
-                descriptionText="Importing usage will COMPLETELY REPLACE your usage. Are you sure you want to continue?"
-                buttonText="Import JSON"
-                className="w-full"
-                onConfirm={() => {
-                    setError(undefined);
-                    importJson()
-                        .then(() => void queryClient.invalidateQueries({ queryKey: ["siteUsage"] }))
-                        .catch((err) => {
-                            console.log(err);
-                            setError(err as Error);
-                        });
-                }}
-            />
-        </>
+        <AlertDialogBasic
+            descriptionText={t("dashboard.importWarning")}
+            buttonText={t("dashboard.importJson")}
+            className="w-full"
+            onConfirm={handleImport}
+        />
     );
 }

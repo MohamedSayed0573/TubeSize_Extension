@@ -2,11 +2,13 @@ import type { PopupData } from "@app-types/uiTypes";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
 import { chromeNavigate, humanizeDuration } from "@lib/utils";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
-function getYoutubeTitle(youtubeData?: YoutubeData | null): string {
+function getYoutubeTitle(youtubeData: YoutubeData | null | undefined, t: TFunction): string {
     return youtubeData?.type === "video"
-        ? youtubeData.title || "YouTube Video"
-        : youtubeData?.channelName || "YouTube Live";
+        ? youtubeData.title || t("popup.youtubeVideo")
+        : youtubeData?.channelName || t("popup.youtubeLive");
 }
 
 function getYoutubeDuration(youtubeData?: YoutubeData | null): string | undefined {
@@ -15,7 +17,7 @@ function getYoutubeDuration(youtubeData?: YoutubeData | null): string | undefine
         : undefined;
 }
 
-function getTwitchTitle(twitchData?: TwitchData | null): string {
+function getTwitchTitle(twitchData: TwitchData | null | undefined, t: TFunction): string {
     if (!twitchData) {
         return "Twitch";
     }
@@ -24,7 +26,7 @@ function getTwitchTitle(twitchData?: TwitchData | null): string {
         return twitchData.channelName;
     }
 
-    return "Twitch Video";
+    return t("popup.twitchVideo");
 }
 
 function getTwitchDuration(twitchData?: TwitchData | null): string | undefined {
@@ -59,18 +61,19 @@ interface Props {
 
 export default function Header({ data }: Props) {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const isLive = data?.data.type === "live";
     let title: string;
     let duration: string | undefined;
 
     switch (data?.platform) {
         case "youtube": {
-            title = getYoutubeTitle(data.data);
+            title = getYoutubeTitle(data.data, t);
             duration = getYoutubeDuration(data.data);
             break;
         }
         case "twitch": {
-            title = getTwitchTitle(data.data);
+            title = getTwitchTitle(data.data, t);
             duration = getTwitchDuration(data.data);
             break;
         }
@@ -93,7 +96,9 @@ export default function Header({ data }: Props) {
                 {isLive && (
                     <div className="flex items-center gap-1">
                         <span className="size-2 animate-pulse rounded-full bg-red-600"></span>
-                        <span className="animate-pulse text-sm font-bold text-red-500">Live</span>
+                        <span className="animate-pulse text-sm font-bold text-red-500">
+                            {t("popup.live")}
+                        </span>
                     </div>
                 )}
                 {duration && (
@@ -105,13 +110,13 @@ export default function Header({ data }: Props) {
                     className="flex-1 cursor-pointer rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
                     onClick={() => void navigate("/settings")}
                 >
-                    Settings
+                    {t("popup.settings")}
                 </button>
                 <button
                     className="flex-2 cursor-pointer rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
                     onClick={() => chromeNavigate("dashboard")}
                 >
-                    Dashboard
+                    {t("popup.dashboard")}
                 </button>
             </div>
         </div>

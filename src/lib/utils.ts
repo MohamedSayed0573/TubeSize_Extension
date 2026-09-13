@@ -3,6 +3,7 @@ import humanize from "humanize-duration";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { PlatformId } from "@app-types/types";
+import i18n from "../i18n/i18n";
 
 export function isPlatformId(id: string): id is PlatformId {
     return (CONFIG.PLATFORMS as readonly string[]).includes(id);
@@ -234,7 +235,6 @@ export async function fetchAndRetry(
 }
 
 const baseHumanizeDuration = humanize.humanizer({
-    language: "shortEn",
     round: true,
     largest: 2,
     languages: {
@@ -248,14 +248,25 @@ const baseHumanizeDuration = humanize.humanizer({
             s: () => "s",
             ms: () => "ms",
         },
+        shortAr: {
+            y: () => "س",
+            mo: () => "ش",
+            w: () => "أ",
+            d: () => "ي",
+            h: () => "س",
+            m: () => "د",
+            s: () => "ث",
+            ms: () => "مث",
+        },
     },
 });
 
 export function humanizeDuration(ms: number) {
+    const language = i18n.language.startsWith("ar") ? "shortAr" : "shortEn";
     if (ms >= 60_000 && ms < 3_600_000) {
-        return baseHumanizeDuration(Math.floor(ms / 60_000) * 60_000);
+        return baseHumanizeDuration(Math.floor(ms / 60_000) * 60_000, { language });
     }
-    return baseHumanizeDuration(ms);
+    return baseHumanizeDuration(ms, { language });
 }
 
 export async function delay(ms: number): Promise<void> {

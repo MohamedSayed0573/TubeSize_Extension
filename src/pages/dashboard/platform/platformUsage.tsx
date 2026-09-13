@@ -10,9 +10,12 @@ import { useWatchHistory } from "@hooks/useWatchHistory";
 import { capitalize, isPlatformId } from "@lib/utils";
 import DashboardNotFound from "../shared/notFound";
 import type { PlatformId, UsageScope } from "@app-types/types";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 export default function PlatformUsage() {
     const { platformId } = useParams();
+    const { t } = useTranslation();
 
     const [searchParams] = useSearchParams();
     const scope = parseUsageScope(searchParams);
@@ -64,7 +67,7 @@ export default function PlatformUsage() {
 
     return (
         <>
-            <DashboardHeader title={getTitle(scope, platform)} totalDataUsage={totalDataUsage} />
+            <DashboardHeader title={getTitle(scope, platform, t)} totalDataUsage={totalDataUsage} />
             <div className="flex flex-1 flex-col bg-neutral-950 p-8">
                 <div className="mb-4 flex flex-wrap items-center gap-4">
                     <PlatformLogo platform={platform} />
@@ -75,8 +78,8 @@ export default function PlatformUsage() {
                         </span>
                         <span className="rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 font-mono text-xs text-stone-400">
                             {rows.length === 0
-                                ? "No videos yet"
-                                : `${rows.length} ${rows.length === 1 ? "video" : "videos"}`}
+                                ? t("dashboard.noVideos")
+                                : t("dashboard.videosCount", { count: rows.length })}
                         </span>
                     </div>
                 </div>
@@ -93,15 +96,19 @@ export default function PlatformUsage() {
     );
 }
 
-function getTitle(scope: UsageScope, platform: PlatformId) {
-    let second = "";
+function getTitle(scope: UsageScope, platform: PlatformId, t: TFunction) {
+    const label = capitalize(platform);
     if (scope.type === "range") {
-        if (scope.range === "today") second = "today";
-        else if (scope.range === "week") second = "this week";
-        else if (scope.range === "month") second = "this month";
-    } else {
-        second = `on ${scope.date}`;
+        if (scope.range === "today")
+            return t("dashboard.titleOnPlatformToday", { platform: label });
+        if (scope.range === "week") return t("dashboard.titleOnPlatformWeek", { platform: label });
+        if (scope.range === "month")
+            return t("dashboard.titleOnPlatformMonth", { platform: label });
+        return t("dashboard.titleOnPlatformLifetime", { platform: label });
     }
 
-    return `Total Usage ${second} on ${capitalize(platform)}`;
+    return t("dashboard.titleOnPlatformDate", {
+        date: scope.date,
+        platform: label,
+    });
 }

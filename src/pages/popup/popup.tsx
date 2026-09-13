@@ -7,8 +7,10 @@ import { YoutubeView } from "@pages/popup/platforms/youtube/youtubeView";
 import { TwitchView } from "@pages/popup/platforms/twitch/twitchView";
 import { KickView } from "@pages/popup/platforms/kick/kickView";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
+import { useTranslation } from "react-i18next";
 
 export default function Popup() {
+    const { t } = useTranslation();
     const { data: tab, error, isPending, isError } = useTab();
     if (isError) throw error;
     if (isPending) {
@@ -35,12 +37,11 @@ export default function Popup() {
         }
     }
 
-    // Fallback for unsupported or restricted pages
     return (
         <>
             <Header />
             <PopupViewContainer>
-                <InfoCard message="TubeSize works on YouTube, Twitch and Kick." />
+                <InfoCard message={t("popup.unsupportedPage")} />
             </PopupViewContainer>
         </>
     );
