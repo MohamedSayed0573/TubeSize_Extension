@@ -1,6 +1,7 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { chromeNavigate, getSiteIconUrl } from "@lib/utils";
-import { Calendar, ChevronRight, Globe } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Globe } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 function splitSize(formatted: string): { value: string; unit: string } {
     const [value, unit] = formatted.split(" ");
@@ -33,7 +34,7 @@ export default function PopupUsage({ text, usage, navigateTo, variant, origin }:
                     <span className="ml-1 text-[11px] font-medium text-zinc-400">{unit}</span>
                 </span>
             </span>
-            <ChevronRight className="size-4 text-zinc-600 transition-all duration-150 group-hover:translate-x-px group-hover:text-zinc-300" />
+            <ArrowIcon />
         </>
     );
 
@@ -41,10 +42,20 @@ export default function PopupUsage({ text, usage, navigateTo, variant, origin }:
         <button
             type="button"
             onClick={() => chromeNavigate(navigateTo)}
-            className="group flex w-full cursor-pointer items-center gap-2.5 rounded-md border border-white/8 bg-white/4 px-3 py-2 text-left transition-all duration-150 hover:border-white/15 hover:bg-white/8"
+            className="group flex w-full cursor-pointer items-center gap-2.5 rounded-md border border-white/8 bg-white/4 px-3 py-2 text-start transition-all duration-150 hover:border-white/15 hover:bg-white/8"
         >
             {content}
         </button>
+    );
+}
+
+function ArrowIcon() {
+    const { i18n } = useTranslation();
+    const lang = i18n.dir();
+
+    const Icon = lang === "ltr" ? ChevronRight : ChevronLeft;
+    return (
+        <Icon className="size-4 text-zinc-600 transition-all duration-150 group-hover:translate-x-px group-hover:text-zinc-300" />
     );
 }
 

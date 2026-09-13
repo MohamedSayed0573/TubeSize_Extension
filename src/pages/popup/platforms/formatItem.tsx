@@ -19,6 +19,7 @@ export default function FormatItem({ item, isShorts, currentQuality }: Props) {
                 "flex cursor-pointer items-center justify-between rounded-lg border border-teal-950 bg-stone-800 px-3 py-2.5 hover:border-teal-800",
                 { "bg-red-800/80 hover:border-red-600": resolution === currentQuality },
             )}
+            dir="ltr"
         >
             <div className="flex items-center justify-between">
                 <div className="pr-2.5 text-sm font-semibold text-white"> {resolution}p </div>
