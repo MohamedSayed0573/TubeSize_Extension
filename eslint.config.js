@@ -75,6 +75,7 @@ export default defineConfig([
             "unicorn/no-break-in-nested-loop": "off",
             "unicorn/no-for-each": "off",
             "unicorn/prefer-array-from-map": "off",
+            "unicorn/no-top-level-side-effects": "off",
         },
     },
     {

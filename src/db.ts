@@ -41,7 +41,6 @@ const database = new Dexie("TubeSize") as Dexie & {
     videoMetaData: Table<VideoMetadata, string>;
 };
 
-// eslint-disable-next-line unicorn/no-top-level-side-effects
 database.version(1).stores({
     siteUsage: "day",
     watchHistory: "day",

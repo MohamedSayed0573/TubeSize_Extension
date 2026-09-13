@@ -1,6 +1,6 @@
 import { perHourDisplay, totalSizeVideoDisplay } from "@lib/formatting";
 import { useTranslation } from "react-i18next";
-import "../i18n/i18n";
+import i18nInstance from "../i18n/i18n";
 import "@styles/toast.css";
 
 export default function Toast({
@@ -19,8 +19,10 @@ export default function Toast({
     dontShowAgainOnClick: () => void;
 }) {
     const { t } = useTranslation();
+    // The toast renders inside the host page's document, so the direction and
+    // language are set on this container instead of the host <html> element.
     return (
-        <div className="container">
+        <div className="container" lang={i18nInstance.language} dir={i18nInstance.dir()}>
             <div className="title">{t("toast.title")}</div>
             <div className="toast">
                 {t("toast.body", { quality: currentQuality })}

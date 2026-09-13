@@ -109,3 +109,12 @@ export function isValidDateKey(value: string): boolean {
     // If value is 2022-02-34, new Date() will normalize them instead of rejecting them. So we need to check manually
     return date.getFullYear() === year && date.getMonth() + 1 === month && date.getDate() === day;
 }
+
+const LANGUAGE_TO_INTL_LOCALE: Record<string, string> = {
+    ar: "ar-EG",
+    en: "en-US",
+};
+
+export function getFormattingLocale(): string {
+    return LANGUAGE_TO_INTL_LOCALE[i18n.language] ?? i18n.language;
+}

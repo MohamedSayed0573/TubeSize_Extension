@@ -6,10 +6,15 @@ import "@styles/chart.css";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@components/ui/chart";
 import type { SiteUsage } from "@/db";
-import { formatBytes, getDomainName, getUsageNumber, parseDateKey } from "@lib/dashboardUtils";
+import {
+    formatBytes,
+    getDomainName,
+    getFormattingLocale,
+    getUsageNumber,
+    parseDateKey,
+} from "@lib/dashboardUtils";
 import type { DateKey } from "@app-types/types";
 import { getSiteColor } from "./siteColors";
-import i18n from "@/i18n/i18n";
 import { useTranslation } from "react-i18next";
 
 const chartConfig = {
@@ -45,7 +50,7 @@ function ChartTooltipContentCustom({
         <div className="min-w-52 rounded-xl border border-neutral-800 bg-[#0a0a0a] px-3 py-2 text-xs shadow-xl">
             {/* Date header */}
             <div className="mb-1.5 font-medium text-stone-200">
-                {parseDateKey(data.date as DateKey).toLocaleDateString(i18n.language, {
+                {parseDateKey(data.date as DateKey).toLocaleDateString(getFormattingLocale(), {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
@@ -107,7 +112,11 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
     return (
         <Card className="my-2 flex min-h-0 flex-1 flex-col bg-[#1d1d1d] py-0 ring-0">
             <CardContent className="flex min-h-0 flex-1 flex-col px-2 sm:p-3">
-                <ChartContainer config={chartConfig} className="aspect-auto min-h-0 w-full flex-1">
+                <ChartContainer
+                    config={chartConfig}
+                    dir="ltr"
+                    className="aspect-auto min-h-0 w-full flex-1"
+                >
                     <BarChart
                         accessibilityLayer
                         data={usageData}
@@ -125,7 +134,7 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
                             minTickGap={32}
                             tickFormatter={(value: DateKey) => {
                                 const d = parseDateKey(value);
-                                return d.toLocaleDateString(i18n.language, {
+                                return d.toLocaleDateString(getFormattingLocale(), {
                                     month: "short",
                                     day: "numeric",
                                 });
