@@ -54,9 +54,9 @@ export function ImportJson({
     };
 
     const siteUsageQuery = useSiteUsage();
-    const siteUsage = siteUsageQuery?.data;
+    const siteUsage = siteUsageQuery.data;
 
-    if (!siteUsage || siteUsage?.length === 0)
+    if (!siteUsage || siteUsage.length === 0)
         return (
             <Button variant="outline" onClick={handleImport} className="w-full">
                 {t("dashboard.importJson")}

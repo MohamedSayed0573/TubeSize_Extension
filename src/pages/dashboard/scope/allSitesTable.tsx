@@ -42,6 +42,7 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
                             const share = totalUsage ? (bytes / totalUsage) * 100 : 0;
                             return (
                                 <SiteRow
+                                    key={origin}
                                     index={index}
                                     origin={origin}
                                     share={share}
