@@ -20,6 +20,7 @@ export default function Settings() {
 
             <div className="flex flex-col gap-2 px-3 py-2">
                 <LanguageSettings />
+                <FieldSeparator />
                 <ResolutionsSettings settingsState={settingsState} />
                 <FieldSeparator />
                 <ToasterSettings settingsState={settingsState} />

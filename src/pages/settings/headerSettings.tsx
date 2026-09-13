@@ -1,10 +1,9 @@
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 
 export default function HeaderSettings() {
-    const { t, i18n } = useTranslation();
-    const Icon = i18n.dir() === "ltr" ? ArrowRight : ArrowLeft;
+    const { t } = useTranslation();
     return (
         <div className="flex items-center justify-between border-b border-b-white/8 bg-neutral-900 p-3">
             <h3 className="text-base font-semibold">{t("settings.header.title")}</h3>
@@ -13,7 +12,7 @@ export default function HeaderSettings() {
                 to="/"
             >
                 {t("settings.header.back")}
-                <Icon size={16} />
+                <ArrowRight size={16} className="rtl:rotate-180" />
             </Link>
         </div>
     );

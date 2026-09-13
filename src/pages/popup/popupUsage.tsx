@@ -31,7 +31,7 @@ export default function PopupUsage({ text, usage, navigateTo, variant, origin }:
                 <span className="truncate text-[13px] font-medium text-zinc-400">{text}</span>
                 <span>
                     <span className="text-[13px] font-semibold text-zinc-50">{value}</span>
-                    <span className="ml-1 text-[11px] font-medium text-zinc-400">{unit}</span>
+                    <span className="ms-1 text-[11px] font-medium text-zinc-400">{unit}</span>
                 </span>
             </span>
             <ArrowIcon />

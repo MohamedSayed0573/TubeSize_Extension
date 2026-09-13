@@ -20,7 +20,7 @@ export default function VideosTable({
             <TableHeader className="uppercase">
                 <TableRow>
                     <TableHead className="text-center">#</TableHead>
-                    <TableHead>{t("common.video")}</TableHead>
+                    <TableHead className="ps-4">{t("common.video")}</TableHead>
                     <TableHead>{t("common.dataUsed")}</TableHead>
                 </TableRow>
             </TableHeader>

@@ -18,8 +18,15 @@ import { StrictMode } from "react";
 import { PopupLayout } from "@layouts/popupLayout";
 import DashboardLayout from "@layouts/dashboardLayout";
 import { SiteDetailPage } from "@pages/dashboard/scope/siteDetailPage";
+import { DirectionProvider } from "@/components/ui/direction";
 import "./i18n/i18n";
 import { applyDocumentLanguage } from "./i18n/i18n";
+import { useTranslation } from "react-i18next";
+
+function AppProviders({ children }: { children: React.ReactNode }) {
+    const { i18n } = useTranslation();
+    return <DirectionProvider direction={i18n.dir()}>{children}</DirectionProvider>;
+}
 
 void applyDocumentLanguage();
 
@@ -30,47 +37,49 @@ const queryClient = new QueryClient();
 
 root.render(
     <StrictMode>
-        <QueryClientProvider client={queryClient}>
-            <HashRouter>
-                <Routes>
-                    <Route path="/" element={<PopupLayout />}>
+        <AppProviders>
+            <QueryClientProvider client={queryClient}>
+                <HashRouter>
+                    <Routes>
+                        <Route path="/" element={<PopupLayout />}>
+                            <Route
+                                index
+                                element={
+                                    <ErrorBoundary FallbackComponent={PopupErrorPage}>
+                                        <Popup />
+                                    </ErrorBoundary>
+                                }
+                            />
+                        </Route>
+
                         <Route
-                            index
+                            path="/settings"
                             element={
-                                <ErrorBoundary FallbackComponent={PopupErrorPage}>
-                                    <Popup />
+                                <ErrorBoundary FallbackComponent={SettingsErrorPage}>
+                                    <Settings />
                                 </ErrorBoundary>
                             }
                         />
-                    </Route>
 
-                    <Route
-                        path="/settings"
-                        element={
-                            <ErrorBoundary FallbackComponent={SettingsErrorPage}>
-                                <Settings />
-                            </ErrorBoundary>
-                        }
-                    />
-
-                    <Route
-                        path="/dashboard"
-                        element={
-                            <ErrorBoundary FallbackComponent={DashboardErrorPage}>
-                                <DashboardLayout />
-                            </ErrorBoundary>
-                        }
-                    >
-                        <Route index element={<Navigate to="daily" replace />} />
-                        <Route path="daily" element={<Dashboard chart={"daily"} />} />
-                        <Route path="sites" element={<Dashboard chart={"sites"} />} />
-                        <Route path=":date" element={<ScopePage />} />
-                        <Route path="platform/:platformId" element={<PlatformUsage />} />
-                        <Route path="site/:siteName" element={<SiteDetailPage />} />
-                        <Route path="*" element={<DashboardNotFound />} />
-                    </Route>
-                </Routes>
-            </HashRouter>
-        </QueryClientProvider>
+                        <Route
+                            path="/dashboard"
+                            element={
+                                <ErrorBoundary FallbackComponent={DashboardErrorPage}>
+                                    <DashboardLayout />
+                                </ErrorBoundary>
+                            }
+                        >
+                            <Route index element={<Navigate to="daily" replace />} />
+                            <Route path="daily" element={<Dashboard chart={"daily"} />} />
+                            <Route path="sites" element={<Dashboard chart={"sites"} />} />
+                            <Route path=":date" element={<ScopePage />} />
+                            <Route path="platform/:platformId" element={<PlatformUsage />} />
+                            <Route path="site/:siteName" element={<SiteDetailPage />} />
+                            <Route path="*" element={<DashboardNotFound />} />
+                        </Route>
+                    </Routes>
+                </HashRouter>
+            </QueryClientProvider>
+        </AppProviders>
     </StrictMode>,
 );

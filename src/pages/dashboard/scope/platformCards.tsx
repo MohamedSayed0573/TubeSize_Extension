@@ -57,7 +57,7 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
                                 {t("dashboard.bytesUsed", { size: formatBytes(bytes) })}
                             </span>
                         </div>
-                        <ArrowRight className="size-4 shrink-0 text-teal-500 opacity-0 transition-opacity group-hover:opacity-100" />
+                        <ArrowRight className="size-4 shrink-0 text-teal-500 opacity-0 transition-opacity group-hover:opacity-100 rtl:rotate-180" />
                     </Link>
                 );
             })}

@@ -35,4 +35,11 @@ export async function applyDocumentLanguage() {
 
 i18nInstance.on("languageChanged", syncLanguage);
 
+chrome.storage.sync.onChanged.addListener((changes) => {
+    const lang = changes.language?.newValue;
+    if (typeof lang === "string" && lang !== i18nInstance.language) {
+        void i18nInstance.changeLanguage(lang);
+    }
+});
+
 export default i18nInstance;

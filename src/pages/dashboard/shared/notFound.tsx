@@ -18,7 +18,7 @@ export default function DashboardNotFound() {
                         size={"lg"}
                         className="font-mono"
                     >
-                        <ArrowLeft className="size-4" />
+                        <ArrowLeft className="size-4 rtl:rotate-180" />
                         {t("common.backToDashboard")}
                     </ButtonLink>
                 </div>

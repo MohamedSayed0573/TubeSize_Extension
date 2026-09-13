@@ -62,10 +62,10 @@ export default function VideoTableRow({
 
     return (
         <TableRow className="text-stone-200 hover:cursor-pointer hover:bg-neutral-800">
-            <TableCell className="px-3 py-3 text-center">{index}</TableCell>
+            <TableCell className="p-3 text-center text-neutral-500">{index}</TableCell>
 
             <TableCell className="flex items-center gap-5 p-3">
-                <AspectRatio ratio={16 / 9} className="w-30 shrink-0">
+                <AspectRatio ratio={16 / 9} className="w-32">
                     <a target="_blank" rel="noreferrer" href={url}>
                         <img
                             className="h-full w-full rounded-lg object-cover"
@@ -111,7 +111,7 @@ export default function VideoTableRow({
                 </div>
             </TableCell>
 
-            <TableCell className="text-base">{formatBytes(usage)}</TableCell>
+            <TableCell className="text-center text-base">{formatBytes(usage)}</TableCell>
         </TableRow>
     );
 }

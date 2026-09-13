@@ -1,4 +1,4 @@
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLegend } from "@/components/ui/field";
 import {
     Select,
     SelectContent,
@@ -24,8 +24,8 @@ export function LanguageSettings() {
     };
 
     return (
-        <Field className="w-full max-w-xs">
-            <FieldLabel>{t("settings.language.label")}</FieldLabel>
+        <Field>
+            <FieldLegend>{t("settings.language.label")}</FieldLegend>
             <Select
                 items={items}
                 value={i18n.language}
