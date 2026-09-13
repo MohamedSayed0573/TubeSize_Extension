@@ -10,3 +10,4 @@ code_review/
 .release/
 *.tsbuildinfo
 .zed
+benchmark
