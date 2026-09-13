@@ -33,10 +33,9 @@ export default {
                     "Select which resolutions to display when you click on the extension icon:",
             },
             toaster: {
-                legend: "Data Usage Alert",
-                description:
-                    "Show a warning when you watch a video that uses too much internet data.",
-                enable: "Enable Data Usage Alert",
+                legend: "Video Usage Limit Exceeded Alert",
+                description: "Notify me when a video uses more data than the hourly limit allows.",
+                enable: "Enable video usage limit exceeded alert",
                 usageLimit: "Usage Limit (MB/hour): {{threshold}}",
                 usageLimitAria: "Usage limit",
             },
@@ -49,7 +48,8 @@ export default {
             youtubeVideo: "YouTube Video",
             youtubeLive: "YouTube Live",
             twitchVideo: "Twitch Video",
-            unsupportedPage: "TubeSize works on YouTube, Twitch and Kick.",
+            unsupportedPage:
+                "TubeSize shows how much data each video quality uses on YouTube, Twitch and Kick — and tracks your usage on every site.",
             openYoutubeVideo: "Open a Youtube video",
             openTwitchStream: "Open a Twitch stream or video",
             openKickStream: "Open a Kick Stream or Video",
