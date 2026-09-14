@@ -66,6 +66,177 @@ function isYoutubeVideo(url: string): boolean {
     }
 }
 
+// Inlined from @lib/utils — keep in sync (see constraint above).
+function isTwitchPage(url: string): boolean {
+    try {
+        const parsedUrl = new URL(url);
+        const hostname = parsedUrl.hostname;
+        return (
+            // eslint-disable-next-line unicorn/prefer-includes-over-repeated-comparisons
+            hostname === "www.twitch.tv" ||
+            hostname === "twitch.tv" ||
+            hostname === "www.twitch.com" ||
+            hostname === "twitch.com"
+        );
+    } catch {
+        return false;
+    }
+}
+
+// Inlined from @lib/utils — keep in sync.
+function isTwitchVod(url: string): boolean {
+    if (!isTwitchPage(url)) return false;
+    try {
+        const parsedUrl = new URL(url);
+        const pathname = parsedUrl.pathname.split("/").filter(Boolean);
+        return pathname.length === 2 && pathname[0] === "videos" && /^[0-9]+$/.test(pathname[1]!);
+    } catch {
+        return false;
+    }
+}
+
+// Inlined from @lib/utils — keep in sync.
+function isTwitchLive(url: string): boolean {
+    if (!isTwitchPage(url)) return false;
+    try {
+        const parsedUrl = new URL(url);
+        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+        if (pathSegments.length !== 1) return false;
+
+        const notStreamPath = new Set([
+            "videos",
+            "directory",
+            "settings",
+            "downloads",
+            "search",
+            "store",
+            "turbo",
+            "jobs",
+            "p",
+            "about",
+            "privacy",
+            "terms",
+        ]);
+        return !notStreamPath.has(pathSegments[0]!); // Assuming twitch.tv/channelName format for streams
+    } catch {
+        return false;
+    }
+}
+
+// Inlined from @lib/utils — keep in sync.
+function isKickPage(url: string): boolean {
+    try {
+        const parsedUrl = new URL(url);
+        return parsedUrl.hostname === "www.kick.com" || parsedUrl.hostname === "kick.com";
+    } catch {
+        return false;
+    }
+}
+
+// Inlined from @lib/utils — keep in sync.
+function isKickStream(url: string): boolean {
+    if (!isKickPage(url)) return false;
+    try {
+        const parsedUrl = new URL(url);
+        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+        const notStreamPath = new Set([
+            "about",
+            "contact",
+            "terms",
+            "privacy",
+            "videos",
+            "search",
+            "following",
+            "browse",
+        ]);
+        return pathSegments.length === 1 && !notStreamPath.has(pathSegments[0]!); // Assuming kick.com/channelName format for streams
+    } catch {
+        return false;
+    }
+}
+
+// Inlined from @lib/utils — keep in sync.
+function isKickVod(url: string): boolean {
+    if (!isKickPage(url)) return false;
+    try {
+        const parsedUrl = new URL(url);
+        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+        return pathSegments.length === 3 && pathSegments[1] === "videos"; // kick.com/channelName/videos/videoId
+    } catch {
+        return false;
+    }
+}
+
+// Inlined from @lib/utils — keep in sync.
+function extractKickVodId(url: string): string | undefined {
+    if (!isKickVod(url)) return;
+    try {
+        const parsedUrl = new URL(url);
+        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+        if (pathSegments.length === 3 && pathSegments[1] === "videos") {
+            return pathSegments[2];
+        }
+        return;
+    } catch {
+        return;
+    }
+}
+
+// Inlined from @lib/utils — keep in sync.
+function extractTwitchVodId(url: string): string | undefined {
+    try {
+        const parsedUrl = new URL(url);
+        const parts = parsedUrl.pathname.split("/").filter(Boolean);
+        if (parts.length === 2 && parts[0] === "videos") {
+            return parts[1];
+        }
+        return;
+    } catch (err) {
+        console.error(err);
+        return;
+    }
+}
+
+// Inlined from @lib/utils — keep in sync.
+function extractChannelName(url: string): string | undefined {
+    try {
+        const parsedUrl = new URL(url);
+        return parsedUrl.pathname.split("/", 2)[1] || undefined;
+    } catch (err) {
+        console.error(err);
+        return;
+    }
+}
+
+// Resolve the watch-history target for the current page, if it is a
+// watchable video/stream on a supported platform. Only YouTube used to be
+// handled here, which left Twitch/Kick usage in SITE_USAGE only.
+function resolveWatchTarget(
+    href: string,
+): { platform: "youtube" | "twitch" | "kick"; videoId: string } | undefined {
+    if (isYoutubeVideo(href)) {
+        const videoTag = extractVideoTag(href);
+        return videoTag ? { platform: "youtube", videoId: videoTag } : undefined;
+    }
+    if (isTwitchVod(href)) {
+        const vodId = extractTwitchVodId(href);
+        return vodId ? { platform: "twitch", videoId: vodId } : undefined;
+    }
+    if (isTwitchLive(href)) {
+        const channelName = extractChannelName(href);
+        return channelName ? { platform: "twitch", videoId: channelName } : undefined;
+    }
+    if (isKickVod(href)) {
+        const vodId = extractKickVodId(href);
+        return vodId ? { platform: "kick", videoId: vodId } : undefined;
+    }
+    if (isKickStream(href)) {
+        const channelName = extractChannelName(href);
+        return channelName ? { platform: "kick", videoId: channelName } : undefined;
+    }
+    return;
+}
+
 // Inlined from @lib/utils — keep in sync.
 function extractVideoTag(ytUrl: string): string | undefined {
     try {
@@ -98,7 +269,6 @@ globalThis.fetch = async (...args) => {
 
     const clone = response.clone();
 
-    let bytes = 0;
     void (async () => {
         const reader = clone.body?.getReader();
         if (!reader) return;
@@ -107,9 +277,11 @@ globalThis.fetch = async (...args) => {
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            bytes += value.byteLength;
+            // Count progressively: live/streaming bodies (e.g. TikTok FLV)
+            // stay open for minutes; flushing only at stream end counts 0
+            // for the whole session. Matches the worker bootstrap below.
+            total += value.byteLength;
         }
-        total += bytes;
     })().catch((err) => {
         if (err instanceof Error && err.name === "AbortError") return;
         console.error(err);
@@ -384,13 +556,13 @@ setInterval(() => {
         "*",
     );
 
-    if (isYoutubeVideo(location.href)) {
-        const ytVideoTag = extractVideoTag(location.href)!;
+    const watchTarget = resolveWatchTarget(location.href);
+    if (watchTarget) {
         window.postMessage(
             {
                 type: "WATCH_HISTORY",
-                videoId: ytVideoTag,
-                platform: "youtube",
+                videoId: watchTarget.videoId,
+                platform: watchTarget.platform,
                 bytes: total,
             } satisfies WatchHistoryMessage,
             "*",
