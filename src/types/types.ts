@@ -81,9 +81,9 @@ export type KickVodMessage = {
 
 export type KickMessage = KickLiveMessage | KickVodMessage;
 
-export type UsageMessage = { type: "SITE_USAGE"; bytes: number };
+type UsageMessage = { type: "SITE_USAGE"; bytes: number };
 
-export type WatchHistoryMessage = {
+type WatchHistoryMessage = {
     type: "WATCH_HISTORY";
     videoId: string;
     bytes: number;
