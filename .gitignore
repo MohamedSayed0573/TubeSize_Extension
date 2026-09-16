@@ -11,3 +11,4 @@ code_review/
 *.tsbuildinfo
 .zed
 benchmark
+.env
