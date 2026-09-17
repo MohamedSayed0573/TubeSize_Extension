@@ -1,7 +1,3 @@
-export async function removeBadge(tabId?: number) {
-    await chrome.action.setBadgeText({ tabId, text: "" });
-}
-
 export async function setUsageBadge(number: number, tabId?: number) {
     await chrome.action.setBadgeText({
         tabId,

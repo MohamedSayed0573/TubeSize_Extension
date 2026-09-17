@@ -216,8 +216,8 @@ const updateUsage = async () => {
 setInterval(() => {
     if (Object.entries(originToTotal).length === 0) return;
 
-    updateBadge()
-        .then(updateUsage)
+    updateUsage()
+        .then(updateBadge)
         .catch((err) => console.log(err));
 }, 3000);
 
