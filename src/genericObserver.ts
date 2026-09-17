@@ -280,19 +280,23 @@ globalThis.fetch = async (...args) => {
 // dedicated worker (Amazon IVS: a tiny blob: stub that importScripts the real
 // player code), which is why Twitch usage was badly undercounted. The fix:
 // wrap `new Worker()` so each classic worker is re-hosted from our own blob
-// that first installs a counting bootstrap, then runs the site's code.
+// that first installs a counting bootstrap, then runs the site's code —
+// blob: sources are inlined, same-origin http(s) sources are pulled in by the
+// worker itself via importScripts so worker startup never blocks the page.
 // Module workers are passed through untouched — ES module imports hoist
 // above any prepended code, so a bootstrap cannot count them.
 
-// The bootstrap runs inside the worker before the site's code. It patches
-// fetch() with the same dedup rule as the page (webRequest counts responses
-// with a known Content-Length; we count the rest) and relays totals to the
-// document every 3 s.
+// The bootstrap runs inside the worker before the site's code. It pings the
+// document (so the object URL behind the worker can be revoked, see
+// revokeWorkerUrlWhenLoaded), patches fetch() with the same dedup rule as the
+// page (webRequest counts responses with a known Content-Length; we count the
+// rest) and relays totals to the document every 3 s.
 function workerBootstrap(originalUrl: string): string {
     return `
 (() => {
     if (self.__tsWorkerPatched) return;
     self.__tsWorkerPatched = true;
+    self.postMessage({ type: "WORKER_READY" });
     let total = 0;
     // Code re-hosted in our blob resolves relative URLs against the blob,
     // not the original script — re-base them against the original URL.
@@ -342,26 +346,43 @@ function workerBootstrap(originalUrl: string): string {
 function relayWorkerUsage(worker: Worker) {
     worker.addEventListener("message", (event) => {
         const data = event.data as { type?: string; bytes?: unknown } | null;
-        if (
-            data &&
-            data.type === "WORKER_USAGE" &&
-            typeof data.bytes === "number" &&
-            Number.isFinite(data.bytes) &&
-            data.bytes > 0
-        ) {
+        if (!data || data.type !== "WORKER_USAGE") return;
+
+        event.stopImmediatePropagation();
+        if (typeof data.bytes === "number" && Number.isFinite(data.bytes) && data.bytes > 0) {
             total += data.bytes;
         }
     });
 }
 
-// Read the worker script's source now, in the constructor: sites commonly
-// revoke their blob: URL right after `new Worker(...)`, so the wrapper must
-// not depend on that URL still being alive later. Same-origin http(s) and
-// blob: URLs are both readable this way.
+// Re-hosting gives every worker its own object URL; without cleanup, each one
+// (bootstrap + the site's blob: source) stays alive until the document dies,
+// and SPA navigation keeps minting more. Revoking is only safe once the worker
+// has actually fetched the blob, which the bootstrap's WORKER_READY ping — the
+// first thing a re-hosted worker does — proves. The ping is swallowed so the
+// site never sees it. The error listener (which must not swallow the event)
+// frees URLs of workers that never start.
+function revokeWorkerUrlWhenLoaded(worker: Worker, url: string) {
+    worker.addEventListener("message", (event) => {
+        const data = event.data as { type?: string } | null;
+        if (!data || data.type !== "WORKER_READY") return;
+
+        event.stopImmediatePropagation();
+        URL.revokeObjectURL(url);
+    });
+    worker.addEventListener("error", () => URL.revokeObjectURL(url), { once: true });
+}
+
+// Read a blob: worker's source synchronously, in the constructor. The Worker
+// constructor can't await, and sites commonly revoke their blob: URL right
+// after `new Worker(...)`, so an async read would race the revocation. The
+// read is in-memory — it never touches the network, so it can't block the
+// page. Network-served worker scripts are never read here; the Worker wrapper
+// re-hosts those via importScripts instead, off the main thread.
 function readWorkerSource(url: string): string | undefined {
     try {
         const xhr = new XMLHttpRequest();
-        xhr.open("GET", url, false);
+        xhr.open("GET", url, false); // false = synchronous
         xhr.send();
         if (xhr.status === 200 && xhr.responseText.length > 0) return xhr.responseText;
     } catch {
@@ -379,10 +400,18 @@ globalThis.Worker = class extends NativeWorker {
             const url = new URL(String(scriptURL), document.baseURI);
             const isModule = options?.type === "module";
             if (!isModule && (url.protocol === "blob:" || url.origin === location.origin)) {
-                const source = readWorkerSource(url.href);
-                if (source) {
+                // Same-origin http(s) scripts are NOT read here — a sync XHR
+                // would block the page's main thread for the whole download.
+                // Instead the re-hosted worker importScripts the original URL
+                // itself, so the fetch happens inside the worker, off the main
+                // thread, and the constructor still returns immediately.
+                const payload =
+                    url.protocol === "blob:"
+                        ? readWorkerSource(url.href)
+                        : `importScripts(${JSON.stringify(url.href)});`;
+                if (payload) {
                     wrappedUrl = URL.createObjectURL(
-                        new Blob([workerBootstrap(url.href), ";\n", source], {
+                        new Blob([workerBootstrap(url.href), ";\n", payload], {
                             type: "application/javascript",
                         }),
                     );
@@ -392,8 +421,22 @@ globalThis.Worker = class extends NativeWorker {
             // setup failure — construct the worker the normal way below
         }
         if (wrappedUrl) {
-            super(wrappedUrl, options);
-            relayWorkerUsage(this);
+            let didRehost = false;
+            try {
+                super(wrappedUrl, options);
+                didRehost = true;
+            } catch {
+                // The page CSP (worker-src) may forbid blob: workers, making
+                // the re-hosted constructor throw. The object URL was never
+                // used — free it — and fall back to the original URL so the
+                // site's worker still starts.
+                URL.revokeObjectURL(wrappedUrl);
+                super(scriptURL, options);
+            }
+            if (didRehost) {
+                relayWorkerUsage(this);
+                revokeWorkerUrlWhenLoaded(this, wrappedUrl);
+            }
         } else {
             super(scriptURL, options);
         }
