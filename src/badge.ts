@@ -1,13 +1,9 @@
-export function removeBadge(tabId?: number) {
-    void chrome.action.setBadgeText({ tabId, text: "" });
-}
-
-export function setUsageBadge(number: number, tabId?: number) {
-    void chrome.action.setBadgeText({
+export async function setUsageBadge(number: number, tabId?: number) {
+    await chrome.action.setBadgeText({
         tabId,
         text: badgeFormatter(number),
     });
-    void chrome.action.setBadgeBackgroundColor({ tabId, color: "rgb(102, 126, 234)" });
+    await chrome.action.setBadgeBackgroundColor({ tabId, color: "rgb(102, 126, 234)" });
 }
 
 function badgeFormatter(bytes: number) {

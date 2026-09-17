@@ -16,7 +16,7 @@ import type {
     AddWatchHistoryMessage,
 } from "@app-types/types";
 import { clearMediaCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
-import { removeBadge, setUsageBadge } from "@/badge";
+import { setUsageBadge } from "@/badge";
 import {
     extractYtInitialResponse,
     parseDataFromYtInitial,
@@ -199,33 +199,27 @@ chrome.webRequest.onCompleted.addListener(
     ["responseHeaders", "extraHeaders"],
 );
 
-setInterval(() => {
-    void (async () => {
-        try {
-            await addSiteUsage(originToTotal);
-            await addWatchHistory(watchHistory);
+const updateBadge = async () => {
+    const siteUsage = await getSiteUsage();
+    const todayTotalUsage = siteUsage ? getUsageNumber([siteUsage]) : 0;
+    await setUsageBadge(todayTotalUsage);
+};
 
-            watchHistory = {};
-            originToTotal = {};
-        } catch (err) {
-            console.error(err);
-        }
-    })();
+const updateUsage = async () => {
+    await addSiteUsage(originToTotal);
+    await addWatchHistory(watchHistory);
+
+    watchHistory = {};
+    originToTotal = {};
+};
+
+setInterval(() => {
+    if (Object.entries(originToTotal).length === 0) return;
+
+    updateUsage()
+        .then(updateBadge)
+        .catch((err) => console.log(err));
 }, 3000);
-
-setInterval(() => {
-    void (async () => {
-        try {
-            const siteUsage = await getSiteUsage();
-            const todayTotalUsage = siteUsage ? getUsageNumber([siteUsage]) : 0;
-            if (todayTotalUsage > 0) {
-                setUsageBadge(todayTotalUsage);
-            } else {
-                removeBadge();
-            }
-        } catch {}
-    })();
-}, 5000);
 
 async function handleMessage(
     message: FrontEndMessage,

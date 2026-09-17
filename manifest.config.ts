@@ -49,7 +49,7 @@ export default defineManifest({
         // "https://*.playback.live-video.net/*",
         // "https://*.cloudfront.hls.live-video.net/v1/*",
     ],
-    permissions: ["activeTab", "storage", "webRequest"],
+    permissions: ["activeTab", "storage", "webRequest", "favicon"],
     commands: {
         _execute_action: {
             suggested_key: {
