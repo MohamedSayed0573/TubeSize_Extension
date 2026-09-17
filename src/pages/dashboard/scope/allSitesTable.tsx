@@ -9,7 +9,7 @@ import {
     TableRow,
 } from "@components/ui/table";
 import { formatBytes, getDomainName } from "@lib/dashboardUtils";
-import { getSiteIconUrl } from "@lib/utils";
+import { faviconURL } from "@lib/utils";
 import { useTranslation } from "react-i18next";
 
 export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
@@ -79,7 +79,7 @@ function SiteRow({
     bytes: number;
 }) {
     const { t } = useTranslation();
-    const iconUrl = getSiteIconUrl(origin);
+    const iconUrl = faviconURL(origin);
 
     return (
         <TableRow

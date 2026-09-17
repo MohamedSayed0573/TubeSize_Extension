@@ -289,11 +289,27 @@ export function chromeNavigate(pageName: string | undefined) {
     });
 }
 
-export function getSiteIconUrl(origin: string | undefined) {
+// export function getSiteIconUrl(origin: string | undefined) {
+//     try {
+//         if (!origin) return;
+//         const extensionId = chrome.runtime.id;
+//         // chrome-extension://EXTENSION_ID/_favicon/?pageUrl=EXAMPLE_URL&size=FAV_SIZE
+
+//         const url = `chrome-extension://${extensionId}/_favicon/?pageUrl=${origin}&size=FAV_SIZE`;
+//         const domain = new URL(origin).hostname;
+//         return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+//     } catch {
+//         return;
+//     }
+// }
+
+export function faviconURL(u: string | undefined) {
     try {
-        if (!origin) return;
-        const domain = new URL(origin).hostname;
-        return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+        if (!u) return;
+        const url = new URL(chrome.runtime.getURL("/_favicon/"));
+        url.searchParams.set("pageUrl", u);
+        url.searchParams.set("size", "32");
+        return url.href;
     } catch {
         return;
     }

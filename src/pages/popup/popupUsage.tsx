@@ -1,5 +1,5 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
-import { chromeNavigate, getSiteIconUrl } from "@lib/utils";
+import { chromeNavigate, faviconURL } from "@lib/utils";
 import { Calendar, ChevronLeft, ChevronRight, Globe } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -70,7 +70,7 @@ function UsageIcon({ variant, origin }: { variant?: string; origin?: string }) {
             </div>
         );
 
-    const siteIconUrl = getSiteIconUrl(origin);
+    const siteIconUrl = faviconURL(origin);
     if (!siteIconUrl) return <Globe className="size-6.5" />;
 
     return (
