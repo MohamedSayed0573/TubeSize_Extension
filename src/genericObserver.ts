@@ -279,10 +279,14 @@ globalThis.fetch = async (...args) => {
 // are invisible to everything above. Twitch streams its entire video from a
 // dedicated worker (Amazon IVS: a tiny blob: stub that importScripts the real
 // player code), which is why Twitch usage was badly undercounted. The fix:
-// wrap `new Worker()` so each classic worker is re-hosted from our own blob
-// that first installs a counting bootstrap, then runs the site's code —
-// blob: sources are inlined, same-origin http(s) sources are pulled in by the
-// worker itself via importScripts so worker startup never blocks the page.
+// wrap `new Worker()` so each classic blob: worker is re-hosted from our own
+// blob that first installs a counting bootstrap, then runs the site's code —
+// the blob: source is inlined so worker startup never touches the network.
+// Same-origin http(s) workers are passed through natively: re-hosting them
+// would mean importScripts-ing the original URL from inside our blob worker,
+// which runs under the page's script-src rather than worker-src — the blob
+// worker can be allowed while the import is blocked, failing asynchronously
+// after `super` already succeeded so the native fallback never runs.
 // Module workers are passed through untouched — ES module imports hoist
 // above any prepended code, so a bootstrap cannot count them.
 
@@ -377,8 +381,7 @@ function revokeWorkerUrlWhenLoaded(worker: Worker, url: string) {
 // constructor can't await, and sites commonly revoke their blob: URL right
 // after `new Worker(...)`, so an async read would race the revocation. The
 // read is in-memory — it never touches the network, so it can't block the
-// page. Network-served worker scripts are never read here; the Worker wrapper
-// re-hosts those via importScripts instead, off the main thread.
+// page.
 function readWorkerSource(url: string): string | undefined {
     try {
         const xhr = new XMLHttpRequest();
@@ -399,16 +402,14 @@ globalThis.Worker = class extends NativeWorker {
         try {
             const url = new URL(String(scriptURL), document.baseURI);
             const isModule = options?.type === "module";
-            if (!isModule && (url.protocol === "blob:" || url.origin === location.origin)) {
-                // Same-origin http(s) scripts are NOT read here — a sync XHR
-                // would block the page's main thread for the whole download.
-                // Instead the re-hosted worker importScripts the original URL
-                // itself, so the fetch happens inside the worker, off the main
-                // thread, and the constructor still returns immediately.
-                const payload =
-                    url.protocol === "blob:"
-                        ? readWorkerSource(url.href)
-                        : `importScripts(${JSON.stringify(url.href)});`;
+            if (!isModule && url.protocol === "blob:") {
+                // Only blob: workers are re-hosted (source inlined below).
+                // Same-origin http(s) workers stay native: pulling them in via
+                // importScripts inside our blob would subject them to the
+                // page's script rules instead of worker rules, and an import
+                // failure happens asynchronously — after `super` succeeded —
+                // so the native fallback below could never run.
+                const payload = readWorkerSource(url.href);
                 if (payload) {
                     wrappedUrl = URL.createObjectURL(
                         new Blob([workerBootstrap(url.href), ";\n", payload], {
