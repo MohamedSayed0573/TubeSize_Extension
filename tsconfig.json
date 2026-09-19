@@ -1,18 +1,10 @@
 {
+    "extends": "./.wxt/tsconfig.json",
     "compilerOptions": {
-        "target": "es2022",
         "useDefineForClassFields": true,
         "lib": ["es2023", "DOM", "DOM.Iterable"],
-        "module": "es2022",
         "types": ["vite/client", "chrome", "jest", "jest-extended", "node", "@types/jest"],
         "skipLibCheck": true,
-
-        /* Bundler mode */
-        "moduleResolution": "bundler",
-        "allowImportingTsExtensions": true,
-        "verbatimModuleSyntax": true,
-        "moduleDetection": "force",
-        "noEmit": true,
         "jsx": "react-jsx",
 
         /* Linting */
@@ -24,6 +16,9 @@
         "noUncheckedSideEffectImports": true,
         "noUncheckedIndexedAccess": true,
         "paths": {
+            "@": ["./src"],
+            "@/*": ["./src/*"],
+            "@components": ["./src/components"],
             "@components/*": ["./src/components/*"],
             "@styles/*": ["./src/styles/*"],
             "@pages/*": ["./src/pages/*"],
@@ -32,9 +27,8 @@
             "@assets/*": ["./src/assets/*"],
             "@hooks/*": ["./src/hooks/*"],
             "@app-types/*": ["./src/types/*"],
-            "@layouts/*": ["./src/layouts/*"],
-            "@/*": ["./src/*"]
+            "@layouts/*": ["./src/layouts/*"]
         }
     },
-    "include": ["./src", "./src/types", "vite.config.ts"]
+    "include": ["./src", "wxt.config.ts"]
 }

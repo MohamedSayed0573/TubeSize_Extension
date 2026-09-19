@@ -1,5 +1,7 @@
 node_modules/
 dist*/
+.output/
+.wxt/
 todo.md
 Notes.md
 devTest/
