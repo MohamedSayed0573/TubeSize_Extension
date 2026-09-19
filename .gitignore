@@ -1,5 +1,7 @@
 node_modules/
 dist*/
+.output/
+.wxt/
 todo.md
 Notes.md
 devTest/
@@ -12,3 +14,4 @@ code_review/
 .zed
 benchmark
 .env
+.env.submit

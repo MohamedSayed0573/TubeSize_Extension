@@ -285,7 +285,7 @@ export function capitalize(str: string) {
 export function chromeNavigate(pageName: string | undefined) {
     if (!pageName) return;
     void chrome.tabs.create({
-        url: chrome.runtime.getURL(`index.html#/${pageName}`),
+        url: chrome.runtime.getURL(`popup.html#/${pageName}`),
     });
 }
 
