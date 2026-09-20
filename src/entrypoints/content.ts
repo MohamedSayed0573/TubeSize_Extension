@@ -18,7 +18,6 @@ import {
     startYoutubeToastTracking,
     stopResolutionTracking,
 } from "@/resolution";
-import type { WindowMessage } from "@app-types/types";
 import { initLanguage } from "@/i18n/i18n";
 import { defineContentScript } from "wxt/utils/define-content-script";
 
@@ -68,7 +67,19 @@ async function initTwitch(tag: string, isLive: boolean) {
 }
 
 export default defineContentScript({
-    matches: ["<all_urls>"],
+    // Exact hosts, mirroring the isYoutubePage/isTwitchPage/isKickPage checks in
+    // @lib/utils. The SITE_USAGE/WATCH_HISTORY relay for genericObserver lives in
+    // usageBridge.content.ts, which is what gets injected everywhere else.
+    matches: [
+        "*://www.youtube.com/*",
+        "*://youtube.com/*",
+        "*://www.twitch.tv/*",
+        "*://twitch.tv/*",
+        "*://www.twitch.com/*",
+        "*://twitch.com/*",
+        "*://www.kick.com/*",
+        "*://kick.com/*",
+    ],
     runAt: "document_start",
     allFrames: true,
 
@@ -128,40 +139,6 @@ export default defineContentScript({
                 console.error("[content] Error handling page navigation", err);
             }
         }
-
-        addEventListener("message", (event) => {
-            // eslint-disable-next-line unicorn/prefer-global-this
-            if (event.source !== window) return;
-
-            const message = event.data as WindowMessage;
-
-            if (message.type === "SITE_USAGE") {
-                const { bytes } = message;
-                if (typeof bytes !== "number") return;
-                if (!Number.isFinite(bytes) || bytes < 0) return;
-                if (bytes === 0) return;
-                void sendMessageToBackground({
-                    type: "addUsage",
-                    bytes,
-                    origin: event.origin,
-                });
-                //eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            } else if (message.type === "WATCH_HISTORY") {
-                const { bytes, platform, videoId } = message;
-                if (bytes === 0) return;
-                if (typeof bytes !== "number") return;
-                if (!Number.isFinite(bytes) || bytes < 0) return;
-                if (typeof videoId !== "string") return;
-                if (typeof platform !== "string") return;
-
-                void sendMessageToBackground({
-                    type: "addWatchHistory",
-                    videoId,
-                    platform,
-                    bytes,
-                });
-            }
-        });
 
         if (isYoutubePage(getCurrentUrl())) {
             addEventListener("yt-navigate-finish", () => {

@@ -4,6 +4,7 @@
         "src/entrypoints/background.ts",
         "src/entrypoints/content.ts",
         "src/entrypoints/genericObserver.content.ts",
+        "src/entrypoints/usageBridge.content.ts",
         "src/entrypoints/popup/index.html",
         "src/entrypoints/popup/main.tsx"
     ],
