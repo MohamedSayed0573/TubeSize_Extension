@@ -1,7 +1,6 @@
 import type {
     YoutubeBackgroundResponse,
     TwitchBackgroundResponse,
-    KickBackgroundResponse,
     YoutubeVideoData,
     YoutubeData,
     GetUsageResponse,
@@ -11,7 +10,6 @@ import type {
     YoutubeMessage,
     FrontEndMessage,
     TwitchMessage,
-    KickMessage,
     AddUsageMessage,
     AddWatchHistoryMessage,
 } from "@app-types/types";
@@ -25,7 +23,7 @@ import {
     getThumbnailUrl,
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse, parseTwitchPageMetadata } from "@lib/twitch";
-import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
+import { getKickInitResponse } from "@lib/kick";
 import {
     extractChannelName,
     extractKickVodId,
@@ -202,23 +200,6 @@ async function handleTwitch(
     }
 }
 
-async function handleKick(
-    message: KickMessage,
-    sendResponse: (response: KickBackgroundResponse) => void,
-) {
-    try {
-        return message.type === "kickLive"
-            ? await getKickLiveResponse(message, sendResponse)
-            : await getKickVodResponse(message, sendResponse);
-    } catch (err) {
-        console.error("Error handling Kick message:", err);
-        return sendResponse({
-            success: false,
-            message: err instanceof Error ? err.message : "Unknown error",
-        });
-    }
-}
-
 async function recordVideoMetadata(videoTag: string) {
     try {
         const existing = await getVideoMetadata(videoTag, "youtube");
@@ -292,9 +273,8 @@ async function handleMessage(
         case "twitchLive": {
             return await handleTwitch(message, sendResponse);
         }
-        case "kickLive":
-        case "kickVod": {
-            return await handleKick(message, sendResponse);
+        case "kickInit": {
+            return sendResponse(await getKickInitResponse(message));
         }
         case "addUsage": {
             return await handleAddUsage(message, sendResponse);

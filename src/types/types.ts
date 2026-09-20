@@ -23,8 +23,7 @@ export type FrontEndMessage =
     | YoutubeMessage
     | TwitchVodMessage
     | TwitchLiveMessage
-    | KickLiveMessage
-    | KickVodMessage
+    | KickInitMessage
     | GetUsageMessage
     | AddUsageMessage
     | AddWatchHistoryMessage
@@ -67,6 +66,7 @@ export type TwitchLiveMessage = {
     isFromPopup: boolean;
 };
 
+// Internal shapes for the kick pipeline in lib/kick.ts — no longer sent over the wire
 export type KickLiveMessage = {
     type: "kickLive";
     streamId: string;
@@ -79,7 +79,13 @@ export type KickVodMessage = {
     streamId: string;
 };
 
-export type KickMessage = KickLiveMessage | KickVodMessage;
+export type KickInitMessage = {
+    type: "kickInit";
+    url: string;
+    html: string;
+    isFromPopup: boolean;
+    durationSeconds: number | undefined;
+};
 
 export type UsageMessage = { type: "SITE_USAGE"; bytes: number };
 

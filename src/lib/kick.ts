@@ -1,12 +1,13 @@
 import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import type { PlaylistItem } from "m3u8-parser";
-import { fetchAndRetry } from "@lib/utils";
 import { estimateHlsStreamSizes } from "@lib/hlsSize";
+import { getFromStorage, saveToStorage } from "@lib/cache";
 import type { KickBackgroundResponse } from "@app-types/platforms.types";
-import type { KickLiveMessage, KickVodMessage } from "@app-types/types";
+import type { KickInitMessage, KickLiveMessage, KickVodMessage } from "@app-types/types";
 import { kickPlaybackResponseSchema } from "@lib/schema";
+import { extractChannelName, extractKickVodId, fetchAndRetry, isKickVod } from "@lib/utils";
 
-export async function getKickHtml(url: string): Promise<string> {
+async function getKickHtml(url: string): Promise<string> {
     const res = await fetchAndRetry(url, {
         method: "GET",
         credentials: "include",
@@ -18,7 +19,7 @@ export async function getKickHtml(url: string): Promise<string> {
     return await res.response.text();
 }
 
-export function getKickStreamId(html: string): string | undefined {
+function getKickStreamId(html: string): string | undefined {
     const match = html.match(/vod_id\\":\\"([^\\]+)/) || html.match(/vod_id":"([^"]+)"}/);
     if (!match?.[1]) return;
     return match[1];
@@ -87,41 +88,35 @@ async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
     return playlists;
 }
 
-export async function getKickLiveResponse(
-    message: KickLiveMessage,
-    sendResponse: (response: KickBackgroundResponse) => void,
-) {
+async function getKickLiveResponse(message: KickLiveMessage): Promise<KickBackgroundResponse> {
     try {
         const masterM3U8Data = await getKickMasterM3u8(message.streamId);
         const kickData = message.isFromPopup
             ? await estimateHlsStreamSizes(masterM3U8Data)
             : filterM3u8(masterM3U8Data);
 
-        sendResponse({
+        return {
             success: true,
             data: {
                 type: "live",
                 data: kickData,
                 channelName: message.streamId, // Kick doesn't provide channel name in the same way, using streamId as a placeholder
             },
-        });
+        };
     } catch (err) {
-        return sendResponse({
+        return {
             success: false,
             message: err instanceof Error ? err.message : "Unknown error",
-        });
+        };
     }
 }
 
-export async function getKickVodResponse(
-    message: KickVodMessage,
-    sendResponse: (response: KickBackgroundResponse) => void,
-) {
+async function getKickVodResponse(message: KickVodMessage): Promise<KickBackgroundResponse> {
     try {
         const masterM3U8Data = await getKickMasterM3u8(message.streamId);
         const kickData = filterM3u8(masterM3U8Data);
 
-        sendResponse({
+        return {
             success: true,
             data: {
                 type: "vod",
@@ -130,11 +125,67 @@ export async function getKickVodResponse(
                 channelName: undefined,
                 durationSeconds: undefined,
             },
-        });
+        };
     } catch (err) {
-        return sendResponse({
+        return {
             success: false,
             message: err instanceof Error ? err.message : "Unknown error",
-        });
+        };
+    }
+}
+
+export async function getKickInitResponse(
+    message: KickInitMessage,
+): Promise<KickBackgroundResponse> {
+    try {
+        const channelName = extractChannelName(message.url);
+        if (!channelName) {
+            throw new Error("Failed to extract Kick channel name from URL");
+        }
+
+        const isLive = !isKickVod(message.url);
+        const videoId = extractKickVodId(message.url);
+
+        if (!isLive && videoId) {
+            const cached = await getFromStorage("kick", videoId);
+            if (cached) {
+                return {
+                    success: true,
+                    data: cached.data,
+                    createdAt: cached.createdAt,
+                };
+            }
+        }
+
+        const streamId =
+            getKickStreamId(message.html) ?? getKickStreamId(await getKickHtml(message.url));
+        if (!streamId) {
+            throw new Error("Failed to extract stream ID from the page");
+        }
+
+        const kickData = isLive
+            ? await getKickLiveResponse({
+                  type: "kickLive",
+                  streamId,
+                  isFromPopup: message.isFromPopup,
+              })
+            : await getKickVodResponse({ type: "kickVod", streamId, vodId: videoId! });
+
+        if (!kickData.success) {
+            return kickData;
+        }
+
+        kickData.data.channelName = channelName;
+        if (kickData.data.type === "vod") {
+            kickData.data.durationSeconds = message.durationSeconds;
+            await saveToStorage(videoId!, kickData.data, "kick");
+        }
+        return kickData;
+    } catch (err) {
+        console.error("Error initializing Kick data:", err);
+        return {
+            success: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        };
     }
 }

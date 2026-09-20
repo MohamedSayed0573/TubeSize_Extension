@@ -13,8 +13,7 @@ type MessageResponseMap = {
     youtubeVideo: YoutubeBackgroundResponse;
     twitchVod: TwitchBackgroundResponse;
     twitchLive: TwitchBackgroundResponse;
-    kickLive: KickBackgroundResponse;
-    kickVod: KickBackgroundResponse;
+    kickInit: KickBackgroundResponse;
     getUsage: GetUsageResponse;
     addUsage: AddUsageResponse;
     addWatchHistory: AddWatchHistoryResponse;

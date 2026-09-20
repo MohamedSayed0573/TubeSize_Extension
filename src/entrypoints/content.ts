@@ -1,5 +1,4 @@
 import {
-    extractKickVodId,
     extractChannelName,
     extractTwitchVodId,
     extractVideoTag,
@@ -11,7 +10,7 @@ import {
     isYoutubePage,
     delay,
 } from "@lib/utils";
-import { getFromStorage, getFromSyncCache, saveToStorage } from "@lib/cache";
+import { getFromSyncCache } from "@lib/cache";
 import CONFIG from "@lib/constants";
 import { injectQualityMenu, removeEventListeners } from "@/qualityMenuInjector";
 import { sendMessageToBackground } from "@/runtime";
@@ -22,7 +21,6 @@ import {
     startYoutubeToastTracking,
     stopResolutionTracking,
 } from "@/resolution";
-import { getKickHtml, getKickStreamId } from "@lib/kick";
 import type { KickBackgroundResponse } from "@app-types/platforms.types";
 import { waitForElement } from "@lib/dom";
 import type { WindowMessage } from "@app-types/types";
@@ -224,57 +222,15 @@ export default defineContentScript({
         async function initKick(isFromPopup: boolean): Promise<KickBackgroundResponse> {
             try {
                 const url = getCurrentUrl();
-                const channelName = extractChannelName(url);
+                const durationSeconds = isKickVod(url) ? await getVideoDuration() : undefined;
 
-                if (!channelName) {
-                    throw new Error("Failed to extract Kick channel name from URL");
-                }
-
-                const isLive = !isKickVod(url);
-                const videoId = extractKickVodId(url);
-
-                if (!isLive && videoId) {
-                    const cached = await getFromStorage("kick", videoId);
-                    if (cached) {
-                        return {
-                            success: true,
-                            data: cached.data,
-                            createdAt: cached.createdAt,
-                        };
-                    }
-                }
-                const html = document.querySelector("body")!.outerHTML;
-                const streamId = getKickStreamId(html) ?? getKickStreamId(await getKickHtml(url));
-
-                if (!streamId) {
-                    throw new Error("Failed to extract stream ID from the page");
-                }
-
-                const kickData: KickBackgroundResponse = isLive
-                    ? await sendMessageToBackground({
-                          type: "kickLive",
-                          streamId,
-                          isFromPopup,
-                      })
-                    : await sendMessageToBackground({
-                          type: "kickVod",
-                          streamId,
-                          vodId: videoId!,
-                          isFromPopup,
-                      });
-
-                if (!kickData.success) {
-                    throw new Error("No response from background for Kick stream");
-                }
-
-                kickData.data.channelName = channelName;
-                const durationSeconds = await getVideoDuration();
-
-                if (kickData.data.type === "vod") {
-                    kickData.data.durationSeconds = durationSeconds;
-                    await saveToStorage(videoId!, kickData.data, "kick");
-                }
-                return kickData;
+                return await sendMessageToBackground({
+                    type: "kickInit",
+                    url,
+                    html: document.querySelector("body")?.outerHTML ?? "",
+                    isFromPopup,
+                    durationSeconds,
+                });
             } catch (err) {
                 console.error("Error initializing Kick data:", err);
                 return {
