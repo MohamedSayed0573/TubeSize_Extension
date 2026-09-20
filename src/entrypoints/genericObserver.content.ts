@@ -1,13 +1,11 @@
 // This script runs in the page's MAIN world (see manifest.config.ts), where the
-// `chrome` extension API is undefined. It must stay dependency-free: any import
-// (even transitively via @lib/utils -> i18n -> chrome.storage) throws on load
-// and kills the fetch monkey-patch below. Intentional duplication — do not
-// refactor back to imports. Source of truth for the copies:
-// - types: src/types/types.ts (UsageMessage, WatchHistoryMessage)
-// - URL helpers: src/lib/utils.ts (isYoutubePage, isShortsVideo, isYoutubeVideo,
-//   isTwitchPage, isTwitchLive, isTwitchVod, isKickPage, isKickStream, isKickVod,
-//   extractVideoTag, extractTwitchVodId, extractKickVodId, extractChannelName)
-// - regex: src/lib/constants.ts (CONFIG.VIDEO_ID_REGEX)
+// `chrome` extension API is undefined. WXT inlines this entrypoint and its
+// imports into one self-contained classic script, so the shared helpers can be
+// imported directly — but the bundle must never touch `chrome.*` at runtime
+// (the old CRXJS build pulled in @lib/utils -> i18n -> chrome.storage and died
+// on load). Whenever the import graph changes, check the built
+// .output/<browser>-mv3/content-scripts/genericObserver.js for `chrome.`
+// references before shipping.
 //
 // Usage accounting installed here (all dedup against background.ts's webRequest
 // path, which counts every response with a known Content-Length):
@@ -16,64 +14,18 @@
 //      so fetch() inside workers (Twitch's video worker) is counted too
 
 import { defineContentScript } from "wxt/utils/define-content-script";
-
-function isYoutubePage(url: string): boolean {
-    try {
-        const parsedUrl = new URL(url);
-        return parsedUrl.hostname === "www.youtube.com" || parsedUrl.hostname === "youtube.com";
-    } catch {
-        return false;
-    }
-}
-
-function isTwitchPage(url: string): boolean {
-    try {
-        const parsedUrl = new URL(url);
-        const isTwitchHost =
-            // eslint-disable-next-line unicorn/prefer-includes-over-repeated-comparisons
-            parsedUrl.hostname === "www.twitch.tv" ||
-            parsedUrl.hostname === "twitch.tv" ||
-            parsedUrl.hostname === "www.twitch.com" ||
-            parsedUrl.hostname === "twitch.com";
-
-        return isTwitchHost;
-    } catch {
-        return false;
-    }
-}
-
-function isKickPage(url: string): boolean {
-    try {
-        const parsedUrl = new URL(url);
-        return parsedUrl.hostname === "www.kick.com" || parsedUrl.hostname === "kick.com";
-    } catch {
-        return false;
-    }
-}
-
-function extractTwitchVodId(url: string): string | undefined {
-    try {
-        const parsedUrl = new URL(url);
-        const parts = parsedUrl.pathname.split("/").filter(Boolean);
-        if (parts.length === 2 && parts[0] === "videos") {
-            return parts[1];
-        }
-        return;
-    } catch (err) {
-        console.error(err);
-        return;
-    }
-}
-
-function extractChannelName(url: string): string | undefined {
-    try {
-        const parsedUrl = new URL(url);
-        return parsedUrl.pathname.split("/", 2)[1] || undefined;
-    } catch (err) {
-        console.error(err);
-        return;
-    }
-}
+import {
+    extractChannelName,
+    extractKickVodId,
+    extractTwitchVodId,
+    extractVideoTag,
+    isKickStream,
+    isKickVod,
+    isTwitchLive,
+    isTwitchVod,
+    isYoutubeVideo,
+} from "@lib/utils";
+import type { UsageMessage, WatchHistoryMessage } from "@app-types/types";
 
 function workerBootstrap(originalUrl: string): string {
     return `
@@ -136,110 +88,6 @@ function readWorkerSource(url: string): string | undefined {
     return;
 }
 
-function isShortsVideo(url: string): boolean {
-    if (!isYoutubePage(url)) return false;
-    try {
-        const parsedUrl = new URL(url);
-        return parsedUrl.pathname.startsWith("/shorts/");
-    } catch {
-        return false;
-    }
-}
-
-function isTwitchVod(url: string): boolean {
-    if (!isTwitchPage(url)) return false;
-    try {
-        const parsedUrl = new URL(url);
-        const pathname = parsedUrl.pathname.split("/").filter(Boolean);
-        return pathname.length === 2 && pathname[0] === "videos" && /^[0-9]+$/.test(pathname[1]!);
-    } catch {
-        return false;
-    }
-}
-
-function isTwitchLive(url: string): boolean {
-    if (!isTwitchPage(url)) return false;
-    try {
-        const parsedUrl = new URL(url);
-        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
-        if (pathSegments.length !== 1) return false;
-
-        const notStreamPath = new Set([
-            "videos",
-            "directory",
-            "settings",
-            "downloads",
-            "search",
-            "store",
-            "turbo",
-            "jobs",
-            "p",
-            "about",
-            "privacy",
-            "terms",
-        ]);
-        return !notStreamPath.has(pathSegments[0]!);
-    } catch {
-        return false;
-    }
-}
-
-function isKickStream(url: string): boolean {
-    if (!isKickPage(url)) return false;
-    try {
-        const parsedUrl = new URL(url);
-        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
-        const notStreamPath = new Set([
-            "about",
-            "contact",
-            "terms",
-            "privacy",
-            "videos",
-            "search",
-            "following",
-            "browse",
-        ]);
-        return pathSegments.length === 1 && !notStreamPath.has(pathSegments[0]!);
-    } catch {
-        return false;
-    }
-}
-
-function isKickVod(url: string): boolean {
-    if (!isKickPage(url)) return false;
-    try {
-        const parsedUrl = new URL(url);
-        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
-        return pathSegments.length === 3 && pathSegments[1] === "videos";
-    } catch {
-        return false;
-    }
-}
-
-function isYoutubeVideo(url: string): boolean {
-    try {
-        if (!isYoutubePage(url)) return false;
-        const videoTag = new URL(url).searchParams.get("v");
-        return !!videoTag || isShortsVideo(url);
-    } catch {
-        return false;
-    }
-}
-
-function extractKickVodId(url: string): string | undefined {
-    if (!isKickVod(url)) return;
-    try {
-        const parsedUrl = new URL(url);
-        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
-        if (pathSegments.length === 3 && pathSegments[1] === "videos") {
-            return pathSegments[2];
-        }
-        return;
-    } catch {
-        return;
-    }
-}
-
 export default defineContentScript({
     matches: ["<all_urls>"],
     runAt: "document_start",
@@ -247,36 +95,6 @@ export default defineContentScript({
     world: "MAIN",
 
     main() {
-        type UsageMessage = { type: "SITE_USAGE"; bytes: number };
-
-        type WatchHistoryMessage = {
-            type: "WATCH_HISTORY";
-            videoId: string;
-            bytes: number;
-            platform: "youtube" | "twitch" | "kick";
-        };
-
-        const YOUTUBE_VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
-
-        function extractVideoTag(ytUrl: string): string | undefined {
-            try {
-                const parsedUrl = new URL(ytUrl);
-
-                const videoTag =
-                    parsedUrl.pathname === "/watch"
-                        ? parsedUrl.searchParams.get("v")
-                        : parsedUrl.pathname.split("/", 3)[2];
-
-                if (!videoTag || !YOUTUBE_VIDEO_ID_REGEX.test(videoTag)) {
-                    return;
-                }
-
-                return videoTag;
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
         // Video keys must match background.ts's tabIdToVideoKey (`<platform>:<id>`)
         function getWatchHistoryTarget(
             url: string,
