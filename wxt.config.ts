@@ -1,5 +1,38 @@
 import { defineConfig } from "wxt";
 import tailwindcss from "@tailwindcss/vite";
+import type { Plugin } from "vite";
+import path from "node:path";
+import { visualizer } from "rollup-plugin-visualizer";
+
+// WXT runs one Vite/Rollup build per entrypoint (popup pages, background,
+// each content script), and every build would otherwise overwrite the same
+// stats.html — last writer wins, which is why only the popup showed up.
+// This attaches a fresh visualizer per build, named after its entry.
+function entryName(input: string | string[] | Record<string, string> | undefined): string {
+    const first = Array.isArray(input)
+        ? input[0]
+        : typeof input === "object"
+          ? Object.values(input ?? {})[0]
+          : input;
+    if (typeof first !== "string" || !first) return "bundle";
+    return path.parse(first).name.replace(/[^a-zA-Z0-9]+/g, "-");
+}
+
+function perEntryVisualizer(): Plugin {
+    return {
+        name: "per-entry-visualizer",
+        options(inputOptions) {
+            const plugins = [inputOptions.plugins ?? []].flat();
+            return {
+                ...inputOptions,
+                plugins: [
+                    ...plugins,
+                    visualizer({ filename: `stats-${entryName(inputOptions.input)}.html` }),
+                ],
+            };
+        },
+    };
+}
 
 export default defineConfig({
     srcDir: "src",
@@ -63,7 +96,7 @@ export default defineConfig({
         }),
     }),
     vite: (env) => ({
-        plugins: [tailwindcss()],
+        plugins: [tailwindcss(), perEntryVisualizer()],
         build: {
             sourcemap: env.mode === "development",
         },
