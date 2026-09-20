@@ -34,6 +34,12 @@ function perEntryVisualizer(): Plugin {
     };
 }
 
+// Stats are on-demand tooling, not a build artifact: they would otherwise land
+// in the project root on every release build. Generate with `pnpm analyze`.
+// (Gating on dev mode is not an option — WXT's dev server never runs the
+// rollup step the visualizer hooks into.)
+const shouldEmitStats = process.env.ANALYZE === "true";
+
 export default defineConfig({
     srcDir: "src",
     // Force MV3 for all targets. Firefox defaults to MV2, but this project
@@ -110,7 +116,7 @@ export default defineConfig({
         ],
     },
     vite: (env) => ({
-        plugins: [tailwindcss(), perEntryVisualizer()],
+        plugins: [tailwindcss(), ...(shouldEmitStats ? [perEntryVisualizer()] : [])],
         build: {
             sourcemap: env.mode === "development",
         },
