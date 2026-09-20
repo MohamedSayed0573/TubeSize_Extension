@@ -1,5 +1,3 @@
-/* eslint-disable unicorn/max-nested-calls */
-
 import { z } from "zod";
 
 export const ytInitialSchema = z.object({
@@ -80,3 +78,12 @@ export const kickPlaybackResponseSchema = z.object({
         })
         .optional(),
 });
+
+// kick.com/api/v2/channels/{slug}/videos — duration is in milliseconds
+export const kickChannelVideosResponseSchema = z.array(
+    z.object({
+        slug: z.string(),
+        source: z.string().nullable(),
+        duration: z.number(),
+    }),
+);

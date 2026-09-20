@@ -263,6 +263,7 @@ async function handleAddWatchHistory(
 
 async function handleMessage(
     message: FrontEndMessage,
+    _sender: chrome.runtime.MessageSender,
     sendResponse: (response: any) => void,
 ): Promise<void> {
     switch (message.type) {
@@ -297,7 +298,7 @@ async function handleMessage(
 
 export default defineBackground(() => {
     chrome.runtime.onMessage.addListener((message: FrontEndMessage, _sender, sendResponse) => {
-        void handleMessage(message, sendResponse);
+        void handleMessage(message, _sender, sendResponse);
         return true;
     });
 

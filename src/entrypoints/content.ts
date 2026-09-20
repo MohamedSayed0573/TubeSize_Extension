@@ -3,12 +3,9 @@ import {
     extractTwitchVodId,
     extractVideoTag,
     isKickPage,
-    isKickVod,
-    isKickStream,
     isTwitchPage,
     isTwitchLive,
     isYoutubePage,
-    delay,
 } from "@lib/utils";
 import { getFromSyncCache } from "@lib/cache";
 import CONFIG from "@lib/constants";
@@ -21,8 +18,6 @@ import {
     startYoutubeToastTracking,
     stopResolutionTracking,
 } from "@/resolution";
-import type { KickBackgroundResponse } from "@app-types/platforms.types";
-import { waitForElement } from "@lib/dom";
 import type { WindowMessage } from "@app-types/types";
 import { initLanguage } from "@/i18n/i18n";
 import { defineContentScript } from "wxt/utils/define-content-script";
@@ -72,20 +67,6 @@ async function initTwitch(tag: string, isLive: boolean) {
     return twitchData.data;
 }
 
-async function getVideoDuration() {
-    const startTime = Date.now();
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    while (true) {
-        if (Date.now() - startTime > 10_000) return;
-
-        const videoEl = await waitForElement("video");
-        if (videoEl && !Number.isNaN(videoEl.duration)) {
-            return videoEl.duration;
-        }
-        await delay(500);
-    }
-}
-
 export default defineContentScript({
     matches: ["<all_urls>"],
     runAt: "document_start",
@@ -130,13 +111,17 @@ export default defineContentScript({
                     }
                 } else if (isKickPage(url)) {
                     stopResolutionTracking();
+                    const kickResponse = await sendMessageToBackground({
+                        type: "kickInit",
+                        url,
+                        isFromPopup: false,
+                    });
+                    if (!kickResponse.success) {
+                        throw new Error(kickResponse.message || "Failed to initialize Kick data");
+                    }
                     const isToasterEnable = await isToasterEnabled();
-                    if (isToasterEnable && (isKickStream(url) || isKickVod(url))) {
-                        const kickData = await initKick(false);
-                        if (!kickData.success) {
-                            throw new Error(kickData.message || "Failed to initialize Kick data");
-                        }
-                        await startToastKickPolling(kickData.data);
+                    if (isToasterEnable) {
+                        await startToastKickPolling(kickResponse.data);
                     }
                 }
             } catch (err) {
@@ -187,7 +172,7 @@ export default defineContentScript({
         void initLanguage();
         void handlePageNavigation();
 
-        type ResponseMessage = (number | undefined) | KickBackgroundResponse;
+        type ResponseMessage = number | undefined;
         chrome.runtime.onMessage.addListener(
             (
                 message: { type: string },
@@ -202,42 +187,8 @@ export default defineContentScript({
                         })();
                         return true;
                     }
-                    case "getKick": {
-                        void (async () => {
-                            const kickData = await initKick(true);
-                            sendResponse(kickData);
-                        })().catch((err) => {
-                            console.error("Error handling getKick message:", err);
-                            sendResponse({
-                                success: false,
-                                message: err instanceof Error ? err.message : "Unknown error",
-                            });
-                        });
-                        return true;
-                    }
                 }
             },
         );
-
-        async function initKick(isFromPopup: boolean): Promise<KickBackgroundResponse> {
-            try {
-                const url = getCurrentUrl();
-                const durationSeconds = isKickVod(url) ? await getVideoDuration() : undefined;
-
-                return await sendMessageToBackground({
-                    type: "kickInit",
-                    url,
-                    html: document.querySelector("body")?.outerHTML ?? "",
-                    isFromPopup,
-                    durationSeconds,
-                });
-            } catch (err) {
-                console.error("Error initializing Kick data:", err);
-                return {
-                    success: false,
-                    message: err instanceof Error ? err.message : "Unknown error",
-                };
-            }
-        }
     },
 });

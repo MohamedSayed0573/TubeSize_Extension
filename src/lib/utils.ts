@@ -232,7 +232,7 @@ export async function fetchAndRetry(
     return { success: false, error: lastError || new Error("Unknown error") };
 }
 
-export async function delay(ms: number): Promise<void> {
+async function delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 

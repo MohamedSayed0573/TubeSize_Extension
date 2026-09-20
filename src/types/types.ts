@@ -66,25 +66,10 @@ export type TwitchLiveMessage = {
     isFromPopup: boolean;
 };
 
-// Internal shapes for the kick pipeline in lib/kick.ts — no longer sent over the wire
-export type KickLiveMessage = {
-    type: "kickLive";
-    streamId: string;
-    isFromPopup: boolean;
-};
-
-export type KickVodMessage = {
-    type: "kickVod";
-    vodId: string;
-    streamId: string;
-};
-
 export type KickInitMessage = {
     type: "kickInit";
     url: string;
-    html: string;
     isFromPopup: boolean;
-    durationSeconds: number | undefined;
 };
 
 export type UsageMessage = { type: "SITE_USAGE"; bytes: number };
