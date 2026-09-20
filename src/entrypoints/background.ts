@@ -14,7 +14,7 @@ import type {
     AddWatchHistoryMessage,
 } from "@app-types/types";
 import { clearMediaCache, clearSyncCache, getFromStorage, saveToStorage } from "@lib/cache";
-import { removeBadge, setUsageBadge } from "@/badge";
+import { setUsageBadge } from "@/badge";
 import {
     extractYtInitialResponse,
     parseDataFromYtInitial,
@@ -296,6 +296,12 @@ async function handleMessage(
     }
 }
 
+async function updateBadge() {
+    const siteUsage = await getSiteUsage();
+    const todayTotalUsage = siteUsage ? getUsageNumber([siteUsage]) : 0;
+    await setUsageBadge(todayTotalUsage);
+}
+
 export default defineBackground(() => {
     chrome.runtime.onMessage.addListener((message: FrontEndMessage, _sender, sendResponse) => {
         void handleMessage(message, _sender, sendResponse);
@@ -391,33 +397,23 @@ export default defineBackground(() => {
         ["responseHeaders", "extraHeaders"],
     );
 
-    setInterval(() => {
-        void (async () => {
-            try {
-                await addSiteUsage(originToTotal);
-                await addWatchHistory(watchHistory);
+    const updateUsage = async () => {
+        await addSiteUsage(originToTotal);
+        await addWatchHistory(watchHistory);
 
-                watchHistory = {};
-                originToTotal = {};
-            } catch (err) {
-                console.error(err);
-            }
-        })();
+        watchHistory = {};
+        originToTotal = {};
+    };
+
+    // Skip everything when there is nothing to flush — the unconditional
+    // interval's storage writes kept the service worker from ever idling.
+    setInterval(() => {
+        if (Object.entries(originToTotal).length === 0) return;
+
+        updateUsage()
+            .then(updateBadge)
+            .catch((err) => console.log(err));
     }, 3000);
-
-    setInterval(() => {
-        void (async () => {
-            try {
-                const siteUsage = await getSiteUsage();
-                const todayTotalUsage = siteUsage ? getUsageNumber([siteUsage]) : 0;
-                if (todayTotalUsage > 0) {
-                    setUsageBadge(todayTotalUsage);
-                } else {
-                    removeBadge();
-                }
-            } catch {}
-        })();
-    }, 5000);
 
     chrome.runtime.onInstalled.addListener((details) => {
         if (details.reason !== "install" && details.reason !== "update") {
