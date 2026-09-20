@@ -38,7 +38,7 @@ import {
     isTwitchVod,
     isYoutubeVideo,
 } from "@lib/utils";
-import { getDateKey } from "@lib/dashboardUtils";
+import { getDateKey } from "@lib/dateUtils";
 import {
     addSiteUsage,
     addWatchHistory,

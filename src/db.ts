@@ -1,5 +1,5 @@
 import type { DateKey } from "@app-types/types";
-import { getDateKey } from "@lib/dashboardUtils";
+import { getDateKey } from "@lib/dateUtils";
 import { Dexie, type Table } from "dexie";
 
 export interface SiteUsage {

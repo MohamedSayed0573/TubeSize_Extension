@@ -11,8 +11,8 @@ import {
     getDomainName,
     getFormattingLocale,
     getUsageNumber,
-    parseDateKey,
 } from "@lib/dashboardUtils";
+import { parseDateKey } from "@lib/dateUtils";
 import type { DateKey } from "@app-types/types";
 import { getSiteColor } from "./siteColors";
 import { useTranslation } from "react-i18next";
