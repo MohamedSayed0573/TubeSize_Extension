@@ -95,6 +95,20 @@ export default defineConfig({
             },
         }),
     }),
+    // The Firefox sources zip (uploaded to AMO for review) is built by globbing
+    // the whole project root — WXT does not honor .gitignore, so everything not
+    // excluded here ships to the store reviewers. Only dotfiles are excluded by
+    // default (which keeps .env/.env.submit out).
+    zip: {
+        excludeSources: [
+            "benchmark/**",
+            "devTest/**",
+            "release/**",
+            "coverage/**",
+            "Notes.md",
+            "stats*.html",
+        ],
+    },
     vite: (env) => ({
         plugins: [tailwindcss(), perEntryVisualizer()],
         build: {
