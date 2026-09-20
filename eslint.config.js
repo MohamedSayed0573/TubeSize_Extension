@@ -84,6 +84,7 @@ export default defineConfig([
             "unicorn/no-for-each": "off",
             "unicorn/prefer-array-from-map": "off",
             "unicorn/no-top-level-side-effects": "off",
+            "unicorn/max-nested-calls": "off",
         },
     },
     {

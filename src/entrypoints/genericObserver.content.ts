@@ -88,6 +88,38 @@ function readWorkerSource(url: string): string | undefined {
     return;
 }
 
+// Video keys must match background.ts's tabIdToVideoKey (`<platform>:<id>`)
+function getWatchHistoryTarget(
+    url: string,
+): { videoId: string; platform: "youtube" | "twitch" | "kick" } | undefined {
+    if (isYoutubeVideo(url)) {
+        const videoId = extractVideoTag(url);
+        if (!videoId) return;
+        return { videoId, platform: "youtube" };
+    }
+    if (isTwitchVod(url)) {
+        const videoId = extractTwitchVodId(url);
+        if (!videoId) return;
+        return { videoId, platform: "twitch" };
+    }
+    if (isTwitchLive(url)) {
+        const videoId = extractChannelName(url);
+        if (!videoId) return;
+        return { videoId, platform: "twitch" };
+    }
+    if (isKickVod(url)) {
+        const videoId = extractKickVodId(url);
+        if (!videoId) return;
+        return { videoId, platform: "kick" };
+    }
+    if (isKickStream(url)) {
+        const videoId = extractChannelName(url);
+        if (!videoId) return;
+        return { videoId, platform: "kick" };
+    }
+    return;
+}
+
 export default defineContentScript({
     matches: ["<all_urls>"],
     runAt: "document_start",
@@ -95,38 +127,6 @@ export default defineContentScript({
     world: "MAIN",
 
     main() {
-        // Video keys must match background.ts's tabIdToVideoKey (`<platform>:<id>`)
-        function getWatchHistoryTarget(
-            url: string,
-        ): { videoId: string; platform: "youtube" | "twitch" | "kick" } | undefined {
-            if (isYoutubeVideo(url)) {
-                const videoId = extractVideoTag(url);
-                if (!videoId) return;
-                return { videoId, platform: "youtube" };
-            }
-            if (isTwitchVod(url)) {
-                const videoId = extractTwitchVodId(url);
-                if (!videoId) return;
-                return { videoId, platform: "twitch" };
-            }
-            if (isTwitchLive(url)) {
-                const videoId = extractChannelName(url);
-                if (!videoId) return;
-                return { videoId, platform: "twitch" };
-            }
-            if (isKickVod(url)) {
-                const videoId = extractKickVodId(url);
-                if (!videoId) return;
-                return { videoId, platform: "kick" };
-            }
-            if (isKickStream(url)) {
-                const videoId = extractChannelName(url);
-                if (!videoId) return;
-                return { videoId, platform: "kick" };
-            }
-            return;
-        }
-
         let total = 0;
 
         // Monkey patch fetch to count bytes

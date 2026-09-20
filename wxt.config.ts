@@ -12,10 +12,10 @@ function entryName(input: string | string[] | Record<string, string> | undefined
     const first = Array.isArray(input)
         ? input[0]
         : typeof input === "object"
-          ? Object.values(input ?? {})[0]
+          ? Object.values(input)[0]
           : input;
     if (typeof first !== "string" || !first) return "bundle";
-    return path.parse(first).name.replace(/[^a-zA-Z0-9]+/g, "-");
+    return path.parse(first).name.replaceAll(/[^a-zA-Z0-9]+/g, "-");
 }
 
 function perEntryVisualizer(): Plugin {
