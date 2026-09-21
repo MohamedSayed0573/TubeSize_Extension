@@ -309,7 +309,8 @@ export default defineBackground(() => {
     });
 
     const tabIdToVideoKey: Map<number, string> = new Map();
-    chrome.tabs.onUpdated.addListener((tabId, _, tab) => {
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+        if (changeInfo.status !== "complete") return;
         const { url } = tab;
         if (!url) return;
 
@@ -323,20 +324,20 @@ export default defineBackground(() => {
             void recordVideoMetadata(videoTag);
         } else if (isTwitchVod(url)) {
             const vodId = extractTwitchVodId(url);
-            void recordTwitchMetadata(url);
             if (!vodId) {
                 tabIdToVideoKey.delete(tabId);
                 return;
             }
             tabIdToVideoKey.set(tabId, `twitch:${vodId}`);
+            void recordTwitchMetadata(url);
         } else if (isTwitchLive(url)) {
             const channelName = extractChannelName(url);
-            void recordTwitchMetadata(url);
             if (!channelName) {
                 tabIdToVideoKey.delete(tabId);
                 return;
             }
             tabIdToVideoKey.set(tabId, `twitch:${channelName}`);
+            void recordTwitchMetadata(url);
         } else if (isKickVod(url)) {
             const vodId = extractKickVodId(url);
             if (!vodId) {
