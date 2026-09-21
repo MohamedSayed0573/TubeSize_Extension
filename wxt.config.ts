@@ -27,17 +27,15 @@ function perEntryVisualizer(): Plugin {
                 ...inputOptions,
                 plugins: [
                     ...plugins,
-                    visualizer({ filename: `stats-${entryName(inputOptions.input)}.html` }),
+                    visualizer({
+                        filename: path.join("stats", `${entryName(inputOptions.input)}.html`),
+                    }),
                 ],
             };
         },
     };
 }
 
-// Stats are on-demand tooling, not a build artifact: they would otherwise land
-// in the project root on every release build. Generate with `pnpm analyze`.
-// (Gating on dev mode is not an option — WXT's dev server never runs the
-// rollup step the visualizer hooks into.)
 const shouldEmitStats = process.env.ANALYZE === "true";
 
 export default defineConfig({
@@ -112,7 +110,7 @@ export default defineConfig({
             "release/**",
             "coverage/**",
             "Notes.md",
-            "stats*.html",
+            "stats/**",
         ],
     },
     vite: (env) => ({

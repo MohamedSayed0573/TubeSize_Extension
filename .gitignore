@@ -7,7 +7,7 @@ Notes.md
 devTest/
 
 *.zip
-stats*.html
+stats/
 coverage/
 code_review/
 .release/
