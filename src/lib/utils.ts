@@ -3,8 +3,9 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { PlatformId } from "@app-types/types";
 
-export function isPlatformId(id: string): id is PlatformId {
-    return (CONFIG.PLATFORMS as readonly string[]).includes(id);
+export function isPlatformId(value: unknown): value is PlatformId {
+    // eslint-disable-next-line unicorn/prefer-includes
+    return typeof value === "string" && CONFIG.PLATFORMS.some((platform) => platform === value);
 }
 
 export function isYoutubePage(url: string): boolean {

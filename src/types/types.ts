@@ -72,10 +72,10 @@ export type KickInitMessage = {
     isFromPopup: boolean;
 };
 
-export type UsageMessage = { type: "SITE_USAGE"; bytes: number };
+export type UsageMessage = { type: "TUBESIZE_SITE_USAGE"; bytes: number };
 
 export type WatchHistoryMessage = {
-    type: "WATCH_HISTORY";
+    type: "TUBESIZE_WATCH_HISTORY";
     videoId: string;
     bytes: number;
     platform: PlatformId;

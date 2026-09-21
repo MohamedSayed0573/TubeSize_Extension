@@ -25,7 +25,7 @@ import {
     isTwitchVod,
     isYoutubeVideo,
 } from "@lib/utils";
-import type { UsageMessage, WatchHistoryMessage } from "@app-types/types";
+import type { PlatformId, UsageMessage, WatchHistoryMessage } from "@app-types/types";
 
 function workerBootstrap(originalUrl: string): string {
     return `
@@ -89,9 +89,7 @@ function readWorkerSource(url: string): string | undefined {
 }
 
 // Video keys must match background.ts's tabIdToVideoKey (`<platform>:<id>`)
-function getWatchHistoryTarget(
-    url: string,
-): { videoId: string; platform: "youtube" | "twitch" | "kick" } | undefined {
+function getWatchHistoryTarget(url: string): { videoId: string; platform: PlatformId } | undefined {
     if (isYoutubeVideo(url)) {
         const videoId = extractVideoTag(url);
         if (!videoId) return;
@@ -186,7 +184,7 @@ export default defineContentScript({
 
         // Worker → parent messages arrive on the Worker object, not on window, so the
         // relay must listen on the instance. Folded into `total`, the page-level
-        // SITE_USAGE flush forwards worker bytes to the extension like any other.
+        // TUBESIZE_SITE_USAGE flush forwards worker bytes to the extension like any other.
         function relayWorkerUsage(worker: Worker) {
             worker.addEventListener("message", (event) => {
                 const data = event.data as { type?: string; bytes?: unknown } | null;
@@ -281,7 +279,7 @@ export default defineContentScript({
             if (total === 0) return;
             window.postMessage(
                 {
-                    type: "SITE_USAGE",
+                    type: "TUBESIZE_SITE_USAGE",
                     bytes: total,
                 } satisfies UsageMessage,
                 "*",
@@ -291,7 +289,7 @@ export default defineContentScript({
             if (target) {
                 window.postMessage(
                     {
-                        type: "WATCH_HISTORY",
+                        type: "TUBESIZE_WATCH_HISTORY",
                         videoId: target.videoId,
                         platform: target.platform,
                         bytes: total,

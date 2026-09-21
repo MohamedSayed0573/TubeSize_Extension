@@ -68,8 +68,9 @@ async function initTwitch(tag: string, isLive: boolean) {
 
 export default defineContentScript({
     // Exact hosts, mirroring the isYoutubePage/isTwitchPage/isKickPage checks in
-    // @lib/utils. The SITE_USAGE/WATCH_HISTORY relay for genericObserver lives in
-    // usageBridge.content.ts, which is what gets injected everywhere else.
+    // @lib/utils. The TUBESIZE_SITE_USAGE/TUBESIZE_WATCH_HISTORY relay for
+    // genericObserver lives in usageBridge.content.ts, which is what gets
+    // injected everywhere else.
     matches: [
         "*://www.youtube.com/*",
         "*://youtube.com/*",
