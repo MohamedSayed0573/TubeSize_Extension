@@ -23,7 +23,8 @@ export type FrontEndMessage =
     | YoutubeMessage
     | TwitchVodMessage
     | TwitchLiveMessage
-    | KickInitMessage
+    | KickVodMessage
+    | KickLiveMessage
     | GetUsageMessage
     | AddUsageMessage
     | AddWatchHistoryMessage
@@ -66,9 +67,17 @@ export type TwitchLiveMessage = {
     isFromPopup: boolean;
 };
 
-export type KickInitMessage = {
-    type: "kickInit";
-    url: string;
+export type KickMessage = KickVodMessage | KickLiveMessage;
+
+export type KickVodMessage = {
+    type: "kickVod";
+    vodId: string;
+    channelName: string;
+};
+
+export type KickLiveMessage = {
+    type: "kickLive";
+    channelName: string;
     isFromPopup: boolean;
 };
 

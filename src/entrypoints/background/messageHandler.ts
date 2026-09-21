@@ -4,10 +4,10 @@ import {
     handleAddWatchHistory,
     handleGetUsage,
     handleGetWatchHistory,
+    handleKick,
     handleTwitch,
     handleYoutube,
 } from "./handlers";
-import { getKickInitResponse } from "@/lib/kick";
 
 async function handleMessage(
     message: FrontEndMessage,
@@ -22,8 +22,9 @@ async function handleMessage(
         case "twitchLive": {
             return sendResponse(await handleTwitch(message));
         }
-        case "kickInit": {
-            return sendResponse(await getKickInitResponse(message));
+        case "kickVod":
+        case "kickLive": {
+            return sendResponse(await handleKick(message));
         }
         case "addUsage": {
             return sendResponse(await handleAddUsage(message));

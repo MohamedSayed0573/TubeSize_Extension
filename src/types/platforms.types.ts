@@ -88,13 +88,13 @@ export type TwitchTokenData = {
     durationSeconds?: number;
 };
 
-type KickLiveData = {
+export type KickLiveData = {
     type: "live";
     data: StreamInfo[];
     channelName: string;
 };
 
-type KickVodData = {
+export type KickVodData = {
     type: "vod";
     data: StreamInfo[];
     vodId: string;

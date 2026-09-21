@@ -2,6 +2,7 @@ import { addSiteUsage, addWatchHistory, getSiteUsage, getWatchHistory } from "@/
 import type {
     YoutubeBackgroundResponse,
     TwitchBackgroundResponse,
+    KickBackgroundResponse,
     YoutubeVideoData,
     YoutubeData,
     GetUsageResponse,
@@ -12,6 +13,7 @@ import type {
 import type {
     YoutubeMessage,
     TwitchMessage,
+    KickMessage,
     AddUsageMessage,
     AddWatchHistoryMessage,
 } from "@app-types/types";
@@ -24,6 +26,7 @@ import {
     getThumbnailUrl,
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
+import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
 
 function isValidUsageBytes(usage: unknown): usage is number {
     return typeof usage === "number" && Number.isFinite(usage) && usage >= 0;
@@ -65,6 +68,19 @@ export async function handleTwitch(message: TwitchMessage): Promise<TwitchBackgr
         return message.type === "twitchLive"
             ? await getTwitchLiveResponse(message)
             : await getTwitchVodResponse(message);
+    } catch (err) {
+        return {
+            success: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        };
+    }
+}
+
+export async function handleKick(message: KickMessage): Promise<KickBackgroundResponse> {
+    try {
+        return message.type === "kickLive"
+            ? await getKickLiveResponse(message)
+            : await getKickVodResponse(message);
     } catch (err) {
         return {
             success: false,
