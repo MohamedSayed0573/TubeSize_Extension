@@ -1,3 +1,18 @@
+/**
+ * Injects per-quality data-usage labels into YouTube's player quality menu.
+ *
+ * Flow:
+ *  - `injectQualityMenu` is called by the content script on navigation; it remembers
+ *    the current video data and listens for clicks on the player's settings button.
+ *  - When the settings button is clicked, the "Quality" item in the settings panel
+ *    is located and a click listener is attached to it.
+ *  - When the quality menu opens, `renderQualityLabels` appends a TubeSize-styled
+ *    label (total size for VODs, size per hour for live streams) to each quality
+ *    option, based on the current `YoutubeData`.
+ *
+ * `removeEventListeners` clears all listeners and injected labels; it is called
+ * on navigation away from a supported page and before each re-injection.
+ */
 import type { YoutubeData } from "@app-types/platforms.types";
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { waitForElement } from "@lib/dom";

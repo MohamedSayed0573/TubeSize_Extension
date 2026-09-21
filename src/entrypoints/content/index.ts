@@ -19,6 +19,7 @@ export default defineContentScript({
 
     main() {
         void initLanguage();
+
         void handlePageNavigation();
 
         setupMessageHandler();

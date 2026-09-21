@@ -17,8 +17,8 @@ import {
     startToastKickPolling,
     startToastTwitchPolling,
     startYoutubeToastTracking,
-    stopResolutionTracking,
-} from "@/resolution";
+} from "@pages/toasterTracking";
+import { stopResolutionTracking } from "@/resolution";
 
 export async function handlePageNavigation() {
     try {
@@ -30,6 +30,7 @@ export async function handlePageNavigation() {
             return;
         }
 
+        const isToasterEnable = await isToasterEnabled();
         if (isYoutubePage(url)) {
             const tag = extractVideoTag(url);
 
@@ -40,7 +41,6 @@ export async function handlePageNavigation() {
             const youtubeResponse = await initYoutube(tag);
             await injectQualityMenu(youtubeResponse);
 
-            const isToasterEnable = await isToasterEnabled();
             if (isToasterEnable) {
                 await startYoutubeToastTracking(youtubeResponse);
             }
@@ -52,7 +52,6 @@ export async function handlePageNavigation() {
             if (!tag) return;
 
             const twitchResponse = await initTwitch(tag, isLive);
-            const isToasterEnable = await isToasterEnabled();
             if (isToasterEnable) {
                 await startToastTwitchPolling(twitchResponse);
             }
@@ -65,7 +64,6 @@ export async function handlePageNavigation() {
             if (!tag || !channelName) return;
 
             const kickResponse = await initKick(tag, isLive, channelName);
-            const isToasterEnable = await isToasterEnabled();
             if (isToasterEnable) {
                 await startToastKickPolling(kickResponse);
             }
