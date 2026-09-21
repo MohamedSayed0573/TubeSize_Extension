@@ -6,7 +6,7 @@
  */
 type BytesByKey = Record<string, number>;
 
-interface UsageSnapshot {
+export interface UsageSnapshot {
     origins: BytesByKey;
     videos: BytesByKey;
 }
@@ -41,5 +41,21 @@ export class UsageBuffer {
         this.origins = {};
         this.videos = {};
         return snapshot;
+    }
+
+    /**
+     * Merges a previously drained snapshot back into the accumulators.
+     *
+     * Merging (rather than overwriting) keeps any bytes that arrived while
+     * the failed flush was in flight.
+     */
+    restore(snapshot: UsageSnapshot) {
+        for (const [origin, bytes] of Object.entries(snapshot.origins)) {
+            this.origins[origin] = (this.origins[origin] ?? 0) + bytes;
+        }
+
+        for (const [videoKey, bytes] of Object.entries(snapshot.videos)) {
+            this.videos[videoKey] = (this.videos[videoKey] ?? 0) + bytes;
+        }
     }
 }

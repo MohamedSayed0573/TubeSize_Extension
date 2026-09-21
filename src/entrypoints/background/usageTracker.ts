@@ -102,8 +102,20 @@ async function trackWatchHistory(buffer: UsageBuffer, tabId: number, bytes: numb
 async function flushUsage(buffer: UsageBuffer) {
     const { origins, videos } = buffer.drain();
 
-    await addSiteUsage(origins);
-    await addWatchHistory(videos);
+    try {
+        await addSiteUsage(origins);
+    } catch (err) {
+        buffer.restore({ origins, videos });
+        throw err;
+    }
+
+    try {
+        await addWatchHistory(videos);
+    } catch (err) {
+        buffer.restore({ origins: {}, videos });
+        throw err;
+    }
+
     await refreshBadge();
 }
 

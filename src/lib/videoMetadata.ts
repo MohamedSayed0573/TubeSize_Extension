@@ -17,10 +17,7 @@ export async function recordTwitchMetadata(url: string) {
         if (!videoTag) return;
 
         const existing = await getVideoMetadata(videoTag, "twitch");
-        const hasUsableThumbnail = Boolean(
-            existing?.thumbnailUrl && !existing.thumbnailUrl.includes("404_processing"),
-        );
-        if (existing && contentType === "vod" && hasUsableThumbnail) return;
+        if (existing) return;
 
         const res = await fetch(url);
         if (!res.ok) return;
