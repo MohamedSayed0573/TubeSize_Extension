@@ -17,7 +17,7 @@ export function isYoutubePage(url: string): boolean {
     }
 }
 
-export function isYoutubeVideo(url: string): boolean {
+function isYoutubeVideo(url: string): boolean {
     try {
         if (!isYoutubePage(url)) return false;
         const videoTag = new URL(url).searchParams.get("v");
@@ -299,11 +299,4 @@ export function getWatchHistoryTarget(
 
 export function toVideoKey(platform: PlatformId, videoId: string) {
     return `${platform}:${videoId}`;
-}
-
-export function urlToVideoKey(url: string) {
-    const data = getWatchHistoryTarget(url);
-    if (!data) return;
-
-    return toVideoKey(data.platform, data.videoId);
 }
