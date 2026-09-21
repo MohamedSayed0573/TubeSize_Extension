@@ -10,7 +10,15 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 
 export default defineConfig([
-    globalIgnores(["dist", "coverage", "src/components/ui", "devTest"]),
+    globalIgnores([
+        "dist",
+        "dist_firefox",
+        ".output",
+        ".wxt",
+        "coverage",
+        "src/components/ui",
+        "devTest",
+    ]),
     {
         files: ["**/*.{ts,tsx}"],
         extends: [
@@ -76,6 +84,7 @@ export default defineConfig([
             "unicorn/no-for-each": "off",
             "unicorn/prefer-array-from-map": "off",
             "unicorn/no-top-level-side-effects": "off",
+            "unicorn/max-nested-calls": "off",
         },
     },
     {

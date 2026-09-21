@@ -1,4 +1,4 @@
-import { sendMessageToContentScript } from "@/runtime";
+import { sendMessageToBackground } from "@/runtime";
 import { isKickStream, isKickVod } from "@lib/utils";
 import { useQuery } from "@tanstack/react-query";
 
@@ -7,12 +7,13 @@ export function useKickData(tabUrl: string, tabId: number) {
     const query = useQuery({
         queryKey: ["kick", tabUrl, tabId],
         queryFn: async () => {
-            const response = await sendMessageToContentScript(tabId, {
-                type: "getKick",
+            const response = await sendMessageToBackground({
+                type: "kickInit",
+                url: tabUrl,
                 isFromPopup: true,
             });
-            if (!response?.success) {
-                throw new Error(response?.message || "Failed to retrieve Kick data");
+            if (!response.success) {
+                throw new Error(response.message || "Failed to retrieve Kick data");
             }
             return {
                 data: response.data,

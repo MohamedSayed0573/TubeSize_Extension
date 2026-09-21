@@ -1,6 +1,6 @@
 import CONFIG from "@lib/constants";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
-import { getDateKey } from "@lib/dashboardUtils";
+import { getDateKey } from "@lib/dateUtils";
 import type { SettingsMap, StorageData } from "@app-types/types";
 
 async function setToCache<T extends Record<string, unknown>>(storage: "local" | "sync", input: T) {

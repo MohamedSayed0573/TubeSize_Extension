@@ -1,6 +1,7 @@
 import type { PopupData } from "@app-types/uiTypes";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
-import { chromeNavigate, humanizeDuration } from "@lib/utils";
+import { chromeNavigate } from "@lib/utils";
+import { humanizeDuration } from "@lib/humanize";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -11,9 +12,9 @@ function getYoutubeTitle(youtubeData: YoutubeData | null | undefined, t: TFuncti
         : youtubeData?.channelName || t("popup.youtubeLive");
 }
 
-function getYoutubeDuration(youtubeData?: YoutubeData | null): string | undefined {
+function getYoutubeDuration(youtubeData?: YoutubeData | null, language = "en"): string | undefined {
     return youtubeData?.type === "video"
-        ? humanizeDuration(youtubeData.durationSeconds * 1000)
+        ? humanizeDuration(youtubeData.durationSeconds * 1000, language)
         : undefined;
 }
 
@@ -29,7 +30,7 @@ function getTwitchTitle(twitchData: TwitchData | null | undefined, t: TFunction)
     return t("popup.twitchVideo");
 }
 
-function getTwitchDuration(twitchData?: TwitchData | null): string | undefined {
+function getTwitchDuration(twitchData?: TwitchData | null, language = "en"): string | undefined {
     const data = twitchData;
 
     if (!data || data.type === "live") {
@@ -37,7 +38,7 @@ function getTwitchDuration(twitchData?: TwitchData | null): string | undefined {
     }
 
     if (data.durationSeconds) {
-        return humanizeDuration(data.durationSeconds * 1000);
+        return humanizeDuration(data.durationSeconds * 1000, language);
     }
 
     return undefined;
@@ -47,9 +48,9 @@ function getKickTitle(kickData?: KickData | null): string {
     return kickData?.channelName ?? "Kick";
 }
 
-function getKickDuration(kickData?: KickData | null): string | undefined {
+function getKickDuration(kickData?: KickData | null, language = "en"): string | undefined {
     if (kickData?.type === "vod" && kickData.durationSeconds) {
-        return humanizeDuration(kickData.durationSeconds * 1000);
+        return humanizeDuration(kickData.durationSeconds * 1000, language);
     }
 
     return undefined;
@@ -61,7 +62,7 @@ interface Props {
 
 export default function Header({ data }: Props) {
     const navigate = useNavigate();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const isLive = data?.data.type === "live";
     let title: string;
     let duration: string | undefined;
@@ -69,17 +70,17 @@ export default function Header({ data }: Props) {
     switch (data?.platform) {
         case "youtube": {
             title = getYoutubeTitle(data.data, t);
-            duration = getYoutubeDuration(data.data);
+            duration = getYoutubeDuration(data.data, i18n.language);
             break;
         }
         case "twitch": {
             title = getTwitchTitle(data.data, t);
-            duration = getTwitchDuration(data.data);
+            duration = getTwitchDuration(data.data, i18n.language);
             break;
         }
         case "kick": {
             title = getKickTitle(data.data);
-            duration = getKickDuration(data.data);
+            duration = getKickDuration(data.data, i18n.language);
             break;
         }
         default: {

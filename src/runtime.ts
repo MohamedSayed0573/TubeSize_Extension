@@ -13,8 +13,7 @@ type MessageResponseMap = {
     youtubeVideo: YoutubeBackgroundResponse;
     twitchVod: TwitchBackgroundResponse;
     twitchLive: TwitchBackgroundResponse;
-    kickLive: KickBackgroundResponse;
-    kickVod: KickBackgroundResponse;
+    kickInit: KickBackgroundResponse;
     getUsage: GetUsageResponse;
     addUsage: AddUsageResponse;
     addWatchHistory: AddWatchHistoryResponse;
@@ -45,11 +44,9 @@ export async function sendMessageToBackground<T extends FrontEndMessage>(
     });
 }
 
-type ContentScriptMessage =
-    { type: "getCurrentResolution" } | { type: "getKick"; isFromPopup?: boolean };
+type ContentScriptMessage = { type: "getCurrentResolution" };
 type ContentScriptResponseMap = {
     getCurrentResolution: number | undefined;
-    getKick: KickBackgroundResponse | undefined;
 };
 export async function sendMessageToContentScript<T extends ContentScriptMessage>(
     tabId: number,

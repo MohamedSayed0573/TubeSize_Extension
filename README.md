@@ -111,12 +111,12 @@ TubeSize is an modern, extension-first project. The legacy API under `api/` is f
 
 | Layer                 | Technology                                                                                         |
 | :-------------------- | :------------------------------------------------------------------------------------------------- |
-| **Frontend & UI**     | React 19, TypeScript, Vite, React Router v7, Recharts, CSS Variables                               |
+| **Frontend & UI**     | React 19, TypeScript, WXT, React Router v7, Recharts, Tailwind CSS 4, CSS Variables                |
 | **Testing**           | Jest, ts-jest, jest-extended                                                                       |
 | **Linting & Tooling** | ESLint 10, Knip, Prettier, Husky, Lint-Staged                                                      |
 | **Local Cache**       | `chrome.storage.local` (media cache, daily dashboard) and `chrome.storage.sync` (user preferences) |
 | **Data Parsing**      | Zod (schema verification) & `m3u8-parser` (Twitch/Kick streams)                                    |
-| **Packaging**         | `@crxjs/vite-plugin` (Manifest V3 integration), zip packaging                                      |
+| **Packaging**         | WXT (Manifest V3 builds & zips), zip packaging                                                     |
 | **CI/CD**             | GitHub Actions                                                                                     |
 
 ---

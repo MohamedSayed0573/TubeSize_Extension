@@ -1,4 +1,5 @@
-import { formatBytes, getLastNDays, getUsageNumber } from "@lib/dashboardUtils";
+import { formatBytes, getUsageNumber } from "@lib/dashboardUtils";
+import { getLastNDays } from "@lib/dateUtils";
 import { cn } from "@lib/utils";
 import type { SiteUsage } from "@/db";
 import { Activity, CalendarDays, CalendarRange, Database } from "lucide-react";

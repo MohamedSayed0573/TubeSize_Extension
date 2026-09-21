@@ -26,16 +26,16 @@ jobs:
               run: pnpm install --frozen-lockfile
 
             - name: TypeCheck
-              run: pnpm -F tubesize run tsc
+              run: pnpm run tsc
 
             - name: Lint
-              run: pnpm -F tubesize run lint
+              run: pnpm run lint
 
             - name: Knip
-              run: pnpm -F tubesize run knip
+              run: pnpm run knip
 
             - name: Run Tests
-              run: pnpm -F tubesize run test
+              run: pnpm run test
 
             - name: Build
-              run: pnpm -F tubesize run build
+              run: pnpm run build

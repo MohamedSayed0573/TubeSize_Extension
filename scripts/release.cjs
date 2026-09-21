@@ -63,10 +63,6 @@ function updateJsonVersion(filePath) {
     data.version = versionNumber;
     fs.writeFileSync(filePath, JSON.stringify(data, null, 4), { encoding: "utf-8" });
 }
-function pack() {
-    execFileSync("pnpm", ["run", "pack:firefox"], { stdio: "inherit" });
-    execFileSync("pnpm", ["run", "pack"], { stdio: "inherit" });
-}
 function main() {
     if (tagExistsLocally(fullVersion)) {
         console.error(`Tag ${fullVersion} already exists locally. Please delete it first.`);
@@ -79,7 +75,6 @@ function main() {
     checkGitClean();
     updateJsonVersion(path.join(__dirname, "..", "package.json"));
     gitCommit();
-    pack();
     createGitTag();
 }
 main();

@@ -6,6 +6,11 @@ on:
         tags:
             - "extension-v*.*.*"
     workflow_dispatch:
+        inputs:
+            dryRun:
+                description: "Dry run: verify store credentials without submitting"
+                type: boolean
+                default: false
 
 jobs:
     build:
@@ -24,30 +29,54 @@ jobs:
                   cache: "pnpm"
 
             - name: Install dependencies
-              run: pnpm install --filter tubesize
+              run: pnpm install
 
             - name: TypeCheck
-              run: pnpm -F tubesize run tsc
+              run: pnpm run tsc
 
             - name: Lint
-              run: pnpm -F tubesize run lint
+              run: pnpm run lint
 
             - name: Knip
-              run: pnpm -F tubesize run knip
+              run: pnpm run knip
 
             - name: Run Tests
-              run: pnpm --filter tubesize run test
+              run: pnpm run test
 
             - name: Build release packages
               run: |
-                  pnpm --filter tubesize run pack:firefox
-                  pnpm --filter tubesize run pack
+                  pnpm run pack:firefox
+                  pnpm run pack
+
+            - name: Submit to stores
+              env:
+                  CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+                  CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+                  CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+                  CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+                  FIREFOX_EXTENSION_ID: ${{ secrets.FIREFOX_EXTENSION_ID }}
+                  FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
+                  FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
+                  EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+                  EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+                  EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+              run: |
+                  ARGS=""
+                  if [ "${{ inputs.dryRun }}" = "true" ]; then
+                      ARGS="--dry-run"
+                  fi
+                  # Edge reuses the Chrome zip (same MV3 package)
+                  pnpm exec wxt submit $ARGS \
+                      --chrome-zip .output/*-chrome.zip \
+                      --firefox-zip .output/*-firefox.zip \
+                      --firefox-sources-zip .output/*-sources.zip \
+                      --edge-zip .output/*-chrome.zip
 
             - name: Create Release
               uses: softprops/action-gh-release@v3
               with:
                   files: |
-                      dist/tubesize.zip
-                      dist_firefox/tubesize_firefox.zip
+                      .output/tubesize-*-chrome.zip
+                      .output/tubesize-*-firefox.zip
                   fail_on_unmatched_files: true
                   generate_release_notes: true

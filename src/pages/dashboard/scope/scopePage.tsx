@@ -1,9 +1,10 @@
-import { formatDate, isValidDateKey } from "@lib/dashboardUtils";
+import { formatDate } from "@lib/dashboardUtils";
+import { isValidDateKey, getLastNDays } from "@lib/dateUtils";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import VideosTableSkeleton from "@pages/dashboard/platform/videosTableSkeleton";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useSiteUsage } from "@hooks/useSiteUsage";
-import { getLastNDays, getUsageNumber } from "@lib/dashboardUtils";
+import { getUsageNumber } from "@lib/dashboardUtils";
 import { useParams } from "react-router";
 import DashboardNotFound from "../shared/notFound";
 import type { DateKey, UsageRange, UsageScope } from "@app-types/types";
