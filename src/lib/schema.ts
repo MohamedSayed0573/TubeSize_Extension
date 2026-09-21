@@ -87,3 +87,13 @@ export const kickChannelVideosResponseSchema = z.array(
         duration: z.number(),
     }),
 );
+
+// kick.com/api/v1/video/{uuid} — livestream duration is in milliseconds
+export const kickVideoResponseSchema = z.object({
+    source: z.string().nullable(),
+    livestream: z
+        .object({
+            duration: z.number(),
+        })
+        .nullable(),
+});

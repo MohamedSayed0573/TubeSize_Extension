@@ -4,7 +4,11 @@ import { estimateHlsStreamSizes } from "@lib/hlsSize";
 import { getFromStorage, saveToStorage } from "@lib/cache";
 import type { KickBackgroundResponse } from "@app-types/platforms.types";
 import type { KickInitMessage } from "@app-types/types";
-import { kickChannelVideosResponseSchema, kickPlaybackResponseSchema } from "@lib/schema";
+import {
+    kickChannelVideosResponseSchema,
+    kickPlaybackResponseSchema,
+    kickVideoResponseSchema,
+} from "@lib/schema";
 import { extractChannelName, extractKickVodId, fetchAndRetry, isKickVod } from "@lib/utils";
 
 async function getKickHtml(url: string): Promise<string> {
@@ -121,28 +125,59 @@ async function getKickLiveResponse(
     }
 }
 
+// Kick VOD URLs use one of two ID formats: newer ones use a title slug
+// (c7093a5c-some-title) while older ones use the video UUID. UUID videos can
+// be fetched directly from the video API, which works for VODs of any age.
+const KICK_VIDEO_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function getKickVodByUuid(videoId: string): Promise<{ source: string; durationMs: number }> {
+    const res = await fetchAndRetry(`https://kick.com/api/v1/video/${videoId}`, {
+        credentials: "include",
+    });
+    if (!res.success) {
+        throw new Error(`Error fetching Kick video: ${res.error.message}`);
+    }
+
+    const video = kickVideoResponseSchema.parse(await res.response.json());
+    if (!video.source) {
+        throw new Error("Kick VOD source not found");
+    }
+    if (video.livestream == null) {
+        throw new Error("Kick VOD duration not found");
+    }
+    return { source: video.source, durationMs: video.livestream.duration };
+}
+
 // The videos API lists each VOD with its source master.m3u8 and duration (ms),
-// so VODs don't need the HTML page.
+// so slug-based VODs don't need the HTML page. Note: this endpoint ignores
+// pagination parameters (offset/limit/cursor) and returns the channel's full
+// public VOD list, so only VODs present in that list can be resolved this way.
+async function findKickVodInChannelVideos(channelName: string, videoId: string) {
+    const res = await fetchAndRetry(`https://kick.com/api/v2/channels/${channelName}/videos`, {
+        credentials: "include",
+    });
+    if (!res.success) {
+        throw new Error(`Error fetching Kick channel videos: ${res.error.message}`);
+    }
+
+    const videos = kickChannelVideosResponseSchema.parse(await res.response.json());
+    const video = videos.find((entry) => entry.slug === videoId);
+    if (!video?.source) {
+        throw new Error("Kick VOD not found in channel videos");
+    }
+    return { source: video.source, durationMs: video.duration };
+}
+
 async function getKickVodResponse(
     channelName: string,
     videoId: string,
 ): Promise<KickBackgroundResponse> {
     try {
-        const res = await fetchAndRetry(
-            `https://kick.com/api/v2/channels/${channelName}/videos?offset=0&limit=50`,
-            { credentials: "include" },
-        );
-        if (!res.success) {
-            throw new Error(`Error fetching Kick channel videos: ${res.error.message}`);
-        }
+        const { source, durationMs } = KICK_VIDEO_UUID_REGEX.test(videoId)
+            ? await getKickVodByUuid(videoId)
+            : await findKickVodInChannelVideos(channelName, videoId);
 
-        const videos = kickChannelVideosResponseSchema.parse(await res.response.json());
-        const video = videos.find((entry) => entry.slug === videoId);
-        if (!video?.source) {
-            throw new Error("Kick VOD not found in channel videos");
-        }
-
-        const masterRes = await fetchAndRetry(video.source);
+        const masterRes = await fetchAndRetry(source);
         if (!masterRes.success) {
             throw new Error(`Error fetching master M3U8: ${masterRes.error.message}`);
         }
@@ -160,7 +195,7 @@ async function getKickVodResponse(
                 data: filterM3u8(playlists),
                 vodId: videoId,
                 channelName,
-                durationSeconds: Math.round(video.duration / 1000),
+                durationSeconds: Math.round(durationMs / 1000),
             },
         };
     } catch (err) {
