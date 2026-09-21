@@ -3,8 +3,9 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { PlatformId } from "@app-types/types";
 
-export function isPlatformId(id: string): id is PlatformId {
-    return (CONFIG.PLATFORMS as readonly string[]).includes(id);
+export function isPlatformId(value: unknown): value is PlatformId {
+    // eslint-disable-next-line unicorn/prefer-includes
+    return typeof value === "string" && CONFIG.PLATFORMS.some((platform) => platform === value);
 }
 
 export function isYoutubePage(url: string): boolean {
@@ -16,7 +17,7 @@ export function isYoutubePage(url: string): boolean {
     }
 }
 
-export function isYoutubeVideo(url: string): boolean {
+function isYoutubeVideo(url: string): boolean {
     try {
         if (!isYoutubePage(url)) return false;
         const videoTag = new URL(url).searchParams.get("v");
@@ -262,4 +263,40 @@ export function faviconURL(u: string | undefined) {
     } catch {
         return;
     }
+}
+
+// Video keys must match background.ts's tabIdToVideoKey (`<platform>:<id>`)
+export function getWatchHistoryTarget(
+    url: string,
+): { videoId: string; platform: PlatformId } | undefined {
+    if (isYoutubeVideo(url)) {
+        const videoId = extractVideoTag(url);
+        if (!videoId) return;
+        return { videoId, platform: "youtube" };
+    }
+    if (isTwitchVod(url)) {
+        const videoId = extractTwitchVodId(url);
+        if (!videoId) return;
+        return { videoId, platform: "twitch" };
+    }
+    if (isTwitchLive(url)) {
+        const videoId = extractChannelName(url);
+        if (!videoId) return;
+        return { videoId, platform: "twitch" };
+    }
+    if (isKickVod(url)) {
+        const videoId = extractKickVodId(url);
+        if (!videoId) return;
+        return { videoId, platform: "kick" };
+    }
+    if (isKickStream(url)) {
+        const videoId = extractChannelName(url);
+        if (!videoId) return;
+        return { videoId, platform: "kick" };
+    }
+    return;
+}
+
+export function toVideoKey(platform: PlatformId, videoId: string) {
+    return `${platform}:${videoId}`;
 }

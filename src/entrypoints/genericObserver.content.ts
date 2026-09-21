@@ -14,17 +14,7 @@
 //      so fetch() inside workers (Twitch's video worker) is counted too
 
 import { defineContentScript } from "wxt/utils/define-content-script";
-import {
-    extractChannelName,
-    extractKickVodId,
-    extractTwitchVodId,
-    extractVideoTag,
-    isKickStream,
-    isKickVod,
-    isTwitchLive,
-    isTwitchVod,
-    isYoutubeVideo,
-} from "@lib/utils";
+import { getWatchHistoryTarget } from "@lib/utils";
 import type { UsageMessage, WatchHistoryMessage } from "@app-types/types";
 
 function workerBootstrap(originalUrl: string): string {
@@ -84,38 +74,6 @@ function readWorkerSource(url: string): string | undefined {
         if (xhr.status === 200 && xhr.responseText.length > 0) return xhr.responseText;
     } catch {
         // unreadable (e.g. cross-origin) — fall back to the native constructor
-    }
-    return;
-}
-
-// Video keys must match background.ts's tabIdToVideoKey (`<platform>:<id>`)
-function getWatchHistoryTarget(
-    url: string,
-): { videoId: string; platform: "youtube" | "twitch" | "kick" } | undefined {
-    if (isYoutubeVideo(url)) {
-        const videoId = extractVideoTag(url);
-        if (!videoId) return;
-        return { videoId, platform: "youtube" };
-    }
-    if (isTwitchVod(url)) {
-        const videoId = extractTwitchVodId(url);
-        if (!videoId) return;
-        return { videoId, platform: "twitch" };
-    }
-    if (isTwitchLive(url)) {
-        const videoId = extractChannelName(url);
-        if (!videoId) return;
-        return { videoId, platform: "twitch" };
-    }
-    if (isKickVod(url)) {
-        const videoId = extractKickVodId(url);
-        if (!videoId) return;
-        return { videoId, platform: "kick" };
-    }
-    if (isKickStream(url)) {
-        const videoId = extractChannelName(url);
-        if (!videoId) return;
-        return { videoId, platform: "kick" };
     }
     return;
 }
@@ -186,7 +144,7 @@ export default defineContentScript({
 
         // Worker → parent messages arrive on the Worker object, not on window, so the
         // relay must listen on the instance. Folded into `total`, the page-level
-        // SITE_USAGE flush forwards worker bytes to the extension like any other.
+        // TUBESIZE_SITE_USAGE flush forwards worker bytes to the extension like any other.
         function relayWorkerUsage(worker: Worker) {
             worker.addEventListener("message", (event) => {
                 const data = event.data as { type?: string; bytes?: unknown } | null;
@@ -281,7 +239,7 @@ export default defineContentScript({
             if (total === 0) return;
             window.postMessage(
                 {
-                    type: "SITE_USAGE",
+                    type: "TUBESIZE_SITE_USAGE",
                     bytes: total,
                 } satisfies UsageMessage,
                 "*",
@@ -291,7 +249,7 @@ export default defineContentScript({
             if (target) {
                 window.postMessage(
                     {
-                        type: "WATCH_HISTORY",
+                        type: "TUBESIZE_WATCH_HISTORY",
                         videoId: target.videoId,
                         platform: target.platform,
                         bytes: total,

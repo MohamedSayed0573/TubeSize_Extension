@@ -3,6 +3,7 @@
 // WATCH_HISTORY window messages; this ISOLATED-world script is the only thing
 // on non-platform pages, and forwards them to the background. It is kept apart
 // from content.ts so the heavy platform pipeline is not injected everywhere.
+import { isPlatformId } from "@/lib/utils";
 import { sendMessageToBackground } from "@/runtime";
 import type { WindowMessage } from "@app-types/types";
 import { defineContentScript } from "wxt/utils/define-content-script";
@@ -19,24 +20,22 @@ export default defineContentScript({
 
             const message = event.data as WindowMessage;
 
-            if (message.type === "SITE_USAGE") {
+            if (message.type === "TUBESIZE_SITE_USAGE") {
                 const { bytes } = message;
-                if (typeof bytes !== "number") return;
-                if (!Number.isFinite(bytes) || bytes < 0) return;
-                if (bytes === 0) return;
+                if (!isValidBytes(bytes)) return;
+
                 void sendMessageToBackground({
                     type: "addUsage",
                     bytes,
                     origin: event.origin,
                 });
                 //eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            } else if (message.type === "WATCH_HISTORY") {
+            } else if (message.type === "TUBESIZE_WATCH_HISTORY") {
                 const { bytes, platform, videoId } = message;
-                if (bytes === 0) return;
-                if (typeof bytes !== "number") return;
-                if (!Number.isFinite(bytes) || bytes < 0) return;
+
+                if (!isValidBytes(bytes)) return;
+                if (!isPlatformId(platform)) return;
                 if (typeof videoId !== "string") return;
-                if (typeof platform !== "string") return;
 
                 void sendMessageToBackground({
                     type: "addWatchHistory",
@@ -48,3 +47,7 @@ export default defineContentScript({
         });
     },
 });
+
+function isValidBytes(bytes: number) {
+    return typeof bytes === "number" && Number.isFinite(bytes) && bytes > 0;
+}

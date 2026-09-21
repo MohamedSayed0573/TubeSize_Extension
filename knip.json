@@ -1,8 +1,8 @@
 {
     "$schema": "https://unpkg.com/knip@6/schema.json",
     "entry": [
-        "src/entrypoints/background.ts",
-        "src/entrypoints/content.ts",
+        "src/entrypoints/background/index.ts",
+        "src/entrypoints/content/index.ts",
         "src/entrypoints/genericObserver.content.ts",
         "src/entrypoints/usageBridge.content.ts",
         "src/entrypoints/popup/index.html",
