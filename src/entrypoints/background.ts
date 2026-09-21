@@ -405,13 +405,21 @@ export default defineBackground(() => {
         originToTotal = {};
     };
 
-    // Skip everything when there is nothing to flush — the unconditional
-    // interval's storage writes kept the service worker from ever idling.
-    setInterval(() => {
-        if (Object.entries(originToTotal).length === 0) return;
+    void updateBadge().catch((err) => console.log(err));
 
-        updateUsage()
+    // Skip the flush when there is nothing pending.
+    let badgeDateKey = getDateKey();
+    setInterval(() => {
+        const hasPendingUsage = Object.keys(originToTotal).length > 0;
+        const hasDayChanged = getDateKey() !== badgeDateKey;
+        if (!hasPendingUsage && !hasDayChanged) return;
+
+        (hasPendingUsage ? updateUsage() : Promise.resolve())
             .then(updateBadge)
+            .then(() => {
+                badgeDateKey = getDateKey();
+                return;
+            })
             .catch((err) => console.log(err));
     }, 3000);
 
