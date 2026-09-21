@@ -36,8 +36,7 @@ function trackRequest(buffer: UsageBuffer, details: chrome.webRequest.OnComplete
 }
 
 /**
- * Writes the buffered bytes every FLUSH_INTERVAL_MS. Also refresh the
- * badge at midnight to avoid showing stale badge data
+ * Writes the buffered bytes every FLUSH_INTERVAL_MS.
  */
 function startFlushTimer(buffer: UsageBuffer) {
     async function flushIfNeeded() {
