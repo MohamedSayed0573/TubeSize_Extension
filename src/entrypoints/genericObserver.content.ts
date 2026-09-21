@@ -14,18 +14,8 @@
 //      so fetch() inside workers (Twitch's video worker) is counted too
 
 import { defineContentScript } from "wxt/utils/define-content-script";
-import {
-    extractChannelName,
-    extractKickVodId,
-    extractTwitchVodId,
-    extractVideoTag,
-    isKickStream,
-    isKickVod,
-    isTwitchLive,
-    isTwitchVod,
-    isYoutubeVideo,
-} from "@lib/utils";
-import type { PlatformId, UsageMessage, WatchHistoryMessage } from "@app-types/types";
+import { getWatchHistoryTarget } from "@lib/utils";
+import type { UsageMessage, WatchHistoryMessage } from "@app-types/types";
 
 function workerBootstrap(originalUrl: string): string {
     return `
@@ -84,36 +74,6 @@ function readWorkerSource(url: string): string | undefined {
         if (xhr.status === 200 && xhr.responseText.length > 0) return xhr.responseText;
     } catch {
         // unreadable (e.g. cross-origin) — fall back to the native constructor
-    }
-    return;
-}
-
-// Video keys must match background.ts's tabIdToVideoKey (`<platform>:<id>`)
-function getWatchHistoryTarget(url: string): { videoId: string; platform: PlatformId } | undefined {
-    if (isYoutubeVideo(url)) {
-        const videoId = extractVideoTag(url);
-        if (!videoId) return;
-        return { videoId, platform: "youtube" };
-    }
-    if (isTwitchVod(url)) {
-        const videoId = extractTwitchVodId(url);
-        if (!videoId) return;
-        return { videoId, platform: "twitch" };
-    }
-    if (isTwitchLive(url)) {
-        const videoId = extractChannelName(url);
-        if (!videoId) return;
-        return { videoId, platform: "twitch" };
-    }
-    if (isKickVod(url)) {
-        const videoId = extractKickVodId(url);
-        if (!videoId) return;
-        return { videoId, platform: "kick" };
-    }
-    if (isKickStream(url)) {
-        const videoId = extractChannelName(url);
-        if (!videoId) return;
-        return { videoId, platform: "kick" };
     }
     return;
 }

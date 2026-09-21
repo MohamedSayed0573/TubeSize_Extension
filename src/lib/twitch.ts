@@ -116,8 +116,7 @@ export async function getTwitchMasterM3u8(
 
 export async function getTwitchLiveResponse(
     message: TwitchLiveMessage,
-    sendResponse: (response: TwitchBackgroundResponse) => void,
-) {
+): Promise<TwitchBackgroundResponse> {
     const twitchToken = await getTwitchToken(message);
     const masterM3u8 = await getTwitchMasterM3u8(twitchToken, message);
     const twitchData = message.isFromPopup
@@ -129,23 +128,22 @@ export async function getTwitchLiveResponse(
         data: twitchData,
         channelName: message.channelName,
     };
-    return sendResponse({
+    return {
         success: true,
         data: response,
-    });
+    };
 }
 
 export async function getTwitchVodResponse(
     message: TwitchVodMessage,
-    sendResponse: (response: TwitchBackgroundResponse) => void,
-) {
+): Promise<TwitchBackgroundResponse> {
     const cached = await getFromStorage("twitch", message.vodId);
     if (cached) {
-        return sendResponse({
+        return {
             success: true,
             data: cached.data,
             createdAt: cached.createdAt,
-        });
+        };
     }
 
     const twitchToken = await getTwitchToken(message);
@@ -160,10 +158,10 @@ export async function getTwitchVodResponse(
     };
     await saveToStorage(message.vodId, response, "twitch");
 
-    return sendResponse({
+    return {
         success: true,
         data: response,
-    });
+    };
 }
 
 export interface TwitchPageMetadata {

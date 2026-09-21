@@ -264,3 +264,46 @@ export function faviconURL(u: string | undefined) {
         return;
     }
 }
+
+// Video keys must match background.ts's tabIdToVideoKey (`<platform>:<id>`)
+export function getWatchHistoryTarget(
+    url: string,
+): { videoId: string; platform: PlatformId } | undefined {
+    if (isYoutubeVideo(url)) {
+        const videoId = extractVideoTag(url);
+        if (!videoId) return;
+        return { videoId, platform: "youtube" };
+    }
+    if (isTwitchVod(url)) {
+        const videoId = extractTwitchVodId(url);
+        if (!videoId) return;
+        return { videoId, platform: "twitch" };
+    }
+    if (isTwitchLive(url)) {
+        const videoId = extractChannelName(url);
+        if (!videoId) return;
+        return { videoId, platform: "twitch" };
+    }
+    if (isKickVod(url)) {
+        const videoId = extractKickVodId(url);
+        if (!videoId) return;
+        return { videoId, platform: "kick" };
+    }
+    if (isKickStream(url)) {
+        const videoId = extractChannelName(url);
+        if (!videoId) return;
+        return { videoId, platform: "kick" };
+    }
+    return;
+}
+
+export function toVideoKey(platform: PlatformId, videoId: string) {
+    return `${platform}:${videoId}`;
+}
+
+export function urlToVideoKey(url: string) {
+    const data = getWatchHistoryTarget(url);
+    if (!data) return;
+
+    return toVideoKey(data.platform, data.videoId);
+}
