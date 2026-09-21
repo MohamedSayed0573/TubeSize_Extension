@@ -6,16 +6,12 @@ import { visualizer } from "rollup-plugin-visualizer";
 
 // WXT runs one Vite/Rollup build per entrypoint (popup pages, background,
 // each content script), and every build would otherwise overwrite the same
-// stats.html — last writer wins, which is why only the popup showed up.
-// This attaches a fresh visualizer per build, named after its entry.
+// stats.html
 function entryName(input: string | string[] | Record<string, string> | undefined): string {
-    const first = Array.isArray(input)
-        ? input[0]
-        : typeof input === "object"
-          ? Object.values(input)[0]
-          : input;
-    if (typeof first !== "string" || !first) return "bundle";
-    return path.parse(first).name.replaceAll(/[^a-zA-Z0-9]+/g, "-");
+    const file = typeof input === "string" ? input : Object.values(input ?? {})[0];
+    if (!file) return "bundle";
+    const { name, dir } = path.parse(file);
+    return (name === "index" ? path.basename(dir) : name) || "bundle";
 }
 
 function perEntryVisualizer(): Plugin {
@@ -99,10 +95,6 @@ export default defineConfig({
             },
         }),
     }),
-    // The Firefox sources zip (uploaded to AMO for review) is built by globbing
-    // the whole project root — WXT does not honor .gitignore, so everything not
-    // excluded here ships to the store reviewers. Only dotfiles are excluded by
-    // default (which keeps .env/.env.submit out).
     zip: {
         excludeSources: [
             "benchmark/**",

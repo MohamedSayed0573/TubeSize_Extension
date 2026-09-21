@@ -12,7 +12,7 @@
         "dev:firefox": "wxt -b firefox",
         "zip": "wxt zip",
         "zip:firefox": "wxt zip -b firefox",
-        "analyze": "ANALYZE=true wxt build",
+        "analyze": "ANALYZE=true wxt build && npx serve ./stats",
         "postinstall": "wxt prepare",
         "test": "jest",
         "test:coverage": "jest --coverage",
