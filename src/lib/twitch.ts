@@ -127,6 +127,7 @@ export async function getTwitchLiveResponse(
         type: "live",
         data: twitchData,
         channelName: message.channelName,
+        channelUrl: `https://www.twitch.tv/${message.channelName}`,
     };
     return {
         success: true,
@@ -155,6 +156,8 @@ export async function getTwitchVodResponse(
         data: filteredM3U8Data,
         vodId: message.vodId,
         durationSeconds: twitchToken.durationSeconds,
+        channelName: undefined,
+        channelUrl: undefined,
     };
     await saveToStorage(message.vodId, response, "twitch");
 
@@ -168,6 +171,10 @@ export interface TwitchPageMetadata {
     title: string;
     channelName: string;
     thumbnailUrl: string;
+}
+
+function isTwitchLogin(value: string | null | undefined): value is string {
+    return typeof value === "string" && /^[a-zA-Z0-9_]{1,25}$/.test(value);
 }
 
 export function parseTwitchPageMetadata(
@@ -186,9 +193,17 @@ export function parseTwitchPageMetadata(
 
     const title = (contentType === "live" ? item.description : item.name) ?? "Twitch";
     const personName = graph.find((entry) => entry["@type"] === "Person")?.alternateName;
-    const vodChannelName = $('meta[name="description"]').attr("content")?.split(" ")[0];
+    const metaChannelName = $('meta[name="description"]').attr("content")?.split(" ")[0];
+    // Real VOD pages often lack meta[name=description] but carry the channel
+    // as the first word of the VideoObject description ("jynxzi went live…").
+    const descriptionChannelName = item.description?.split(" ")[0];
+    // VOD titles commonly end with "- <channel> on Twitch".
+    const nameChannelName = item.name?.match(/-\s*(\S+)\s+on Twitch/i)?.[1];
 
-    const channelName = personName || vodChannelName || "Twitch Channel";
+    const channelName =
+        [personName, metaChannelName, descriptionChannelName, nameChannelName].find((candidate) =>
+            isTwitchLogin(candidate),
+        ) ?? "Twitch Channel";
     const rawThumbnail = Array.isArray(item.thumbnailUrl)
         ? item.thumbnailUrl[0]
         : item.thumbnailUrl;

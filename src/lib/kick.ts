@@ -111,6 +111,7 @@ export async function getKickLiveResponse(
             type: "live",
             data: kickData,
             channelName: message.channelName,
+            channelUrl: `https://kick.com/${message.channelName}`,
         };
         return {
             success: true,
@@ -198,6 +199,7 @@ export async function getKickVodResponse(message: KickVodMessage): Promise<KickB
             data: filterM3u8(playlists),
             vodId: message.vodId,
             channelName: message.channelName,
+            channelUrl: `https://kick.com/${message.channelName}`,
             durationSeconds: Math.round(durationMs / 1000),
         };
         await saveToStorage(message.vodId, response, "kick");

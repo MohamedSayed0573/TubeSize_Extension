@@ -1,7 +1,11 @@
 import { addSiteUsage, addWatchHistory, getSiteUsage } from "@/db";
 import { getUsageNumber } from "@lib/dashboardUtils";
 import { getWatchHistoryTarget, toVideoKey } from "@lib/utils";
-import { recordTwitchMetadata, recordYoutubeMetadata } from "@lib/videoMetadata";
+import {
+    recordKickMetadata,
+    recordTwitchMetadata,
+    recordYoutubeMetadata,
+} from "@lib/videoMetadata";
 import { setUsageBadge } from "@/badge";
 import { UsageBuffer } from "./usageBuffer";
 
@@ -93,6 +97,7 @@ async function trackWatchHistory(buffer: UsageBuffer, tabId: number, bytes: numb
 
         if (target.platform === "youtube") void recordYoutubeMetadata(url);
         else if (target.platform === "twitch") void recordTwitchMetadata(url);
+        else void recordKickMetadata(url);
     } catch (err) {
         console.error("Failed to attribute usage to a video:", err);
     }

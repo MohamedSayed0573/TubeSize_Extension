@@ -71,12 +71,19 @@ export type StreamInfo = {
     resolution: number;
 };
 
-export type TwitchLiveData = { type: "live"; data: StreamInfo[]; channelName: string };
+export type TwitchLiveData = {
+    type: "live";
+    data: StreamInfo[];
+    channelName: string;
+    channelUrl: string;
+};
 export type TwitchVodData = {
     type: "vod";
     data: StreamInfo[];
     vodId: string;
     durationSeconds: number | undefined;
+    channelName: string | undefined;
+    channelUrl: string | undefined;
 };
 
 export type TwitchData = TwitchLiveData | TwitchVodData;
@@ -92,6 +99,7 @@ export type KickLiveData = {
     type: "live";
     data: StreamInfo[];
     channelName: string;
+    channelUrl: string;
 };
 
 export type KickVodData = {
@@ -100,6 +108,7 @@ export type KickVodData = {
     vodId: string;
     channelName: string | undefined;
     durationSeconds: number | undefined;
+    channelUrl: string | undefined;
 };
 
 export type KickData = KickLiveData | KickVodData;
