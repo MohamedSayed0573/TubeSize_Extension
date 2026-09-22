@@ -7,11 +7,14 @@ import { getFromSyncCache } from "@lib/cache";
 // `init()` returns a promise, so the instance must be captured before chaining.
 const i18nInstance = i18n.use(initReactI18next);
 
+// Default to the browser's UI language, mapping any Arabic variant to "ar"
+const browserLang = chrome.i18n.getUILanguage().startsWith("ar") ? "ar" : "en";
+
 // i18next must be initialized before any component renders, so this runs at
 // module load time.
 void i18nInstance.init({
     debug: true,
-    lng: "ar",
+    lng: browserLang,
     fallbackLng: "en",
     resources: {
         ar,
