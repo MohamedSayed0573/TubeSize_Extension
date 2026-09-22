@@ -97,6 +97,12 @@ export function getTwitchContentType(url: string): "vod" | "live" | undefined {
     return;
 }
 
+export function getKickContentType(url: string): "vod" | "live" | undefined {
+    if (isKickVod(url)) return "vod";
+    if (isKickStream(url)) return "live";
+    return;
+}
+
 export function isKickPage(url: string): boolean {
     try {
         const parsedUrl = new URL(url);

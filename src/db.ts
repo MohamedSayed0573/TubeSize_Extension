@@ -17,6 +17,7 @@ interface BaseVideoMetadata {
     videoTag: string;
     title: string;
     channelName: string;
+    channelUrl: string;
     thumbnailUrl: string;
 }
 
@@ -30,10 +31,18 @@ interface TwitchMetadata extends BaseVideoMetadata {
     url: string;
 }
 
-export type VideoMetadata = YoutubeMetadata | TwitchMetadata;
+interface KickMetadata extends BaseVideoMetadata {
+    type: "kick";
+    contentType: "live" | "vod";
+    url: string;
+}
+
+export type VideoMetadata = YoutubeMetadata | TwitchMetadata | KickMetadata;
 
 export type VideoMetadataInput =
-    Omit<YoutubeMetadata, "videoKey"> | Omit<TwitchMetadata, "videoKey">;
+    | Omit<YoutubeMetadata, "videoKey">
+    | Omit<TwitchMetadata, "videoKey">
+    | Omit<KickMetadata, "videoKey">;
 
 const database = new Dexie("TubeSize") as Dexie & {
     siteUsage: Table<SiteUsage, string>;

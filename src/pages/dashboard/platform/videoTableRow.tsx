@@ -1,5 +1,4 @@
 import { formatBytes } from "@lib/dashboardUtils";
-import { getChannelUrl } from "./platformUtils";
 import { Link } from "react-router";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import type { DateKey, PlatformId } from "@app-types/types";
@@ -39,6 +38,7 @@ export interface VideoRowDetails {
     title: string | undefined;
     thumbnailUrl: string | undefined;
     channelName: string | undefined;
+    channelUrl: string | undefined;
     contentType?: "live" | "vod";
     date: DateKey;
 }
@@ -53,9 +53,8 @@ export default function VideoTableRow({
     platform: PlatformId;
 }) {
     const { t } = useTranslation();
-    const { date, usage } = videoDetails;
+    const { date, usage, channelUrl } = videoDetails;
     const url = getVideoUrl(platform, videoDetails.videoTag, videoDetails.contentType);
-    const channelUrl = getChannelUrl(platform, videoDetails.channelName);
 
     const imageUrl = videoDetails.thumbnailUrl || PLATFORM_PLACEHOLDER_IMAGE[platform];
     const videoTitle = videoDetails.title || platform;
