@@ -71,7 +71,7 @@ export default {
             today: "اليوم",
             week: "آخر 7 أيام",
             month: "آخر 30 يومًا",
-            lifetime: "طوال الفترة",
+            lifetime: "كل الوقت",
             viewDetails: "عرض التفاصيل ←",
             dataUsagePerDay: "الاستهلاك اليومي",
             dataUsagePerSite: "الاستهلاك حسب الموقع",
