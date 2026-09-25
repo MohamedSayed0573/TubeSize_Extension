@@ -8,7 +8,7 @@ import { Skeleton } from "@components/ui/skeleton";
 import { useTranslation } from "react-i18next";
 import { Chart as ChartDaily } from "../chart/chart";
 
-const ChartSites = lazy(() => import("../chart/chartSites"));
+const ChartSites = lazy(async () => import("../chart/chartSites"));
 
 function ChartFallback() {
     return (
