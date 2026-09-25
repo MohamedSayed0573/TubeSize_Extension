@@ -6,6 +6,9 @@ updates:
       directory: "/" # Location of package manifests
       schedule:
           interval: "weekly"
+      # TypeScript is pinned manually on purpose: stay on v6, never auto-upgrade to v7.
+      ignore:
+          - dependency-name: "typescript"
       groups:
           all-version-updates:
               patterns:
