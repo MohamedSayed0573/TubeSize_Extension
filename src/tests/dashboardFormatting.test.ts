@@ -1,8 +1,8 @@
-import i18n from "@/i18n/i18n";
+import { i18nInstance } from "@/i18n/i18n";
 import { formatDate } from "@lib/dashboardFormatting";
 
 beforeAll(async () => {
-    await i18n.changeLanguage("en");
+    await i18nInstance.changeLanguage("en");
 });
 
 describe("formatDate", () => {

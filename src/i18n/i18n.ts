@@ -26,7 +26,6 @@ function createI18n(): I18n {
 }
 
 export const i18nInstance = createI18n();
-export default i18nInstance;
 
 export async function syncAppLang() {
     const lang = (await getFromSyncCache("language")) ?? i18nInstance.language;
