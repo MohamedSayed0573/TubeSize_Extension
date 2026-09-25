@@ -1,5 +1,5 @@
 import { perHourDisplay, totalSizeVideoDisplay } from "@lib/formatting";
-import i18nInstance from "../i18n/i18n";
+import { i18nInstance } from "../i18n/i18n";
 import "@styles/toast.css";
 
 export type ToastOptions = {
@@ -34,7 +34,7 @@ export function createToast({
     okOnClick,
     dontShowAgainOnClick,
 }: ToastOptions): HTMLElement {
-    const t = i18nInstance.t.bind(i18nInstance);
+    const t = i18nInstance.t;
 
     const container = el("div", "container");
     container.lang = i18nInstance.language;

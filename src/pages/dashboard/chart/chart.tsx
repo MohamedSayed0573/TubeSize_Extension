@@ -6,12 +6,8 @@ import "@styles/chart.css";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@components/ui/chart";
 import type { SiteUsage } from "@/db";
-import {
-    formatBytes,
-    getDomainName,
-    getFormattingLocale,
-    getUsageNumber,
-} from "@lib/dashboardUtils";
+import { formatBytes, getDomainName, getUsageNumber } from "@lib/dashboardUtils";
+import { getFormattingLocale } from "@lib/dashboardFormatting";
 import { parseDateKey } from "@lib/dateUtils";
 import type { DateKey } from "@app-types/types";
 import { getSiteColor } from "./siteColors";

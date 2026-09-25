@@ -1,4 +1,4 @@
-import { formatDate } from "@lib/dashboardUtils";
+import { formatDate } from "@lib/dashboardFormatting";
 import { isValidDateKey, getLastNDays } from "@lib/dateUtils";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import VideosTableSkeleton from "@pages/dashboard/platform/videosTableSkeleton";

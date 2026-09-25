@@ -1,8 +1,6 @@
 import i18n from "@/i18n/i18n";
-import { formatDate } from "@lib/dashboardUtils";
+import { formatDate } from "@lib/dashboardFormatting";
 
-// formatDate follows the active i18n language; pin it so the assertions below
-// don't depend on the default language.
 beforeAll(async () => {
     await i18n.changeLanguage("en");
 });

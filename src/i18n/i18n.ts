@@ -1,54 +1,47 @@
 import i18n from "i18next";
+import type { i18n as I18n } from "i18next";
 import { initReactI18next } from "react-i18next";
 import ar from "./locales/ar";
 import en from "./locales/en";
 import { getFromSyncCache } from "@lib/cache";
 
-// `init()` returns a promise, so the instance must be captured before chaining.
-const i18nInstance = i18n.use(initReactI18next);
+function createI18n(): I18n {
+    const instance = i18n.createInstance().use(initReactI18next);
+    const browserLang = chrome.i18n.getUILanguage().startsWith("ar") ? "ar" : "en";
 
-// Default to the browser's UI language, mapping any Arabic variant to "ar"
-const browserLang = chrome.i18n.getUILanguage().startsWith("ar") ? "ar" : "en";
+    instance.init({
+        debug: true,
+        lng: browserLang,
+        fallbackLng: "en",
+        resources: {
+            ar,
+            en,
+        },
+        interpolation: {
+            escapeValue: false,
+        },
+    });
 
-// i18next must be initialized before any component renders, so this runs at
-// module load time.
-void i18nInstance.init({
-    debug: true,
-    lng: browserLang,
-    fallbackLng: "en",
-    resources: {
-        ar,
-        en,
-    },
-    interpolation: {
-        escapeValue: false,
-    },
-});
-
-function syncLanguage() {
-    document.documentElement.lang = i18nInstance.language;
-    document.documentElement.dir = i18nInstance.dir(i18nInstance.language);
+    return instance;
 }
 
-export async function initLanguage() {
+export const i18nInstance = createI18n();
+export default i18nInstance;
+
+export async function syncAppLang() {
     const lang = (await getFromSyncCache("language")) ?? i18nInstance.language;
     await i18nInstance.changeLanguage(lang);
 }
 
-export async function applyDocumentLanguage() {
-    await initLanguage();
-    syncLanguage();
-}
-
 export function startDocumentLanguageSync() {
-    i18nInstance.on("languageChanged", syncLanguage);
+    const syncDocumentLang = (lang: string) => {
+        document.documentElement.lang = lang;
+        document.documentElement.dir = i18nInstance.dir(lang);
+    };
+
+    syncDocumentLang(i18nInstance.language);
+
+    i18nInstance.on("languageChanged", syncDocumentLang);
+
+    return () => i18nInstance.off("languageChanged", syncDocumentLang);
 }
-
-chrome.storage.sync.onChanged.addListener((changes) => {
-    const lang = changes.language?.newValue;
-    if (typeof lang === "string" && lang !== i18nInstance.language) {
-        void i18nInstance.changeLanguage(lang);
-    }
-});
-
-export default i18nInstance;
