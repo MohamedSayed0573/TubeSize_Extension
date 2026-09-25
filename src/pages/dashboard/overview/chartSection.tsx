@@ -1,11 +1,22 @@
 import { cn } from "@lib/utils";
 import type { SiteUsage } from "@/db";
 import { NavLink } from "react-router";
-import { Chart } from "../chart/chart";
-import ChartSites from "../chart/chartSites";
+import { lazy, Suspense } from "react";
 import { CalendarDays, Database, Globe, type LucideIcon } from "lucide-react";
 import NoUsageData from "../shared/noUsageData";
+import { Skeleton } from "@components/ui/skeleton";
 import { useTranslation } from "react-i18next";
+import { Chart as ChartDaily } from "../chart/chart";
+
+const ChartSites = lazy(() => import("../chart/chartSites"));
+
+function ChartFallback() {
+    return (
+        <div className="my-2 flex min-h-60 flex-1 flex-col rounded-lg bg-[#1d1d1d] p-3">
+            <Skeleton className="min-h-60 flex-1" />
+        </div>
+    );
+}
 
 function ChartSwitchBtn({
     to,
@@ -85,7 +96,9 @@ export function UsageChartSection({
                 </div>
             </div>
 
-            {chart === "daily" ? <Chart usage={usage} /> : <ChartSites usage={usage} />}
+            <Suspense fallback={<ChartFallback />}>
+                {chart === "daily" ? <ChartDaily usage={usage} /> : <ChartSites usage={usage} />}
+            </Suspense>
         </div>
     );
 }

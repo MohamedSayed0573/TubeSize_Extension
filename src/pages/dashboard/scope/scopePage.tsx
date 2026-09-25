@@ -51,7 +51,7 @@ function getScope(date: DateKey | undefined): UsageScope | undefined {
     }
 }
 
-export function ScopePage() {
+export default function ScopePage() {
     const { date } = useParams();
     const { t } = useTranslation();
     const scope = getScope(date as DateKey);
