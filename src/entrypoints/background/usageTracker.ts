@@ -60,11 +60,12 @@ function startFlushTimer(buffer: UsageBuffer) {
 }
 
 function isCountableRequest(details: chrome.webRequest.OnCompletedDetails) {
-    if (details.tabId === NO_TAB_ID) return false;
-    if (details.url.startsWith("chrome-extension://")) return false;
-    if (details.fromCache) return false;
-    if (details.method === "HEAD") return false;
-    return true;
+    return !(
+        details.tabId === NO_TAB_ID ||
+        details.url.startsWith("chrome-extension://") ||
+        details.fromCache ||
+        details.method === "HEAD"
+    );
 }
 
 /**

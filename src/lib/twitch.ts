@@ -92,10 +92,11 @@ export async function getTwitchMasterM3u8(
     tokenData: TwitchTokenData,
     message: TwitchMessage,
 ): Promise<PlaylistItem[]> {
-    const url =
+    const url = new URL(
         message.type === "twitchLive"
-            ? new URL(`https://usher.ttvnw.net/api/v2/channel/hls/${message.channelName}.m3u8`)
-            : new URL(`https://usher.ttvnw.net/vod/v2/${message.vodId}.m3u8`);
+            ? `https://usher.ttvnw.net/api/v2/channel/hls/${message.channelName}.m3u8`
+            : `https://usher.ttvnw.net/vod/v2/${message.vodId}.m3u8`,
+    );
 
     url.searchParams.set("token", tokenData.value);
     url.searchParams.set("sig", tokenData.signature);

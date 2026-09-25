@@ -12,11 +12,13 @@ export async function getCurrentResolution() {
 
         const observer = new MutationObserver(() => {
             const video = document.querySelector("video");
-            if (video && video.videoHeight > 0) {
-                observer.disconnect();
-                clearTimeout(timeout);
-                return resolve(video.videoHeight);
+            if (!(video && video.videoHeight > 0)) {
+                return;
             }
+
+            observer.disconnect();
+            clearTimeout(timeout);
+            return resolve(video.videoHeight);
         });
 
         observer.observe(document.documentElement, {
