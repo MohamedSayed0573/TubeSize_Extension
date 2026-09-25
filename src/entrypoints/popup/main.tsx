@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@styles/global.css";
 import "@fontsource-variable/jetbrains-mono/wght.css";
 import { StrictMode } from "react";
+import Spinner from "@components/spinner";
 import { PopupLayout } from "@layouts/popupLayout";
 import DashboardLayout from "@layouts/dashboardLayout";
 import { AppProviders } from "@layouts/appProviders";
@@ -24,6 +25,11 @@ const domRoot = document.querySelector("#root") as HTMLElement;
 
 const root = createRoot(domRoot);
 const queryClient = new QueryClient();
+const dashboardLoadingFallback = (
+    <div className="flex h-screen w-full items-center justify-center">
+        <Spinner />
+    </div>
+);
 
 const router = createHashRouter([
     {
@@ -45,6 +51,7 @@ const router = createHashRouter([
     {
         path: "/dashboard",
         element: <DashboardLayout />,
+        hydrateFallbackElement: dashboardLoadingFallback,
         errorElement: <DashboardRouteErrorElement />,
         children: [
             {
