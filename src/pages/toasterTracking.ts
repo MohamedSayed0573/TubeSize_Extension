@@ -8,7 +8,7 @@ import { getFromSyncCache } from "@lib/cache";
  * @returns The toaster threshold in MB per hour.
  */
 async function getToasterThreshold() {
-    return (await getFromSyncCache("toasterThreshold")) || CONFIG.DEFAULT_TOASTER_THRESHOLD;
+    return (await getFromSyncCache("toasterThreshold")) ?? CONFIG.DEFAULT_TOASTER_THRESHOLD;
 }
 
 /**
