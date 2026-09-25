@@ -44,7 +44,7 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
                         key={platform}
                         to={`/dashboard/platform/${platform}${search}`}
                         className={cn(
-                            "group flex w-full max-w-sm items-center gap-4 rounded-xl border border-l-6 border-neutral-800 bg-neutral-900 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-neutral-800/80",
+                            "group flex w-full max-w-md items-center gap-3 rounded-xl border border-l-6 border-neutral-800 bg-neutral-900 py-3 pr-3 pl-2 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-neutral-800/80",
                             PLATFORM_STYLES[platform],
                         )}
                     >
@@ -53,8 +53,11 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
                             <span className="truncate font-mono text-lg font-bold text-stone-100">
                                 {capitalize(platform)}
                             </span>
-                            <span className="font-mono text-sm text-stone-400">
-                                {t("dashboard.bytesUsed", { size: formatBytes(bytes) })}
+                            <span className="font-mono text-sm text-balance text-stone-400">
+                                {t("dashboard.bytesUsed", {
+                                    size: formatBytes(bytes),
+                                    platform: capitalize(platform),
+                                })}
                             </span>
                         </div>
                         <ArrowRight className="size-4 shrink-0 text-teal-500 opacity-0 transition-opacity group-hover:opacity-100 rtl:rotate-180" />

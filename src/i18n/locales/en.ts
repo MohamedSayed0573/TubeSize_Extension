@@ -104,7 +104,7 @@ export default {
             importWarning:
                 "Importing usage will COMPLETELY REPLACE your usage. Are you sure you want to continue?",
             noUsageToExport: "Nothing to export — start browsing to collect usage",
-            bytesUsed: "{{size}} used",
+            bytesUsed: "{{size}} from watching videos on {{platform}} in this period",
         },
     },
 };
