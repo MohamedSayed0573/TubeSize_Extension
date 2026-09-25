@@ -1,4 +1,4 @@
-import { initLanguage } from "@/i18n/i18n";
+import { syncAppLang } from "@/i18n/i18n";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { setupMessageHandler } from "./messageHandler";
 import { handlePageNavigation } from "./pageNavigation";
@@ -18,7 +18,7 @@ export default defineContentScript({
     allFrames: true,
 
     main() {
-        void initLanguage();
+        void syncAppLang();
 
         void handlePageNavigation();
 

@@ -3,7 +3,7 @@ import { getAllSiteUsage, type SiteUsage } from "@/db";
 import { InvalidImportJson } from "@lib/errors";
 import * as z from "zod";
 import { useTranslation } from "react-i18next";
-import i18n from "@/i18n/i18n";
+import { i18nInstance } from "@/i18n/i18n";
 
 function filterUsage(siteUsage: SiteUsage[]) {
     return siteUsage.flatMap(({ day, usage }) => {
@@ -30,11 +30,11 @@ export function ExportToJsonBtn({
     async function getData() {
         const siteUsage = await getAllSiteUsage();
         if (!siteUsage || siteUsage.length === 0)
-            return setError(new InvalidImportJson(i18n.t("dashboard.noUsageToExport")));
+            return setError(new InvalidImportJson(i18nInstance.t("dashboard.noUsageToExport")));
 
         const filteredUsage = filterUsage(siteUsage);
         if (filteredUsage.length === 0)
-            return setError(new InvalidImportJson(i18n.t("dashboard.noUsageToExport")));
+            return setError(new InvalidImportJson(i18nInstance.t("dashboard.noUsageToExport")));
 
         const json = JSON.stringify(filteredUsage);
         const blob = new Blob([json]);

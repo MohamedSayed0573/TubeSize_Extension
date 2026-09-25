@@ -19,8 +19,8 @@ export function LanguageSettings() {
 
     const handleLanguageChange = async (value: string | null) => {
         if (value === null) return;
-        await i18n.changeLanguage(value);
         await chrome.storage.sync.set({ language: value });
+        await i18n.changeLanguage(value);
     };
 
     return (
