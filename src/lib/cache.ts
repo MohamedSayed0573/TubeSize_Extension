@@ -138,16 +138,22 @@ export async function saveToStorage(
 
     // If any of the formats have null sizes, we don't want to cache the response as it might be incomplete.
     if (data.type === "video") {
-        if (data.formats.length === 0) return;
-        if (data.formats.some((format) => format.sizeBytes === 0)) return;
+        if (data.formats.length === 0 || data.formats.some((format) => format.sizeBytes === 0))
+            return;
     } else if (target === "youtube") {
         const youtubeData = data as YoutubeData;
-        if (youtubeData.formats.length === 0) return;
-        if (youtubeData.formats.some((format) => format.sizePerSecondBytes === 0)) return;
+        if (
+            youtubeData.formats.length === 0 ||
+            youtubeData.formats.some((format) => format.sizePerSecondBytes === 0)
+        )
+            return;
     } else {
         const streamData = data as TwitchData | KickData;
-        if (streamData.data.length === 0) return;
-        if (streamData.data.some((stream) => stream.sizePerSecondBytes === 0)) return;
+        if (
+            streamData.data.length === 0 ||
+            streamData.data.some((stream) => stream.sizePerSecondBytes === 0)
+        )
+            return;
     }
 
     const dataToStore: StorageData<YoutubeData | TwitchData | KickData> = {

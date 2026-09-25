@@ -9,8 +9,7 @@ export default function SiteDetailPage() {
     const { siteName } = useParams();
     const { data, isPending, isError, error } = useSiteUsage();
 
-    if (!siteName) return;
-    if (isPending) return;
+    if (!siteName || isPending) return;
     if (isError) throw error;
     if (!data) return <NoUsageData />;
 

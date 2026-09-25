@@ -33,9 +33,8 @@ export default defineContentScript({
             } else if (message.type === "TUBESIZE_WATCH_HISTORY") {
                 const { bytes, platform, videoId } = message;
 
-                if (!isValidBytes(bytes)) return;
-                if (!isPlatformId(platform)) return;
-                if (typeof videoId !== "string") return;
+                if (typeof videoId !== "string" || !isValidBytes(bytes) || !isPlatformId(platform))
+                    return;
 
                 void sendMessageToBackground({
                     type: "addWatchHistory",

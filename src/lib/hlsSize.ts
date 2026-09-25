@@ -91,12 +91,12 @@ export async function estimateHlsStreamSizes(
                 if (!fullSize || fullSize === "*" || fullSize === "0") continue;
 
                 const size = Number(fullSize);
-                if (!Number.isFinite(size)) continue;
-
-                if (duration > 0) {
-                    totalBytes += size;
-                    totalDuration += duration;
+                if (!Number.isFinite(size) || !(duration > 0)) {
+                    continue;
                 }
+
+                totalBytes += size;
+                totalDuration += duration;
             }
 
             return {
