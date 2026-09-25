@@ -9,7 +9,7 @@ function createI18n(): I18n {
     const instance = i18n.createInstance().use(initReactI18next);
     const browserLang = chrome.i18n.getUILanguage().startsWith("ar") ? "ar" : "en";
 
-    instance.init({
+    void instance.init({
         debug: true,
         lng: browserLang,
         fallbackLng: "en",

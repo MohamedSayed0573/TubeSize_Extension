@@ -21,7 +21,7 @@ import { SiteDetailPage } from "@pages/dashboard/scope/siteDetailPage";
 import { AppProviders } from "@layouts/appProviders";
 import { startDocumentLanguageSync, syncAppLang } from "@/i18n/i18n";
 
-syncAppLang();
+void syncAppLang();
 startDocumentLanguageSync();
 
 const domRoot = document.querySelector("#root") as HTMLElement;
