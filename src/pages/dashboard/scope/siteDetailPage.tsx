@@ -5,7 +5,7 @@ import { useSiteUsage } from "@hooks/useSiteUsage";
 import { getOriginWithoutSuffix } from "@lib/dashboardUtils";
 import DailyUsageTable from "./dailyUsageTable";
 
-export function SiteDetailPage() {
+export default function SiteDetailPage() {
     const { siteName } = useParams();
     const { data, isPending, isError, error } = useSiteUsage();
 
