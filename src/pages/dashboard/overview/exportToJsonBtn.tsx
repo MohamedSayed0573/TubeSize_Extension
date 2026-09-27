@@ -7,8 +7,8 @@ import { i18nInstance } from "@/i18n/i18n";
 function isValidUsageEntry(url: string, bytes: number): boolean {
     if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes < 0) return false;
     try {
-        const parsed = new URL(url);
-        return parsed.protocol === "http:" || parsed.protocol === "https:";
+        void new URL(url);
+        return true;
     } catch {
         return false;
     }
