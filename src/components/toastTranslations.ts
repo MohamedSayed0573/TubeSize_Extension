@@ -51,5 +51,5 @@ export function getToastDirection() {
 
 export async function syncToastLanguage() {
     const storedLanguage = await getFromSyncCache("language");
-    language = storedLanguage?.startsWith("ar") ? "ar" : "en";
+    if (storedLanguage) language = storedLanguage.startsWith("ar") ? "ar" : "en";
 }

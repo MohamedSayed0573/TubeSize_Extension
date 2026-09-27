@@ -57,15 +57,6 @@ export default {
             totalUsageToday: "إجمالي الاستهلاك اليوم",
             siteUsage: "استهلاك {{origin}}",
         },
-        toast: {
-            title: "TubeSize | تحذير: استهلاك بيانات مرتفع",
-            body: "تم اكتشاف استهلاك بيانات مرتفع للجودة {{quality}}p. هذا يتجاوز الحد المحدد في إعداداتك.",
-            currentQuality: "الجودة الحالية: {{quality}}p",
-            totalUsage: "إجمالي الاستهلاك: {{usage}}",
-            perHourUsage: "الاستهلاك في الساعة: {{usage}}",
-            ok: "حسنًا",
-            dontShowAgain: "لا تعرض مرة أخرى في هذه الجلسة",
-        },
         dashboard: {
             title: "لوحة استهلاك بيانات يوتيوب",
             today: "اليوم",
