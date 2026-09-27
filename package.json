@@ -3,6 +3,7 @@
     "private": true,
     "version": "2.3.4",
     "type": "module",
+    "packageManager": "pnpm@12.6.0",
     "scripts": {
         "all": "concurrently \"pnpm run build\" \"pnpm run lint\" \"pnpm run test\"",
         "build": "wxt build",
