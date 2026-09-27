@@ -8,6 +8,7 @@ import {
     PopupRouteErrorElement,
     SettingsRouteErrorElement,
 } from "./routeErrorElements";
+import SettingsLayout from "@/layouts/settingsLayout";
 
 const dashboardLoadingFallback = (
     <div className="flex h-screen w-full items-center justify-center">
@@ -29,11 +30,17 @@ export const router = createHashRouter([
     },
     {
         path: "/settings",
-        lazy: async () => {
-            const { default: Settings } = await import("@pages/settings/settings");
-            return { Component: Settings };
-        },
+        element: <SettingsLayout />,
         errorElement: <SettingsRouteErrorElement />,
+        children: [
+            {
+                index: true,
+                lazy: async () => {
+                    const { default: Settings } = await import("@pages/settings/settings");
+                    return { Component: Settings };
+                },
+            },
+        ],
     },
     {
         path: "/dashboard",

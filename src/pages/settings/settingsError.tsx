@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import SettingsHeader from "./settingsHeader";
 
 export default function SettingsErrorPage({ error }: { error: unknown }) {
     const routeError = error;
@@ -6,6 +7,8 @@ export default function SettingsErrorPage({ error }: { error: unknown }) {
     const { t } = useTranslation();
     return (
         <>
+            <SettingsHeader />
+
             <div className="flex flex-1 items-center justify-center bg-neutral-950 p-8">
                 <div className="flex max-w-md flex-col items-center gap-3 rounded-lg border border-dashed border-red-900 bg-[#221718] px-10 py-8 text-center font-mono">
                     <span className="text-2xl text-red-400">⚠</span>
