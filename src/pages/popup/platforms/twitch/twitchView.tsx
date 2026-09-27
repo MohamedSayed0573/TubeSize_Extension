@@ -6,7 +6,7 @@ import TwitchFormats from "@pages/popup/platforms/twitch/twitchFormats";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
 import { useTranslation } from "react-i18next";
 
-export function TwitchView({ tabUrl }: { tabUrl: string }) {
+export default function TwitchView({ tabUrl }: { tabUrl: string }) {
     const { t } = useTranslation();
     const { query, isTwitchRelated } = useTwitchData(tabUrl);
     const { isPending, isError, data, error } = query;

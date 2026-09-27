@@ -252,8 +252,20 @@ export function capitalize(str: string) {
     return str[0]?.toUpperCase() + str.slice(1);
 }
 
+/**
+ * Opens an extension page in a new tab. Routes starting with `dashboard/`
+ * go to the dashboard entrypoint (`dashboard.html`), everything else goes
+ * to the popup entrypoint (`popup.html`).
+ */
 export function chromeNavigate(pageName: string | undefined) {
     if (!pageName) return;
+    if (pageName === "dashboard" || pageName.startsWith("dashboard/")) {
+        const dashboardRoute = pageName.slice("dashboard/".length) || "daily";
+        void chrome.tabs.create({
+            url: chrome.runtime.getURL(`dashboard.html#/${dashboardRoute}`),
+        });
+        return;
+    }
     void chrome.tabs.create({
         url: chrome.runtime.getURL(`popup.html#/${pageName}`),
     });

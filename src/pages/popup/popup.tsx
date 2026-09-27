@@ -3,11 +3,13 @@ import Header from "@pages/popup/header";
 import useTab from "@hooks/useTab";
 import InfoCard from "@components/infoCard";
 import Spinner from "@components/spinner";
-import { YoutubeView } from "@pages/popup/platforms/youtube/youtubeView";
-import { TwitchView } from "@pages/popup/platforms/twitch/twitchView";
-import { KickView } from "@pages/popup/platforms/kick/kickView";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
 import { useTranslation } from "react-i18next";
+import { lazy } from "react";
+
+const YoutubeView = lazy(async () => await import("@pages/popup/platforms/youtube/youtubeView"));
+const TwitchView = lazy(async () => await import("@pages/popup/platforms/twitch/twitchView"));
+const KickView = lazy(async () => await import("@pages/popup/platforms/kick/kickView"));
 
 export default function Popup() {
     const { t } = useTranslation();

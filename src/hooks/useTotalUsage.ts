@@ -1,6 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { getSiteUsage } from "@/db";
-import { getUsageNumber } from "@lib/dashboardUtils";
+import { getUsageNumber } from "@lib/usage";
 
 export function useTotalUsage() {
     return useLiveQuery(

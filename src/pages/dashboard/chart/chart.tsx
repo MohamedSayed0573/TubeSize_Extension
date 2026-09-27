@@ -6,7 +6,9 @@ import "@styles/chart.css";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@components/ui/chart";
 import type { SiteUsage } from "@/db";
-import { formatBytes, getDomainName, getUsageNumber } from "@lib/dashboardUtils";
+import { formatBytes } from "@lib/format";
+import { getUsageNumber } from "@lib/usage";
+import { getDomainName } from "@lib/domain";
 import { getFormattingLocale } from "@lib/dashboardFormatting";
 import { parseDateKey } from "@lib/dateUtils";
 import type { DateKey } from "@app-types/types";
@@ -151,7 +153,7 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
                             maxBarSize={38}
                             onClick={(data) => {
                                 const date = (data.payload as ChartUsageItem).date;
-                                void navigate(`/dashboard/${date}`);
+                                void navigate(`/${date}`);
                             }}
                         />
                     </BarChart>

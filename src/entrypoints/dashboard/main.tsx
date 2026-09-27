@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import "@styles/popup.css";
+import "@styles/dashboard.css";
 import "@fontsource-variable/jetbrains-mono/wght.css";
 import { StrictMode } from "react";
 import { AppProviders } from "@layouts/appProviders";

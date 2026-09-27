@@ -6,7 +6,9 @@
         "src/entrypoints/genericObserver.content.ts",
         "src/entrypoints/usageBridge.content.ts",
         "src/entrypoints/popup/index.html",
-        "src/entrypoints/popup/main.tsx"
+        "src/entrypoints/popup/main.tsx",
+        "src/entrypoints/dashboard/index.html",
+        "src/entrypoints/dashboard/main.tsx"
     ],
     "tags": ["-lintignore"],
     "ignore": ["src/components/ui/**"],

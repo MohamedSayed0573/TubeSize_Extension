@@ -2,7 +2,8 @@ import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import type { SiteUsage } from "@/db";
-import { formatBytes, getDomainName, getOriginWithoutSuffix } from "@lib/dashboardUtils";
+import { formatBytes } from "@lib/format";
+import { getDomainName, getOriginWithoutSuffix } from "@lib/domain";
 import { getSiteColor } from "./siteColors";
 import { useNavigate } from "react-router";
 
@@ -50,7 +51,7 @@ function ChartSitesTooltipContent({
     return (
         <div className="min-w-32 rounded-xl border border-neutral-800 bg-[#0a0a0a] px-3 py-2 text-xs shadow-xl">
             <div className="flex items-center justify-between gap-6">
-                <span className="items-stratch flex min-w-0 gap-1.5">
+                <span className="flex min-w-0 items-stretch gap-1.5">
                     {/* Indicator */}
                     <span
                         className="w-1 shrink-0 rounded-xs"
@@ -114,7 +115,7 @@ export default function ChartSites({ usage }: { usage: SiteUsage[] }) {
                                 const site = getOriginWithoutSuffix(
                                     (data.payload as ChartSiteItem).site,
                                 );
-                                void navigate(`/dashboard/site/${site}`);
+                                void navigate(`/site/${site}`);
                             }}
                         >
                             <LabelList

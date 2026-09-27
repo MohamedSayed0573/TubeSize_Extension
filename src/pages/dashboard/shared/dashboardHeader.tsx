@@ -1,4 +1,4 @@
-import { formatBytes } from "@lib/dashboardUtils";
+import { formatBytes } from "@lib/format";
 import { ArrowLeft } from "lucide-react";
 import ButtonLink from "@components/buttonLink";
 import { useTranslation } from "react-i18next";
@@ -15,7 +15,7 @@ export default function DashboardHeader({ title, totalDataUsage }: DashboardHead
     return (
         <div className="flex items-center border-b border-neutral-800 bg-neutral-900 px-4 py-3">
             <div className="flex items-center justify-start">
-                <ButtonLink to="/dashboard" variant={"outline"} size={"lg"} className="font-mono">
+                <ButtonLink to="/daily" variant={"outline"} size={"lg"} className="font-mono">
                     <ArrowLeft className="size-4 rtl:rotate-180" />
                     {t("common.backToDashboard")}
                 </ButtonLink>

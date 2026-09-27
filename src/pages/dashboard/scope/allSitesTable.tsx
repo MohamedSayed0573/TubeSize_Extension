@@ -8,7 +8,8 @@ import {
     TableHeader,
     TableRow,
 } from "@components/ui/table";
-import { formatBytes, getDomainName } from "@lib/dashboardUtils";
+import { formatBytes } from "@lib/format";
+import { getDomainName } from "@lib/domain";
 import { faviconURL } from "@lib/utils";
 import { useTranslation } from "react-i18next";
 

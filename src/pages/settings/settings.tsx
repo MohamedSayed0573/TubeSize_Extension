@@ -3,7 +3,6 @@ import useSettings from "@hooks/useSettings";
 import { SettingsFooter } from "@pages/settings/settingsFooter";
 import ResolutionsSettings from "@pages/settings/resolutionsSettings";
 import Spinner from "@components/spinner";
-import SettingsHeader from "./settingsHeader";
 import { FieldSeparator } from "@components/ui/field";
 import { LanguageSettings } from "./langSettings";
 
@@ -15,9 +14,7 @@ export default function Settings() {
     if (isPending) return <Spinner />;
 
     return (
-        <div className="w-72.5">
-            <SettingsHeader />
-
+        <>
             <div className="flex flex-col gap-2 px-3 py-2">
                 <LanguageSettings />
                 <FieldSeparator />
@@ -28,6 +25,6 @@ export default function Settings() {
 
             <FieldSeparator />
             <SettingsFooter />
-        </div>
+        </>
     );
 }

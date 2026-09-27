@@ -3,11 +3,11 @@ import { AlertDialogBasic } from "@components/alertDialogBasic";
 import { Button } from "@components/ui/button";
 import { useSiteUsage } from "@hooks/useSiteUsage";
 import type { InvalidImportJson } from "@lib/errors";
-import { ImportSchema } from "@lib/zodSchema";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 async function importJson() {
+    const { ImportSchema } = await import("@lib/zodSchema");
     return new Promise((resolve, reject) => {
         const input = document.createElement("input");
         input.type = "file";

@@ -6,7 +6,7 @@ import Spinner from "@components/spinner";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
 import { useTranslation } from "react-i18next";
 
-export function KickView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
+export default function KickView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
     const { t } = useTranslation();
     const { query, isKickRelated } = useKickData(tabUrl, tabId);
     const { isPending, isError, data, error } = query;
