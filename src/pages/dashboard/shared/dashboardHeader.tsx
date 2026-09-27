@@ -1,4 +1,4 @@
-import { formatBytes } from "@lib/dashboardUtils";
+import { formatBytes } from "@lib/format";
 import { ArrowLeft } from "lucide-react";
 import ButtonLink from "@components/buttonLink";
 import { useTranslation } from "react-i18next";

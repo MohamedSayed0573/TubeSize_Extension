@@ -1,4 +1,5 @@
-import { formatBytes, getUsageNumber } from "@lib/dashboardUtils";
+import { formatBytes } from "@lib/format";
+import { getUsageNumber } from "@lib/usage";
 import { getLastNDays } from "@lib/dateUtils";
 import { cn } from "@lib/utils";
 import type { SiteUsage } from "@/db";

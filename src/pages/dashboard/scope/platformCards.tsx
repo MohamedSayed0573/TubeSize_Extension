@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { formatBytes } from "@lib/dashboardUtils";
+import { formatBytes } from "@lib/format";
 import { PlatformLogo } from "../platform/platformLogos";
 import { buildPlatformSearch, parseVideoKey } from "../platform/platformUtils";
 import { capitalize, cn } from "@lib/utils";

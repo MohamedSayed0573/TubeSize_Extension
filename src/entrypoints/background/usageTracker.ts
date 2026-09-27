@@ -1,5 +1,5 @@
 import { addSiteUsage, addWatchHistory, getSiteUsage } from "@/db";
-import { getUsageNumber } from "@lib/dashboardUtils";
+import { getUsageNumber } from "@lib/usage";
 import { getWatchHistoryTarget, toVideoKey } from "@lib/utils";
 import {
     recordKickMetadata,

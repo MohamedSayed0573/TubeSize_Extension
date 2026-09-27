@@ -8,7 +8,7 @@ import {
     TableHeader,
     TableRow,
 } from "@components/ui/table";
-import { formatBytes } from "@lib/dashboardUtils";
+import { formatBytes } from "@lib/format";
 import { useTranslation } from "react-i18next";
 
 export interface DailyUsage {

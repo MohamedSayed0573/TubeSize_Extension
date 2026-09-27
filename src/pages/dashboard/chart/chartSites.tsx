@@ -2,7 +2,8 @@ import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import type { SiteUsage } from "@/db";
-import { formatBytes, getDomainName, getOriginWithoutSuffix } from "@lib/dashboardUtils";
+import { formatBytes } from "@lib/format";
+import { getDomainName, getOriginWithoutSuffix } from "@lib/domain";
 import { getSiteColor } from "./siteColors";
 import { useNavigate } from "react-router";
 

@@ -1,4 +1,4 @@
-import { formatBytes } from "@lib/dashboardUtils";
+import { formatBytes } from "@lib/format";
 import { Link } from "react-router";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import type { DateKey, PlatformId } from "@app-types/types";

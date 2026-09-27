@@ -2,7 +2,7 @@ import { useTotalUsage } from "@hooks/useTotalUsage";
 import { useOriginUsage } from "@hooks/useOriginUsage";
 import useTab from "@hooks/useTab";
 import PopupUsage from "./popupUsage";
-import { getOriginWithoutSuffix } from "@lib/dashboardUtils";
+import { getOriginWithoutSuffix } from "@lib/domain";
 import { useTranslation } from "react-i18next";
 
 function getTabOrigin(tabUrl: string | undefined) {
