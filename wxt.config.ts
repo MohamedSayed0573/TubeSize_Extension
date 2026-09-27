@@ -4,14 +4,17 @@ import type { Plugin } from "vite";
 import path from "node:path";
 import { visualizer } from "rollup-plugin-visualizer";
 
-// WXT runs one Vite/Rollup build per entrypoint (popup pages, background,
-// each content script), and every build would otherwise overwrite the same
-// stats.html
-function entryName(input: string | string[] | Record<string, string> | undefined): string {
-    const file = typeof input === "string" ? input : Object.values(input ?? {})[0];
-    if (!file) return "bundle";
-    const { name, dir } = path.parse(file);
-    return (name === "index" ? path.basename(dir) : name) || "bundle";
+// WXT runs one Vite/Rollup build per entrypoint (background, each content
+// script), except pages (popup, dashboard, ...), which share a single build
+// with multiple inputs. Name the stats file after every input in the build
+// so no entrypoint's treemap silently hides inside another's file.
+function entryNames(input: string | string[] | Record<string, string> | undefined): string[] {
+    const files = typeof input === "string" ? [input] : Object.values(input ?? {});
+    const names = files.map((file) => {
+        const { name, dir } = path.parse(file);
+        return (name === "index" ? path.basename(dir) : name) || "bundle";
+    });
+    return [...new Set(names)];
 }
 
 function perEntryVisualizer(): Plugin {
@@ -24,7 +27,10 @@ function perEntryVisualizer(): Plugin {
                 plugins: [
                     ...plugins,
                     visualizer({
-                        filename: path.join("stats", `${entryName(inputOptions.input)}.html`),
+                        filename: path.join(
+                            "stats",
+                            `${entryNames(inputOptions.input).join("+")}.html`,
+                        ),
                     }),
                 ],
             };

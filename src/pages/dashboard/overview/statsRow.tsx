@@ -50,28 +50,28 @@ export function StatsRow({ usage }: { usage: SiteUsage[] }) {
 
     const cards = [
         {
-            to: `/dashboard/today`,
+            to: `/today`,
             title: "today",
             value: formatBytes(todayUsage ? getUsageNumber([todayUsage]) : 0),
             icon: CalendarDays,
             accentClass: "bg-sky-500/10 text-sky-400",
         },
         {
-            to: `/dashboard/week`,
+            to: `/week`,
             title: "week",
             value: formatBytes(getUsageNumber(last7DaysUsage)),
             icon: CalendarRange,
             accentClass: "bg-emerald-500/10 text-emerald-400",
         },
         {
-            to: `/dashboard/month`,
+            to: `/month`,
             title: "month",
             value: formatBytes(getUsageNumber(last30DaysUsage)),
             icon: Activity,
             accentClass: "bg-violet-500/10 text-violet-400",
         },
         {
-            to: `/dashboard/lifetime`,
+            to: `/lifetime`,
             title: "lifetime",
             value: formatBytes(getUsageNumber(usage)),
             icon: Database,

@@ -42,7 +42,7 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
                 return (
                     <Link
                         key={platform}
-                        to={`/dashboard/platform/${platform}${search}`}
+                        to={`/platform/${platform}${search}`}
                         className={cn(
                             "group flex w-full max-w-md items-center gap-3 rounded-xl border border-l-6 border-neutral-800 bg-neutral-900 py-3 pr-3 pl-2 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-neutral-800/80",
                             PLATFORM_STYLES[platform],

@@ -20,16 +20,16 @@ function StatsRow() {
     const { t } = useTranslation();
     return (
         <div className="grid grid-cols-4 gap-2 py-2.5">
-            <Link to="/dashboard/today">
+            <Link to="/today">
                 <StatsCard title={t("dashboard.today")} />
             </Link>
-            <Link to="/dashboard/week">
+            <Link to="/week">
                 <StatsCard title={t("dashboard.week")} />
             </Link>
-            <Link to="/dashboard/month">
+            <Link to="/month">
                 <StatsCard title={t("dashboard.month")} />
             </Link>
-            <Link to="dashboard/lifetime">
+            <Link to="/lifetime">
                 <StatsCard title={t("dashboard.lifetime")} />
             </Link>
         </div>

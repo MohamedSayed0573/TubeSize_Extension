@@ -47,7 +47,7 @@ export default function DailyUsageTable({
                                         {index + 1}
                                     </TableCell>
                                     <TableCell className="hover:underline">
-                                        <Link to={`/dashboard/${day}`}>{day}</Link>
+                                        <Link to={`/${day}`}>{day}</Link>
                                     </TableCell>
                                     <TableCell className="text-neutral-400">
                                         {((bytes / totalUsage) * 100).toFixed(1)}%

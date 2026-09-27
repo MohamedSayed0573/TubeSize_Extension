@@ -75,14 +75,10 @@ export function UsageChartSection({
                     <div className="flex rounded-md border border-white/8 bg-black/20 p-0.5">
                         <ChartSwitchBtn
                             label={t("dashboard.byDay")}
-                            to="/dashboard/daily"
+                            to="/daily"
                             icon={CalendarDays}
                         />
-                        <ChartSwitchBtn
-                            label={t("dashboard.bySite")}
-                            to="/dashboard/sites"
-                            icon={Globe}
-                        />
+                        <ChartSwitchBtn label={t("dashboard.bySite")} to="/sites" icon={Globe} />
                     </div>
                     <div className="flex items-center gap-1.5 rounded-md border border-teal-400/20 bg-teal-400/10 px-2 py-1">
                         <CalendarDays className="size-3.5 text-teal-400" />
