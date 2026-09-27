@@ -58,15 +58,6 @@ export default {
             totalUsageToday: "Total Usage Today",
             siteUsage: "{{origin}} Usage",
         },
-        toast: {
-            title: "TubeSize | Warning: High Data Usage",
-            body: "High Data Usage Detected for {{quality}}p. It crosses the threshold specified in your settings.",
-            currentQuality: "Current Quality: {{quality}}p",
-            totalUsage: "Total Usage: {{usage}}",
-            perHourUsage: "Per Hour Usage: {{usage}}",
-            ok: "OK",
-            dontShowAgain: "Don't show again for this session",
-        },
         dashboard: {
             title: "Usage Dashboard for YouTube",
             today: "Today",

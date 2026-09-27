@@ -1,5 +1,5 @@
 import { perHourDisplay, totalSizeVideoDisplay } from "@lib/formatting";
-import { i18nInstance } from "../i18n/i18n";
+import { getToastDirection, getToastLanguage, getToastTranslations } from "./toastTranslations";
 import "@styles/toast.css";
 
 export type ToastOptions = {
@@ -34,49 +34,35 @@ export function createToast({
     okOnClick,
     dontShowAgainOnClick,
 }: ToastOptions): HTMLElement {
-    const t = i18nInstance.t;
+    const t = getToastTranslations();
 
     const container = el("div", "container");
-    container.lang = i18nInstance.language;
-    container.dir = i18nInstance.dir();
+    container.lang = getToastLanguage();
+    container.dir = getToastDirection();
 
     const row = el("div");
-    row.append(
-        el("span", "current-quality", t("toast.currentQuality", { quality: currentQuality })),
-    );
+    row.append(el("span", "current-quality", t.currentQuality(currentQuality)));
 
     const inner = el("div", "toast-inner");
     if (!isLive && sizeBytes) {
-        inner.append(
-            el(
-                "span",
-                undefined,
-                t("toast.totalUsage", { usage: totalSizeVideoDisplay(sizeBytes) }),
-            ),
-        );
+        inner.append(el("span", undefined, t.totalUsage(totalSizeVideoDisplay(sizeBytes))));
     }
-    inner.append(
-        el(
-            "span",
-            undefined,
-            t("toast.perHourUsage", { usage: perHourDisplay(sizePerSecondBytes) }),
-        ),
-    );
+    inner.append(el("span", undefined, t.perHourUsage(perHourDisplay(sizePerSecondBytes))));
     row.append(inner);
 
-    const okBtn = el("button", "firstBtn", t("toast.ok"));
+    const okBtn = el("button", "firstBtn", t.ok);
     okBtn.addEventListener("click", okOnClick);
 
-    const dontShowBtn = el("button", undefined, t("toast.dontShowAgain"));
+    const dontShowBtn = el("button", undefined, t.dontShowAgain);
     dontShowBtn.addEventListener("click", dontShowAgainOnClick);
 
-    const toast = el("div", "toast", t("toast.body", { quality: currentQuality }));
+    const toast = el("div", "toast", t.body(currentQuality));
     toast.append(row);
 
     const actions = el("div", "actions");
     actions.append(okBtn, dontShowBtn);
 
-    container.append(el("div", "title", t("toast.title")), toast, actions);
+    container.append(el("div", "title", t.title), toast, actions);
 
     return container;
 }
