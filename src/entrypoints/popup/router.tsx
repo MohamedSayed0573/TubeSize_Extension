@@ -1,6 +1,5 @@
 import { Navigate, createHashRouter } from "react-router";
 import Popup from "@pages/popup/popup";
-import Settings from "@pages/settings/settings";
 import Spinner from "@components/spinner";
 import { PopupLayout } from "@layouts/popupLayout";
 import DashboardLayout from "@layouts/dashboardLayout";
@@ -30,7 +29,10 @@ export const router = createHashRouter([
     },
     {
         path: "/settings",
-        element: <Settings />,
+        lazy: async () => {
+            const { default: Settings } = await import("@pages/settings/settings");
+            return { Component: Settings };
+        },
         errorElement: <SettingsRouteErrorElement />,
     },
     {
