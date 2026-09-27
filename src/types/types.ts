@@ -81,6 +81,12 @@ export type KickLiveMessage = {
     isFromPopup: boolean;
 };
 
+export const POPUP_USAGE_UPDATED_MESSAGE = "TUBESIZE_POPUP_USAGE_UPDATED" as const;
+
+export type PopupUsageUpdatedMessage = {
+    type: typeof POPUP_USAGE_UPDATED_MESSAGE;
+};
+
 export type UsageMessage = { type: "TUBESIZE_SITE_USAGE"; bytes: number };
 
 export type WatchHistoryMessage = {

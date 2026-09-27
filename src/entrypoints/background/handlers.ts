@@ -27,6 +27,7 @@ import {
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
+import { notifyPopupUsageUpdated } from "./popupUsageUpdates";
 
 function isValidUsageBytes(usage: unknown): usage is number {
     return typeof usage === "number" && Number.isFinite(usage) && usage >= 0;
@@ -38,6 +39,7 @@ export async function handleAddUsage(message: AddUsageMessage): Promise<AddUsage
         if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
 
         await addSiteUsage({ [origin]: bytes });
+        notifyPopupUsageUpdated();
 
         return { success: true, data: null };
     } catch (err) {

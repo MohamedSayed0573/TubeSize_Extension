@@ -1,5 +1,4 @@
-import { useTotalUsage } from "@hooks/useTotalUsage";
-import { useOriginUsage } from "@hooks/useOriginUsage";
+import { usePopupUsage } from "@hooks/usePopupUsage";
 import useTab from "@hooks/useTab";
 import PopupUsage from "./popupUsage";
 import { getOriginWithoutSuffix } from "@lib/dashboardUtils";
@@ -21,15 +20,14 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
     const { data: tab } = useTab();
     const origin = getTabOrigin(tab?.tabUrl);
 
-    const totalUsage = useTotalUsage();
-    const originUsage = useOriginUsage(origin);
+    const { data: usage } = usePopupUsage(origin);
 
     return (
         <div className="flex flex-col gap-2 px-3 py-2 text-xs text-zinc-400">
             <div className="flex flex-col gap-1.5">
                 <PopupUsage
                     text={t("popup.totalUsageToday")}
-                    usage={totalUsage}
+                    usage={usage?.total}
                     navigateTo="dashboard/today"
                     variant="todayUsage"
                 />
@@ -39,7 +37,7 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
                         text={t("popup.siteUsage", {
                             origin: getOriginWithoutSuffix(origin),
                         })}
-                        usage={originUsage}
+                        usage={usage?.originUsage}
                         navigateTo={`dashboard/site/${getOriginWithoutSuffix(origin)}`}
                         variant="siteUsage"
                         origin={origin}

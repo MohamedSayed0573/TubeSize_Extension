@@ -8,6 +8,7 @@ import {
 } from "@lib/videoMetadata";
 import { setUsageBadge } from "@/badge";
 import { UsageBuffer } from "./usageBuffer";
+import { notifyPopupUsageUpdated } from "./popupUsageUpdates";
 
 const FLUSH_INTERVAL_MS = 3000;
 const CONTENT_LENGTH_HEADER = "content-length";
@@ -109,6 +110,7 @@ async function flushUsage(buffer: UsageBuffer) {
 
     try {
         await addSiteUsage(origins);
+        notifyPopupUsageUpdated();
     } catch (err) {
         buffer.restore({ origins, videos });
         throw err;

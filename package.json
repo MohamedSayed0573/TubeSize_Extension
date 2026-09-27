@@ -43,7 +43,6 @@
         "clsx": "^2.1.1",
         "cn": "^0.4.0",
         "dexie": "^4.4.6",
-        "dexie-react-hooks": "^4.4.0",
         "filesize": "^11.0.25",
         "i18next": "^26.4.2",
         "lucide-react": "^1.48.0",
