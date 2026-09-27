@@ -1,5 +1,5 @@
 import { sendMessageToBackground } from "@/runtime";
-import { POPUP_USAGE_UPDATED_MESSAGE, type PopupUsageUpdatedMessage } from "@app-types/types";
+import { POPUP_USAGE_UPDATED_MESSAGE } from "@app-types/types";
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -9,8 +9,14 @@ export function usePopupUsage(origin: string | undefined) {
     const queryClient = useQueryClient();
 
     useEffect(() => {
-        const handleMessage = (message: PopupUsageUpdatedMessage) => {
-            if (message?.type !== POPUP_USAGE_UPDATED_MESSAGE) return;
+        const handleMessage = (message: unknown) => {
+            if (
+                typeof message !== "object" ||
+                message === null ||
+                !("type" in message) ||
+                message.type !== POPUP_USAGE_UPDATED_MESSAGE
+            )
+                return;
 
             void queryClient.invalidateQueries({ queryKey: [POPUP_USAGE_QUERY_KEY] });
         };
