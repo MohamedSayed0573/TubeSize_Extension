@@ -1,17 +1,24 @@
 import { Button } from "@components/ui/button";
 import { getAllSiteUsage, type SiteUsage } from "@/db";
 import { InvalidImportJson } from "@lib/errors";
-import * as z from "zod";
 import { useTranslation } from "react-i18next";
 import { i18nInstance } from "@/i18n/i18n";
 
+function isValidUsageEntry(url: string, bytes: number): boolean {
+    if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes < 0) return false;
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
 function filterUsage(siteUsage: SiteUsage[]) {
     return siteUsage.flatMap(({ day, usage }) => {
-        const values = Object.entries(usage).filter(([url, bytes]) => {
-            const urlResult = z.url().safeParse(url);
-            const bytesResult = z.number().nonnegative().safeParse(bytes);
-            return urlResult.success && bytesResult.success;
-        });
+        const values = Object.entries(usage).filter(([url, bytes]) =>
+            isValidUsageEntry(url, bytes),
+        );
 
         if (values.length === 0) return [];
         const usageRecords = Object.fromEntries(values) as Record<string, number>;
