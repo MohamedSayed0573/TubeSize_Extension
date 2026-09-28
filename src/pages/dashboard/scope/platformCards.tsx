@@ -49,7 +49,7 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
                         )}
                     >
                         <PlatformLogo platform={platform} />
-                        <div className="flex min-w-0 flex-1 flex-col gap-1">
+                        <div className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center">
                             <span className="truncate font-mono text-lg font-bold text-stone-100">
                                 {capitalize(platform)}
                             </span>
