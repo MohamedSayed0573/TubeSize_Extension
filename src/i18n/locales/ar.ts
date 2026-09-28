@@ -47,8 +47,8 @@ export default {
             youtubeVideo: "فيديو يوتيوب",
             youtubeLive: "بث يوتيوب مباشر",
             twitchVideo: "فيديو تويتش",
-            unsupportedPage:
-                "يعرض TubeSize حجم البيانات التي تستهلكها كل جودة على يوتيوب وتويتش وكيك — ويتتبع استهلاكك على كل المواقع.",
+            usageTrackingEnabled: "تتبع الاستهلاك مفعّل.",
+            unsupportedPage: "افتح فيديو على يوتيوب أو تويتش أو كيك لرؤية تقدير استهلاك البيانات.",
             openYoutubeVideo: "افتح فيديو يوتيوب",
             openTwitchStream: "افتح بثًا أو فيديو على تويتش",
             openKickStream: "افتح بثًا أو فيديو على كيك",

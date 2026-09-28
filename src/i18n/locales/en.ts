@@ -48,8 +48,8 @@ export default {
             youtubeVideo: "YouTube Video",
             youtubeLive: "YouTube Live",
             twitchVideo: "Twitch Video",
-            unsupportedPage:
-                "TubeSize shows how much data each video quality uses on YouTube, Twitch and Kick — and tracks your usage on every site.",
+            usageTrackingEnabled: "Usage tracking is enabled.",
+            unsupportedPage: "Open a YouTube, Twitch, or Kick video to see estimated data usage.",
             openYoutubeVideo: "Open a Youtube video",
             openTwitchStream: "Open a Twitch stream or video",
             openKickStream: "Open a Kick Stream or Video",

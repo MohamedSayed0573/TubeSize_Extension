@@ -5,6 +5,7 @@ import { humanizeDuration } from "@lib/humanize";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import { ExternalLink } from "lucide-react";
 
 function getYoutubeTitle(youtubeData: YoutubeData | null | undefined, t: TFunction): string {
     return youtubeData?.type === "video"
@@ -114,10 +115,11 @@ export default function Header({ data }: Props) {
                     {t("popup.settings")}
                 </button>
                 <button
-                    className="flex-2 cursor-pointer rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
+                    className="flex flex-2 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
                     onClick={() => chromeNavigate("dashboard")}
                 >
                     {t("popup.dashboard")}
+                    <ExternalLink className="size-3.5 opacity-70" aria-hidden="true" />
                 </button>
             </div>
         </div>
