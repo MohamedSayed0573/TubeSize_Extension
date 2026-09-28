@@ -5,7 +5,7 @@ import { humanizeDuration } from "@lib/humanize";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Settings as SettingsIcon } from "lucide-react";
 
 function getYoutubeTitle(youtubeData: YoutubeData | null | undefined, t: TFunction): string {
     return youtubeData?.type === "video"
@@ -109,10 +109,11 @@ export default function Header({ data }: Props) {
             </div>
             <div className="flex items-center justify-between gap-2.5">
                 <button
-                    className="flex-1 cursor-pointer rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
+                    className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
                     onClick={() => void navigate("/settings")}
                 >
                     {t("popup.settings")}
+                    <SettingsIcon className="size-3.5 opacity-70" aria-hidden="true" />
                 </button>
                 <button
                     className="flex flex-2 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"

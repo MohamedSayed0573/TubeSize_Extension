@@ -2,7 +2,7 @@ export default {
     translation: {
         common: {
             somethingWentWrong: "حدث خطأ ما",
-            backToDashboard: "العودة إلى لوحة التحكم",
+            backToDashboard: "العودة إلى لوحة الاستخدام",
             support: "ادعمني",
             githubAlt: "أيقونة جيت هب",
             supportAlt: "أيقونة الدعم",
@@ -42,7 +42,7 @@ export default {
         },
         popup: {
             settings: "الإعدادات",
-            dashboard: "لوحة التحكم",
+            dashboard: "لوحة الاستخدام",
             live: "مباشر",
             youtubeVideo: "فيديو يوتيوب",
             youtubeLive: "بث يوتيوب مباشر",

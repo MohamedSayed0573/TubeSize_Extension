@@ -2,6 +2,7 @@ import { useTotalUsage } from "@hooks/useTotalUsage";
 import { useOriginUsage } from "@hooks/useOriginUsage";
 import useTab from "@hooks/useTab";
 import PopupUsage from "./popupUsage";
+import { PopupFooter } from "./popupFooter";
 import { getOriginWithoutSuffix } from "@lib/domain";
 import { useTranslation } from "react-i18next";
 
@@ -48,6 +49,8 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
             </div>
 
             {children}
+
+            <PopupFooter />
         </div>
     );
 }

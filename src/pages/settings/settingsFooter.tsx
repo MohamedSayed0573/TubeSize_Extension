@@ -9,7 +9,7 @@ export function SettingsFooter() {
                     href="https://github.com/MohamedSayed0573/TubeSize_Extension"
                     target="_blank"
                     rel="noreferrer"
-                    className="flex gap-2 text-xs text-zinc-500 no-underline transition-colors hover:text-zinc-400"
+                    className="flex items-center gap-2 text-xs text-zinc-500 no-underline transition-colors hover:text-zinc-400"
                 >
                     <img
                         src="icons/github.svg"
@@ -17,7 +17,7 @@ export function SettingsFooter() {
                         height={14}
                         alt={t("common.githubAlt")}
                     />
-                    @Mohamed Sayed
+                    GitHub
                 </a>
             </div>
             <div>
