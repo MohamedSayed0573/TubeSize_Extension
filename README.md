@@ -26,27 +26,13 @@ Track how much data every website uses, and see the estimated data cost of a You
 
 ## Two tools in one
 
-### See where your data went
+### See where your internet data went
 
 Track usage across **all websites** and find out which ones eat your quota.
 
-- Today, last 7 days, last 30 days, and lifetime totals
-- Per-site breakdown and daily usage graphs
-- Live usage total on the extension icon badge
+### See what a video will cost before you watch
 
-### See what a video will cost before you play
-
-Get estimated download sizes for every quality on YouTube, Twitch, and Kick. Per-quality labels appear inside YouTube's player quality menu; Twitch and Kick use threshold warnings instead.
-
-- File size per resolution (144p up to 8K)
-- Works on live streams and VODs
-- Warning alerts when a stream is heavier than your limit
-
-### Private by design
-
-Your usage data stays in your browser. Nothing is sent to the developer. Size estimates fetch directly from YouTube, Twitch, and Kick.
-
-> **Note:** TubeSize measures traffic from your browser only. It does not include phone apps, game downloads, system updates, or torrents, so the numbers may differ from your ISP's usage page.
+Get estimated data usage for every quality on YouTube, Twitch, and Kick.
 
 ---
 
