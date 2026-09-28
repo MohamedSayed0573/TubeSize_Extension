@@ -19,8 +19,6 @@
         "test:preview": "wslview ./coverage/lcov-report/index.html",
         "prettier:write": "pnpm exec prettier . --write",
         "prettier:check": "pnpm exec prettier . --check",
-        "pack": "pnpm run zip",
-        "pack:firefox": "pnpm run zip:firefox",
         "lint": "eslint .",
         "tsc": "tsc --noEmit",
         "release": "node ./scripts/release.cjs",
