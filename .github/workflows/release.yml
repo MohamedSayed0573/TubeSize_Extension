@@ -1,23 +1,31 @@
 name: Release
+run-name: "Release ${{ inputs.bump }} (dryRun: ${{ inputs.dryRun }})"
 permissions:
     contents: write
 on:
-    push:
-        tags:
-            - "extension-v*.*.*"
     workflow_dispatch:
         inputs:
             dryRun:
                 description: "Dry run: verify store credentials without submitting"
                 type: boolean
                 default: false
+            bump:
+                description: "Version bump type (major, minor, patch)"
+                type: choice
+                default: "patch"
+                options:
+                    - major
+                    - minor
+                    - patch
 
 jobs:
-    build:
+    release:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
               uses: actions/checkout@v6.0.2
+              with:
+                  fetch-depth: 0
 
             - name: Install pnpm
               uses: pnpm/action-setup@v5
@@ -29,7 +37,13 @@ jobs:
                   cache: "pnpm"
 
             - name: Install dependencies
-              run: pnpm install
+              run: pnpm install --frozen-lockfile
+
+            - name: Bump version
+              id: bump
+              run: |
+                  pnpm version ${{ inputs.bump }} --no-git-tag-version
+                  echo "version=$(node -p "JSON.parse(require('fs').readFileSync('./package.json', 'utf8')).version")" >> $GITHUB_OUTPUT
 
             - name: TypeCheck
               run: pnpm run tsc
@@ -43,17 +57,28 @@ jobs:
             - name: Run Tests
               run: pnpm run test
 
+            - name: Commit, tag, and push version bump
+              if: inputs.dryRun != true
+              run: |
+                  VERSION="${{ steps.bump.outputs.version }}"
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git commit -am "chore(release): $VERSION"
+                  git tag "extension-v$VERSION" -m "Release extension-v$VERSION"
+                  git push origin "HEAD:${{ github.ref_name }}" --follow-tags
+
             - name: Build release packages
               run: |
-                  pnpm run pack:firefox
-                  pnpm run pack
+                  pnpm run zip
+                  pnpm run zip:firefox
 
             - name: Submit to stores
               env:
                   CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
-                  CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
-                  CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
-                  CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+                  CHROME_API_VERSION: ${{ secrets.CHROME_API_VERSION }}
+                  CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+                  CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL: ${{ secrets.CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL }}
+                  CHROME_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY }}
                   FIREFOX_EXTENSION_ID: ${{ secrets.FIREFOX_EXTENSION_ID }}
                   FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
                   FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
@@ -73,10 +98,13 @@ jobs:
                       --edge-zip .output/*-chrome.zip
 
             - name: Create Release
+              if: inputs.dryRun != true
               uses: softprops/action-gh-release@v3
               with:
+                  tag_name: extension-v${{ steps.bump.outputs.version }}
                   files: |
-                      .output/tubesize-*-chrome.zip
-                      .output/tubesize-*-firefox.zip
+                      .output/*-chrome.zip
+                      .output/*-firefox.zip
+                      .output/*-sources.zip
                   fail_on_unmatched_files: true
                   generate_release_notes: true
