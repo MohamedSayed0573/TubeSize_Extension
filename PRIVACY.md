@@ -9,7 +9,7 @@ TubeSize tracks data usage across all websites and estimates YouTube, Twitch, an
 - **Per-site totals:** date + origin (for example `https://example.com`) + bytes. No full URLs, paths, titles, or content.
 - **Per-video totals:** date + `platform:videoId` (YouTube ID, Twitch VOD ID or channel, Kick VOD ID or channel) + bytes.
 - **Video display data:** title, channel name/URL, thumbnail, platform. Twitch/Kick entries also keep the visited page URL; YouTube entries do not.
-- **Size-estimate cache:** video IDs, durations, quality/bitrate estimates. Expires after 3 days.
+- **Size-estimate cache:** video IDs, durations, quality/bitrate estimates. Stops being used after 3 days and is deleted on next read; entries never read again remain until storage is cleared.
 - **Settings:** alert on/off, alert threshold, quality filters, language.
 
 ## Where it is stored
@@ -29,8 +29,8 @@ TubeSize does not sell data and does not share it except as needed for its featu
 ## Deletion
 
 - **Dashboard > Clear All Usage Data** deletes usage, per-video totals, and video display data.
-- **Dashboard > Import JSON** replaces usage data; **Export To JSON** saves a local file.
-- Cache expires automatically. Removing the extension or clearing browser extension storage deletes remaining local data. Synced settings follow your browser sync controls.
+- **Dashboard > Import JSON** replaces per-site totals only; **Export To JSON** saves per-site totals only (no per-video totals or video display data).
+- Cache entries stop being used after 3 days and are removed on next read. Removing the extension or clearing browser extension storage deletes remaining local data. Synced settings follow your browser sync controls.
 
 ## Security
 

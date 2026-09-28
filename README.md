@@ -8,7 +8,7 @@
 
 **Know where your internet data goes, before and after.**
 
-Track how much data every website uses, and see exactly what a YouTube, Twitch, or Kick video will cost before you press play. Built for people with a monthly data cap.
+Track how much data every website uses, and see the estimated data cost of a YouTube, Twitch, or Kick video before you press play. Built for people with a monthly data cap.
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Install-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/tubesize/bdpkcpbkonollfbgcnkknkjdbfpacnoi)
 [![Firefox Add-ons](https://img.shields.io/badge/Firefox-Install-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)
@@ -36,7 +36,7 @@ Track usage across **all websites** and find out which ones eat your quota.
 
 ### See what a video will cost before you play
 
-Get the download size for every quality on YouTube, Twitch, and Kick, right inside the player.
+Get estimated download sizes for every quality on YouTube, Twitch, and Kick. Per-quality labels appear inside YouTube's player quality menu; Twitch and Kick use threshold warnings instead.
 
 - File size per resolution (144p up to 8K)
 - Works on live streams and VODs
@@ -98,12 +98,12 @@ Your usage data stays in your browser. Nothing is sent to the developer. Size es
 
 ### Usage tracking
 
-- **All-Sites Data Tracking**: See how much data every website you visit consumes, so you know exactly what is using up your monthly quota.
+- **All-Sites Data Tracking**: See how much data every website you visit consumes, so you know what is using up your monthly quota.
 - **Usage Dashboard**: Track your daily data usage across:
     - Today, Last 7 Days, Last 30 Days, and Lifetime totals.
     - Interactive daily bandwidth consumption graphs built with Recharts.
     - Per-site breakdown of data consumed.
-    - For YouTube, a granular breakdown of videos watched with thumbnails, channel names, and exact data consumed.
+    - For YouTube, a granular breakdown of videos watched with thumbnails, channel names, and measured data consumed.
 - **Dynamic Badge Counter**: View your real-time cumulative daily data usage directly on the extension icon's badge (e.g., `1.2G` or `450M`).
 
 ### Video size estimates
@@ -126,7 +126,7 @@ The manifest (`wxt.config.ts`, Manifest V3) declares exactly:
 | Permission                     | Why                                                                                                                                                                                                                                                                           |
 | :----------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `activeTab`                    | Temporary access to the active tab when you open the popup (`Alt+P`) to detect YouTube/Twitch/Kick URLs, query the current resolution, and open dashboard/popup routes. No persistent `tabs` permission is requested.                                                         |
-| `storage`                      | `chrome.storage.local` holds the stream metadata cache (`youtube:`/`twitch:`/`kick:` keys with TTL); `chrome.storage.sync` holds user settings (alert threshold, cache TTL, quality filters, language).                                                                       |
+| `storage`                      | `chrome.storage.local` holds the stream metadata cache (`youtube:`/`twitch:`/`kick:` keys with TTL); `chrome.storage.sync` holds user settings (alert threshold, quality filters, language).                                                                                  |
 | `webRequest`                   | Background `chrome.webRequest.onCompleted` listener on `<all_urls>` reads `Content-Length` response headers and attributes bytes per request initiator. Responses without `Content-Length` (chunked/live streams) are counted instead by the page-world `fetch`/Worker patch. |
 | `favicon`                      | Resolves per-site icons in the dashboard via `chrome.runtime.getURL("/_favicon/")`.                                                                                                                                                                                           |
 | `host_permissions: <all_urls>` | Enables all-sites usage tracking and size-estimate fetches (YouTube/Twitch/Kick pages, stream APIs, and HLS CDNs). Video overlay only runs on YouTube, Twitch, and Kick pages.                                                                                                |
