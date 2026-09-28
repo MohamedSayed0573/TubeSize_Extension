@@ -43,7 +43,7 @@ export default function Popup() {
         <>
             <Header />
             <PopupViewContainer>
-                <InfoCard message={t("popup.usageTrackingEnabled")} />
+                <InfoCard tone="success" message={t("popup.usageTrackingEnabled")} />
                 <InfoCard message={t("popup.unsupportedPage")} />
             </PopupViewContainer>
         </>
