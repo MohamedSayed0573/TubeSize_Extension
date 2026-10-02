@@ -69,13 +69,15 @@ Get estimated data usage for every quality on YouTube, Twitch, and Kick.
 ## Screenshots
 
 <div align="center">
-  <img width="1280" height="800" alt="dashboard" src="https://github.com/user-attachments/assets/96d61287-64ad-41e5-8eb1-9e5e32cb839d" />
+  <img width="3840" height="2400" alt="full" src="https://github.com/user-attachments/assets/49c4fecd-5eca-479c-8cae-d36aea54c37e" />
+
 </div>
 <br>
 
 <div align="center">
-  <img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/63aab6a5-72f8-4065-b2a1-68d6b8c2b6b3" />
-  <img alt="twitch1" src="https://github.com/user-attachments/assets/c56770f5-08ee-4a17-8ce1-3e05dcf13d5a" width="48%" />
+  <img width="1280" height="800" alt="screenshot_1280x800" src="https://github.com/user-attachments/assets/066ace95-5775-424a-86f9-4bdcbb6df485" />
+  <img width="1366" height="768" alt="Screenshot 2026-10-02 192713" src="https://github.com/user-attachments/assets/9d3579b1-8bbb-4010-a720-0fbc941852c1" />
+
 </div>
 
 ---
