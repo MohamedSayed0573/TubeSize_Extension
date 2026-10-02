@@ -9,22 +9,24 @@ import {
     TableRow,
 } from "@components/ui/table";
 import { formatBytes } from "@lib/format";
-import { getDomainName } from "@lib/domain";
+import { sumByDomain, type DomainUsage } from "@lib/domain";
 import { faviconURL } from "@lib/utils";
 import { useTranslation } from "react-i18next";
 
 export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
     const { t } = useTranslation();
-    const usageByOrigin = new Map<string, number>();
+    const usageByOrigin: Record<string, number> = {};
 
     for (const { usage: originUsage } of usage) {
         for (const [origin, bytes] of Object.entries(originUsage)) {
-            usageByOrigin.set(origin, (usageByOrigin.get(origin) ?? 0) + bytes);
+            usageByOrigin[origin] = (usageByOrigin[origin] ?? 0) + bytes;
         }
     }
 
-    const rows = Array.from(usageByOrigin).toSorted(([, a], [, b]) => b - a);
-    const totalUsage = rows.reduce((total, [, bytes]) => total + bytes, 0);
+    const rows = Array.from(sumByDomain(usageByOrigin).values()).toSorted(
+        (a, b) => b.bytes - a.bytes,
+    );
+    const totalUsage = rows.reduce((total, { bytes }) => total + bytes, 0);
 
     return (
         <section className="flex-1 px-4 py-4">
@@ -39,16 +41,10 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {rows.map(([origin, bytes], index) => {
-                            const share = totalUsage ? (bytes / totalUsage) * 100 : 0;
+                        {rows.map((row, index) => {
+                            const share = totalUsage ? (row.bytes / totalUsage) * 100 : 0;
                             return (
-                                <SiteRow
-                                    key={origin}
-                                    index={index}
-                                    origin={origin}
-                                    share={share}
-                                    bytes={bytes}
-                                />
+                                <SiteRow key={row.domain} index={index} row={row} share={share} />
                             );
                         })}
                     </TableBody>
@@ -68,19 +64,9 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
     );
 }
 
-function SiteRow({
-    index,
-    origin,
-    share,
-    bytes,
-}: {
-    index: number;
-    origin: string;
-    share: number;
-    bytes: number;
-}) {
+function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share: number }) {
     const { t } = useTranslation();
-    const iconUrl = faviconURL(origin);
+    const iconUrl = faviconURL(row.origin);
 
     return (
         <TableRow
@@ -99,12 +85,12 @@ function SiteRow({
                             />
                         </span>
                     )}
-                    <span className="block truncate text-stone-200">{getDomainName(origin)}</span>
+                    <span className="block truncate text-stone-200">{row.domain}</span>
                 </div>
             </TableCell>
             <TableCell className="">{share.toFixed(1)}%</TableCell>
             <TableCell className="font-medium whitespace-nowrap text-stone-200">
-                {formatBytes(bytes)}
+                {formatBytes(row.bytes)}
             </TableCell>
         </TableRow>
     );
