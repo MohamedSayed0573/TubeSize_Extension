@@ -12,7 +12,7 @@ Track how much data every website uses, and see the estimated data cost of a You
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Install-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/tubesize/bdpkcpbkonollfbgcnkknkjdbfpacnoi)
 [![Firefox Add-ons](https://img.shields.io/badge/Firefox-Install-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/tubesize/)
-[![Edge Add-ons](https://img.shields.io/badge/Edge-Install-0078D7?logo=microsoftedge&logoColor=white)](https://chromewebstore.google.com/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka)
+[![Edge Add-ons](https://img.shields.io/badge/Edge-Install-0078D7?logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.x-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-blue?logo=react&logoColor=white)](https://react.dev/)
@@ -57,7 +57,7 @@ Get estimated data usage for every quality on YouTube, Twitch, and Kick.
     <td valign="top" width="33%">
       <strong>Edge Add-ons</strong><br />
       Install the Chromium build for Microsoft Edge.<br /><br />
-      <a href="https://chromewebstore.google.com/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka">
+      <a href="https://microsoftedge.microsoft.com/addons/detail/tubesize/mljmdmlkjajlklcaipidodlkfkcippka">
         <img src="https://img.shields.io/badge/Install%20for%20Edge-0078D7?logo=microsoftedge&logoColor=white" alt="Install for Edge" />
       </a>
     </td>

@@ -10,7 +10,8 @@ function createI18n(): I18n {
     const browserLang = chrome.i18n.getUILanguage().startsWith("ar") ? "ar" : "en";
 
     void instance.init({
-        debug: true,
+        // import.meta.env exists only under Vite; Jest's ESM runtime has no env object.
+        debug: import.meta.env?.DEV,
         lng: browserLang,
         fallbackLng: "en",
         resources: {
