@@ -8,7 +8,7 @@ import { ChartContainer, ChartTooltip, type ChartConfig } from "@components/ui/c
 import type { SiteUsage } from "@/db";
 import { formatBytes } from "@lib/format";
 import { getUsageNumber } from "@lib/usage";
-import { getDomainName } from "@lib/domain";
+import { sumByDomain, type DomainUsage } from "@lib/domain";
 import { getFormattingLocale } from "@lib/dashboardFormatting";
 import { parseDateKey } from "@lib/dateUtils";
 import type { DateKey } from "@app-types/types";
@@ -22,7 +22,7 @@ const chartConfig = {
     },
 } satisfies ChartConfig;
 
-type ChartUsageItem = { date: string; usage: number; sites: Record<string, number> };
+type ChartUsageItem = { date: string; usage: number; sites: DomainUsage[] };
 
 type TooltipPayloadEntry = { payload: ChartUsageItem };
 
@@ -39,10 +39,8 @@ function ChartTooltipContentCustom({
     const data = payload?.[0]?.payload;
     if (!active || !data) return null;
 
-    const siteEntries = Object.entries(data.sites).sort(([, a], [, b]) => b - a);
-
-    const visibleEntries = siteEntries.slice(0, MAX_VISIBLE_SITES);
-    const hiddenCount = siteEntries.length - visibleEntries.length;
+    const visibleEntries = data.sites.slice(0, MAX_VISIBLE_SITES);
+    const hiddenCount = data.sites.length - visibleEntries.length;
 
     return (
         <div className="min-w-52 rounded-xl border border-neutral-800 bg-[#0a0a0a] px-3 py-2 text-xs shadow-xl">
@@ -69,8 +67,8 @@ function ChartTooltipContentCustom({
                         </span>
                     </div>
 
-                    {visibleEntries.map(([origin, bytes], index) => (
-                        <div key={origin} className="flex items-center justify-between">
+                    {visibleEntries.map((site, index) => (
+                        <div key={site.domain} className="flex items-center justify-between">
                             <span className="flex min-w-0 items-center gap-1.5">
                                 <span
                                     className="size-3 shrink-0 rounded-lg"
@@ -79,10 +77,12 @@ function ChartTooltipContentCustom({
                                     }}
                                 />
                                 <span className="max-w-35 truncate text-neutral-300">
-                                    {getDomainName(origin)}
+                                    {site.domain}
                                 </span>
                             </span>
-                            <span className="font-mono text-stone-200">{formatBytes(bytes)}</span>
+                            <span className="font-mono text-stone-200">
+                                {formatBytes(site.bytes)}
+                            </span>
                         </div>
                     ))}
 
@@ -103,7 +103,7 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
         return {
             date: day,
             usage: getUsageNumber([{ day, usage: sites }]) / (1024 * 1024),
-            sites,
+            sites: Array.from(sumByDomain(sites).values()).toSorted((a, b) => b.bytes - a.bytes),
         };
     }) satisfies ChartUsageItem[];
 

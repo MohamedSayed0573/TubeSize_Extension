@@ -63,6 +63,9 @@ function isCountableRequest(details: chrome.webRequest.OnCompletedDetails) {
     return !(
         details.tabId === NO_TAB_ID ||
         details.url.startsWith("chrome-extension://") ||
+        // Requests initiated by the extension itself (dashboard, quality menu)
+        // belong to TubeSize, not to the site being measured.
+        details.initiator?.startsWith("chrome-extension://") ||
         details.fromCache ||
         details.method === "HEAD"
     );

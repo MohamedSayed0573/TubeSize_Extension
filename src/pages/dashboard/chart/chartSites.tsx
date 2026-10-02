@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import type { SiteUsage } from "@/db";
 import { formatBytes } from "@lib/format";
-import { getDomainName, getOriginWithoutSuffix } from "@lib/domain";
+import { sumByDomain, getOriginWithoutSuffix } from "@lib/domain";
 import { getSiteColor } from "./siteColors";
 import { useNavigate } from "react-router";
 
@@ -23,19 +23,22 @@ type TooltipPayloadEntry = { payload: ChartSiteItem };
 // Sum each site's usage across all days, dropping sites under 1 MB,
 // and keep the top MAX_SITES ranked by total bytes
 function buildSiteData(usage: SiteUsage[]): ChartSiteItem[] {
-    const totals = new Map<string, number>();
+    const usageByOrigin: Record<string, number> = {};
     for (const { usage: sites } of usage) {
         for (const [origin, bytes] of Object.entries(sites)) {
-            totals.set(origin, (totals.get(origin) ?? 0) + bytes);
+            usageByOrigin[origin] = (usageByOrigin[origin] ?? 0) + bytes;
         }
     }
 
-    return Array.from(totals)
-        .map(([site, bytes]) => ({ site, bytes }))
+    return Array.from(sumByDomain(usageByOrigin).values())
         .filter((item) => item.bytes >= MIN_SITE_BYTES)
         .sort((a, b) => b.bytes - a.bytes)
         .slice(0, MAX_SITES)
-        .map((item, index) => ({ ...item, fill: getSiteColor(index) }));
+        .map((item, index) => ({
+            site: item.domain,
+            bytes: item.bytes,
+            fill: getSiteColor(index),
+        }));
 }
 
 function ChartSitesTooltipContent({
@@ -59,9 +62,7 @@ function ChartSitesTooltipContent({
                     />
 
                     {/* Website Name */}
-                    <span className="max-w-35 truncate text-neutral-300">
-                        {getDomainName(data.site)}
-                    </span>
+                    <span className="max-w-35 truncate text-neutral-300">{data.site}</span>
                 </span>
 
                 {/* Formatted Usage */}
@@ -103,7 +104,6 @@ export default function ChartSites({ usage }: { usage: SiteUsage[] }) {
                             axisLine={false}
                             width={110}
                             fontWeight={"bold"}
-                            tickFormatter={(data: string) => getDomainName(data)}
                         />
                         <ChartTooltip cursor={false} content={<ChartSitesTooltipContent />} />
                         <Bar
