@@ -22,7 +22,7 @@
         "lint": "eslint .",
         "tsc": "tsc --noEmit",
         "release": "node ./scripts/release.cjs",
-        "knip": "knip",
+        "knip": "KNIP_DISABLE_RAW_TRANSFER=1 knip",
         "prepare": "husky",
         "lint-staged": "lint-staged"
     },
