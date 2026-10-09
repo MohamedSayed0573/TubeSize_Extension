@@ -1,13 +1,11 @@
-import { useTranslation } from "react-i18next";
-
+import { t } from "@/i18n/t";
 export default function DashboardBanner() {
-    const { t } = useTranslation();
     return (
         <div className="flex items-center justify-between gap-3 border-b border-neutral-800 bg-neutral-900 px-4 py-1 text-gray-300">
             <div className="flex items-center gap-1">
                 <img className="h-6 w-6" src="/icons/icon-32.png" alt="Dashboard Icon" />
                 <span className="font-mono text-sm font-bold tracking-wider uppercase">
-                    {t("dashboard.title")}
+                    {t("dashboard_title")}
                 </span>
             </div>
             <div className="flex items-center justify-center gap-3 p-3">
@@ -22,7 +20,7 @@ export default function DashboardBanner() {
                             src="icons/github.svg"
                             width={14}
                             height={14}
-                            alt={t("common.githubAlt")}
+                            alt={t("common_githubAlt")}
                         />
                         GitHub
                     </a>
@@ -38,9 +36,9 @@ export default function DashboardBanner() {
                             src="icons/support.svg"
                             width={14}
                             height={14}
-                            alt={t("common.supportAlt")}
+                            alt={t("common_supportAlt")}
                         />
-                        {t("common.support")}
+                        {t("common_support")}
                     </a>
                 </div>
             </div>

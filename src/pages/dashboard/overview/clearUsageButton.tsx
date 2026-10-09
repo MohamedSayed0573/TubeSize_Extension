@@ -1,10 +1,9 @@
+import { t } from "@/i18n/t";
 import { AlertDialogBasic } from "@components/alertDialogBasic";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { clearDatabaseData } from "@/db";
-import { useTranslation } from "react-i18next";
 
 export default function ClearUsageButton() {
-    const { t } = useTranslation();
     const queryClient = useQueryClient();
     const { mutate: clearUsage, isPending: isClearingPending } = useMutation({
         mutationFn: async () => {
@@ -21,8 +20,8 @@ export default function ClearUsageButton() {
 
     return (
         <AlertDialogBasic
-            descriptionText={t("dashboard.clearWarning")}
-            buttonText={t("dashboard.clearAllUsage")}
+            descriptionText={t("dashboard_clearWarning")}
+            buttonText={t("dashboard_clearAllUsage")}
             className="w-full"
             disabled={isClearingPending}
             onConfirm={clearUsage}

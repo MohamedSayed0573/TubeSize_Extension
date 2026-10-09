@@ -1,13 +1,12 @@
+import { t } from "@/i18n/t";
 import { useKickData } from "@hooks/useKickData";
 import Header from "@pages/popup/header";
 import InfoCard from "@components/infoCard";
 import KickFormats from "@pages/popup/platforms/kick/kickFormats";
 import Spinner from "@components/spinner";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
-import { useTranslation } from "react-i18next";
 
 export default function KickView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
-    const { t } = useTranslation();
     const { query, isKickRelated } = useKickData(tabUrl, tabId);
     const { isPending, isError, data, error } = query;
 
@@ -16,7 +15,7 @@ export default function KickView({ tabUrl, tabId }: { tabUrl: string; tabId: num
             <>
                 <Header />
                 <PopupViewContainer>
-                    <InfoCard message={t("popup.openKickStream")} />
+                    <InfoCard message={t("popup_openKickStream")} />
                 </PopupViewContainer>
             </>
         );

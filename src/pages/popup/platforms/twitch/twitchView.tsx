@@ -1,13 +1,12 @@
+import { t } from "@/i18n/t";
 import Header from "@pages/popup/header";
 import InfoCard from "@components/infoCard";
 import Spinner from "@components/spinner";
 import { useTwitchData } from "@hooks/useTwitchData";
 import TwitchFormats from "@pages/popup/platforms/twitch/twitchFormats";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
-import { useTranslation } from "react-i18next";
 
 export default function TwitchView({ tabUrl }: { tabUrl: string }) {
-    const { t } = useTranslation();
     const { query, isTwitchRelated } = useTwitchData(tabUrl);
     const { isPending, isError, data, error } = query;
 
@@ -16,7 +15,7 @@ export default function TwitchView({ tabUrl }: { tabUrl: string }) {
             <>
                 <Header />
                 <PopupViewContainer>
-                    <InfoCard message={t("popup.openTwitchStream")} />
+                    <InfoCard message={t("popup_openTwitchStream")} />
                 </PopupViewContainer>
             </>
         );

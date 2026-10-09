@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import type { SettingsMap } from "@app-types/types";
 import useSettings from "@hooks/useSettings";
 import { cn } from "@lib/utils";
@@ -13,10 +14,8 @@ import {
 } from "@/components/ui/field";
 import { Slider } from "@components/ui/slider";
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
 
 export default function ToasterSettings({ settingsState }: { settingsState: SettingsMap }) {
-    const { t } = useTranslation();
     const toasterThreshold = settingsState.toasterThreshold ?? CONFIG.DEFAULT_TOASTER_THRESHOLD;
     const isToasterEnabled = settingsState.toasterEnabled ?? CONFIG.DEFAULT_TOASTER_ENABLED;
     const [threshold, setThreshold] = useState(toasterThreshold);
@@ -26,9 +25,9 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
 
     return (
         <FieldSet>
-            <FieldLegend>{t("settings.toaster.legend")}</FieldLegend>
+            <FieldLegend>{t("settings_toaster_legend")}</FieldLegend>
             <FieldDescription className="text-xs text-zinc-400">
-                {t("settings.toaster.description")}
+                {t("settings_toaster_description")}
             </FieldDescription>
 
             <FieldGroup
@@ -39,7 +38,7 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
             >
                 <Field orientation="horizontal">
                     <FieldLabel htmlFor="toasterThresholdToggle">
-                        {t("settings.toaster.enable")}
+                        {t("settings_toaster_enable")}
                     </FieldLabel>
                     <Switch
                         id="toasterThresholdToggle"
@@ -56,7 +55,7 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
                         className="text-xs font-medium whitespace-nowrap"
                         htmlFor="toasterThreshold"
                     >
-                        {t("settings.toaster.usageLimit", { threshold })}
+                        {t("settings_toaster_usageLimit", [threshold])}
                     </FieldLabel>
                     <Slider
                         id="toasterThreshold"
@@ -69,7 +68,7 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
                         min={200}
                         step={10}
                         className={cn("w-full", !isToasterEnabled && "cursor-not-allowed")}
-                        aria-label={t("settings.toaster.usageLimitAria")}
+                        aria-label={t("settings_toaster_usageLimitAria")}
                         disabled={!isToasterEnabled}
                     />
                 </Field>

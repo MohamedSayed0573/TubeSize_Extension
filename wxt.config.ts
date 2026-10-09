@@ -62,9 +62,9 @@ export default defineConfig({
         "@layouts": "src/layouts",
     },
     manifest: ({ browser }) => ({
-        name: "TubeSize",
-        description:
-            "Track how much data every website uses, and see the estimated data cost of YouTube, Twitch, and Kick videos before you press play.",
+        name: "__MSG_extName__",
+        description: "__MSG_extDescription__",
+        default_locale: "en",
         icons: {
             "16": "icons/icon-16.png",
             "32": "icons/icon-32.png",

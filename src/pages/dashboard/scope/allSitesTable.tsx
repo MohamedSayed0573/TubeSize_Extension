@@ -11,10 +11,9 @@ import {
 import { formatBytes } from "@lib/format";
 import { sumByDomain, type DomainUsage } from "@lib/domain";
 import { faviconURL } from "@lib/utils";
-import { useTranslation } from "react-i18next";
+import { t } from "@/i18n/t";
 
 export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
-    const { t } = useTranslation();
     const usageByOrigin: Record<string, number> = {};
 
     for (const { usage: originUsage } of usage) {
@@ -35,9 +34,9 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
                     <TableHeader className="bg-neutral-800/60 text-xs tracking-wider text-neutral-400 uppercase">
                         <TableRow className="border-neutral-800 hover:bg-transparent">
                             <TableHead className="text-center">#</TableHead>
-                            <TableHead>{t("common.website")}</TableHead>
-                            <TableHead className="w-10/100">{t("common.share")}</TableHead>
-                            <TableHead className="w-20/100">{t("common.dataUsed")}</TableHead>
+                            <TableHead>{t("common_website")}</TableHead>
+                            <TableHead className="w-10/100">{t("common_share")}</TableHead>
+                            <TableHead className="w-20/100">{t("common_dataUsed")}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -51,7 +50,7 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
                     <TableFooter className="border-neutral-800 bg-neutral-800/40">
                         <TableRow className="border-0 hover:bg-transparent">
                             <TableHead colSpan={2} className="text-center text-sm text-stone-200">
-                                {t("common.total")}
+                                {t("common_total")}
                             </TableHead>
                             <TableCell className="text-center text-stone-100" colSpan={2}>
                                 {formatBytes(totalUsage)}
@@ -65,7 +64,6 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
 }
 
 function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share: number }) {
-    const { t } = useTranslation();
     const iconUrl = faviconURL(row.origin);
 
     return (
@@ -81,7 +79,7 @@ function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share
                             <img
                                 src={iconUrl}
                                 className="h-full w-full rounded-sm"
-                                alt={t("common.website")}
+                                alt={t("common_website")}
                             />
                         </span>
                     )}

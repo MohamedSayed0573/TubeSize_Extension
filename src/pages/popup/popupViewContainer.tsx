@@ -1,10 +1,10 @@
+import { t } from "@/i18n/t";
 import { useTotalUsage } from "@hooks/useTotalUsage";
 import { useOriginUsage } from "@hooks/useOriginUsage";
 import useTab from "@hooks/useTab";
 import PopupUsage from "./popupUsage";
 import { PopupFooter } from "./popupFooter";
 import { getOriginWithoutSuffix } from "@lib/domain";
-import { useTranslation } from "react-i18next";
 
 function getTabOrigin(tabUrl: string | undefined) {
     if (!tabUrl) return;
@@ -18,7 +18,6 @@ function getTabOrigin(tabUrl: string | undefined) {
 }
 
 export function PopupViewContainer({ children }: { children: React.ReactNode }) {
-    const { t } = useTranslation();
     const { data: tab } = useTab();
     const origin = getTabOrigin(tab?.tabUrl);
 
@@ -29,7 +28,7 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
         <div className="flex flex-col gap-2 px-3 py-2 text-xs text-zinc-400">
             <div className="flex flex-col gap-1.5">
                 <PopupUsage
-                    text={t("popup.totalUsageToday")}
+                    text={t("popup_totalUsageToday")}
                     usage={totalUsage}
                     navigateTo="dashboard/today"
                     variant="todayUsage"
@@ -37,9 +36,7 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
 
                 {origin && (
                     <PopupUsage
-                        text={t("popup.siteUsage", {
-                            origin: getOriginWithoutSuffix(origin),
-                        })}
+                        text={t("popup_siteUsage", [getOriginWithoutSuffix(origin)])}
                         usage={originUsage}
                         navigateTo={`dashboard/site/${getOriginWithoutSuffix(origin)}`}
                         variant="siteUsage"

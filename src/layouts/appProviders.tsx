@@ -1,7 +1,6 @@
 import { DirectionProvider } from "@/components/ui/direction";
-import { useTranslation } from "react-i18next";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
-    const { i18n } = useTranslation();
-    return <DirectionProvider direction={i18n.dir()}>{children}</DirectionProvider>;
+    const direction = chrome.i18n.getUILanguage().toLowerCase().startsWith("ar") ? "rtl" : "ltr";
+    return <DirectionProvider direction={direction}>{children}</DirectionProvider>;
 }

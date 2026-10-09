@@ -1,10 +1,10 @@
+import { t } from "@/i18n/t";
 import { isYoutubePage, isTwitchPage, isKickPage } from "@lib/utils";
 import Header from "@pages/popup/header";
 import useTab from "@hooks/useTab";
 import InfoCard from "@components/infoCard";
 import Spinner from "@components/spinner";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
-import { useTranslation } from "react-i18next";
 import { lazy } from "react";
 
 const YoutubeView = lazy(async () => await import("@pages/popup/platforms/youtube/youtubeView"));
@@ -12,7 +12,6 @@ const TwitchView = lazy(async () => await import("@pages/popup/platforms/twitch/
 const KickView = lazy(async () => await import("@pages/popup/platforms/kick/kickView"));
 
 export default function Popup() {
-    const { t } = useTranslation();
     const { data: tab, error, isPending, isError } = useTab();
     if (isError) throw error;
     if (isPending) {
@@ -43,8 +42,8 @@ export default function Popup() {
         <>
             <Header />
             <PopupViewContainer>
-                <InfoCard tone="success" message={t("popup.usageTrackingEnabled")} />
-                <InfoCard message={t("popup.unsupportedPage")} />
+                <InfoCard tone="success" message={t("popup_usageTrackingEnabled")} />
+                <InfoCard message={t("popup_unsupportedPage")} />
             </PopupViewContainer>
         </>
     );

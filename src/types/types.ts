@@ -16,7 +16,6 @@ export type SettingsMap = {
     toasterThreshold?: number;
     cacheTTL?: number;
     qualityIds?: Record<string, boolean>;
-    language?: string;
 };
 
 export type FrontEndMessage =
