@@ -484,11 +484,11 @@
         "description": "Toast dismiss button"
     },
     "extName": {
-        "message": "TubeSize: متتبع استخدام الإنترنت",
+        "message": "TubeSize: تتبع استهلاك الإنترنت",
         "description": "Extension name shown in the browser and the store listing"
     },
     "extDescription": {
-        "message": "تتبع كمية البيانات التي يستخدمها كل موقع، وشاهد التكلفة التقديرية لبيانات فيديوهات يوتيوب وتويتش وكيك قبل الضغط على التشغيل.",
+        "message": "اعرف كل موقع بيستهلك كام من باقتك، وكل فيديو على يوتيوب وتويتش وكيك هيسحب كام قبل ما تشغله.",
         "description": "Extension description for the store listing"
     }
 }
