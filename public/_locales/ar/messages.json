@@ -484,7 +484,7 @@
         "description": "Toast dismiss button"
     },
     "extName": {
-        "message": "TubeSize: تتبع استهلاك الإنترنت",
+        "message": "TubeSize: تتبع استهلاك باقة الإنترنت",
         "description": "Extension name shown in the browser and the store listing"
     },
     "extDescription": {
