@@ -23,7 +23,7 @@ function filterUsage(siteUsage: SiteUsage[]) {
         if (values.length === 0) return [];
         const usageRecords = Object.fromEntries(values) as Record<string, number>;
 
-        return [{ day, usage: usageRecords }];
+        return { day, usage: usageRecords };
     });
 }
 

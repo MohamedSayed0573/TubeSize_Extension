@@ -85,6 +85,9 @@ export default defineConfig([
             "unicorn/prefer-array-from-map": "off",
             "unicorn/no-top-level-side-effects": "off",
             "unicorn/max-nested-calls": "off",
+            "unicorn/no-asterisk-prefix-in-documentation-comments": "off",
+            "unicorn/prefer-default-parameters": "off",
+            "unicorn/prefer-escaped-irregular-whitespace": "off",
         },
     },
     {

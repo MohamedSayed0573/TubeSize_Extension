@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 export default function ClearUsageButton() {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
-    const clearUsageMutation = useMutation({
+    const { mutate: clearUsage, isPending: isClearingPending } = useMutation({
         mutationFn: async () => {
             await clearDatabaseData();
         },
@@ -18,8 +18,6 @@ export default function ClearUsageButton() {
             ]);
         },
     });
-
-    const { mutate: clearUsage, isPending: isClearingPending } = clearUsageMutation;
 
     return (
         <AlertDialogBasic
