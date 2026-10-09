@@ -1,7 +1,6 @@
-import { t } from "@/i18n/t";
 import { Skeleton } from "@components/ui/skeleton";
 import { Link } from "react-router";
-import { getPluralMessage } from "@/i18n/plural";
+import { t } from "@/i18n/t";
 import DashboardBanner from "./dashboardBanner";
 import ClearUsageButton from "./clearUsageButton";
 
@@ -47,7 +46,9 @@ function ChartSkeleton() {
                 </span>
                 <span className="flex items-center gap-2 rounded-xl border border-teal-400 px-2 py-1 font-mono text-sm text-teal-400">
                     <Skeleton className="h-4 w-6" />
-                    {getPluralMessage("dashboard_days", 30)}
+                    {t(
+                        `dashboard_days_${new Intl.PluralRules(chrome.i18n.getUILanguage()).select(30)}`,
+                    ) || t("dashboard_days_other")}
                 </span>
             </div>
 

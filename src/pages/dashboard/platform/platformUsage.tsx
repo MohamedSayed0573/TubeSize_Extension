@@ -1,4 +1,3 @@
-import { t } from "@/i18n/t";
 import { useParams, useSearchParams } from "react-router";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
@@ -11,7 +10,7 @@ import { useWatchHistory } from "@hooks/useWatchHistory";
 import { capitalize, isPlatformId } from "@lib/utils";
 import DashboardNotFound from "../shared/notFound";
 import type { PlatformId, UsageScope } from "@app-types/types";
-import { getPluralMessage } from "@/i18n/plural";
+import { t } from "@/i18n/t";
 
 export default function PlatformUsage() {
     const { platformId } = useParams();
@@ -79,7 +78,12 @@ export default function PlatformUsage() {
                         <span className="rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 font-mono text-xs text-stone-400">
                             {rows.length === 0
                                 ? t("dashboard_noVideos")
-                                : getPluralMessage("dashboard_videosCount", rows.length)}
+                                : t(
+                                      `dashboard_videosCount_${new Intl.PluralRules(
+                                          chrome.i18n.getUILanguage(),
+                                      ).select(rows.length)}`,
+                                      [rows.length],
+                                  ) || t("dashboard_videosCount_other", [rows.length])}
                         </span>
                     </div>
                 </div>

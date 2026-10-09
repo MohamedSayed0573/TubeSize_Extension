@@ -1,4 +1,3 @@
-import { t } from "@/i18n/t";
 import { cn } from "@lib/utils";
 import type { SiteUsage } from "@/db";
 import { NavLink } from "react-router";
@@ -6,7 +5,7 @@ import { lazy, Suspense } from "react";
 import { CalendarDays, Database, Globe, type LucideIcon } from "lucide-react";
 import NoUsageData from "../shared/noUsageData";
 import { Skeleton } from "@components/ui/skeleton";
-import { getPluralMessage } from "@/i18n/plural";
+import { t } from "@/i18n/t";
 import { Chart as ChartDaily } from "../chart/chart";
 
 const ChartSites = lazy(async () => import("../chart/chartSites"));
@@ -86,7 +85,9 @@ export function UsageChartSection({
                             {dayCount}
                         </span>
                         <span className="text-sm text-teal-400/70">
-                            {getPluralMessage("dashboard_days", dayCount)}
+                            {t(
+                                `dashboard_days_${new Intl.PluralRules(chrome.i18n.getUILanguage()).select(dayCount)}`,
+                            ) || t("dashboard_days_other")}
                         </span>
                     </div>
                 </div>
