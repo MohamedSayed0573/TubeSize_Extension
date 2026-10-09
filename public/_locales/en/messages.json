@@ -440,5 +440,13 @@
     "toast_dontShowAgain": {
         "message": "Don't show again for this session",
         "description": "Toast dismiss button"
+    },
+    "extName": {
+        "message": "TubeSize: Internet Usage Tracker",
+        "description": "Extension name shown in the browser and the store listing"
+    },
+    "extDescription": {
+        "message": "Track how much data every website uses, and see the estimated data cost of YouTube, Twitch, and Kick videos before you press play.",
+        "description": "Extension description for the store listing"
     }
 }
