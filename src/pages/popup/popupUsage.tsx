@@ -1,6 +1,7 @@
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { chromeNavigate, faviconURL } from "@lib/utils";
 import { Calendar, ChevronLeft, ChevronRight, Globe } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 function splitSize(formatted: string): { value: string; unit: string } {
@@ -70,12 +71,22 @@ function UsageIcon({ variant, origin }: { variant?: string; origin?: string }) {
             </div>
         );
 
+    return <SiteIcon key={origin} origin={origin} />;
+}
+
+function SiteIcon({ origin }: { origin?: string }) {
+    const [failed, setFailed] = useState(false);
     const siteIconUrl = faviconURL(origin);
-    if (!siteIconUrl) return <Globe className="size-6.5" />;
+    if (!siteIconUrl || failed) return <Globe className="size-6.5" />;
 
     return (
         <div className="size-6.5">
-            <img src={siteIconUrl} className="h-full w-full object-cover" />
+            <img
+                src={siteIconUrl}
+                onError={() => setFailed(true)}
+                className="h-full w-full object-cover"
+                alt=""
+            />
         </div>
     );
 }

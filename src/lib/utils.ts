@@ -271,9 +271,24 @@ export function chromeNavigate(pageName: string | undefined) {
     });
 }
 
+export function isFirefox(): boolean {
+    try {
+        if (typeof navigator === "undefined" || !navigator.userAgent) return false;
+        return navigator.userAgent.includes("Firefox/");
+    } catch {
+        return false;
+    }
+}
+
 export function faviconURL(u: string | undefined) {
     try {
         if (!u) return;
+        // Firefox does not implement Chrome's `/_favicon/` endpoint, so a
+        // `moz-extension://.../_favicon/` URL never resolves there. Fall back
+        // to the site's own favicon instead of generating a broken URL.
+        if (isFirefox()) {
+            return new URL("/favicon.ico", u).href;
+        }
         const url = new URL(chrome.runtime.getURL("/_favicon/"));
         url.searchParams.set("pageUrl", u);
         url.searchParams.set("size", "32");

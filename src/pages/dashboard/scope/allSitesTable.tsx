@@ -11,6 +11,7 @@ import {
 import { formatBytes } from "@lib/format";
 import { sumByDomain, type DomainUsage } from "@lib/domain";
 import { faviconURL } from "@lib/utils";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
@@ -66,7 +67,6 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
 
 function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share: number }) {
     const { t } = useTranslation();
-    const iconUrl = faviconURL(row.origin);
 
     return (
         <TableRow
@@ -76,15 +76,7 @@ function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share
             <TableCell className="text-center text-neutral-500">{index + 1}</TableCell>
             <TableCell>
                 <div className="flex items-center gap-2.5">
-                    {iconUrl && (
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-neutral-700 bg-neutral-950 p-1">
-                            <img
-                                src={iconUrl}
-                                className="h-full w-full rounded-sm"
-                                alt={t("common.website")}
-                            />
-                        </span>
-                    )}
+                    <SiteIcon key={row.origin} origin={row.origin} label={t("common.website")} />
                     <span className="block truncate text-stone-200">{row.domain}</span>
                 </div>
             </TableCell>
@@ -93,5 +85,22 @@ function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share
                 {formatBytes(row.bytes)}
             </TableCell>
         </TableRow>
+    );
+}
+
+function SiteIcon({ origin, label }: { origin: string; label: string }) {
+    const [failed, setFailed] = useState(false);
+    const iconUrl = faviconURL(origin);
+    if (!iconUrl || failed) return null;
+
+    return (
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-neutral-700 bg-neutral-950 p-1">
+            <img
+                src={iconUrl}
+                onError={() => setFailed(true)}
+                className="h-full w-full rounded-sm"
+                alt={label}
+            />
+        </span>
     );
 }
