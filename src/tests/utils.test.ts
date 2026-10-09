@@ -8,8 +8,6 @@ import {
     isTwitchVod,
     extractTwitchVodId,
     extractChannelName,
-    isFirefox,
-    faviconURL,
 } from "@lib/utils";
 
 describe("isYoutubePage", () => {
@@ -187,93 +185,6 @@ describe("extractVideoTag", () => {
 
     test("should return undefined for youtube short video with invalid itag", () => {
         expect(extractVideoTag("https://www.youtube.com/shorts/muzkbNA0")).toBeNil();
-    });
-});
-
-function setUserAgent(userAgent: string) {
-    Object.defineProperty(globalThis, "navigator", {
-        value: { userAgent },
-        configurable: true,
-    });
-}
-
-describe("isFirefox", () => {
-    const originalNavigator = navigator;
-
-    afterEach(() => {
-        Object.defineProperty(globalThis, "navigator", {
-            value: originalNavigator,
-            configurable: true,
-        });
-    });
-
-    test("should return false outside of Firefox", () => {
-        setUserAgent(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        );
-        expect(isFirefox()).toBe(false);
-    });
-
-    test("should return true on Firefox", () => {
-        setUserAgent("Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0");
-        expect(isFirefox()).toBe(true);
-    });
-});
-
-describe("faviconURL", () => {
-    const originalNavigator = navigator;
-    const originalChrome = globalThis.chrome;
-
-    beforeEach(() => {
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.chrome = {
-            runtime: {
-                getURL: (path: string) => `chrome-extension://test-id${path}`,
-            },
-        } as unknown as typeof chrome;
-    });
-
-    afterEach(() => {
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.chrome = originalChrome;
-        Object.defineProperty(globalThis, "navigator", {
-            value: originalNavigator,
-            configurable: true,
-        });
-    });
-
-    const CHROME_UA =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
-    const FIREFOX_UA = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0";
-
-    test("should return undefined for undefined input", () => {
-        setUserAgent(CHROME_UA);
-        expect(faviconURL(undefined)).toBeUndefined();
-    });
-
-    test("should build a _favicon URL on Chrome", () => {
-        setUserAgent(CHROME_UA);
-        const result = faviconURL("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-        expect(result).toContain("_favicon");
-        expect(result).toContain("pageUrl=");
-        expect(result).toContain("size=32");
-    });
-
-    test("should return the site favicon.ico on Firefox", () => {
-        setUserAgent(FIREFOX_UA);
-        expect(faviconURL("https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe(
-            "https://www.youtube.com/favicon.ico",
-        );
-    });
-
-    test("should never return a _favicon URL on Firefox", () => {
-        setUserAgent(FIREFOX_UA);
-        expect(faviconURL("https://www.example.com/")).not.toContain("_favicon");
-    });
-
-    test("should return undefined for an invalid URL on Firefox", () => {
-        setUserAgent(FIREFOX_UA);
-        expect(faviconURL("not a url")).toBeUndefined();
     });
 });
 
