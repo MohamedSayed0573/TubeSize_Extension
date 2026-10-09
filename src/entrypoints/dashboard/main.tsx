@@ -6,11 +6,11 @@ import "@styles/dashboard.css";
 import "@fontsource-variable/jetbrains-mono/wght.css";
 import { StrictMode } from "react";
 import { AppProviders } from "@layouts/appProviders";
-import { startDocumentLanguageSync, syncAppLang } from "@/i18n/i18n";
 import { router } from "./router";
 
-void syncAppLang();
-startDocumentLanguageSync();
+const isArabic = chrome.i18n.getUILanguage().toLowerCase().startsWith("ar");
+document.documentElement.lang = isArabic ? "ar" : "en";
+document.documentElement.dir = isArabic ? "rtl" : "ltr";
 
 const domRoot = document.querySelector("#root") as HTMLElement;
 

@@ -10,12 +10,10 @@ import { useWatchHistory } from "@hooks/useWatchHistory";
 import { capitalize, isPlatformId } from "@lib/utils";
 import DashboardNotFound from "../shared/notFound";
 import type { PlatformId, UsageScope } from "@app-types/types";
-import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
+import { t } from "@/i18n/t";
 
 export default function PlatformUsage() {
     const { platformId } = useParams();
-    const { t } = useTranslation();
 
     const [searchParams] = useSearchParams();
     const scope = parseUsageScope(searchParams);
@@ -68,7 +66,7 @@ export default function PlatformUsage() {
 
     return (
         <>
-            <DashboardHeader title={getTitle(scope, platform, t)} totalDataUsage={totalDataUsage} />
+            <DashboardHeader title={getTitle(scope, platform)} totalDataUsage={totalDataUsage} />
             <div className="flex flex-1 flex-col bg-neutral-950 p-8">
                 <div className="mb-4 flex flex-wrap items-center gap-4">
                     <PlatformLogo platform={platform} />
@@ -79,8 +77,15 @@ export default function PlatformUsage() {
                         </span>
                         <span className="rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 font-mono text-xs text-stone-400">
                             {rows.length === 0
-                                ? t("dashboard.noVideos")
-                                : t("dashboard.videosCount", { count: rows.length })}
+                                ? t("dashboard_noVideos")
+                                : t(
+                                      `dashboard_videosCount_${new Intl.PluralRules(
+                                          chrome.i18n.getUILanguage().toLowerCase().startsWith("ar")
+                                              ? "ar"
+                                              : "en",
+                                      ).select(rows.length)}`,
+                                      [rows.length],
+                                  ) || t("dashboard_videosCount_other", [rows.length])}
                         </span>
                     </div>
                 </div>
@@ -97,19 +102,14 @@ export default function PlatformUsage() {
     );
 }
 
-function getTitle(scope: UsageScope, platform: PlatformId, t: TFunction) {
+function getTitle(scope: UsageScope, platform: PlatformId) {
     const label = capitalize(platform);
     if (scope.type === "range") {
-        if (scope.range === "today")
-            return t("dashboard.titleOnPlatformToday", { platform: label });
-        if (scope.range === "week") return t("dashboard.titleOnPlatformWeek", { platform: label });
-        if (scope.range === "month")
-            return t("dashboard.titleOnPlatformMonth", { platform: label });
-        return t("dashboard.titleOnPlatformLifetime", { platform: label });
+        if (scope.range === "today") return t("dashboard_titleOnPlatformToday", [label]);
+        if (scope.range === "week") return t("dashboard_titleOnPlatformWeek", [label]);
+        if (scope.range === "month") return t("dashboard_titleOnPlatformMonth", [label]);
+        return t("dashboard_titleOnPlatformLifetime", [label]);
     }
 
-    return t("dashboard.titleOnPlatformDate", {
-        date: scope.date,
-        platform: label,
-    });
+    return t("dashboard_titleOnPlatformDate", [scope.date, label]);
 }

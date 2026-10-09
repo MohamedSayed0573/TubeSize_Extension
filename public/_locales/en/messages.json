@@ -1,0 +1,444 @@
+{
+    "common_somethingWentWrong": {
+        "message": "Something went wrong",
+        "description": "Generic error title"
+    },
+    "common_backToDashboard": {
+        "message": "Back to Dashboard",
+        "description": "Link back to the dashboard"
+    },
+    "common_support": {
+        "message": "Support Me",
+        "description": "Support button label"
+    },
+    "common_githubAlt": {
+        "message": "Github Icon",
+        "description": "Alt text for Github icon"
+    },
+    "common_supportAlt": {
+        "message": "Support Icon",
+        "description": "Alt text for support icon"
+    },
+    "common_areYouSure": {
+        "message": "Are you absolutely sure?",
+        "description": "Confirmation dialog title"
+    },
+    "common_cancel": {
+        "message": "Cancel",
+        "description": "Cancel button"
+    },
+    "common_continue": {
+        "message": "Continue",
+        "description": "Continue button"
+    },
+    "common_total": {
+        "message": "Total",
+        "description": "Total label"
+    },
+    "common_date": {
+        "message": "Date",
+        "description": "Date column header"
+    },
+    "common_share": {
+        "message": "Share",
+        "description": "Share column header"
+    },
+    "common_dataUsed": {
+        "message": "Data used",
+        "description": "Data used column header"
+    },
+    "common_website": {
+        "message": "Website",
+        "description": "Website column header"
+    },
+    "common_video": {
+        "message": "Video",
+        "description": "Video column header / alt text"
+    },
+    "settings_header_back": {
+        "message": "Back",
+        "description": "Settings back button"
+    },
+    "settings_header_title": {
+        "message": "Settings",
+        "description": "Settings page title"
+    },
+    "settings_language_label": {
+        "message": "Language",
+        "description": "Language setting label"
+    },
+    "settings_language_description": {
+        "message": "Language follows your browser settings.",
+        "description": "Explains language is detected from the browser UI language"
+    },
+    "settings_language_arabic": {
+        "message": "Arabic",
+        "description": "Arabic language name"
+    },
+    "settings_language_english": {
+        "message": "English",
+        "description": "English language name"
+    },
+    "settings_resolutions_legend": {
+        "message": "Resolutions",
+        "description": "Resolutions setting legend"
+    },
+    "settings_resolutions_description": {
+        "message": "Select which resolutions to display when you click on the extension icon:",
+        "description": "Resolutions setting description"
+    },
+    "settings_toaster_legend": {
+        "message": "Video Usage Limit Exceeded Alert",
+        "description": "Toaster setting legend"
+    },
+    "settings_toaster_description": {
+        "message": "Notify me when a video uses more data than the hourly limit allows.",
+        "description": "Toaster setting description"
+    },
+    "settings_toaster_enable": {
+        "message": "Enable video usage limit exceeded alert",
+        "description": "Toaster enable checkbox label"
+    },
+    "settings_toaster_usageLimit": {
+        "message": "Usage Limit (MB/hour): $1",
+        "description": "Toaster usage limit with threshold value",
+        "placeholders": {
+            "threshold": {
+                "content": "$1",
+                "example": "500"
+            }
+        }
+    },
+    "settings_toaster_usageLimitAria": {
+        "message": "Usage limit",
+        "description": "Aria label for usage limit slider"
+    },
+    "settings_errorFailed": {
+        "message": "Failed to load your settings.",
+        "description": "Settings load error"
+    },
+    "popup_settings": {
+        "message": "Settings",
+        "description": "Popup settings button"
+    },
+    "popup_dashboard": {
+        "message": "Dashboard",
+        "description": "Popup dashboard button"
+    },
+    "popup_live": {
+        "message": "Live",
+        "description": "Live badge"
+    },
+    "popup_youtubeVideo": {
+        "message": "YouTube Video",
+        "description": "Fallback title for YouTube video"
+    },
+    "popup_youtubeLive": {
+        "message": "YouTube Live",
+        "description": "Fallback title for YouTube live"
+    },
+    "popup_twitchVideo": {
+        "message": "Twitch Video",
+        "description": "Fallback title for Twitch video"
+    },
+    "popup_usageTrackingEnabled": {
+        "message": "Usage tracking is enabled.",
+        "description": "Info shown when usage tracking is enabled"
+    },
+    "popup_unsupportedPage": {
+        "message": "Open a YouTube, Twitch, or Kick video to see estimated data usage.",
+        "description": "Info shown on unsupported pages"
+    },
+    "popup_openYoutubeVideo": {
+        "message": "Open a Youtube video",
+        "description": "Prompt to open a YouTube video"
+    },
+    "popup_openTwitchStream": {
+        "message": "Open a Twitch stream or video",
+        "description": "Prompt to open a Twitch stream"
+    },
+    "popup_openKickStream": {
+        "message": "Open a Kick Stream or Video",
+        "description": "Prompt to open a Kick stream"
+    },
+    "popup_allResolutionsDisabled": {
+        "message": "All Resolutions Disabled. Enable in settings",
+        "description": "Shown when all resolutions are disabled"
+    },
+    "popup_current": {
+        "message": "Current",
+        "description": "Current quality badge"
+    },
+    "popup_totalUsageToday": {
+        "message": "Total Usage Today",
+        "description": "Total usage today label"
+    },
+    "popup_siteUsage": {
+        "message": "$1 Usage",
+        "description": "Usage for a specific site, with origin",
+        "placeholders": {
+            "origin": {
+                "content": "$1",
+                "example": "youtube.com"
+            }
+        }
+    },
+    "dashboard_title": {
+        "message": "Usage Dashboard for YouTube",
+        "description": "Dashboard title"
+    },
+    "dashboard_today": {
+        "message": "Today",
+        "description": "Today range label"
+    },
+    "dashboard_week": {
+        "message": "Last 7 days",
+        "description": "Week range label"
+    },
+    "dashboard_month": {
+        "message": "Last 30 days",
+        "description": "Month range label"
+    },
+    "dashboard_lifetime": {
+        "message": "Lifetime",
+        "description": "Lifetime range label"
+    },
+    "dashboard_viewDetails": {
+        "message": "View Details →",
+        "description": "View details link"
+    },
+    "dashboard_dataUsagePerDay": {
+        "message": "Data Usage per Day",
+        "description": "Chart title per day"
+    },
+    "dashboard_dataUsagePerSite": {
+        "message": "Data Usage per Website",
+        "description": "Chart title per site"
+    },
+    "dashboard_byDay": {
+        "message": "By Day",
+        "description": "By day toggle"
+    },
+    "dashboard_bySite": {
+        "message": "By Site",
+        "description": "By site toggle"
+    },
+    "dashboard_days_one": {
+        "message": "Day",
+        "description": "Singular day label (count shown separately)"
+    },
+    "dashboard_days_other": {
+        "message": "Days",
+        "description": "Plural day label (count shown separately)"
+    },
+    "dashboard_usageMb": {
+        "message": "Usage (MB)",
+        "description": "Usage in MB label"
+    },
+    "dashboard_allSites": {
+        "message": "All",
+        "description": "All sites chart label"
+    },
+    "dashboard_moreSites": {
+        "message": "+$1 more",
+        "description": "Hidden sites count in chart tooltip",
+        "placeholders": {
+            "count": {
+                "content": "$1",
+                "example": "3"
+            }
+        }
+    },
+    "dashboard_sites": {
+        "message": "Sites",
+        "description": "Sites label"
+    },
+    "dashboard_totalDataUsed": {
+        "message": "Total Data Used",
+        "description": "Total data used header"
+    },
+    "dashboard_titleOnPlatformToday": {
+        "message": "Total Usage Today on $1",
+        "description": "Platform usage title for today",
+        "placeholders": {
+            "platform": {
+                "content": "$1",
+                "example": "Youtube"
+            }
+        }
+    },
+    "dashboard_titleOnPlatformWeek": {
+        "message": "Total Usage This Week on $1",
+        "description": "Platform usage title for week",
+        "placeholders": {
+            "platform": {
+                "content": "$1",
+                "example": "Youtube"
+            }
+        }
+    },
+    "dashboard_titleOnPlatformMonth": {
+        "message": "Total Usage This Month on $1",
+        "description": "Platform usage title for month",
+        "placeholders": {
+            "platform": {
+                "content": "$1",
+                "example": "Youtube"
+            }
+        }
+    },
+    "dashboard_titleOnPlatformDate": {
+        "message": "Total Usage on $1 on $2",
+        "description": "Platform usage title for a specific date",
+        "placeholders": {
+            "date": {
+                "content": "$1",
+                "example": "2024-01-01"
+            },
+            "platform": {
+                "content": "$2",
+                "example": "Youtube"
+            }
+        }
+    },
+    "dashboard_titleOnPlatformLifetime": {
+        "message": "Total Usage on $1",
+        "description": "Platform usage title for lifetime",
+        "placeholders": {
+            "platform": {
+                "content": "$1",
+                "example": "Youtube"
+            }
+        }
+    },
+    "dashboard_noVideos": {
+        "message": "No videos yet",
+        "description": "Empty videos label"
+    },
+    "dashboard_videosCount_one": {
+        "message": "$1 video",
+        "description": "Singular videos count",
+        "placeholders": {
+            "count": {
+                "content": "$1",
+                "example": "1"
+            }
+        }
+    },
+    "dashboard_videosCount_other": {
+        "message": "$1 videos",
+        "description": "Plural videos count",
+        "placeholders": {
+            "count": {
+                "content": "$1",
+                "example": "5"
+            }
+        }
+    },
+    "dashboard_noUsage": {
+        "message": "No usage data available.",
+        "description": "Empty usage title"
+    },
+    "dashboard_startVisiting": {
+        "message": "Start visiting websites to see Usage",
+        "description": "Empty usage hint"
+    },
+    "dashboard_pageNotFound": {
+        "message": "Page not found",
+        "description": "404 title"
+    },
+    "dashboard_failedToLoadUsage": {
+        "message": "Failed to load your usage data.",
+        "description": "Usage load error"
+    },
+    "dashboard_clearAllUsage": {
+        "message": "Clear All Usage Data",
+        "description": "Clear usage button"
+    },
+    "dashboard_clearWarning": {
+        "message": "This action cannot be undone. This will permanently delete your usage",
+        "description": "Clear usage warning"
+    },
+    "dashboard_exportJson": {
+        "message": "Export To JSON",
+        "description": "Export button"
+    },
+    "dashboard_importJson": {
+        "message": "Import JSON",
+        "description": "Import button"
+    },
+    "dashboard_importWarning": {
+        "message": "Importing usage will COMPLETELY REPLACE your usage. Are you sure you want to continue?",
+        "description": "Import warning"
+    },
+    "dashboard_noUsageToExport": {
+        "message": "Nothing to export — start browsing to collect usage",
+        "description": "Empty export error"
+    },
+    "dashboard_bytesUsed": {
+        "message": "$1 from watching videos on $2 in this period",
+        "description": "Platform card bytes description",
+        "placeholders": {
+            "size": {
+                "content": "$1",
+                "example": "1.2 GB"
+            },
+            "platform": {
+                "content": "$2",
+                "example": "Youtube"
+            }
+        }
+    },
+    "toast_title": {
+        "message": "TubeSize | Warning: High Data Usage",
+        "description": "High usage toast title"
+    },
+    "toast_body": {
+        "message": "High Data Usage Detected for $1p. It crosses the threshold specified in your settings.",
+        "description": "High usage toast body with quality",
+        "placeholders": {
+            "quality": {
+                "content": "$1",
+                "example": "1080"
+            }
+        }
+    },
+    "toast_currentQuality": {
+        "message": "Current Quality: $1p",
+        "description": "Current quality line",
+        "placeholders": {
+            "quality": {
+                "content": "$1",
+                "example": "1080"
+            }
+        }
+    },
+    "toast_totalUsage": {
+        "message": "Total Usage: $1",
+        "description": "Total usage line",
+        "placeholders": {
+            "usage": {
+                "content": "$1",
+                "example": "1.2 GB"
+            }
+        }
+    },
+    "toast_perHourUsage": {
+        "message": "Per Hour Usage: $1",
+        "description": "Per hour usage line",
+        "placeholders": {
+            "usage": {
+                "content": "$1",
+                "example": "500 MB"
+            }
+        }
+    },
+    "toast_ok": {
+        "message": "OK",
+        "description": "Toast OK button"
+    },
+    "toast_dontShowAgain": {
+        "message": "Don't show again for this session",
+        "description": "Toast dismiss button"
+    }
+}

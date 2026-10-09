@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { formatBytes } from "@lib/format";
 import { getUsageNumber } from "@lib/usage";
 import { getLastNDays } from "@lib/dateUtils";
@@ -6,7 +7,6 @@ import type { SiteUsage } from "@/db";
 import { Activity, CalendarDays, CalendarRange, Database } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
-import { useTranslation } from "react-i18next";
 
 function StatsCard({
     title,
@@ -19,7 +19,6 @@ function StatsCard({
     icon: LucideIcon;
     accentClass: string;
 }) {
-    const { t } = useTranslation();
     return (
         <div className="flex flex-col justify-center gap-2.5 rounded-lg border border-white/8 bg-[#1d1d1d] py-4 pr-2.5 pl-5.5 hover:cursor-pointer hover:bg-neutral-800">
             <div className="flex items-center gap-2 font-mono text-sm font-semibold text-teal-400 uppercase">
@@ -31,12 +30,12 @@ function StatsCard({
                 >
                     <Icon className="size-3.5" />
                 </span>
-                {t(`dashboard.${title}`)}
+                {t(`dashboard_${title}`)}
             </div>
             <div className="flex justify-between font-mono text-2xl font-bold text-stone-200">
                 {value}
                 <div className="flex items-end font-mono text-xs text-teal-600 underline">
-                    {t("dashboard.viewDetails")}
+                    {t("dashboard_viewDetails")}
                 </div>
             </div>
         </div>
