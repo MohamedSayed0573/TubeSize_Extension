@@ -47,21 +47,19 @@ export default function PlatformUsage() {
 
             const videoMetadata = metadata.find((m) => m.videoKey === videoKey);
 
-            return [
-                {
-                    videoTag,
-                    usage: bytes,
-                    date: day,
-                    title: videoMetadata?.title,
-                    channelName: videoMetadata?.channelName,
-                    channelUrl: videoMetadata?.channelUrl,
-                    thumbnailUrl: videoMetadata?.thumbnailUrl,
-                    contentType:
-                        videoMetadata?.type === "twitch" || videoMetadata?.type === "kick"
-                            ? videoMetadata.contentType
-                            : undefined,
-                },
-            ];
+            return {
+                videoTag,
+                usage: bytes,
+                date: day,
+                title: videoMetadata?.title,
+                channelName: videoMetadata?.channelName,
+                channelUrl: videoMetadata?.channelUrl,
+                thumbnailUrl: videoMetadata?.thumbnailUrl,
+                contentType:
+                    videoMetadata?.type === "twitch" || videoMetadata?.type === "kick"
+                        ? videoMetadata.contentType
+                        : undefined,
+            };
         });
     });
 
