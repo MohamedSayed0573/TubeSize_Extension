@@ -482,5 +482,13 @@
     "toast_dontShowAgain": {
         "message": "لا تعرض مرة أخرى في هذه الجلسة",
         "description": "Toast dismiss button"
+    },
+    "extName": {
+        "message": "TubeSize: متتبع استخدام الإنترنت",
+        "description": "Extension name shown in the browser and the store listing"
+    },
+    "extDescription": {
+        "message": "تتبع كمية البيانات التي يستخدمها كل موقع، وشاهد التكلفة التقديرية لبيانات فيديوهات يوتيوب وتويتش وكيك قبل الضغط على التشغيل.",
+        "description": "Extension description for the store listing"
     }
 }
