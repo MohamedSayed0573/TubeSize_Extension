@@ -4,10 +4,8 @@ import InfoCard from "@components/infoCard";
 import KickFormats from "@pages/popup/platforms/kick/kickFormats";
 import Spinner from "@components/spinner";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
-import { useTranslation } from "@/i18n/i18n";
 
 export default function KickView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
-    const { t } = useTranslation();
     const { query, isKickRelated } = useKickData(tabUrl, tabId);
     const { isPending, isError, data, error } = query;
 
@@ -16,7 +14,7 @@ export default function KickView({ tabUrl, tabId }: { tabUrl: string; tabId: num
             <>
                 <Header />
                 <PopupViewContainer>
-                    <InfoCard message={t("popup.openKickStream")} />
+                    <InfoCard message={chrome.i18n.getMessage("popup_openKickStream")} />
                 </PopupViewContainer>
             </>
         );

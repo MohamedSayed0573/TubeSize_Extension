@@ -10,7 +10,6 @@ import {
     AlertDialogTrigger,
 } from "@components/ui/alertDialog";
 import { Button } from "@components/ui/button";
-import { useTranslation } from "@/i18n/i18n";
 
 export function AlertDialogBasic({
     descriptionText,
@@ -28,7 +27,6 @@ export function AlertDialogBasic({
         "link" | "default" | "outline" | "secondary" | "ghost" | "destructive" | null | undefined;
     onConfirm: () => void;
 }) {
-    const { t } = useTranslation();
     return (
         <AlertDialog>
             <AlertDialogTrigger
@@ -40,13 +38,15 @@ export function AlertDialogBasic({
             />
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>{t("common.areYouSure")}</AlertDialogTitle>
+                    <AlertDialogTitle>
+                        {chrome.i18n.getMessage("common_areYouSure")}
+                    </AlertDialogTitle>
                     <AlertDialogDescription>{descriptionText}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogCancel>{chrome.i18n.getMessage("common_cancel")}</AlertDialogCancel>
                     <AlertDialogAction onClick={onConfirm}>
-                        {t("common.continue")}
+                        {chrome.i18n.getMessage("common_continue")}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

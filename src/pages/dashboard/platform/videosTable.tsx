@@ -3,7 +3,6 @@ import VideoTableRow from "./videoTableRow";
 import type { VideoRowDetails } from "./videoTableRow";
 export type { VideoRowDetails } from "./videoTableRow";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useTranslation } from "@/i18n/i18n";
 
 export default function VideosTable({
     rows,
@@ -12,7 +11,6 @@ export default function VideosTable({
     rows: VideoRowDetails[];
     platform: PlatformId;
 }) {
-    const { t } = useTranslation();
     const sorted = rows.toSorted((a, b) => b.usage - a.usage);
 
     return (
@@ -20,8 +18,8 @@ export default function VideosTable({
             <TableHeader className="uppercase">
                 <TableRow>
                     <TableHead className="text-center">#</TableHead>
-                    <TableHead className="ps-4">{t("common.video")}</TableHead>
-                    <TableHead>{t("common.dataUsed")}</TableHead>
+                    <TableHead className="ps-4">{chrome.i18n.getMessage("common_video")}</TableHead>
+                    <TableHead>{chrome.i18n.getMessage("common_dataUsed")}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>

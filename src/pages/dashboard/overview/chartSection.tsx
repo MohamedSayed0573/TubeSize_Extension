@@ -5,7 +5,7 @@ import { lazy, Suspense } from "react";
 import { CalendarDays, Database, Globe, type LucideIcon } from "lucide-react";
 import NoUsageData from "../shared/noUsageData";
 import { Skeleton } from "@components/ui/skeleton";
-import { useTranslation } from "@/i18n/i18n";
+import { getPluralMessage } from "@/i18n/plural";
 import { Chart as ChartDaily } from "../chart/chart";
 
 const ChartSites = lazy(async () => import("../chart/chartSites"));
@@ -50,7 +50,6 @@ export function UsageChartSection({
     usage: SiteUsage[] | null;
     chart: "daily" | "sites";
 }) {
-    const { t } = useTranslation();
     if (!usage) {
         return <NoUsageData />;
     }
@@ -64,21 +63,25 @@ export function UsageChartSection({
                         <Database className="size-4" />
                     </span>
                     <h2 className="text-base font-bold text-stone-200">
-                        {t(
+                        {chrome.i18n.getMessage(
                             chart === "daily"
-                                ? "dashboard.dataUsagePerDay"
-                                : "dashboard.dataUsagePerSite",
+                                ? "dashboard_dataUsagePerDay"
+                                : "dashboard_dataUsagePerSite",
                         )}
                     </h2>
                 </div>
                 <div className="flex gap-3">
                     <div className="flex rounded-md border border-white/8 bg-black/20 p-0.5">
                         <ChartSwitchBtn
-                            label={t("dashboard.byDay")}
+                            label={chrome.i18n.getMessage("dashboard_byDay")}
                             to="/daily"
                             icon={CalendarDays}
                         />
-                        <ChartSwitchBtn label={t("dashboard.bySite")} to="/sites" icon={Globe} />
+                        <ChartSwitchBtn
+                            label={chrome.i18n.getMessage("dashboard_bySite")}
+                            to="/sites"
+                            icon={Globe}
+                        />
                     </div>
                     <div className="flex items-center gap-1.5 rounded-md border border-teal-400/20 bg-teal-400/10 px-2 py-1">
                         <CalendarDays className="size-3.5 text-teal-400" />
@@ -86,7 +89,7 @@ export function UsageChartSection({
                             {dayCount}
                         </span>
                         <span className="text-sm text-teal-400/70">
-                            {t("dashboard.days", { count: dayCount })}
+                            {getPluralMessage("dashboard_days", dayCount)}
                         </span>
                     </div>
                 </div>

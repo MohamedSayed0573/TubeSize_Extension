@@ -1,7 +1,4 @@
-import { useTranslation } from "@/i18n/i18n";
-
 export function SettingsFooter() {
-    const { t } = useTranslation();
     return (
         <div className="flex items-center justify-around p-3">
             <div>
@@ -15,7 +12,7 @@ export function SettingsFooter() {
                         src="icons/github.svg"
                         width={14}
                         height={14}
-                        alt={t("common.githubAlt")}
+                        alt={chrome.i18n.getMessage("common_githubAlt")}
                     />
                     GitHub
                 </a>
@@ -31,9 +28,9 @@ export function SettingsFooter() {
                         src="icons/support.svg"
                         width={14}
                         height={14}
-                        alt={t("common.supportAlt")}
+                        alt={chrome.i18n.getMessage("common_supportAlt")}
                     />
-                    {t("common.support")}
+                    {chrome.i18n.getMessage("common_support")}
                 </a>
             </div>
         </div>

@@ -4,7 +4,6 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import type { DateKey, PlatformId } from "@app-types/types";
 
 import { TableCell, TableRow } from "@/components/ui/table";
-import { useTranslation } from "@/i18n/i18n";
 
 const PLACEHOLDER_IMAGE = "/thumbnail-placeholder.svg";
 
@@ -52,7 +51,6 @@ export default function VideoTableRow({
     index: number;
     platform: PlatformId;
 }) {
-    const { t } = useTranslation();
     const { date, usage, channelUrl } = videoDetails;
     const url = getVideoUrl(platform, videoDetails.videoTag, videoDetails.contentType);
 
@@ -69,7 +67,7 @@ export default function VideoTableRow({
                         <img
                             className="h-full w-full rounded-lg object-cover"
                             src={imageUrl}
-                            alt={t("common.video")}
+                            alt={chrome.i18n.getMessage("common_video")}
                             onError={(e) => {
                                 e.currentTarget.src = PLATFORM_PLACEHOLDER_IMAGE[platform];
                             }}

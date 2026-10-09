@@ -1,7 +1,6 @@
 import { perHourDisplay, perMinuteDisplay, totalSizeVideoDisplay } from "@lib/formatting";
 import type { YoutubeData } from "@app-types/platforms.types";
 import { cn } from "@lib/utils";
-import { useTranslation } from "@/i18n/i18n";
 
 interface Props {
     item: YoutubeData["formats"][number];
@@ -10,7 +9,6 @@ interface Props {
 }
 
 export default function FormatItem({ item, isShorts, currentQuality }: Props) {
-    const { t } = useTranslation();
     const resolution = item.type === "live" ? item.resolution : item.height;
 
     return (
@@ -25,7 +23,7 @@ export default function FormatItem({ item, isShorts, currentQuality }: Props) {
                 <div className="pr-2.5 text-sm font-semibold text-white"> {resolution}p </div>
                 {resolution === currentQuality && (
                     <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[11px] font-bold tracking-wider text-white">
-                        {t("popup.current")}
+                        {chrome.i18n.getMessage("popup_current")}
                     </span>
                 )}
             </div>

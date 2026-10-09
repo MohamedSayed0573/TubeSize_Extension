@@ -6,7 +6,6 @@ import { capitalize, cn } from "@lib/utils";
 import { useWatchHistory } from "@hooks/useWatchHistory";
 import { ArrowRight } from "lucide-react";
 import type { PlatformId, UsageScope } from "@app-types/types";
-import { useTranslation } from "@/i18n/i18n";
 
 const PLATFORM_STYLES = {
     youtube: "border-l-red-500 hover:shadow-red-950/40",
@@ -15,7 +14,6 @@ const PLATFORM_STYLES = {
 } as const;
 
 export default function PlatformCards({ scope }: { scope: UsageScope }) {
-    const { t } = useTranslation();
     const { data, isError, error, isPending } = useWatchHistory(scope);
     if (isError) throw error;
     if (isPending) return;
@@ -54,10 +52,10 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
                                 {capitalize(platform)}
                             </span>
                             <span className="font-mono text-sm text-balance text-stone-400">
-                                {t("dashboard.bytesUsed", {
-                                    size: formatBytes(bytes),
-                                    platform: capitalize(platform),
-                                })}
+                                {chrome.i18n.getMessage("dashboard_bytesUsed", [
+                                    formatBytes(bytes),
+                                    capitalize(platform),
+                                ])}
                             </span>
                         </div>
                         <ArrowRight className="size-4 shrink-0 text-teal-500 opacity-0 transition-opacity group-hover:opacity-100 rtl:rotate-180" />

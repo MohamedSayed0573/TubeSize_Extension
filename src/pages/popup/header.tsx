@@ -3,14 +3,12 @@ import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.typ
 import { chromeNavigate } from "@lib/utils";
 import { humanizeDuration } from "@lib/humanize";
 import { useNavigate } from "react-router";
-import { getAppLanguage, useTranslation } from "@/i18n/i18n";
-import type { TFunction } from "@/i18n/i18n";
 import { ExternalLink, Settings as SettingsIcon } from "lucide-react";
 
-function getYoutubeTitle(youtubeData: YoutubeData | null | undefined, t: TFunction): string {
+function getYoutubeTitle(youtubeData: YoutubeData | null | undefined): string {
     return youtubeData?.type === "video"
-        ? youtubeData.title || t("popup.youtubeVideo")
-        : youtubeData?.channelName || t("popup.youtubeLive");
+        ? youtubeData.title || chrome.i18n.getMessage("popup_youtubeVideo")
+        : youtubeData?.channelName || chrome.i18n.getMessage("popup_youtubeLive");
 }
 
 function getYoutubeDuration(youtubeData?: YoutubeData | null, language = "en"): string | undefined {
@@ -19,7 +17,7 @@ function getYoutubeDuration(youtubeData?: YoutubeData | null, language = "en"): 
         : undefined;
 }
 
-function getTwitchTitle(twitchData: TwitchData | null | undefined, t: TFunction): string {
+function getTwitchTitle(twitchData: TwitchData | null | undefined): string {
     if (!twitchData) {
         return "Twitch";
     }
@@ -28,7 +26,7 @@ function getTwitchTitle(twitchData: TwitchData | null | undefined, t: TFunction)
         return twitchData.channelName;
     }
 
-    return t("popup.twitchVideo");
+    return chrome.i18n.getMessage("popup_twitchVideo");
 }
 
 function getTwitchDuration(twitchData?: TwitchData | null, language = "en"): string | undefined {
@@ -63,20 +61,19 @@ interface Props {
 
 export default function Header({ data }: Props) {
     const navigate = useNavigate();
-    const { t } = useTranslation();
-    const language = getAppLanguage();
+    const language = chrome.i18n.getUILanguage();
     const isLive = data?.data.type === "live";
     let title: string;
     let duration: string | undefined;
 
     switch (data?.platform) {
         case "youtube": {
-            title = getYoutubeTitle(data.data, t);
+            title = getYoutubeTitle(data.data);
             duration = getYoutubeDuration(data.data, language);
             break;
         }
         case "twitch": {
-            title = getTwitchTitle(data.data, t);
+            title = getTwitchTitle(data.data);
             duration = getTwitchDuration(data.data, language);
             break;
         }
@@ -100,7 +97,7 @@ export default function Header({ data }: Props) {
                     <div className="flex items-center gap-1">
                         <span className="size-2 animate-pulse rounded-full bg-red-600"></span>
                         <span className="animate-pulse text-sm font-bold text-red-500">
-                            {t("popup.live")}
+                            {chrome.i18n.getMessage("popup_live")}
                         </span>
                     </div>
                 )}
@@ -113,14 +110,14 @@ export default function Header({ data }: Props) {
                     className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
                     onClick={() => void navigate("/settings")}
                 >
-                    {t("popup.settings")}
+                    {chrome.i18n.getMessage("popup_settings")}
                     <SettingsIcon className="size-3.5 opacity-70" aria-hidden="true" />
                 </button>
                 <button
                     className="flex flex-2 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
                     onClick={() => chromeNavigate("dashboard")}
                 >
-                    {t("popup.dashboard")}
+                    {chrome.i18n.getMessage("popup_dashboard")}
                     <ExternalLink className="size-3.5 opacity-70" aria-hidden="true" />
                 </button>
             </div>

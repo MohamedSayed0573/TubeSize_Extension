@@ -1,15 +1,4 @@
 import type { DateKey } from "@app-types/types";
-import { getAppLanguage } from "@/i18n/i18n";
-
-const LANGUAGE_TO_INTL_LOCALE: Record<string, string> = {
-    ar: "ar-EG",
-    en: "en-US",
-};
-
-export function getFormattingLocale(): string {
-    const language = getAppLanguage();
-    return LANGUAGE_TO_INTL_LOCALE[language] ?? language;
-}
 
 /**
  * Formats a date or date range into a human-readable string.
@@ -17,8 +6,7 @@ export function getFormattingLocale(): string {
  * @example ["2023-05-15", "2023-05-16"] -> "May 15 – 16, 2023"
  */
 export function formatDate(date: DateKey | DateKey[]) {
-    const language = getAppLanguage();
-    const dtf = new Intl.DateTimeFormat(language, {
+    const dtf = new Intl.DateTimeFormat(chrome.i18n.getUILanguage(), {
         month: "short",
         day: "numeric",
         year: "numeric",

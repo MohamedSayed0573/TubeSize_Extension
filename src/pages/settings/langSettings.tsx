@@ -1,17 +1,17 @@
 import { Field, FieldDescription, FieldLegend } from "@/components/ui/field";
-import { getAppLanguage, useTranslation } from "@/i18n/i18n";
 
 export function LanguageSettings() {
-    const { t } = useTranslation();
-    const language = getAppLanguage();
-    const currentLabel = t(
-        language === "ar" ? "settings.language.arabic" : "settings.language.english",
+    const isArabic = chrome.i18n.getUILanguage().toLowerCase().startsWith("ar");
+    const currentLabel = chrome.i18n.getMessage(
+        isArabic ? "settings_language_arabic" : "settings_language_english",
     );
 
     return (
         <Field>
-            <FieldLegend>{t("settings.language.label")}</FieldLegend>
-            <FieldDescription>{t("settings.language.description")}</FieldDescription>
+            <FieldLegend>{chrome.i18n.getMessage("settings_language_label")}</FieldLegend>
+            <FieldDescription>
+                {chrome.i18n.getMessage("settings_language_description")}
+            </FieldDescription>
             <p className="text-sm font-medium">{currentLabel}</p>
         </Field>
     );

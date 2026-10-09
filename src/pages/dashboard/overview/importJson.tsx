@@ -4,7 +4,6 @@ import { Button } from "@components/ui/button";
 import { useSiteUsage } from "@hooks/useSiteUsage";
 import type { InvalidImportJson } from "@lib/errors";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTranslation } from "@/i18n/i18n";
 
 async function importJson() {
     const { ImportSchema } = await import("@lib/zodSchema");
@@ -41,7 +40,6 @@ export function ImportJson({
     setError: React.Dispatch<React.SetStateAction<InvalidImportJson | undefined>>;
 }) {
     const queryClient = useQueryClient();
-    const { t } = useTranslation();
 
     const handleImport = () => {
         setError(undefined);
@@ -59,14 +57,14 @@ export function ImportJson({
     if (!siteUsage || siteUsage.length === 0)
         return (
             <Button variant="outline" onClick={handleImport} className="w-full">
-                {t("dashboard.importJson")}
+                {chrome.i18n.getMessage("dashboard_importJson")}
             </Button>
         );
 
     return (
         <AlertDialogBasic
-            descriptionText={t("dashboard.importWarning")}
-            buttonText={t("dashboard.importJson")}
+            descriptionText={chrome.i18n.getMessage("dashboard_importWarning")}
+            buttonText={chrome.i18n.getMessage("dashboard_importJson")}
             className="w-full"
             onConfirm={handleImport}
         />

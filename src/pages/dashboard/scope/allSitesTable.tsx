@@ -12,10 +12,8 @@ import { formatBytes } from "@lib/format";
 import { sumByDomain, type DomainUsage } from "@lib/domain";
 import { faviconURL } from "@lib/utils";
 import { useState } from "react";
-import { useTranslation } from "@/i18n/i18n";
 
 export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
-    const { t } = useTranslation();
     const usageByOrigin: Record<string, number> = {};
 
     for (const { usage: originUsage } of usage) {
@@ -36,9 +34,13 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
                     <TableHeader className="bg-neutral-800/60 text-xs tracking-wider text-neutral-400 uppercase">
                         <TableRow className="border-neutral-800 hover:bg-transparent">
                             <TableHead className="text-center">#</TableHead>
-                            <TableHead>{t("common.website")}</TableHead>
-                            <TableHead className="w-10/100">{t("common.share")}</TableHead>
-                            <TableHead className="w-20/100">{t("common.dataUsed")}</TableHead>
+                            <TableHead>{chrome.i18n.getMessage("common_website")}</TableHead>
+                            <TableHead className="w-10/100">
+                                {chrome.i18n.getMessage("common_share")}
+                            </TableHead>
+                            <TableHead className="w-20/100">
+                                {chrome.i18n.getMessage("common_dataUsed")}
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -52,7 +54,7 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
                     <TableFooter className="border-neutral-800 bg-neutral-800/40">
                         <TableRow className="border-0 hover:bg-transparent">
                             <TableHead colSpan={2} className="text-center text-sm text-stone-200">
-                                {t("common.total")}
+                                {chrome.i18n.getMessage("common_total")}
                             </TableHead>
                             <TableCell className="text-center text-stone-100" colSpan={2}>
                                 {formatBytes(totalUsage)}
@@ -66,8 +68,6 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
 }
 
 function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share: number }) {
-    const { t } = useTranslation();
-
     return (
         <TableRow
             key={index}
@@ -76,7 +76,11 @@ function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share
             <TableCell className="text-center text-neutral-500">{index + 1}</TableCell>
             <TableCell>
                 <div className="flex items-center gap-2.5">
-                    <SiteIcon key={row.origin} origin={row.origin} label={t("common.website")} />
+                    <SiteIcon
+                        key={row.origin}
+                        origin={row.origin}
+                        label={chrome.i18n.getMessage("common_website")}
+                    />
                     <span className="block truncate text-stone-200">{row.domain}</span>
                 </div>
             </TableCell>

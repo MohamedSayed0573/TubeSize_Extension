@@ -2,7 +2,6 @@ import { totalSizeVideoDisplay } from "@lib/formatting";
 import { chromeNavigate, faviconURL } from "@lib/utils";
 import { Calendar, ChevronLeft, ChevronRight, Globe } from "lucide-react";
 import { useState } from "react";
-import { getAppDirection } from "@/i18n/i18n";
 
 function splitSize(formatted: string): { value: string; unit: string } {
     const [value, unit] = formatted.split(" ");
@@ -51,7 +50,7 @@ export default function PopupUsage({ text, usage, navigateTo, variant, origin }:
 }
 
 function ArrowIcon() {
-    const lang = getAppDirection();
+    const lang = chrome.i18n.getMessage("@@bidi_dir") === "rtl" ? "rtl" : "ltr";
 
     const Icon = lang === "ltr" ? ChevronRight : ChevronLeft;
     return (

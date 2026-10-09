@@ -10,10 +10,8 @@ import DashboardNotFound from "../shared/notFound";
 import type { DateKey, UsageRange, UsageScope } from "@app-types/types";
 import PlatformCards from "./platformCards";
 import AllSitesTable from "./allSitesTable";
-import { useTranslation } from "@/i18n/i18n";
-import type { TFunction } from "@/i18n/i18n";
 
-function getTitle(range: UsageScope, t: TFunction): string {
+function getTitle(range: UsageScope): string {
     if (range.type === "range") {
         switch (range.range) {
             case "today": {
@@ -26,7 +24,7 @@ function getTitle(range: UsageScope, t: TFunction): string {
                 return formatDate(getLastNDays(30));
             }
             case "lifetime": {
-                return t("dashboard.lifetime");
+                return chrome.i18n.getMessage("dashboard_lifetime");
             }
         }
     } else {
@@ -53,7 +51,6 @@ function getScope(date: DateKey | undefined): UsageScope | undefined {
 
 export default function ScopePage() {
     const { date } = useParams();
-    const { t } = useTranslation();
     const scope = getScope(date as DateKey);
 
     const { data: usage, isPending, isError, error } = useSiteUsage(scope);
@@ -65,14 +62,14 @@ export default function ScopePage() {
     if (!usage || usage.length === 0)
         return (
             <>
-                <DashboardHeader title={getTitle(scope, t)} totalDataUsage={0} />
+                <DashboardHeader title={getTitle(scope)} totalDataUsage={0} />
                 <NoUsageData />
             </>
         );
 
     return (
         <>
-            <DashboardHeader title={getTitle(scope, t)} totalDataUsage={getUsageNumber(usage)} />
+            <DashboardHeader title={getTitle(scope)} totalDataUsage={getUsageNumber(usage)} />
             <div className="flex flex-1 flex-col gap-1 bg-neutral-950/70 pt-1">
                 <PlatformCards scope={scope} />
                 <AllSitesTable usage={usage} />

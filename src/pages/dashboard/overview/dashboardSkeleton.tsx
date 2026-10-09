@@ -1,6 +1,6 @@
 import { Skeleton } from "@components/ui/skeleton";
 import { Link } from "react-router";
-import { useTranslation } from "@/i18n/i18n";
+import { getPluralMessage } from "@/i18n/plural";
 import DashboardBanner from "./dashboardBanner";
 import ClearUsageButton from "./clearUsageButton";
 
@@ -17,20 +17,19 @@ function StatsCard({ title }: { title: string }) {
 }
 
 function StatsRow() {
-    const { t } = useTranslation();
     return (
         <div className="grid grid-cols-4 gap-2 py-2.5">
             <Link to="/today">
-                <StatsCard title={t("dashboard.today")} />
+                <StatsCard title={chrome.i18n.getMessage("dashboard_today")} />
             </Link>
             <Link to="/week">
-                <StatsCard title={t("dashboard.week")} />
+                <StatsCard title={chrome.i18n.getMessage("dashboard_week")} />
             </Link>
             <Link to="/month">
-                <StatsCard title={t("dashboard.month")} />
+                <StatsCard title={chrome.i18n.getMessage("dashboard_month")} />
             </Link>
             <Link to="/lifetime">
-                <StatsCard title={t("dashboard.lifetime")} />
+                <StatsCard title={chrome.i18n.getMessage("dashboard_lifetime")} />
             </Link>
         </div>
     );
@@ -39,16 +38,15 @@ function StatsRow() {
 const BAR_HEIGHTS = [45, 70, 30, 85, 55, 95, 40, 65, 75, 35, 90, 50];
 
 function ChartSkeleton() {
-    const { t } = useTranslation();
     return (
         <div className="flex flex-1 flex-col rounded-lg border border-neutral-800 bg-neutral-900 px-5 pt-3.5">
             <div className="mb-2.5 flex items-center justify-between">
                 <span className="text-base font-bold text-stone-200">
-                    {t("dashboard.dataUsagePerDay")}
+                    {chrome.i18n.getMessage("dashboard_dataUsagePerDay")}
                 </span>
                 <span className="flex items-center gap-2 rounded-xl border border-teal-400 px-2 py-1 font-mono text-sm text-teal-400">
                     <Skeleton className="h-4 w-6" />
-                    {t("dashboard.days", { count: 30 })}
+                    {getPluralMessage("dashboard_days", 30)}
                 </span>
             </div>
 

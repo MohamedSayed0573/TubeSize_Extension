@@ -6,10 +6,11 @@ import "@styles/popup.css";
 import "@fontsource-variable/jetbrains-mono/wght.css";
 import { StrictMode } from "react";
 import { AppProviders } from "@layouts/appProviders";
-import { syncDocumentLang } from "@/i18n/i18n";
 import { router } from "./router";
 
-syncDocumentLang();
+document.documentElement.lang =
+    chrome.i18n.getMessage("@@ui_locale") || chrome.i18n.getUILanguage();
+document.documentElement.dir = chrome.i18n.getMessage("@@bidi_dir") === "rtl" ? "rtl" : "ltr";
 
 const domRoot = document.querySelector("#root") as HTMLElement;
 
