@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import type { PopupData } from "@app-types/uiTypes";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
 import { chromeNavigate } from "@lib/utils";
@@ -7,8 +8,8 @@ import { ExternalLink, Settings as SettingsIcon } from "lucide-react";
 
 function getYoutubeTitle(youtubeData: YoutubeData | null | undefined): string {
     return youtubeData?.type === "video"
-        ? youtubeData.title || chrome.i18n.getMessage("popup_youtubeVideo")
-        : youtubeData?.channelName || chrome.i18n.getMessage("popup_youtubeLive");
+        ? youtubeData.title || t("popup_youtubeVideo")
+        : youtubeData?.channelName || t("popup_youtubeLive");
 }
 
 function getYoutubeDuration(youtubeData?: YoutubeData | null, language = "en"): string | undefined {
@@ -26,7 +27,7 @@ function getTwitchTitle(twitchData: TwitchData | null | undefined): string {
         return twitchData.channelName;
     }
 
-    return chrome.i18n.getMessage("popup_twitchVideo");
+    return t("popup_twitchVideo");
 }
 
 function getTwitchDuration(twitchData?: TwitchData | null, language = "en"): string | undefined {
@@ -97,7 +98,7 @@ export default function Header({ data }: Props) {
                     <div className="flex items-center gap-1">
                         <span className="size-2 animate-pulse rounded-full bg-red-600"></span>
                         <span className="animate-pulse text-sm font-bold text-red-500">
-                            {chrome.i18n.getMessage("popup_live")}
+                            {t("popup_live")}
                         </span>
                     </div>
                 )}
@@ -110,14 +111,14 @@ export default function Header({ data }: Props) {
                     className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
                     onClick={() => void navigate("/settings")}
                 >
-                    {chrome.i18n.getMessage("popup_settings")}
+                    {t("popup_settings")}
                     <SettingsIcon className="size-3.5 opacity-70" aria-hidden="true" />
                 </button>
                 <button
                     className="flex flex-2 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
                     onClick={() => chromeNavigate("dashboard")}
                 >
-                    {chrome.i18n.getMessage("popup_dashboard")}
+                    {t("popup_dashboard")}
                     <ExternalLink className="size-3.5 opacity-70" aria-hidden="true" />
                 </button>
             </div>

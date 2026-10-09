@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { setAllSiteUsage, type SiteUsage } from "@/db";
 import { AlertDialogBasic } from "@components/alertDialogBasic";
 import { Button } from "@components/ui/button";
@@ -57,14 +58,14 @@ export function ImportJson({
     if (!siteUsage || siteUsage.length === 0)
         return (
             <Button variant="outline" onClick={handleImport} className="w-full">
-                {chrome.i18n.getMessage("dashboard_importJson")}
+                {t("dashboard_importJson")}
             </Button>
         );
 
     return (
         <AlertDialogBasic
-            descriptionText={chrome.i18n.getMessage("dashboard_importWarning")}
-            buttonText={chrome.i18n.getMessage("dashboard_importJson")}
+            descriptionText={t("dashboard_importWarning")}
+            buttonText={t("dashboard_importJson")}
             className="w-full"
             onConfirm={handleImport}
         />

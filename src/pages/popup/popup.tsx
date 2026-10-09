@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { isYoutubePage, isTwitchPage, isKickPage } from "@lib/utils";
 import Header from "@pages/popup/header";
 import useTab from "@hooks/useTab";
@@ -41,11 +42,8 @@ export default function Popup() {
         <>
             <Header />
             <PopupViewContainer>
-                <InfoCard
-                    tone="success"
-                    message={chrome.i18n.getMessage("popup_usageTrackingEnabled")}
-                />
-                <InfoCard message={chrome.i18n.getMessage("popup_unsupportedPage")} />
+                <InfoCard tone="success" message={t("popup_usageTrackingEnabled")} />
+                <InfoCard message={t("popup_unsupportedPage")} />
             </PopupViewContainer>
         </>
     );

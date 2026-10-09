@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -38,15 +39,13 @@ export function AlertDialogBasic({
             />
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>
-                        {chrome.i18n.getMessage("common_areYouSure")}
-                    </AlertDialogTitle>
+                    <AlertDialogTitle>{t("common_areYouSure")}</AlertDialogTitle>
                     <AlertDialogDescription>{descriptionText}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>{chrome.i18n.getMessage("common_cancel")}</AlertDialogCancel>
+                    <AlertDialogCancel>{t("common_cancel")}</AlertDialogCancel>
                     <AlertDialogAction onClick={onConfirm}>
-                        {chrome.i18n.getMessage("common_continue")}
+                        {t("common_continue")}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

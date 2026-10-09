@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import Header from "@pages/popup/header";
 import InfoCard from "@components/infoCard";
 import Spinner from "@components/spinner";
@@ -14,7 +15,7 @@ export default function TwitchView({ tabUrl }: { tabUrl: string }) {
             <>
                 <Header />
                 <PopupViewContainer>
-                    <InfoCard message={chrome.i18n.getMessage("popup_openTwitchStream")} />
+                    <InfoCard message={t("popup_openTwitchStream")} />
                 </PopupViewContainer>
             </>
         );

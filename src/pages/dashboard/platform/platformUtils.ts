@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import type { DateKey, PlatformId, UsageScope } from "@app-types/types";
 import CONFIG from "@lib/constants";
 import { formatDate } from "@lib/dashboardFormatting";
@@ -20,16 +21,16 @@ export function getScopeLabel(scope: UsageScope): string {
 
     switch (scope.range) {
         case "today": {
-            return chrome.i18n.getMessage("dashboard_today");
+            return t("dashboard_today");
         }
         case "week": {
-            return chrome.i18n.getMessage("dashboard_week");
+            return t("dashboard_week");
         }
         case "month": {
-            return chrome.i18n.getMessage("dashboard_month");
+            return t("dashboard_month");
         }
         case "lifetime": {
-            return chrome.i18n.getMessage("dashboard_lifetime");
+            return t("dashboard_lifetime");
         }
     }
 }

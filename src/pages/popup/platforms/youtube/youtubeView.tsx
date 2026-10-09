@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { useYoutubeData } from "@hooks/useYoutubeData";
 import Header from "@pages/popup/header";
 import InfoCard from "@components/infoCard";
@@ -14,7 +15,7 @@ export default function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: 
             <>
                 <Header />
                 <PopupViewContainer>
-                    <InfoCard message={chrome.i18n.getMessage("popup_openYoutubeVideo")} />
+                    <InfoCard message={t("popup_openYoutubeVideo")} />
                 </PopupViewContainer>
             </>
         );

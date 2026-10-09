@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { Link } from "react-router";
 import {
     Table,
@@ -29,13 +30,9 @@ export default function DailyUsageTable({
                     <TableHeader className="bg-neutral-800/60 text-xs tracking-wider text-neutral-400 uppercase">
                         <TableRow className="border-neutral-800 hover:bg-transparent">
                             <TableHead className="text-center">#</TableHead>
-                            <TableHead>{chrome.i18n.getMessage("common_date")}</TableHead>
-                            <TableHead className="w-20/100">
-                                {chrome.i18n.getMessage("common_share")}
-                            </TableHead>
-                            <TableHead className="w-30/100">
-                                {chrome.i18n.getMessage("common_dataUsed")}
-                            </TableHead>
+                            <TableHead>{t("common_date")}</TableHead>
+                            <TableHead className="w-20/100">{t("common_share")}</TableHead>
+                            <TableHead className="w-30/100">{t("common_dataUsed")}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -64,7 +61,7 @@ export default function DailyUsageTable({
                     <TableFooter className="border-neutral-800 bg-neutral-800/40">
                         <TableRow className="border-0 hover:bg-transparent">
                             <TableHead colSpan={2} className="text-center text-sm text-stone-200">
-                                {chrome.i18n.getMessage("common_total")}
+                                {t("common_total")}
                             </TableHead>
                             <TableCell className="text-center text-stone-100" colSpan={2}>
                                 {formatBytes(totalUsage)}

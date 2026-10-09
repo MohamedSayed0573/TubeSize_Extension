@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { Skeleton } from "@components/ui/skeleton";
 import { Link } from "react-router";
 import { getPluralMessage } from "@/i18n/plural";
@@ -20,16 +21,16 @@ function StatsRow() {
     return (
         <div className="grid grid-cols-4 gap-2 py-2.5">
             <Link to="/today">
-                <StatsCard title={chrome.i18n.getMessage("dashboard_today")} />
+                <StatsCard title={t("dashboard_today")} />
             </Link>
             <Link to="/week">
-                <StatsCard title={chrome.i18n.getMessage("dashboard_week")} />
+                <StatsCard title={t("dashboard_week")} />
             </Link>
             <Link to="/month">
-                <StatsCard title={chrome.i18n.getMessage("dashboard_month")} />
+                <StatsCard title={t("dashboard_month")} />
             </Link>
             <Link to="/lifetime">
-                <StatsCard title={chrome.i18n.getMessage("dashboard_lifetime")} />
+                <StatsCard title={t("dashboard_lifetime")} />
             </Link>
         </div>
     );
@@ -42,7 +43,7 @@ function ChartSkeleton() {
         <div className="flex flex-1 flex-col rounded-lg border border-neutral-800 bg-neutral-900 px-5 pt-3.5">
             <div className="mb-2.5 flex items-center justify-between">
                 <span className="text-base font-bold text-stone-200">
-                    {chrome.i18n.getMessage("dashboard_dataUsagePerDay")}
+                    {t("dashboard_dataUsagePerDay")}
                 </span>
                 <span className="flex items-center gap-2 rounded-xl border border-teal-400 px-2 py-1 font-mono text-sm text-teal-400">
                     <Skeleton className="h-4 w-6" />

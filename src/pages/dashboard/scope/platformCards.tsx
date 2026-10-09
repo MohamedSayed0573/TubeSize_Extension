@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { Link } from "react-router";
 import { formatBytes } from "@lib/format";
 import { PlatformLogo } from "../platform/platformLogos";
@@ -52,7 +53,7 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
                                 {capitalize(platform)}
                             </span>
                             <span className="font-mono text-sm text-balance text-stone-400">
-                                {chrome.i18n.getMessage("dashboard_bytesUsed", [
+                                {t("dashboard_bytesUsed", [
                                     formatBytes(bytes),
                                     capitalize(platform),
                                 ])}

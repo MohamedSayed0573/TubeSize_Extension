@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import type { YoutubeData } from "@app-types/platforms.types";
 import CONFIG from "@lib/constants";
 import useSettings from "@hooks/useSettings";
@@ -29,7 +30,7 @@ export default function YoutubeFormats({
     const enabledSettings = getEnabledSettings(settingsState);
 
     if (enabledSettings.length === 0) {
-        return <InfoCard message={chrome.i18n.getMessage("popup_allResolutionsDisabled")} />;
+        return <InfoCard message={t("popup_allResolutionsDisabled")} />;
     }
 
     if (data.type === "live") {

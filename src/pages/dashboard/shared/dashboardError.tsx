@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import DashboardBanner from "@pages/dashboard/overview/dashboardBanner";
 
 export default function DashboardErrorPage({ error }: { error: unknown }) {
@@ -11,10 +12,10 @@ export default function DashboardErrorPage({ error }: { error: unknown }) {
                 <div className="flex max-w-md flex-col items-center gap-3 rounded-lg border border-dashed border-red-900 bg-[#221718] px-10 py-8 text-center font-mono">
                     <span className="text-2xl text-red-400">⚠</span>
                     <span className="text-base text-stone-200">
-                        {chrome.i18n.getMessage("common_somethingWentWrong")}
+                        {t("common_somethingWentWrong")}
                     </span>
                     <span className="text-xs text-neutral-500">
-                        {chrome.i18n.getMessage("dashboard_failedToLoadUsage")}
+                        {t("dashboard_failedToLoadUsage")}
                     </span>
                     <div className="rounded border-l-3 border-red-400 bg-red-400/12 p-3 text-left text-xs text-rose-400">
                         {message}

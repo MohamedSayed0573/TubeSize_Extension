@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -8,9 +9,8 @@ import { StrictMode } from "react";
 import { AppProviders } from "@layouts/appProviders";
 import { router } from "./router";
 
-document.documentElement.lang =
-    chrome.i18n.getMessage("@@ui_locale") || chrome.i18n.getUILanguage();
-document.documentElement.dir = chrome.i18n.getMessage("@@bidi_dir") === "rtl" ? "rtl" : "ltr";
+document.documentElement.lang = t("@@ui_locale") || chrome.i18n.getUILanguage();
+document.documentElement.dir = t("@@bidi_dir") === "rtl" ? "rtl" : "ltr";
 
 const domRoot = document.querySelector("#root") as HTMLElement;
 

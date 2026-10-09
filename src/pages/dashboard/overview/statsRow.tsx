@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { formatBytes } from "@lib/format";
 import { getUsageNumber } from "@lib/usage";
 import { getLastNDays } from "@lib/dateUtils";
@@ -29,12 +30,12 @@ function StatsCard({
                 >
                     <Icon className="size-3.5" />
                 </span>
-                {chrome.i18n.getMessage(`dashboard_${title}`)}
+                {t(`dashboard_${title}`)}
             </div>
             <div className="flex justify-between font-mono text-2xl font-bold text-stone-200">
                 {value}
                 <div className="flex items-end font-mono text-xs text-teal-600 underline">
-                    {chrome.i18n.getMessage("dashboard_viewDetails")}
+                    {t("dashboard_viewDetails")}
                 </div>
             </div>
         </div>

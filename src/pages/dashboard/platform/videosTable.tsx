@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import type { PlatformId } from "@app-types/types";
 import VideoTableRow from "./videoTableRow";
 import type { VideoRowDetails } from "./videoTableRow";
@@ -18,8 +19,8 @@ export default function VideosTable({
             <TableHeader className="uppercase">
                 <TableRow>
                     <TableHead className="text-center">#</TableHead>
-                    <TableHead className="ps-4">{chrome.i18n.getMessage("common_video")}</TableHead>
-                    <TableHead>{chrome.i18n.getMessage("common_dataUsed")}</TableHead>
+                    <TableHead className="ps-4">{t("common_video")}</TableHead>
+                    <TableHead>{t("common_dataUsed")}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>

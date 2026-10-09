@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { useParams, useSearchParams } from "react-router";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
@@ -77,7 +78,7 @@ export default function PlatformUsage() {
                         </span>
                         <span className="rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 font-mono text-xs text-stone-400">
                             {rows.length === 0
-                                ? chrome.i18n.getMessage("dashboard_noVideos")
+                                ? t("dashboard_noVideos")
                                 : getPluralMessage("dashboard_videosCount", rows.length)}
                         </span>
                     </div>
@@ -98,14 +99,11 @@ export default function PlatformUsage() {
 function getTitle(scope: UsageScope, platform: PlatformId) {
     const label = capitalize(platform);
     if (scope.type === "range") {
-        if (scope.range === "today")
-            return chrome.i18n.getMessage("dashboard_titleOnPlatformToday", [label]);
-        if (scope.range === "week")
-            return chrome.i18n.getMessage("dashboard_titleOnPlatformWeek", [label]);
-        if (scope.range === "month")
-            return chrome.i18n.getMessage("dashboard_titleOnPlatformMonth", [label]);
-        return chrome.i18n.getMessage("dashboard_titleOnPlatformLifetime", [label]);
+        if (scope.range === "today") return t("dashboard_titleOnPlatformToday", [label]);
+        if (scope.range === "week") return t("dashboard_titleOnPlatformWeek", [label]);
+        if (scope.range === "month") return t("dashboard_titleOnPlatformMonth", [label]);
+        return t("dashboard_titleOnPlatformLifetime", [label]);
     }
 
-    return chrome.i18n.getMessage("dashboard_titleOnPlatformDate", [scope.date, label]);
+    return t("dashboard_titleOnPlatformDate", [scope.date, label]);
 }

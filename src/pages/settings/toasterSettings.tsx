@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import type { SettingsMap } from "@app-types/types";
 import useSettings from "@hooks/useSettings";
 import { cn } from "@lib/utils";
@@ -24,9 +25,9 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
 
     return (
         <FieldSet>
-            <FieldLegend>{chrome.i18n.getMessage("settings_toaster_legend")}</FieldLegend>
+            <FieldLegend>{t("settings_toaster_legend")}</FieldLegend>
             <FieldDescription className="text-xs text-zinc-400">
-                {chrome.i18n.getMessage("settings_toaster_description")}
+                {t("settings_toaster_description")}
             </FieldDescription>
 
             <FieldGroup
@@ -37,7 +38,7 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
             >
                 <Field orientation="horizontal">
                     <FieldLabel htmlFor="toasterThresholdToggle">
-                        {chrome.i18n.getMessage("settings_toaster_enable")}
+                        {t("settings_toaster_enable")}
                     </FieldLabel>
                     <Switch
                         id="toasterThresholdToggle"
@@ -54,7 +55,7 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
                         className="text-xs font-medium whitespace-nowrap"
                         htmlFor="toasterThreshold"
                     >
-                        {chrome.i18n.getMessage("settings_toaster_usageLimit", [threshold])}
+                        {t("settings_toaster_usageLimit", [threshold])}
                     </FieldLabel>
                     <Slider
                         id="toasterThreshold"
@@ -67,7 +68,7 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
                         min={200}
                         step={10}
                         className={cn("w-full", !isToasterEnabled && "cursor-not-allowed")}
-                        aria-label={chrome.i18n.getMessage("settings_toaster_usageLimitAria")}
+                        aria-label={t("settings_toaster_usageLimitAria")}
                         disabled={!isToasterEnabled}
                     />
                 </Field>

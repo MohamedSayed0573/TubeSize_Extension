@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 export default function NoUsageData() {
     return (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-white/8 bg-[#1d1d1d] p-8">
@@ -7,10 +8,8 @@ export default function NoUsageData() {
                     src="/icons/icon-32.png"
                     alt="Dashboard Icon"
                 />
-                <span className="text-base">{chrome.i18n.getMessage("dashboard_noUsage")}</span>
-                <span className="text-xs text-neutral-500">
-                    {chrome.i18n.getMessage("dashboard_startVisiting")}
-                </span>
+                <span className="text-base">{t("dashboard_noUsage")}</span>
+                <span className="text-xs text-neutral-500">{t("dashboard_startVisiting")}</span>
             </div>
         </div>
     );

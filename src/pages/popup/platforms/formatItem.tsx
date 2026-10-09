@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { perHourDisplay, perMinuteDisplay, totalSizeVideoDisplay } from "@lib/formatting";
 import type { YoutubeData } from "@app-types/platforms.types";
 import { cn } from "@lib/utils";
@@ -23,7 +24,7 @@ export default function FormatItem({ item, isShorts, currentQuality }: Props) {
                 <div className="pr-2.5 text-sm font-semibold text-white"> {resolution}p </div>
                 {resolution === currentQuality && (
                     <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[11px] font-bold tracking-wider text-white">
-                        {chrome.i18n.getMessage("popup_current")}
+                        {t("popup_current")}
                     </span>
                 )}
             </div>

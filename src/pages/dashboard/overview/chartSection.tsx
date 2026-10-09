@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { cn } from "@lib/utils";
 import type { SiteUsage } from "@/db";
 import { NavLink } from "react-router";
@@ -63,7 +64,7 @@ export function UsageChartSection({
                         <Database className="size-4" />
                     </span>
                     <h2 className="text-base font-bold text-stone-200">
-                        {chrome.i18n.getMessage(
+                        {t(
                             chart === "daily"
                                 ? "dashboard_dataUsagePerDay"
                                 : "dashboard_dataUsagePerSite",
@@ -73,15 +74,11 @@ export function UsageChartSection({
                 <div className="flex gap-3">
                     <div className="flex rounded-md border border-white/8 bg-black/20 p-0.5">
                         <ChartSwitchBtn
-                            label={chrome.i18n.getMessage("dashboard_byDay")}
+                            label={t("dashboard_byDay")}
                             to="/daily"
                             icon={CalendarDays}
                         />
-                        <ChartSwitchBtn
-                            label={chrome.i18n.getMessage("dashboard_bySite")}
-                            to="/sites"
-                            icon={Globe}
-                        />
+                        <ChartSwitchBtn label={t("dashboard_bySite")} to="/sites" icon={Globe} />
                     </div>
                     <div className="flex items-center gap-1.5 rounded-md border border-teal-400/20 bg-teal-400/10 px-2 py-1">
                         <CalendarDays className="size-3.5 text-teal-400" />

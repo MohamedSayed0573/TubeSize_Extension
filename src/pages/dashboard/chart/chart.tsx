@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { useNavigate } from "react-router";
 
@@ -60,9 +61,7 @@ function ChartTooltipContentCustom({
                     <div className="flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                             <span className="size-3 shrink-0 rounded bg-white" />
-                            <span className="text-neutral-300">
-                                {chrome.i18n.getMessage("dashboard_allSites")}
-                            </span>
+                            <span className="text-neutral-300">{t("dashboard_allSites")}</span>
                         </span>
                         <span className="font-mono text-stone-200">
                             {formatBytes(data.usage * 1024 * 1024)}
@@ -90,7 +89,7 @@ function ChartTooltipContentCustom({
 
                     {hiddenCount > 0 && (
                         <span className="text-neutral-500">
-                            {chrome.i18n.getMessage("dashboard_moreSites", [hiddenCount])}
+                            {t("dashboard_moreSites", [hiddenCount])}
                         </span>
                     )}
                 </>

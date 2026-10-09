@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { formatBytes } from "@lib/format";
 import { Link } from "react-router";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -67,7 +68,7 @@ export default function VideoTableRow({
                         <img
                             className="h-full w-full rounded-lg object-cover"
                             src={imageUrl}
-                            alt={chrome.i18n.getMessage("common_video")}
+                            alt={t("common_video")}
                             onError={(e) => {
                                 e.currentTarget.src = PLATFORM_PLACEHOLDER_IMAGE[platform];
                             }}

@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { useKickData } from "@hooks/useKickData";
 import Header from "@pages/popup/header";
 import InfoCard from "@components/infoCard";
@@ -14,7 +15,7 @@ export default function KickView({ tabUrl, tabId }: { tabUrl: string; tabId: num
             <>
                 <Header />
                 <PopupViewContainer>
-                    <InfoCard message={chrome.i18n.getMessage("popup_openKickStream")} />
+                    <InfoCard message={t("popup_openKickStream")} />
                 </PopupViewContainer>
             </>
         );

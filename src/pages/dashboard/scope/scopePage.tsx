@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { formatDate } from "@lib/dashboardFormatting";
 import { isValidDateKey, getLastNDays } from "@lib/dateUtils";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
@@ -24,7 +25,7 @@ function getTitle(range: UsageScope): string {
                 return formatDate(getLastNDays(30));
             }
             case "lifetime": {
-                return chrome.i18n.getMessage("dashboard_lifetime");
+                return t("dashboard_lifetime");
             }
         }
     } else {
