@@ -1,49 +1,15 @@
-import { Field, FieldLegend } from "@/components/ui/field";
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { useTranslation } from "react-i18next";
+import { t } from "@/i18n/t";
+import { Field, FieldDescription, FieldLegend } from "@/components/ui/field";
 
 export function LanguageSettings() {
-    const { i18n, t } = useTranslation();
-
-    const items = [
-        { label: t("settings.language.arabic"), value: "ar" },
-        { label: t("settings.language.english"), value: "en" },
-    ];
-
-    const handleLanguageChange = async (value: string | null) => {
-        if (value === null) return;
-        await chrome.storage.sync.set({ language: value });
-        await i18n.changeLanguage(value);
-    };
+    const isArabic = chrome.i18n.getUILanguage().toLowerCase().startsWith("ar");
+    const currentLabel = t(isArabic ? "settings_language_arabic" : "settings_language_english");
 
     return (
         <Field>
-            <FieldLegend>{t("settings.language.label")}</FieldLegend>
-            <Select
-                items={items}
-                value={i18n.language}
-                onValueChange={(value) => void handleLanguageChange(value)}
-            >
-                <SelectTrigger>
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectGroup>
-                        {items.map((item) => (
-                            <SelectItem key={item.value} value={item.value}>
-                                {item.label}
-                            </SelectItem>
-                        ))}
-                    </SelectGroup>
-                </SelectContent>
-            </Select>
+            <FieldLegend>{t("settings_language_label")}</FieldLegend>
+            <FieldDescription>{t("settings_language_description")}</FieldDescription>
+            <p className="text-sm font-medium">{currentLabel}</p>
         </Field>
     );
 }

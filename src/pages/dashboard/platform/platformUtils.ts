@@ -1,7 +1,7 @@
+import { t } from "@/i18n/t";
 import type { DateKey, PlatformId, UsageScope } from "@app-types/types";
 import CONFIG from "@lib/constants";
 import { formatDate } from "@lib/dashboardFormatting";
-import { i18nInstance } from "@/i18n/i18n";
 
 export function buildPlatformSearch(scope: UsageScope): string {
     return scope.type === "date" ? `?date=${scope.date}` : `?range=${scope.range}`;
@@ -21,16 +21,16 @@ export function getScopeLabel(scope: UsageScope): string {
 
     switch (scope.range) {
         case "today": {
-            return i18nInstance.t("dashboard.today");
+            return t("dashboard_today");
         }
         case "week": {
-            return i18nInstance.t("dashboard.week");
+            return t("dashboard_week");
         }
         case "month": {
-            return i18nInstance.t("dashboard.month");
+            return t("dashboard_month");
         }
         case "lifetime": {
-            return i18nInstance.t("dashboard.lifetime");
+            return t("dashboard_lifetime");
         }
     }
 }

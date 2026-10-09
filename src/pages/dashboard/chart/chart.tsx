@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { useNavigate } from "react-router";
 
@@ -9,11 +10,9 @@ import type { SiteUsage } from "@/db";
 import { formatBytes } from "@lib/format";
 import { getUsageNumber } from "@lib/usage";
 import { sumByDomain, type DomainUsage } from "@lib/domain";
-import { getFormattingLocale } from "@lib/dashboardFormatting";
 import { parseDateKey } from "@lib/dateUtils";
 import type { DateKey } from "@app-types/types";
 import { getSiteColor } from "./siteColors";
-import { useTranslation } from "react-i18next";
 
 const chartConfig = {
     usage: {
@@ -35,7 +34,6 @@ function ChartTooltipContentCustom({
     active?: boolean;
     payload?: TooltipPayloadEntry[];
 }) {
-    const { t } = useTranslation();
     const data = payload?.[0]?.payload;
     if (!active || !data) return null;
 
@@ -46,11 +44,14 @@ function ChartTooltipContentCustom({
         <div className="min-w-52 rounded-xl border border-neutral-800 bg-[#0a0a0a] px-3 py-2 text-xs shadow-xl">
             {/* Date header */}
             <div className="mb-1.5 font-medium text-stone-200">
-                {parseDateKey(data.date as DateKey).toLocaleDateString(getFormattingLocale(), {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                })}
+                {parseDateKey(data.date as DateKey).toLocaleDateString(
+                    chrome.i18n.getUILanguage(),
+                    {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                    },
+                )}
             </div>
 
             {/* List of websites/origins */}
@@ -60,7 +61,7 @@ function ChartTooltipContentCustom({
                     <div className="flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                             <span className="size-3 shrink-0 rounded bg-white" />
-                            <span className="text-neutral-300">{t("dashboard.allSites")}</span>
+                            <span className="text-neutral-300">{t("dashboard_allSites")}</span>
                         </span>
                         <span className="font-mono text-stone-200">
                             {formatBytes(data.usage * 1024 * 1024)}
@@ -88,7 +89,7 @@ function ChartTooltipContentCustom({
 
                     {hiddenCount > 0 && (
                         <span className="text-neutral-500">
-                            {t("dashboard.moreSites", { count: hiddenCount })}
+                            {t("dashboard_moreSites", [hiddenCount])}
                         </span>
                     )}
                 </>
@@ -132,7 +133,7 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
                             minTickGap={32}
                             tickFormatter={(value: DateKey) => {
                                 const d = parseDateKey(value);
-                                return d.toLocaleDateString(getFormattingLocale(), {
+                                return d.toLocaleDateString(chrome.i18n.getUILanguage(), {
                                     month: "short",
                                     day: "numeric",
                                 });

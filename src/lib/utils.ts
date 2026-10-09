@@ -271,7 +271,7 @@ export function chromeNavigate(pageName: string | undefined) {
     });
 }
 
-export function isFirefox(): boolean {
+function isFirefox(): boolean {
     try {
         if (typeof navigator === "undefined" || !navigator.userAgent) return false;
         return navigator.userAgent.includes("Firefox/");

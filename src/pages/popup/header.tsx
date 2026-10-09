@@ -1,16 +1,15 @@
+import { t } from "@/i18n/t";
 import type { PopupData } from "@app-types/uiTypes";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
 import { chromeNavigate } from "@lib/utils";
 import { humanizeDuration } from "@lib/humanize";
 import { useNavigate } from "react-router";
-import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import { ExternalLink, Settings as SettingsIcon } from "lucide-react";
 
-function getYoutubeTitle(youtubeData: YoutubeData | null | undefined, t: TFunction): string {
+function getYoutubeTitle(youtubeData: YoutubeData | null | undefined): string {
     return youtubeData?.type === "video"
-        ? youtubeData.title || t("popup.youtubeVideo")
-        : youtubeData?.channelName || t("popup.youtubeLive");
+        ? youtubeData.title || t("popup_youtubeVideo")
+        : youtubeData?.channelName || t("popup_youtubeLive");
 }
 
 function getYoutubeDuration(youtubeData?: YoutubeData | null, language = "en"): string | undefined {
@@ -19,7 +18,7 @@ function getYoutubeDuration(youtubeData?: YoutubeData | null, language = "en"): 
         : undefined;
 }
 
-function getTwitchTitle(twitchData: TwitchData | null | undefined, t: TFunction): string {
+function getTwitchTitle(twitchData: TwitchData | null | undefined): string {
     if (!twitchData) {
         return "Twitch";
     }
@@ -28,7 +27,7 @@ function getTwitchTitle(twitchData: TwitchData | null | undefined, t: TFunction)
         return twitchData.channelName;
     }
 
-    return t("popup.twitchVideo");
+    return t("popup_twitchVideo");
 }
 
 function getTwitchDuration(twitchData?: TwitchData | null, language = "en"): string | undefined {
@@ -63,25 +62,25 @@ interface Props {
 
 export default function Header({ data }: Props) {
     const navigate = useNavigate();
-    const { t, i18n } = useTranslation();
+    const language = chrome.i18n.getUILanguage();
     const isLive = data?.data.type === "live";
     let title: string;
     let duration: string | undefined;
 
     switch (data?.platform) {
         case "youtube": {
-            title = getYoutubeTitle(data.data, t);
-            duration = getYoutubeDuration(data.data, i18n.language);
+            title = getYoutubeTitle(data.data);
+            duration = getYoutubeDuration(data.data, language);
             break;
         }
         case "twitch": {
-            title = getTwitchTitle(data.data, t);
-            duration = getTwitchDuration(data.data, i18n.language);
+            title = getTwitchTitle(data.data);
+            duration = getTwitchDuration(data.data, language);
             break;
         }
         case "kick": {
             title = getKickTitle(data.data);
-            duration = getKickDuration(data.data, i18n.language);
+            duration = getKickDuration(data.data, language);
             break;
         }
         default: {
@@ -99,7 +98,7 @@ export default function Header({ data }: Props) {
                     <div className="flex items-center gap-1">
                         <span className="size-2 animate-pulse rounded-full bg-red-600"></span>
                         <span className="animate-pulse text-sm font-bold text-red-500">
-                            {t("popup.live")}
+                            {t("popup_live")}
                         </span>
                     </div>
                 )}
@@ -112,14 +111,14 @@ export default function Header({ data }: Props) {
                     className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
                     onClick={() => void navigate("/settings")}
                 >
-                    {t("popup.settings")}
+                    {t("popup_settings")}
                     <SettingsIcon className="size-3.5 opacity-70" aria-hidden="true" />
                 </button>
                 <button
                     className="flex flex-2 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
                     onClick={() => chromeNavigate("dashboard")}
                 >
-                    {t("popup.dashboard")}
+                    {t("popup_dashboard")}
                     <ExternalLink className="size-3.5 opacity-70" aria-hidden="true" />
                 </button>
             </div>

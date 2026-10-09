@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { formatDate } from "@lib/dashboardFormatting";
 import { isValidDateKey, getLastNDays } from "@lib/dateUtils";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
@@ -10,10 +11,8 @@ import DashboardNotFound from "../shared/notFound";
 import type { DateKey, UsageRange, UsageScope } from "@app-types/types";
 import PlatformCards from "./platformCards";
 import AllSitesTable from "./allSitesTable";
-import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 
-function getTitle(range: UsageScope, t: TFunction): string {
+function getTitle(range: UsageScope): string {
     if (range.type === "range") {
         switch (range.range) {
             case "today": {
@@ -26,7 +25,7 @@ function getTitle(range: UsageScope, t: TFunction): string {
                 return formatDate(getLastNDays(30));
             }
             case "lifetime": {
-                return t("dashboard.lifetime");
+                return t("dashboard_lifetime");
             }
         }
     } else {
@@ -53,7 +52,6 @@ function getScope(date: DateKey | undefined): UsageScope | undefined {
 
 export default function ScopePage() {
     const { date } = useParams();
-    const { t } = useTranslation();
     const scope = getScope(date as DateKey);
 
     const { data: usage, isPending, isError, error } = useSiteUsage(scope);
@@ -65,14 +63,14 @@ export default function ScopePage() {
     if (!usage || usage.length === 0)
         return (
             <>
-                <DashboardHeader title={getTitle(scope, t)} totalDataUsage={0} />
+                <DashboardHeader title={getTitle(scope)} totalDataUsage={0} />
                 <NoUsageData />
             </>
         );
 
     return (
         <>
-            <DashboardHeader title={getTitle(scope, t)} totalDataUsage={getUsageNumber(usage)} />
+            <DashboardHeader title={getTitle(scope)} totalDataUsage={getUsageNumber(usage)} />
             <div className="flex flex-1 flex-col gap-1 bg-neutral-950/70 pt-1">
                 <PlatformCards scope={scope} />
                 <AllSitesTable usage={usage} />

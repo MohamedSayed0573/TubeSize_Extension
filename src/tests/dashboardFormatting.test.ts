@@ -1,9 +1,4 @@
-import { i18nInstance } from "@/i18n/i18n";
 import { formatDate } from "@lib/dashboardFormatting";
-
-beforeAll(async () => {
-    await i18nInstance.changeLanguage("en");
-});
 
 describe("formatDate", () => {
     test("Should return formatted date if the input is not array", () => {

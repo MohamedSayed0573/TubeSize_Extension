@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import type { YoutubeData } from "@app-types/platforms.types";
 import CONFIG from "@lib/constants";
 import useSettings from "@hooks/useSettings";
@@ -5,7 +6,6 @@ import useCurrentQuality from "@hooks/useCurrentQuality";
 import FormatItem from "@pages/popup/platforms/formatItem";
 import InfoCard from "@components/infoCard";
 import type { SettingsMap } from "@app-types/types";
-import { useTranslation } from "react-i18next";
 
 function getEnabledSettings(settingsState: SettingsMap) {
     const qualityIds = settingsState["qualityIds"] ?? {};
@@ -20,7 +20,6 @@ export default function YoutubeFormats({
     tabId: number | undefined;
 }) {
     const { currentQuality } = useCurrentQuality(tabId);
-    const { t } = useTranslation();
 
     const { query } = useSettings();
     const { data: settingsState, isError, isPending, error } = query;
@@ -31,7 +30,7 @@ export default function YoutubeFormats({
     const enabledSettings = getEnabledSettings(settingsState);
 
     if (enabledSettings.length === 0) {
-        return <InfoCard message={t("popup.allResolutionsDisabled")} />;
+        return <InfoCard message={t("popup_allResolutionsDisabled")} />;
     }
 
     if (data.type === "live") {

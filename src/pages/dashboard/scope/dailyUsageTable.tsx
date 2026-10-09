@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import { Link } from "react-router";
 import {
     Table,
@@ -9,7 +10,6 @@ import {
     TableRow,
 } from "@components/ui/table";
 import { formatBytes } from "@lib/format";
-import { useTranslation } from "react-i18next";
 
 export interface DailyUsage {
     day: string;
@@ -23,7 +23,6 @@ export default function DailyUsageTable({
     usage: DailyUsage[];
     totalUsage: number;
 }) {
-    const { t } = useTranslation();
     return (
         <section className="flex-1 px-4 pt-4">
             <div className="mx-auto flex max-w-4xl flex-col overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900">
@@ -31,9 +30,9 @@ export default function DailyUsageTable({
                     <TableHeader className="bg-neutral-800/60 text-xs tracking-wider text-neutral-400 uppercase">
                         <TableRow className="border-neutral-800 hover:bg-transparent">
                             <TableHead className="text-center">#</TableHead>
-                            <TableHead>{t("common.date")}</TableHead>
-                            <TableHead className="w-20/100">{t("common.share")}</TableHead>
-                            <TableHead className="w-30/100">{t("common.dataUsed")}</TableHead>
+                            <TableHead>{t("common_date")}</TableHead>
+                            <TableHead className="w-20/100">{t("common_share")}</TableHead>
+                            <TableHead className="w-30/100">{t("common_dataUsed")}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -62,7 +61,7 @@ export default function DailyUsageTable({
                     <TableFooter className="border-neutral-800 bg-neutral-800/40">
                         <TableRow className="border-0 hover:bg-transparent">
                             <TableHead colSpan={2} className="text-center text-sm text-stone-200">
-                                {t("common.total")}
+                                {t("common_total")}
                             </TableHead>
                             <TableCell className="text-center text-stone-100" colSpan={2}>
                                 {formatBytes(totalUsage)}

@@ -65,6 +65,7 @@ export default defineConfig({
         name: "TubeSize",
         description:
             "Track how much data every website uses, and see the estimated data cost of YouTube, Twitch, and Kick videos before you press play.",
+        default_locale: "en",
         icons: {
             "16": "icons/icon-16.png",
             "32": "icons/icon-32.png",

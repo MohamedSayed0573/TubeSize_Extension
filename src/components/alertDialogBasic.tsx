@@ -1,3 +1,4 @@
+import { t } from "@/i18n/t";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -10,7 +11,6 @@ import {
     AlertDialogTrigger,
 } from "@components/ui/alertDialog";
 import { Button } from "@components/ui/button";
-import { useTranslation } from "react-i18next";
 
 export function AlertDialogBasic({
     descriptionText,
@@ -28,7 +28,6 @@ export function AlertDialogBasic({
         "link" | "default" | "outline" | "secondary" | "ghost" | "destructive" | null | undefined;
     onConfirm: () => void;
 }) {
-    const { t } = useTranslation();
     return (
         <AlertDialog>
             <AlertDialogTrigger
@@ -40,13 +39,13 @@ export function AlertDialogBasic({
             />
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>{t("common.areYouSure")}</AlertDialogTitle>
+                    <AlertDialogTitle>{t("common_areYouSure")}</AlertDialogTitle>
                     <AlertDialogDescription>{descriptionText}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogCancel>{t("common_cancel")}</AlertDialogCancel>
                     <AlertDialogAction onClick={onConfirm}>
-                        {t("common.continue")}
+                        {t("common_continue")}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
