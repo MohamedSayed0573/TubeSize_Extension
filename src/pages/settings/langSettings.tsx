@@ -1,49 +1,18 @@
-import { Field, FieldLegend } from "@/components/ui/field";
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { useTranslation } from "react-i18next";
+import { Field, FieldDescription, FieldLegend } from "@/components/ui/field";
+import { getAppLanguage, useTranslation } from "@/i18n/i18n";
 
 export function LanguageSettings() {
-    const { i18n, t } = useTranslation();
-
-    const items = [
-        { label: t("settings.language.arabic"), value: "ar" },
-        { label: t("settings.language.english"), value: "en" },
-    ];
-
-    const handleLanguageChange = async (value: string | null) => {
-        if (value === null) return;
-        await chrome.storage.sync.set({ language: value });
-        await i18n.changeLanguage(value);
-    };
+    const { t } = useTranslation();
+    const language = getAppLanguage();
+    const currentLabel = t(
+        language === "ar" ? "settings.language.arabic" : "settings.language.english",
+    );
 
     return (
         <Field>
             <FieldLegend>{t("settings.language.label")}</FieldLegend>
-            <Select
-                items={items}
-                value={i18n.language}
-                onValueChange={(value) => void handleLanguageChange(value)}
-            >
-                <SelectTrigger>
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectGroup>
-                        {items.map((item) => (
-                            <SelectItem key={item.value} value={item.value}>
-                                {item.label}
-                            </SelectItem>
-                        ))}
-                    </SelectGroup>
-                </SelectContent>
-            </Select>
+            <FieldDescription>{t("settings.language.description")}</FieldDescription>
+            <p className="text-sm font-medium">{currentLabel}</p>
         </Field>
     );
 }

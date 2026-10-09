@@ -4,7 +4,7 @@ import InfoCard from "@components/infoCard";
 import YoutubeFormats from "@pages/popup/platforms/youtube/youtubeFormats";
 import Spinner from "@components/spinner";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export default function YoutubeView({ tabUrl, tabId }: { tabUrl: string; tabId: number }) {
     const { t } = useTranslation();

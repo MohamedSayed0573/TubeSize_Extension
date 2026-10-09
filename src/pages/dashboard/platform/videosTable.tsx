@@ -3,7 +3,7 @@ import VideoTableRow from "./videoTableRow";
 import type { VideoRowDetails } from "./videoTableRow";
 export type { VideoRowDetails } from "./videoTableRow";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export default function VideosTable({
     rows,

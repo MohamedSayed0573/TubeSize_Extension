@@ -12,7 +12,7 @@ import { formatBytes } from "@lib/format";
 import { sumByDomain, type DomainUsage } from "@lib/domain";
 import { faviconURL } from "@lib/utils";
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
     const { t } = useTranslation();

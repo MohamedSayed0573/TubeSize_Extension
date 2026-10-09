@@ -6,7 +6,7 @@ import type { SiteUsage } from "@/db";
 import { Activity, CalendarDays, CalendarRange, Database } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 function StatsCard({
     title,

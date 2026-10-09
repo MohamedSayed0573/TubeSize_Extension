@@ -4,7 +4,7 @@ import { Button } from "@components/ui/button";
 import { useSiteUsage } from "@hooks/useSiteUsage";
 import type { InvalidImportJson } from "@lib/errors";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 async function importJson() {
     const { ImportSchema } = await import("@lib/zodSchema");

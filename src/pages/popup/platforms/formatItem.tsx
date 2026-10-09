@@ -1,7 +1,7 @@
 import { perHourDisplay, perMinuteDisplay, totalSizeVideoDisplay } from "@lib/formatting";
 import type { YoutubeData } from "@app-types/platforms.types";
 import { cn } from "@lib/utils";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 interface Props {
     item: YoutubeData["formats"][number];

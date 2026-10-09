@@ -1,5 +1,5 @@
 import Header from "@pages/popup/header";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export default function PopupError({ error }: { error: unknown }) {
     const routeError = error;

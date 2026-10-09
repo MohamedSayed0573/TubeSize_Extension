@@ -5,7 +5,7 @@ import { lazy, Suspense } from "react";
 import { CalendarDays, Database, Globe, type LucideIcon } from "lucide-react";
 import NoUsageData from "../shared/noUsageData";
 import { Skeleton } from "@components/ui/skeleton";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 import { Chart as ChartDaily } from "../chart/chart";
 
 const ChartSites = lazy(async () => import("../chart/chartSites"));

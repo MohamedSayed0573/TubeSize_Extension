@@ -4,7 +4,7 @@ import useTab from "@hooks/useTab";
 import PopupUsage from "./popupUsage";
 import { PopupFooter } from "./popupFooter";
 import { getOriginWithoutSuffix } from "@lib/domain";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 function getTabOrigin(tabUrl: string | undefined) {
     if (!tabUrl) return;

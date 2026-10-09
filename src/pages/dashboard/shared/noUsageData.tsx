@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export default function NoUsageData() {
     const { t } = useTranslation();

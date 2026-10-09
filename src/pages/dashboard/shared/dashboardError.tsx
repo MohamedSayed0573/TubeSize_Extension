@@ -1,5 +1,5 @@
 import DashboardBanner from "@pages/dashboard/overview/dashboardBanner";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export default function DashboardErrorPage({ error }: { error: unknown }) {
     const routeError = error;

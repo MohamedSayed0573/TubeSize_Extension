@@ -1,8 +1,7 @@
 import { Button } from "@components/ui/button";
 import { getAllSiteUsage, type SiteUsage } from "@/db";
 import { InvalidImportJson } from "@lib/errors";
-import { useTranslation } from "react-i18next";
-import { i18nInstance } from "@/i18n/i18n";
+import { t, useTranslation } from "@/i18n/i18n";
 
 function isValidUsageEntry(url: string, bytes: number): boolean {
     if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes < 0) return false;
@@ -32,16 +31,16 @@ export function ExportToJsonBtn({
 }: {
     setError: React.Dispatch<React.SetStateAction<InvalidImportJson | undefined>>;
 }) {
-    const { t } = useTranslation();
+    const { t: translate } = useTranslation();
 
     async function getData() {
         const siteUsage = await getAllSiteUsage();
         if (!siteUsage || siteUsage.length === 0)
-            return setError(new InvalidImportJson(i18nInstance.t("dashboard.noUsageToExport")));
+            return setError(new InvalidImportJson(t("dashboard.noUsageToExport")));
 
         const filteredUsage = filterUsage(siteUsage);
         if (filteredUsage.length === 0)
-            return setError(new InvalidImportJson(i18nInstance.t("dashboard.noUsageToExport")));
+            return setError(new InvalidImportJson(t("dashboard.noUsageToExport")));
 
         const json = JSON.stringify(filteredUsage);
         const blob = new Blob([json]);
@@ -64,7 +63,7 @@ export function ExportToJsonBtn({
                     .catch((err) => setError(err as Error));
             }}
         >
-            {t("dashboard.exportJson")}
+            {translate("dashboard.exportJson")}
         </Button>
     );
 }

@@ -1,0 +1,486 @@
+{
+    "common_somethingWentWrong": {
+        "message": "حدث خطأ ما",
+        "description": "Generic error title"
+    },
+    "common_backToDashboard": {
+        "message": "العودة إلى لوحة الاستخدام",
+        "description": "Link back to the dashboard"
+    },
+    "common_support": {
+        "message": "ادعمني",
+        "description": "Support button label"
+    },
+    "common_githubAlt": {
+        "message": "أيقونة جيت هب",
+        "description": "Alt text for Github icon"
+    },
+    "common_supportAlt": {
+        "message": "أيقونة الدعم",
+        "description": "Alt text for support icon"
+    },
+    "common_areYouSure": {
+        "message": "هل أنت متأكد تمامًا؟",
+        "description": "Confirmation dialog title"
+    },
+    "common_cancel": {
+        "message": "إلغاء",
+        "description": "Cancel button"
+    },
+    "common_continue": {
+        "message": "متابعة",
+        "description": "Continue button"
+    },
+    "common_total": {
+        "message": "الإجمالي",
+        "description": "Total label"
+    },
+    "common_date": {
+        "message": "التاريخ",
+        "description": "Date column header"
+    },
+    "common_share": {
+        "message": "النسبة",
+        "description": "Share column header"
+    },
+    "common_dataUsed": {
+        "message": "البيانات المستهلكة",
+        "description": "Data used column header"
+    },
+    "common_website": {
+        "message": "الموقع",
+        "description": "Website column header"
+    },
+    "common_video": {
+        "message": "الفيديو",
+        "description": "Video column header / alt text"
+    },
+    "settings_header_back": {
+        "message": "رجوع",
+        "description": "Settings back button"
+    },
+    "settings_header_title": {
+        "message": "الإعدادات",
+        "description": "Settings page title"
+    },
+    "settings_language_label": {
+        "message": "اللغة",
+        "description": "Language setting label"
+    },
+    "settings_language_description": {
+        "message": "اللغة تتبع إعدادات المتصفح.",
+        "description": "Explains language is detected from the browser UI language"
+    },
+    "settings_language_arabic": {
+        "message": "العربية",
+        "description": "Arabic language name"
+    },
+    "settings_language_english": {
+        "message": "الإنجليزية",
+        "description": "English language name"
+    },
+    "settings_resolutions_legend": {
+        "message": "خيارات الجودة",
+        "description": "Resolutions setting legend"
+    },
+    "settings_resolutions_description": {
+        "message": "اختر خيارات الجودة التي تريد عرضها عند النقر على أيقونة الإضافة:",
+        "description": "Resolutions setting description"
+    },
+    "settings_toaster_legend": {
+        "message": "تنبيه تجاوز حد استهلاك الفيديو",
+        "description": "Toaster setting legend"
+    },
+    "settings_toaster_description": {
+        "message": "أبلغني عندما يستهلك فيديو بيانات أكثر من الحد المسموح لكل ساعة.",
+        "description": "Toaster setting description"
+    },
+    "settings_toaster_enable": {
+        "message": "تفعيل تنبيه تجاوز حد استهلاك الفيديو",
+        "description": "Toaster enable checkbox label"
+    },
+    "settings_toaster_usageLimit": {
+        "message": "حد الاستخدام (ميجابايت/ساعة): $1",
+        "description": "Toaster usage limit with threshold value",
+        "placeholders": {
+            "threshold": {
+                "content": "$1",
+                "example": "500"
+            }
+        }
+    },
+    "settings_toaster_usageLimitAria": {
+        "message": "حد الاستخدام",
+        "description": "Aria label for usage limit slider"
+    },
+    "settings_errorFailed": {
+        "message": "فشل تحميل الإعدادات.",
+        "description": "Settings load error"
+    },
+    "popup_settings": {
+        "message": "الإعدادات",
+        "description": "Popup settings button"
+    },
+    "popup_dashboard": {
+        "message": "لوحة الاستخدام",
+        "description": "Popup dashboard button"
+    },
+    "popup_live": {
+        "message": "مباشر",
+        "description": "Live badge"
+    },
+    "popup_youtubeVideo": {
+        "message": "فيديو يوتيوب",
+        "description": "Fallback title for YouTube video"
+    },
+    "popup_youtubeLive": {
+        "message": "بث يوتيوب مباشر",
+        "description": "Fallback title for YouTube live"
+    },
+    "popup_twitchVideo": {
+        "message": "فيديو تويتش",
+        "description": "Fallback title for Twitch video"
+    },
+    "popup_usageTrackingEnabled": {
+        "message": "تتبع الاستهلاك مفعّل.",
+        "description": "Info shown when usage tracking is enabled"
+    },
+    "popup_unsupportedPage": {
+        "message": "افتح فيديو على يوتيوب أو تويتش أو كيك لرؤية تقدير استهلاك البيانات.",
+        "description": "Info shown on unsupported pages"
+    },
+    "popup_openYoutubeVideo": {
+        "message": "افتح فيديو يوتيوب",
+        "description": "Prompt to open a YouTube video"
+    },
+    "popup_openTwitchStream": {
+        "message": "افتح بثًا أو فيديو على تويتش",
+        "description": "Prompt to open a Twitch stream"
+    },
+    "popup_openKickStream": {
+        "message": "افتح بثًا أو فيديو على كيك",
+        "description": "Prompt to open a Kick stream"
+    },
+    "popup_allResolutionsDisabled": {
+        "message": "جميع خيارات الجودة معطّلة. فعّلها من الإعدادات",
+        "description": "Shown when all resolutions are disabled"
+    },
+    "popup_current": {
+        "message": "الحالي",
+        "description": "Current quality badge"
+    },
+    "popup_totalUsageToday": {
+        "message": "إجمالي الاستهلاك اليوم",
+        "description": "Total usage today label"
+    },
+    "popup_siteUsage": {
+        "message": "استهلاك $1",
+        "description": "Usage for a specific site, with origin",
+        "placeholders": {
+            "origin": {
+                "content": "$1",
+                "example": "youtube.com"
+            }
+        }
+    },
+    "dashboard_title": {
+        "message": "لوحة استهلاك بيانات يوتيوب",
+        "description": "Dashboard title"
+    },
+    "dashboard_today": {
+        "message": "اليوم",
+        "description": "Today range label"
+    },
+    "dashboard_week": {
+        "message": "آخر 7 أيام",
+        "description": "Week range label"
+    },
+    "dashboard_month": {
+        "message": "آخر 30 يومًا",
+        "description": "Month range label"
+    },
+    "dashboard_lifetime": {
+        "message": "كل الوقت",
+        "description": "Lifetime range label"
+    },
+    "dashboard_viewDetails": {
+        "message": "عرض التفاصيل ←",
+        "description": "View details link"
+    },
+    "dashboard_dataUsagePerDay": {
+        "message": "الاستهلاك اليومي",
+        "description": "Chart title per day"
+    },
+    "dashboard_dataUsagePerSite": {
+        "message": "الاستهلاك حسب الموقع",
+        "description": "Chart title per site"
+    },
+    "dashboard_byDay": {
+        "message": "حسب اليوم",
+        "description": "By day toggle"
+    },
+    "dashboard_bySite": {
+        "message": "حسب الموقع",
+        "description": "By site toggle"
+    },
+    "dashboard_days_one": {
+        "message": "يوم",
+        "description": "Singular day label (count shown separately)"
+    },
+    "dashboard_days_two": {
+        "message": "يومان",
+        "description": "Dual day label"
+    },
+    "dashboard_days_few": {
+        "message": "أيام",
+        "description": "Few days label"
+    },
+    "dashboard_days_many": {
+        "message": "يومًا",
+        "description": "Many days label"
+    },
+    "dashboard_days_other": {
+        "message": "أيام",
+        "description": "Other days label"
+    },
+    "dashboard_usageMb": {
+        "message": "الاستهلاك (ميجابايت)",
+        "description": "Usage in MB label"
+    },
+    "dashboard_allSites": {
+        "message": "الكل",
+        "description": "All sites chart label"
+    },
+    "dashboard_moreSites": {
+        "message": "+$1 أخرى",
+        "description": "Hidden sites count in chart tooltip",
+        "placeholders": {
+            "count": {
+                "content": "$1",
+                "example": "3"
+            }
+        }
+    },
+    "dashboard_sites": {
+        "message": "المواقع",
+        "description": "Sites label"
+    },
+    "dashboard_totalDataUsed": {
+        "message": "إجمالي البيانات المستهلكة",
+        "description": "Total data used header"
+    },
+    "dashboard_titleOnPlatformToday": {
+        "message": "إجمالي الاستهلاك اليوم على $1",
+        "description": "Platform usage title for today",
+        "placeholders": {
+            "platform": {
+                "content": "$1",
+                "example": "Youtube"
+            }
+        }
+    },
+    "dashboard_titleOnPlatformWeek": {
+        "message": "إجمالي الاستهلاك هذا الأسبوع على $1",
+        "description": "Platform usage title for week",
+        "placeholders": {
+            "platform": {
+                "content": "$1",
+                "example": "Youtube"
+            }
+        }
+    },
+    "dashboard_titleOnPlatformMonth": {
+        "message": "إجمالي الاستهلاك هذا الشهر على $1",
+        "description": "Platform usage title for month",
+        "placeholders": {
+            "platform": {
+                "content": "$1",
+                "example": "Youtube"
+            }
+        }
+    },
+    "dashboard_titleOnPlatformDate": {
+        "message": "إجمالي الاستهلاك على $1 على $2",
+        "description": "Platform usage title for a specific date",
+        "placeholders": {
+            "date": {
+                "content": "$1",
+                "example": "2024-01-01"
+            },
+            "platform": {
+                "content": "$2",
+                "example": "Youtube"
+            }
+        }
+    },
+    "dashboard_titleOnPlatformLifetime": {
+        "message": "إجمالي الاستهلاك على $1",
+        "description": "Platform usage title for lifetime",
+        "placeholders": {
+            "platform": {
+                "content": "$1",
+                "example": "Youtube"
+            }
+        }
+    },
+    "dashboard_noVideos": {
+        "message": "لا توجد فيديوهات بعد",
+        "description": "Empty videos label"
+    },
+    "dashboard_videosCount_one": {
+        "message": "$1 فيديو",
+        "description": "Singular videos count",
+        "placeholders": {
+            "count": {
+                "content": "$1",
+                "example": "1"
+            }
+        }
+    },
+    "dashboard_videosCount_two": {
+        "message": "$1 فيديو",
+        "description": "Dual videos count",
+        "placeholders": {
+            "count": {
+                "content": "$1",
+                "example": "2"
+            }
+        }
+    },
+    "dashboard_videosCount_few": {
+        "message": "$1 فيديوهات",
+        "description": "Few videos count",
+        "placeholders": {
+            "count": {
+                "content": "$1",
+                "example": "5"
+            }
+        }
+    },
+    "dashboard_videosCount_many": {
+        "message": "$1 فيديو",
+        "description": "Many videos count",
+        "placeholders": {
+            "count": {
+                "content": "$1",
+                "example": "11"
+            }
+        }
+    },
+    "dashboard_videosCount_other": {
+        "message": "$1 فيديو",
+        "description": "Other videos count",
+        "placeholders": {
+            "count": {
+                "content": "$1",
+                "example": "100"
+            }
+        }
+    },
+    "dashboard_noUsage": {
+        "message": "لا توجد بيانات استهلاك.",
+        "description": "Empty usage title"
+    },
+    "dashboard_startVisiting": {
+        "message": "ابدأ بزيارة المواقع لرؤية الاستهلاك",
+        "description": "Empty usage hint"
+    },
+    "dashboard_pageNotFound": {
+        "message": "الصفحة غير موجودة",
+        "description": "404 title"
+    },
+    "dashboard_failedToLoadUsage": {
+        "message": "فشل تحميل بيانات الاستهلاك.",
+        "description": "Usage load error"
+    },
+    "dashboard_clearAllUsage": {
+        "message": "مسح جميع بيانات الاستهلاك",
+        "description": "Clear usage button"
+    },
+    "dashboard_clearWarning": {
+        "message": "لا يمكن التراجع عن هذا الإجراء. سيتم حذف بيانات الاستهلاك نهائيًا",
+        "description": "Clear usage warning"
+    },
+    "dashboard_exportJson": {
+        "message": "تصدير إلى JSON",
+        "description": "Export button"
+    },
+    "dashboard_importJson": {
+        "message": "استيراد JSON",
+        "description": "Import button"
+    },
+    "dashboard_importWarning": {
+        "message": "سيؤدي الاستيراد إلى استبدال جميع بياناتك بالكامل. هل تريد المتابعة؟",
+        "description": "Import warning"
+    },
+    "dashboard_noUsageToExport": {
+        "message": "لا يوجد شيء للتصدير — ابدأ التصفح لتجميع بيانات الاستهلاك",
+        "description": "Empty export error"
+    },
+    "dashboard_bytesUsed": {
+        "message": "استهلكت $1 من مشاهدة الفيديوهات على $2 في هذه الفترة",
+        "description": "Platform card bytes description",
+        "placeholders": {
+            "size": {
+                "content": "$1",
+                "example": "1.2 GB"
+            },
+            "platform": {
+                "content": "$2",
+                "example": "Youtube"
+            }
+        }
+    },
+    "toast_title": {
+        "message": "TubeSize | تحذير: استهلاك بيانات مرتفع",
+        "description": "High usage toast title"
+    },
+    "toast_body": {
+        "message": "تم اكتشاف استهلاك بيانات مرتفع للجودة $1p. هذا يتجاوز الحد المحدد في إعداداتك.",
+        "description": "High usage toast body with quality",
+        "placeholders": {
+            "quality": {
+                "content": "$1",
+                "example": "1080"
+            }
+        }
+    },
+    "toast_currentQuality": {
+        "message": "الجودة الحالية: $1p",
+        "description": "Current quality line",
+        "placeholders": {
+            "quality": {
+                "content": "$1",
+                "example": "1080"
+            }
+        }
+    },
+    "toast_totalUsage": {
+        "message": "إجمالي الاستهلاك: $1",
+        "description": "Total usage line",
+        "placeholders": {
+            "usage": {
+                "content": "$1",
+                "example": "1.2 GB"
+            }
+        }
+    },
+    "toast_perHourUsage": {
+        "message": "الاستهلاك في الساعة: $1",
+        "description": "Per hour usage line",
+        "placeholders": {
+            "usage": {
+                "content": "$1",
+                "example": "500 MB"
+            }
+        }
+    },
+    "toast_ok": {
+        "message": "حسنًا",
+        "description": "Toast OK button"
+    },
+    "toast_dontShowAgain": {
+        "message": "لا تعرض مرة أخرى في هذه الجلسة",
+        "description": "Toast dismiss button"
+    }
+}

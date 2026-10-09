@@ -4,7 +4,7 @@ import useTab from "@hooks/useTab";
 import InfoCard from "@components/infoCard";
 import Spinner from "@components/spinner";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 import { lazy } from "react";
 
 const YoutubeView = lazy(async () => await import("@pages/popup/platforms/youtube/youtubeView"));

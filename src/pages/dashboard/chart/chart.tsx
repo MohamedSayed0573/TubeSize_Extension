@@ -13,7 +13,7 @@ import { getFormattingLocale } from "@lib/dashboardFormatting";
 import { parseDateKey } from "@lib/dateUtils";
 import type { DateKey } from "@app-types/types";
 import { getSiteColor } from "./siteColors";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 const chartConfig = {
     usage: {

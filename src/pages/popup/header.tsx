@@ -3,8 +3,8 @@ import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.typ
 import { chromeNavigate } from "@lib/utils";
 import { humanizeDuration } from "@lib/humanize";
 import { useNavigate } from "react-router";
-import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
+import { getAppLanguage, useTranslation } from "@/i18n/i18n";
+import type { TFunction } from "@/i18n/i18n";
 import { ExternalLink, Settings as SettingsIcon } from "lucide-react";
 
 function getYoutubeTitle(youtubeData: YoutubeData | null | undefined, t: TFunction): string {
@@ -63,7 +63,8 @@ interface Props {
 
 export default function Header({ data }: Props) {
     const navigate = useNavigate();
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
+    const language = getAppLanguage();
     const isLive = data?.data.type === "live";
     let title: string;
     let duration: string | undefined;
@@ -71,17 +72,17 @@ export default function Header({ data }: Props) {
     switch (data?.platform) {
         case "youtube": {
             title = getYoutubeTitle(data.data, t);
-            duration = getYoutubeDuration(data.data, i18n.language);
+            duration = getYoutubeDuration(data.data, language);
             break;
         }
         case "twitch": {
             title = getTwitchTitle(data.data, t);
-            duration = getTwitchDuration(data.data, i18n.language);
+            duration = getTwitchDuration(data.data, language);
             break;
         }
         case "kick": {
             title = getKickTitle(data.data);
-            duration = getKickDuration(data.data, i18n.language);
+            duration = getKickDuration(data.data, language);
             break;
         }
         default: {

@@ -2,7 +2,7 @@ import CONFIG from "@lib/constants";
 import SettingItem from "@pages/settings/settingItem";
 import type { SettingsMap } from "@app-types/types";
 import { FieldDescription, FieldGroup, FieldLegend, FieldSet } from "@components/ui/field";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export default function ResolutionsSettings({ settingsState }: { settingsState: SettingsMap }) {
     const { t } = useTranslation();

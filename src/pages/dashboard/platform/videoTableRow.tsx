@@ -4,7 +4,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import type { DateKey, PlatformId } from "@app-types/types";
 
 import { TableCell, TableRow } from "@/components/ui/table";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 const PLACEHOLDER_IMAGE = "/thumbnail-placeholder.svg";
 

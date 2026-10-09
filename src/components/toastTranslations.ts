@@ -1,4 +1,4 @@
-import { getFromSyncCache } from "@lib/cache";
+import { getAppDirection, getAppLanguage, t } from "@/i18n/i18n";
 
 type ToastTranslations = {
     title: string;
@@ -10,46 +10,25 @@ type ToastTranslations = {
     dontShowAgain: string;
 };
 
-const translations: Record<"ar" | "en", ToastTranslations> = {
-    en: {
-        title: "TubeSize | Warning: High Data Usage",
-        body: (quality) =>
-            `High Data Usage Detected for ${quality}p. It crosses the threshold specified in your settings.`,
-        currentQuality: (quality) => `Current Quality: ${quality}p`,
-        totalUsage: (usage) => `Total Usage: ${usage}`,
-        perHourUsage: (usage) => `Per Hour Usage: ${usage}`,
-        ok: "OK",
-        dontShowAgain: "Don't show again for this session",
-    },
-    ar: {
-        title: "TubeSize | تحذير: استهلاك بيانات مرتفع",
-        body: (quality) =>
-            `تم اكتشاف استهلاك بيانات مرتفع للجودة ${quality}p. هذا يتجاوز الحد المحدد في إعداداتك.`,
-        currentQuality: (quality) => `الجودة الحالية: ${quality}p`,
-        totalUsage: (usage) => `إجمالي الاستهلاك: ${usage}`,
-        perHourUsage: (usage) => `الاستهلاك في الساعة: ${usage}`,
-        ok: "حسنًا",
-        dontShowAgain: "لا تعرض مرة أخرى في هذه الجلسة",
-    },
-};
-
-let language: keyof typeof translations = chrome.i18n.getUILanguage().startsWith("ar")
-    ? "ar"
-    : "en";
-
-export function getToastTranslations() {
-    return translations[language];
+export function getToastTranslations(): ToastTranslations {
+    return {
+        title: t("toast.title"),
+        body: (quality) => t("toast.body", { quality }),
+        currentQuality: (quality) => t("toast.currentQuality", { quality }),
+        totalUsage: (usage) => t("toast.totalUsage", { usage }),
+        perHourUsage: (usage) => t("toast.perHourUsage", { usage }),
+        ok: t("toast.ok"),
+        dontShowAgain: t("toast.dontShowAgain"),
+    };
 }
 
 export function getToastLanguage() {
-    return language;
+    return getAppLanguage();
 }
 
 export function getToastDirection() {
-    return language === "ar" ? "rtl" : "ltr";
+    return getAppDirection();
 }
 
-export async function syncToastLanguage() {
-    const storedLanguage = await getFromSyncCache("language");
-    if (storedLanguage) language = storedLanguage.startsWith("ar") ? "ar" : "en";
-}
+// No-op kept for compatibility; chrome.i18n follows the browser UI language.
+export async function syncToastLanguage(): Promise<void> {}

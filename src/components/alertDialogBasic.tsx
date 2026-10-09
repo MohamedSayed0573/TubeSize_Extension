@@ -10,7 +10,7 @@ import {
     AlertDialogTrigger,
 } from "@components/ui/alertDialog";
 import { Button } from "@components/ui/button";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export function AlertDialogBasic({
     descriptionText,

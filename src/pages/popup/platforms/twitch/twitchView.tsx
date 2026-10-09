@@ -4,7 +4,7 @@ import Spinner from "@components/spinner";
 import { useTwitchData } from "@hooks/useTwitchData";
 import TwitchFormats from "@pages/popup/platforms/twitch/twitchFormats";
 import { PopupViewContainer } from "@pages/popup/popupViewContainer";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export default function TwitchView({ tabUrl }: { tabUrl: string }) {
     const { t } = useTranslation();

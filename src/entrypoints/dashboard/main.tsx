@@ -6,11 +6,10 @@ import "@styles/dashboard.css";
 import "@fontsource-variable/jetbrains-mono/wght.css";
 import { StrictMode } from "react";
 import { AppProviders } from "@layouts/appProviders";
-import { startDocumentLanguageSync, syncAppLang } from "@/i18n/i18n";
+import { syncDocumentLang } from "@/i18n/i18n";
 import { router } from "./router";
 
-void syncAppLang();
-startDocumentLanguageSync();
+syncDocumentLang();
 
 const domRoot = document.querySelector("#root") as HTMLElement;
 

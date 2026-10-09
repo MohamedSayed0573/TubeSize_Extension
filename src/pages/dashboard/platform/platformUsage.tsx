@@ -10,8 +10,8 @@ import { useWatchHistory } from "@hooks/useWatchHistory";
 import { capitalize, isPlatformId } from "@lib/utils";
 import DashboardNotFound from "../shared/notFound";
 import type { PlatformId, UsageScope } from "@app-types/types";
-import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
+import { useTranslation } from "@/i18n/i18n";
+import type { TFunction } from "@/i18n/i18n";
 
 export default function PlatformUsage() {
     const { platformId } = useParams();

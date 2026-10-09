@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/field";
 import { Slider } from "@components/ui/slider";
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export default function ToasterSettings({ settingsState }: { settingsState: SettingsMap }) {
     const { t } = useTranslation();

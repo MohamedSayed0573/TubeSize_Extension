@@ -9,7 +9,7 @@ import {
     TableRow,
 } from "@components/ui/table";
 import { formatBytes } from "@lib/format";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export interface DailyUsage {
     day: string;

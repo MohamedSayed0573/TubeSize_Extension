@@ -125,14 +125,14 @@ See [PRIVACY.md](PRIVACY.md) for details on what is stored and why.
 
 ## Technology Stack
 
-| Layer              | Technology                                                                            |
-| :----------------- | :------------------------------------------------------------------------------------ |
-| **Frontend & UI**  | React, TypeScript, WXT, React Router, TanStack Query, Recharts, Tailwind CSS, i18next |
-| **Storage**        | Dexie (IndexedDB), `chrome.storage.local` / `sync`                                    |
-| **Data parsing**   | Zod, `m3u8-parser`, cheerio, tldts                                                    |
-| **Testing**        | Jest, ts-jest, jest-extended                                                          |
-| **Tooling**        | ESLint, Knip, Prettier, Husky, lint-staged                                            |
-| **Packaging / CI** | WXT Manifest V3 builds, GitHub Actions                                                |
+| Layer              | Technology                                                                                |
+| :----------------- | :---------------------------------------------------------------------------------------- |
+| **Frontend & UI**  | React, TypeScript, WXT, React Router, TanStack Query, Recharts, Tailwind CSS, chrome.i18n |
+| **Storage**        | Dexie (IndexedDB), `chrome.storage.local` / `sync`                                        |
+| **Data parsing**   | Zod, `m3u8-parser`, cheerio, tldts                                                        |
+| **Testing**        | Jest, ts-jest, jest-extended                                                              |
+| **Tooling**        | ESLint, Knip, Prettier, Husky, lint-staged                                                |
+| **Packaging / CI** | WXT Manifest V3 builds, GitHub Actions                                                    |
 
 ---
 

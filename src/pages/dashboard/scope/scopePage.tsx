@@ -10,8 +10,8 @@ import DashboardNotFound from "../shared/notFound";
 import type { DateKey, UsageRange, UsageScope } from "@app-types/types";
 import PlatformCards from "./platformCards";
 import AllSitesTable from "./allSitesTable";
-import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
+import { useTranslation } from "@/i18n/i18n";
+import type { TFunction } from "@/i18n/i18n";
 
 function getTitle(range: UsageScope, t: TFunction): string {
     if (range.type === "range") {

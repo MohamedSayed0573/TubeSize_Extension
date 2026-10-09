@@ -1,6 +1,6 @@
 import { Skeleton } from "@components/ui/skeleton";
 import { Link } from "react-router";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 import DashboardBanner from "./dashboardBanner";
 import ClearUsageButton from "./clearUsageButton";
 

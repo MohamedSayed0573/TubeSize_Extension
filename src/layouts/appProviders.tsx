@@ -1,7 +1,6 @@
 import { DirectionProvider } from "@/components/ui/direction";
-import { useTranslation } from "react-i18next";
+import { getAppDirection } from "@/i18n/i18n";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
-    const { i18n } = useTranslation();
-    return <DirectionProvider direction={i18n.dir()}>{children}</DirectionProvider>;
+    return <DirectionProvider direction={getAppDirection()}>{children}</DirectionProvider>;
 }

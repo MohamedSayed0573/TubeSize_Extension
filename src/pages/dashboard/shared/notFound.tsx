@@ -1,7 +1,7 @@
 import DashboardBanner from "@pages/dashboard/overview/dashboardBanner";
 import { ArrowLeft } from "lucide-react";
 import ButtonLink from "@components/buttonLink";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export default function DashboardNotFound() {
     const { t } = useTranslation();

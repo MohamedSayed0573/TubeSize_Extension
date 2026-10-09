@@ -1,7 +1,7 @@
 import { AlertDialogBasic } from "@components/alertDialogBasic";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { clearDatabaseData } from "@/db";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 export default function ClearUsageButton() {
     const { t } = useTranslation();

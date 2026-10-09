@@ -6,7 +6,7 @@ import { capitalize, cn } from "@lib/utils";
 import { useWatchHistory } from "@hooks/useWatchHistory";
 import { ArrowRight } from "lucide-react";
 import type { PlatformId, UsageScope } from "@app-types/types";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/i18n";
 
 const PLATFORM_STYLES = {
     youtube: "border-l-red-500 hover:shadow-red-950/40",
