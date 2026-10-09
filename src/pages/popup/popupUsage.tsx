@@ -1,4 +1,3 @@
-import { t } from "@/i18n/t";
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { chromeNavigate, faviconURL } from "@lib/utils";
 import { Calendar, ChevronLeft, ChevronRight, Globe } from "lucide-react";
@@ -51,7 +50,7 @@ export default function PopupUsage({ text, usage, navigateTo, variant, origin }:
 }
 
 function ArrowIcon() {
-    const lang = t("@@bidi_dir") === "rtl" ? "rtl" : "ltr";
+    const lang = chrome.i18n.getUILanguage().toLowerCase().startsWith("ar") ? "rtl" : "ltr";
 
     const Icon = lang === "ltr" ? ChevronRight : ChevronLeft;
     return (

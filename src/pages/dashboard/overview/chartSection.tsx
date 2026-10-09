@@ -86,7 +86,7 @@ export function UsageChartSection({
                         </span>
                         <span className="text-sm text-teal-400/70">
                             {t(
-                                `dashboard_days_${new Intl.PluralRules(chrome.i18n.getUILanguage()).select(dayCount)}`,
+                                `dashboard_days_${new Intl.PluralRules(chrome.i18n.getUILanguage().toLowerCase().startsWith("ar") ? "ar" : "en").select(dayCount)}`,
                             ) || t("dashboard_days_other")}
                         </span>
                     </div>

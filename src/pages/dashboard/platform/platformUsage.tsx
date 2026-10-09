@@ -80,7 +80,9 @@ export default function PlatformUsage() {
                                 ? t("dashboard_noVideos")
                                 : t(
                                       `dashboard_videosCount_${new Intl.PluralRules(
-                                          chrome.i18n.getUILanguage(),
+                                          chrome.i18n.getUILanguage().toLowerCase().startsWith("ar")
+                                              ? "ar"
+                                              : "en",
                                       ).select(rows.length)}`,
                                       [rows.length],
                                   ) || t("dashboard_videosCount_other", [rows.length])}

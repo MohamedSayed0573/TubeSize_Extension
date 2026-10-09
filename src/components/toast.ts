@@ -34,9 +34,10 @@ export function createToast({
     okOnClick,
     dontShowAgainOnClick,
 }: ToastOptions): HTMLElement {
+    const isArabic = chrome.i18n.getUILanguage().toLowerCase().startsWith("ar");
     const container = el("div", "container");
-    container.lang = chrome.i18n.getUILanguage();
-    container.dir = t("@@bidi_dir") === "rtl" ? "rtl" : "ltr";
+    container.lang = isArabic ? "ar" : "en";
+    container.dir = isArabic ? "rtl" : "ltr";
 
     const row = el("div");
     row.append(el("span", "current-quality", t("toast_currentQuality", [currentQuality])));
