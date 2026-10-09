@@ -482,5 +482,13 @@
     "toast_dontShowAgain": {
         "message": "لا تعرض مرة أخرى في هذه الجلسة",
         "description": "Toast dismiss button"
+    },
+    "extName": {
+        "message": "TubeSize: تتبع استهلاك باقة الإنترنت",
+        "description": "Extension name shown in the browser and the store listing"
+    },
+    "extDescription": {
+        "message": "اعرف كل موقع بيستهلك كام من باقتك، وكل فيديو على يوتيوب وتويتش وكيك هيسحب كام قبل ما تشغله.",
+        "description": "Extension description for the store listing"
     }
 }
