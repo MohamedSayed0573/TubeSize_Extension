@@ -31,6 +31,8 @@ function perEntryVisualizer(): Plugin {
                             "stats",
                             `${entryNames(inputOptions.input).join("+")}.html`,
                         ),
+                        gzipSize: true,
+                        brotliSize: true,
                     }),
                 ],
             };

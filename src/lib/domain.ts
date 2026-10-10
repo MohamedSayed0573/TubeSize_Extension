@@ -1,4 +1,4 @@
-import { getDomain, getDomainWithoutSuffix } from "tldts";
+import { getDomain, getDomainWithoutSuffix } from "tldts-icann";
 import { capitalize } from "./utils";
 
 function getDomainName(origin: string) {
@@ -13,9 +13,6 @@ export function getOriginWithoutSuffix(origin: string) {
 export interface DomainUsage {
     domain: string;
     bytes: number;
-    /*
-     * An origin of this domain (the first one seen), usable for favicon lookups.
-     */
     origin: string;
 }
 
