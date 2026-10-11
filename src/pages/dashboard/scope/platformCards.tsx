@@ -1,4 +1,3 @@
-import { t } from "@/i18n/t";
 import { Link } from "react-router";
 import { formatBytes } from "@lib/format";
 import { PlatformLogo } from "../platform/platformLogos";
@@ -36,14 +35,10 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
     const entries = [...platformToBytes].toSorted(([, a], [, b]) => b - a);
 
     const gridColsClass =
-        entries.length <= 1
-            ? "md:grid-cols-1"
-            : entries.length === 2
-              ? "md:grid-cols-2"
-              : "md:grid-cols-3";
+        entries.length <= 1 ? "grid-cols-1" : entries.length === 2 ? "grid-cols-2" : "grid-cols-3";
 
     return (
-        <div className={cn("grid grid-cols-1 gap-3 p-4", gridColsClass)}>
+        <div className={cn("grid gap-3 p-4", gridColsClass)}>
             {entries.map(([platform, bytes]) => {
                 return (
                     <Link
@@ -56,14 +51,11 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
                     >
                         <PlatformLogo platform={platform} />
                         <div className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center">
-                            <span className="truncate font-mono text-lg font-bold text-stone-100">
+                            <span className="max-w-full truncate font-mono text-lg font-bold text-stone-100">
                                 {capitalize(platform)}
                             </span>
-                            <span className="font-mono text-sm text-balance text-stone-400">
-                                {t("dashboard_bytesUsed", [
-                                    formatBytes(bytes),
-                                    capitalize(platform),
-                                ])}
+                            <span className="max-w-full truncate font-mono text-sm text-stone-400">
+                                {formatBytes(bytes)}
                             </span>
                         </div>
                         <ArrowRight className="size-4 shrink-0 text-teal-500 opacity-0 transition-opacity group-hover:opacity-100 rtl:rotate-180" />

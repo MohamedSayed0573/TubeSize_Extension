@@ -375,20 +375,6 @@
         "message": "Nothing to export — start browsing to collect usage",
         "description": "Empty export error"
     },
-    "dashboard_bytesUsed": {
-        "message": "$1 from watching videos on $2 in this period",
-        "description": "Platform card bytes description",
-        "placeholders": {
-            "size": {
-                "content": "$1",
-                "example": "1.2 GB"
-            },
-            "platform": {
-                "content": "$2",
-                "example": "Youtube"
-            }
-        }
-    },
     "toast_title": {
         "message": "TubeSize | Warning: High Data Usage",
         "description": "High usage toast title"
