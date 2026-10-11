@@ -18,10 +18,11 @@ export default function SiteIcon({ origin, className, alt = "" }: SiteIconProps)
     const fallback = isFirefoxBrowser ? undefined : originFaviconURL(origin);
 
     const [failedOrigin, setFailedOrigin] = useState<string | undefined>();
-    const [useFallback, setUseFallback] = useState(false);
+    const [fallbackOrigin, setFallbackOrigin] = useState<string | undefined>();
 
     const isBroken = failedOrigin === origin;
-    const src = useFallback && !isBroken ? fallback : primary;
+    const isUsingFallback = fallbackOrigin !== undefined && fallbackOrigin === origin;
+    const src = isUsingFallback && !isBroken ? fallback : primary;
 
     if (!src || isBroken) {
         return <Globe className={className} />;
@@ -33,8 +34,8 @@ export default function SiteIcon({ origin, className, alt = "" }: SiteIconProps)
             className={className}
             alt={alt}
             onError={() => {
-                if (!useFallback && fallback && src !== fallback) {
-                    setUseFallback(true);
+                if (!isUsingFallback && fallback && src !== fallback) {
+                    setFallbackOrigin(origin);
                 } else {
                     setFailedOrigin(origin);
                 }
