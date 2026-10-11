@@ -20,7 +20,7 @@ TubeSize tracks data usage across all websites and estimates YouTube, Twitch, an
 
 ## What is transmitted
 
-Nothing goes to the developer, advertisers, or analytics services. To estimate sizes, the extension fetches public metadata directly from YouTube, Twitch (including GraphQL, usher, playlist/CDN), Kick (including playback/IVS/CDN), and HLS playlists, including small byte-range samples. If you are logged in to those sites, your browser may send their cookies with those requests per their own policies.
+Nothing goes to the developer, advertisers, or analytics services. To estimate sizes, the extension fetches public metadata directly from YouTube, Twitch (including GraphQL, usher, playlist/CDN), Kick (including playback/IVS/CDN), and HLS playlists, including small byte-range samples. If you are logged in to those sites, your browser may send their cookies with those requests per their own policies. To display the current site's icon, the popup requests the open site's `/favicon.ico` directly from the site (typically served from the browser cache since the site is already open), which can observe your IP address and the request timing. On Chromium the browser's local icon cache is used instead when available. The dashboard never requests website icons on Firefox (it shows a placeholder icon); on Chromium it uses the local icon cache.
 
 ## Sharing
 
@@ -38,7 +38,7 @@ HTTPS for platform requests; data kept in IndexedDB and extension storage on you
 
 ## Permissions
 
-`storage` (cache + settings), `webRequest` (read `Content-Length` on `<all_urls>` to count bytes), `favicon` (local site icons), `activeTab` (current supported tab), `<all_urls>` host/content scripts (count all-sites usage; size overlays only on YouTube/Twitch/Kick).
+`storage` (cache + settings), `webRequest` (read `Content-Length` on `<all_urls>` to count bytes), `favicon` on Chromium only (site icons via the browser's local `/_favicon/` cache; on Firefox the popup requests the open site's `<origin>/favicon.ico` directly, and the dashboard shows a placeholder without any website requests), `activeTab` (current supported tab), `<all_urls>` host/content scripts (count all-sites usage; size overlays only on YouTube/Twitch/Kick).
 
 ## Changes and contact
 

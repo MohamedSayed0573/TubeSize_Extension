@@ -1,6 +1,7 @@
+import SiteIcon from "@components/siteIcon";
 import { totalSizeVideoDisplay } from "@lib/formatting";
-import { chromeNavigate, faviconURL } from "@lib/utils";
-import { Calendar, ChevronLeft, ChevronRight, Globe } from "lucide-react";
+import { chromeNavigate } from "@lib/utils";
+import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 
 function splitSize(formatted: string): { value: string; unit: string } {
     const [value, unit] = formatted.split(" ");
@@ -68,12 +69,9 @@ function UsageIcon({ variant, origin }: { variant?: string; origin?: string }) {
             </div>
         );
 
-    const siteIconUrl = faviconURL(origin);
-    if (!siteIconUrl) return <Globe className="size-6.5" />;
-
     return (
         <div className="size-6.5">
-            <img src={siteIconUrl} className="h-full w-full object-cover" />
+            <SiteIcon origin={origin} className="h-full w-full object-cover" />
         </div>
     );
 }
