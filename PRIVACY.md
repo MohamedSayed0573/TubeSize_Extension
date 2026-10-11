@@ -38,7 +38,7 @@ HTTPS for platform requests; data kept in IndexedDB and extension storage on you
 
 ## Permissions
 
-`storage` (cache + settings), `webRequest` (read `Content-Length` on `<all_urls>` to count bytes), `favicon` (local site icons), `activeTab` (current supported tab), `<all_urls>` host/content scripts (count all-sites usage; size overlays only on YouTube/Twitch/Kick).
+`storage` (cache + settings), `webRequest` (read `Content-Length` on `<all_urls>` to count bytes), `favicon` on Chromium only (local site icons via `/_favicon/`, with a local `<origin>/favicon.ico` fallback on Firefox), `activeTab` (current supported tab), `<all_urls>` host/content scripts (count all-sites usage; size overlays only on YouTube/Twitch/Kick).
 
 ## Changes and contact
 
