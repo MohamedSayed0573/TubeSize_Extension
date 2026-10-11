@@ -1,6 +1,6 @@
 import { addSiteUsage, addWatchHistory, getSiteUsage } from "@/db";
 import { getUsageNumber } from "@lib/usage";
-import { getWatchHistoryTarget, toVideoKey } from "@lib/utils";
+import { getWatchHistoryTarget, isFirefox, toVideoKey } from "@lib/utils";
 import {
     recordKickMetadata,
     recordTwitchMetadata,
@@ -13,62 +13,102 @@ const FLUSH_INTERVAL_MS = 3000;
 const CONTENT_LENGTH_HEADER = "content-length";
 const NO_TAB_ID = -1;
 
+// Chrome reports `initiator` (already an origin); Firefox has no `initiator`
+// and reports `originUrl`/`documentUrl` (full URLs) instead.
+type CompletedRequestDetails = chrome.webRequest.OnCompletedDetails & {
+    originUrl?: string;
+    documentUrl?: string;
+};
+
 export function setupTrackUsage() {
     const buffer = new UsageBuffer();
 
     chrome.webRequest.onCompleted.addListener(
         (details) => trackRequest(buffer, details),
         { urls: ["<all_urls>"] },
-        ["responseHeaders", "extraHeaders"],
+        isFirefox() ? ["responseHeaders"] : ["responseHeaders", "extraHeaders"],
     );
 
     startFlushTimer(buffer);
 }
 
 function trackRequest(buffer: UsageBuffer, details: chrome.webRequest.OnCompletedDetails) {
-    if (!isCountableRequest(details)) return;
+    const requestDetails = details as CompletedRequestDetails;
+    if (!isCountableRequest(requestDetails)) return;
 
-    const bytes = getContentLength(details);
+    const bytes = getContentLength(requestDetails);
     if (bytes === undefined) return;
 
-    // Requests with no initiator can't be attributed to a page.
-    const origin = details.initiator;
+    // Requests that can't be attributed to a page origin are skipped.
+    const origin = getRequestOrigin(requestDetails);
     if (!origin) return;
 
     buffer.addOrigin(origin, bytes);
-    void trackWatchHistory(buffer, details.tabId, bytes);
+    void trackWatchHistory(buffer, requestDetails.tabId, bytes);
 }
 
 /**
  * Writes the buffered bytes every FLUSH_INTERVAL_MS.
  */
 function startFlushTimer(buffer: UsageBuffer) {
-    async function flushIfNeeded() {
+    async function flushBuffer() {
         // Skip the flush when there is nothing pending.
         if (!buffer.hasPendingUsage) return;
 
         try {
-            await flushUsage(buffer);
+            const { origins, videos } = buffer.drain();
+
+            try {
+                await addSiteUsage(origins);
+            } catch (err) {
+                buffer.restore({ origins, videos });
+                throw err;
+            }
+
+            try {
+                await addWatchHistory(videos);
+            } catch (err) {
+                buffer.restore({ origins: {}, videos });
+                throw err;
+            }
+
+            await refreshBadge();
         } catch (err) {
             console.error("Failed to flush usage:", err);
         }
     }
 
     setInterval(() => {
-        void flushIfNeeded();
+        void flushBuffer();
     }, FLUSH_INTERVAL_MS);
 }
 
-function isCountableRequest(details: chrome.webRequest.OnCompletedDetails) {
+async function refreshBadge() {
+    const siteUsage = await getSiteUsage();
+    await setUsageBadge(getUsageNumber(siteUsage ? [siteUsage] : []));
+}
+
+function isCountableRequest(details: CompletedRequestDetails) {
     return !(
         details.tabId === NO_TAB_ID ||
-        details.url.startsWith("chrome-extension://") ||
-        // Requests initiated by the extension itself (dashboard, quality menu)
-        // belong to TubeSize, not to the site being measured.
-        details.initiator?.startsWith("chrome-extension://") ||
+        isExtensionUrl(details.initiator ?? details.originUrl ?? details.documentUrl) ||
         details.fromCache ||
         details.method === "HEAD"
     );
+}
+
+function getRequestOrigin(details: CompletedRequestDetails): string | undefined {
+    const source = details.initiator ?? details.originUrl ?? details.documentUrl;
+    if (!source || isExtensionUrl(source)) return;
+    try {
+        return new URL(source).origin;
+    } catch {
+        return;
+    }
+}
+
+function isExtensionUrl(url: string | undefined): boolean {
+    return !!url && (url.startsWith("chrome-extension://") || url.startsWith("moz-extension://"));
 }
 
 /**
@@ -105,29 +145,4 @@ async function trackWatchHistory(buffer: UsageBuffer, tabId: number, bytes: numb
     } catch (err) {
         console.error("Failed to attribute usage to a video:", err);
     }
-}
-
-async function flushUsage(buffer: UsageBuffer) {
-    const { origins, videos } = buffer.drain();
-
-    try {
-        await addSiteUsage(origins);
-    } catch (err) {
-        buffer.restore({ origins, videos });
-        throw err;
-    }
-
-    try {
-        await addWatchHistory(videos);
-    } catch (err) {
-        buffer.restore({ origins: {}, videos });
-        throw err;
-    }
-
-    await refreshBadge();
-}
-
-async function refreshBadge() {
-    const siteUsage = await getSiteUsage();
-    await setUsageBadge(getUsageNumber(siteUsage ? [siteUsage] : []));
 }

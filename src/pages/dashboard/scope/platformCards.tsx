@@ -34,18 +34,17 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
     const search = buildPlatformSearch(scope);
     const entries = [...platformToBytes].toSorted(([, a], [, b]) => b - a);
 
-    const gridColsClass =
-        entries.length <= 1 ? "grid-cols-1" : entries.length === 2 ? "grid-cols-2" : "grid-cols-3";
-
     return (
-        <div className={cn("grid gap-3 p-4", gridColsClass)}>
+        <div
+            className={cn("mx-auto flex w-full max-w-4xl flex-wrap justify-center gap-3 px-4 py-4")}
+        >
             {entries.map(([platform, bytes]) => {
                 return (
                     <Link
                         key={platform}
                         to={`/platform/${platform}${search}`}
                         className={cn(
-                            "group flex w-full min-w-0 items-center gap-3 rounded-xl border border-l-6 border-neutral-800 bg-neutral-900 py-3 pr-3 pl-2 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-neutral-800/80",
+                            "group flex w-full items-center gap-3 rounded-xl border border-l-6 border-neutral-800 bg-neutral-900 py-3 pr-3 pl-2 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-neutral-800/80 sm:w-[340px] sm:flex-none",
                             PLATFORM_STYLES[platform],
                         )}
                     >

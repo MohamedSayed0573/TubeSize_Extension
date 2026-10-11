@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Globe } from "lucide-react";
 import { faviconURL, isFirefox, originFaviconURL } from "@lib/utils";
 
@@ -13,20 +13,18 @@ interface SiteIconProps {
  * website request), else a `Globe` placeholder. No third-party service.
  */
 export default function SiteIcon({ origin, className, alt = "" }: SiteIconProps) {
-    const firefox = isFirefox();
-    const primary = firefox ? originFaviconURL(origin) : faviconURL(origin);
-    const fallback = firefox ? undefined : originFaviconURL(origin);
+    const isFirefoxBrowser = isFirefox();
+    const primary = isFirefoxBrowser ? originFaviconURL(origin) : faviconURL(origin);
+    const fallback = isFirefoxBrowser ? undefined : originFaviconURL(origin);
 
-    const [useFallback, setUseFallback] = useState(false);
-    const [broken, setBroken] = useState(false);
+    const [failedOrigin, setFailedOrigin] = useState<string | undefined>();
+    const [fallbackOrigin, setFallbackOrigin] = useState<string | undefined>();
 
-    useEffect(() => {
-        setUseFallback(false);
-        setBroken(false);
-    }, [origin]);
+    const isBroken = failedOrigin === origin;
+    const isUsingFallback = fallbackOrigin !== undefined && fallbackOrigin === origin;
+    const src = isUsingFallback && !isBroken ? fallback : primary;
 
-    const src = useFallback ? fallback : primary;
-    if (!src || broken) {
+    if (!src || isBroken) {
         return <Globe className={className} />;
     }
 
@@ -36,10 +34,10 @@ export default function SiteIcon({ origin, className, alt = "" }: SiteIconProps)
             className={className}
             alt={alt}
             onError={() => {
-                if (!useFallback && fallback && src !== fallback) {
-                    setUseFallback(true);
+                if (!isUsingFallback && fallback && src !== fallback) {
+                    setFallbackOrigin(origin);
                 } else {
-                    setBroken(true);
+                    setFailedOrigin(origin);
                 }
             }}
         />

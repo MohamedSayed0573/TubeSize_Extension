@@ -27,9 +27,16 @@ import {
 } from "@lib/youtube";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
+import { getUsageNumber } from "@/lib/usage";
+import { setUsageBadge } from "@/badge";
 
 function isValidUsageBytes(usage: unknown): usage is number {
     return typeof usage === "number" && Number.isFinite(usage) && usage >= 0;
+}
+
+async function refreshBadge() {
+    const siteUsage = await getSiteUsage();
+    await setUsageBadge(getUsageNumber(siteUsage ? [siteUsage] : []));
 }
 
 export async function handleAddUsage(message: AddUsageMessage): Promise<AddUsageResponse> {
@@ -38,6 +45,8 @@ export async function handleAddUsage(message: AddUsageMessage): Promise<AddUsage
         if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
 
         await addSiteUsage({ [origin]: bytes });
+
+        await refreshBadge();
 
         return { success: true, data: null };
     } catch (err) {
