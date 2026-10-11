@@ -10,7 +10,9 @@ import {
 } from "@components/ui/table";
 import { formatBytes } from "@lib/format";
 import { sumByDomain, type DomainUsage } from "@lib/domain";
+import { isFirefox } from "@lib/utils";
 import SiteIcon from "@components/siteIcon";
+import { Globe } from "lucide-react";
 import { t } from "@/i18n/t";
 
 export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
@@ -73,11 +75,18 @@ function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share
             <TableCell>
                 <div className="flex items-center gap-2.5">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-neutral-700 bg-neutral-950 p-1">
-                        <SiteIcon
-                            origin={row.origin}
-                            className="h-full w-full rounded-sm"
-                            alt={t("common_website")}
-                        />
+                        {isFirefox() ? (
+                            // No /_favicon/ endpoint on Firefox, and fetching
+                            // per-site icons here would contact websites from
+                            // saved history with closed tabs. Stay silent.
+                            <Globe className="h-full w-full rounded-sm" />
+                        ) : (
+                            <SiteIcon
+                                origin={row.origin}
+                                className="h-full w-full rounded-sm"
+                                alt={t("common_website")}
+                            />
+                        )}
                     </span>
                     <span className="block truncate text-stone-200">{row.domain}</span>
                 </div>
