@@ -1,6 +1,6 @@
 import { addSiteUsage, addWatchHistory, getSiteUsage } from "@/db";
 import { getUsageNumber } from "@lib/usage";
-import { getWatchHistoryTarget, toVideoKey } from "@lib/utils";
+import { getWatchHistoryTarget, isFirefox, toVideoKey } from "@lib/utils";
 import {
     recordKickMetadata,
     recordTwitchMetadata,
@@ -19,7 +19,7 @@ export function setupTrackUsage() {
     chrome.webRequest.onCompleted.addListener(
         (details) => trackRequest(buffer, details),
         { urls: ["<all_urls>"] },
-        ["responseHeaders", "extraHeaders"],
+        isFirefox() ? ["responseHeaders"] : ["responseHeaders", "extraHeaders"],
     );
 
     startFlushTimer(buffer);
