@@ -271,12 +271,34 @@ export function chromeNavigate(pageName: string | undefined) {
     });
 }
 
+/**
+ * True on Firefox (user-agent check; avoids Chromium-only endpoints).
+ */
+export function isFirefox(): boolean {
+    return typeof navigator !== "undefined" && navigator.userAgent.includes("Firefox");
+}
+
 export function faviconURL(u: string | undefined) {
     try {
         if (!u) return;
         const url = new URL(chrome.runtime.getURL("/_favicon/"));
         url.searchParams.set("pageUrl", u);
         url.searchParams.set("size", "32");
+        return url.href;
+    } catch {
+        return;
+    }
+}
+
+/**
+ * Fallback for `faviconURL()` where `/_favicon/` is unavailable (Firefox).
+ * Note: a direct website request, not a local lookup.
+ */
+export function originFaviconURL(origin: string | undefined) {
+    try {
+        if (!origin) return;
+        const url = new URL("/favicon.ico", origin);
+        if (url.protocol !== "http:" && url.protocol !== "https:") return;
         return url.href;
     } catch {
         return;

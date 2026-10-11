@@ -10,7 +10,9 @@ import {
 } from "@components/ui/table";
 import { formatBytes } from "@lib/format";
 import { sumByDomain, type DomainUsage } from "@lib/domain";
-import { faviconURL } from "@lib/utils";
+import { isFirefox } from "@lib/utils";
+import SiteIcon from "@components/siteIcon";
+import { Globe } from "lucide-react";
 import { t } from "@/i18n/t";
 
 export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
@@ -64,8 +66,6 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
 }
 
 function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share: number }) {
-    const iconUrl = faviconURL(row.origin);
-
     return (
         <TableRow
             key={index}
@@ -74,15 +74,19 @@ function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share
             <TableCell className="text-center text-neutral-500">{index + 1}</TableCell>
             <TableCell>
                 <div className="flex items-center gap-2.5">
-                    {iconUrl && (
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-neutral-700 bg-neutral-950 p-1">
-                            <img
-                                src={iconUrl}
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-neutral-700 bg-neutral-950 p-1">
+                        {isFirefox() ? (
+                            // Placeholder: no icon endpoint on Firefox, and
+                            // fetching here would contact closed-tab sites.
+                            <Globe className="h-full w-full rounded-sm" />
+                        ) : (
+                            <SiteIcon
+                                origin={row.origin}
                                 className="h-full w-full rounded-sm"
                                 alt={t("common_website")}
                             />
-                        </span>
-                    )}
+                        )}
+                    </span>
                     <span className="block truncate text-stone-200">{row.domain}</span>
                 </div>
             </TableCell>

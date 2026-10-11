@@ -77,7 +77,13 @@ export default defineConfig({
             },
         },
         host_permissions: ["<all_urls>"],
-        permissions: ["activeTab", "storage", "webRequest", "favicon"],
+        // `favicon` is Chromium-only; unknown to Firefox so omitted there.
+        permissions: [
+            "activeTab",
+            "storage",
+            "webRequest",
+            ...(browser === "firefox" ? [] : ["favicon"]),
+        ],
         commands: {
             _execute_action: {
                 suggested_key: {
