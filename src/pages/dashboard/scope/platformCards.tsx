@@ -35,15 +35,24 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
     const search = buildPlatformSearch(scope);
     const entries = [...platformToBytes].toSorted(([, a], [, b]) => b - a);
 
+    // Keep all cards on a single row (1, 2, or 3). Stack only on small
+    // screens so 3 cards never split 2 + 1 across two rows.
+    const gridColsClass =
+        entries.length <= 1
+            ? "md:grid-cols-1"
+            : entries.length === 2
+              ? "md:grid-cols-2"
+              : "md:grid-cols-3";
+
     return (
-        <div className="flex flex-wrap justify-center gap-3 p-4">
+        <div className={cn("grid grid-cols-1 gap-3 p-4", gridColsClass)}>
             {entries.map(([platform, bytes]) => {
                 return (
                     <Link
                         key={platform}
                         to={`/platform/${platform}${search}`}
                         className={cn(
-                            "group flex w-full max-w-md items-center gap-3 rounded-xl border border-l-6 border-neutral-800 bg-neutral-900 py-3 pr-3 pl-2 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-neutral-800/80",
+                            "group flex w-full min-w-0 items-center gap-3 rounded-xl border border-l-6 border-neutral-800 bg-neutral-900 py-3 pr-3 pl-2 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-neutral-800/80",
                             PLATFORM_STYLES[platform],
                         )}
                     >
