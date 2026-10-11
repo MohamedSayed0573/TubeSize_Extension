@@ -272,10 +272,7 @@ export function chromeNavigate(pageName: string | undefined) {
 }
 
 /**
- * Whether the extension is running on Firefox. A runtime user-agent check is
- * used instead of WXT's build-time `import.meta.env.FIREFOX` so unit tests
- * (which cannot parse `import.meta`) keep working. Used to avoid
- * Chromium-only endpoints (like `/_favicon/`) on Firefox.
+ * True on Firefox (user-agent check; avoids Chromium-only endpoints).
  */
 export function isFirefox(): boolean {
     return typeof navigator !== "undefined" && navigator.userAgent.includes("Firefox");
@@ -294,14 +291,8 @@ export function faviconURL(u: string | undefined) {
 }
 
 /**
- * Cross-browser favicon fallback for `faviconURL()`.
- *
- * `/_favicon/` only exists on Chromium. On Firefox it resolves to a
- * non-existent `moz-extension://<id>/_favicon/` URL, so callers should fall
- * back to the site's own `/favicon.ico` (covered by `<all_urls>`) and finally
- * to a placeholder icon. Note this fallback is a direct website request, not
- * a local lookup: loading it contacts that site. No third-party icon service
- * is used.
+ * Fallback for `faviconURL()` where `/_favicon/` is unavailable (Firefox).
+ * Note: a direct website request, not a local lookup.
  */
 export function originFaviconURL(origin: string | undefined) {
     try {

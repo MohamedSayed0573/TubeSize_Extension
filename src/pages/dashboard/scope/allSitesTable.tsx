@@ -76,9 +76,8 @@ function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share
                 <div className="flex items-center gap-2.5">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-neutral-700 bg-neutral-950 p-1">
                         {isFirefox() ? (
-                            // No /_favicon/ endpoint on Firefox, and fetching
-                            // per-site icons here would contact websites from
-                            // saved history with closed tabs. Stay silent.
+                            // Placeholder: no icon endpoint on Firefox, and
+                            // fetching here would contact closed-tab sites.
                             <Globe className="h-full w-full rounded-sm" />
                         ) : (
                             <SiteIcon

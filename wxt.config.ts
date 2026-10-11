@@ -77,8 +77,7 @@ export default defineConfig({
             },
         },
         host_permissions: ["<all_urls>"],
-        // `favicon` powers chrome.runtime.getURL("/_favicon/") on Chromium.
-        // It is not a valid Firefox permission, so only request it there.
+        // `favicon` is Chromium-only; unknown to Firefox so omitted there.
         permissions: [
             "activeTab",
             "storage",
