@@ -35,8 +35,6 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
     const search = buildPlatformSearch(scope);
     const entries = [...platformToBytes].toSorted(([, a], [, b]) => b - a);
 
-    // Keep all cards on a single row (1, 2, or 3). Stack only on small
-    // screens so 3 cards never split 2 + 1 across two rows.
     const gridColsClass =
         entries.length <= 1
             ? "md:grid-cols-1"
