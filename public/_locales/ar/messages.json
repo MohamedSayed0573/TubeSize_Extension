@@ -417,20 +417,6 @@
         "message": "لا يوجد شيء للتصدير — ابدأ التصفح لتجميع بيانات الاستهلاك",
         "description": "Empty export error"
     },
-    "dashboard_bytesUsed": {
-        "message": "استهلكت $1 من مشاهدة الفيديوهات على $2 في هذه الفترة",
-        "description": "Platform card bytes description",
-        "placeholders": {
-            "size": {
-                "content": "$1",
-                "example": "1.2 GB"
-            },
-            "platform": {
-                "content": "$2",
-                "example": "Youtube"
-            }
-        }
-    },
     "toast_title": {
         "message": "TubeSize | تحذير: استهلاك بيانات مرتفع",
         "description": "High usage toast title"
