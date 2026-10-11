@@ -108,7 +108,7 @@ function getRequestOrigin(details: CompletedRequestDetails): string | undefined 
 }
 
 function isExtensionUrl(url: string | undefined): boolean {
-    return !!url && (url.startsWith("chrome-extension://") || url?.startsWith("moz-extension://"));
+    return !!url && (url.startsWith("chrome-extension://") || url.startsWith("moz-extension://"));
 }
 
 /**

@@ -46,7 +46,7 @@ export async function handleAddUsage(message: AddUsageMessage): Promise<AddUsage
 
         await addSiteUsage({ [origin]: bytes });
 
-        refreshBadge();
+        await refreshBadge();
 
         return { success: true, data: null };
     } catch (err) {

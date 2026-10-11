@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Globe } from "lucide-react";
 import { faviconURL, isFirefox, originFaviconURL } from "@lib/utils";
 
@@ -13,20 +13,17 @@ interface SiteIconProps {
  * website request), else a `Globe` placeholder. No third-party service.
  */
 export default function SiteIcon({ origin, className, alt = "" }: SiteIconProps) {
-    const firefox = isFirefox();
-    const primary = firefox ? originFaviconURL(origin) : faviconURL(origin);
-    const fallback = firefox ? undefined : originFaviconURL(origin);
+    const isFirefoxBrowser = isFirefox();
+    const primary = isFirefoxBrowser ? originFaviconURL(origin) : faviconURL(origin);
+    const fallback = isFirefoxBrowser ? undefined : originFaviconURL(origin);
 
+    const [failedOrigin, setFailedOrigin] = useState<string | undefined>();
     const [useFallback, setUseFallback] = useState(false);
-    const [broken, setBroken] = useState(false);
 
-    useEffect(() => {
-        setUseFallback(false);
-        setBroken(false);
-    }, [origin]);
+    const isBroken = failedOrigin === origin;
+    const src = useFallback && !isBroken ? fallback : primary;
 
-    const src = useFallback ? fallback : primary;
-    if (!src || broken) {
+    if (!src || isBroken) {
         return <Globe className={className} />;
     }
 
@@ -39,7 +36,7 @@ export default function SiteIcon({ origin, className, alt = "" }: SiteIconProps)
                 if (!useFallback && fallback && src !== fallback) {
                     setUseFallback(true);
                 } else {
-                    setBroken(true);
+                    setFailedOrigin(origin);
                 }
             }}
         />
