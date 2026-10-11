@@ -41,7 +41,6 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
                         navigateTo={`dashboard/site/${getOriginWithoutSuffix(origin)}`}
                         variant="siteUsage"
                         origin={origin}
-                        favIconUrl={tab?.favIconUrl}
                     />
                 )}
             </div>

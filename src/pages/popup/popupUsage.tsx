@@ -1,6 +1,6 @@
 import SiteIcon from "@components/siteIcon";
 import { totalSizeVideoDisplay } from "@lib/formatting";
-import { chromeNavigate, isFirefox } from "@lib/utils";
+import { chromeNavigate } from "@lib/utils";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 
 function splitSize(formatted: string): { value: string; unit: string } {
@@ -14,17 +14,9 @@ interface PopupUsageProps {
     navigateTo: string;
     variant?: "todayUsage" | "siteUsage";
     origin?: string;
-    favIconUrl?: string;
 }
 
-export default function PopupUsage({
-    text,
-    usage,
-    navigateTo,
-    variant,
-    origin,
-    favIconUrl,
-}: PopupUsageProps) {
+export default function PopupUsage({ text, usage, navigateTo, variant, origin }: PopupUsageProps) {
     if (!usage) return;
 
     const formatted = totalSizeVideoDisplay(usage);
@@ -33,7 +25,7 @@ export default function PopupUsage({
     const content = (
         <>
             <span className={"flex size-7 items-center justify-center overflow-hidden rounded-md"}>
-                <UsageIcon variant={variant} origin={origin} favIconUrl={favIconUrl} />
+                <UsageIcon variant={variant} origin={origin} />
             </span>
             <span className="flex flex-1 flex-col gap-0.5">
                 <span className="truncate text-[13px] font-medium text-zinc-400">{text}</span>
@@ -66,15 +58,7 @@ function ArrowIcon() {
     );
 }
 
-function UsageIcon({
-    variant,
-    origin,
-    favIconUrl,
-}: {
-    variant?: string;
-    origin?: string;
-    favIconUrl?: string;
-}) {
+function UsageIcon({ variant, origin }: { variant?: string; origin?: string }) {
     if (variant === "todayUsage")
         return (
             <div className="relative">
@@ -84,20 +68,6 @@ function UsageIcon({
                 </span>
             </div>
         );
-
-    // On Firefox there is no /_favicon/ endpoint. Prefer the browser-known
-    // tab icon (zero requests), then the site's own /favicon.ico, then Globe.
-    if (isFirefox()) {
-        return (
-            <div className="size-6.5">
-                <SiteIcon
-                    iconUrl={favIconUrl}
-                    origin={origin}
-                    className="h-full w-full object-cover"
-                />
-            </div>
-        );
-    }
 
     return (
         <div className="size-6.5">

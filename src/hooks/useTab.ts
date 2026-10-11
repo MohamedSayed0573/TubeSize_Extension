@@ -9,7 +9,6 @@ export default function useTab() {
             return {
                 tabId: activeTab?.id,
                 tabUrl: activeTab?.url,
-                favIconUrl: activeTab?.favIconUrl,
             };
         },
     });
