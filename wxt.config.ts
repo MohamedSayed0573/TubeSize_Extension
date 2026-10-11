@@ -77,7 +77,14 @@ export default defineConfig({
             },
         },
         host_permissions: ["<all_urls>"],
-        permissions: ["activeTab", "storage", "webRequest", "favicon"],
+        // `favicon` powers chrome.runtime.getURL("/_favicon/") on Chromium.
+        // It is not a valid Firefox permission, so only request it there.
+        permissions: [
+            "activeTab",
+            "storage",
+            "webRequest",
+            ...(browser === "firefox" ? [] : ["favicon"]),
+        ],
         commands: {
             _execute_action: {
                 suggested_key: {

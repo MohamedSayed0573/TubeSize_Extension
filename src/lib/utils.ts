@@ -283,6 +283,25 @@ export function faviconURL(u: string | undefined) {
     }
 }
 
+/**
+ * Local cross-browser favicon fallback for `faviconURL()`.
+ *
+ * `/_favicon/` only exists on Chromium. On Firefox it resolves to a
+ * non-existent `moz-extension://<id>/_favicon/` URL, so callers should fall
+ * back to the site's own `/favicon.ico` (covered by `<all_urls>`) and finally
+ * to a placeholder icon. Stays local: no third-party icon service.
+ */
+export function originFaviconURL(origin: string | undefined) {
+    try {
+        if (!origin) return;
+        const url = new URL("/favicon.ico", origin);
+        if (url.protocol !== "http:" && url.protocol !== "https:") return;
+        return url.href;
+    } catch {
+        return;
+    }
+}
+
 // Video keys must match background.ts's tabIdToVideoKey (`<platform>:<id>`)
 export function getWatchHistoryTarget(
     url: string,
