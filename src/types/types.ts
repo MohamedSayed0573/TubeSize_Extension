@@ -36,7 +36,6 @@ type GetUsageMessage = {
 export type AddUsageMessage = {
     type: "addUsage";
     bytes: number;
-    origin: string;
 };
 
 export type AddWatchHistoryMessage = Prettify<

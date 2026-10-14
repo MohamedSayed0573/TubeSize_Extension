@@ -27,7 +27,6 @@ export default defineContentScript({
                 void sendMessageToBackground({
                     type: "addUsage",
                     bytes,
-                    origin: event.origin,
                 });
                 //eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
             } else if (message.type === "TUBESIZE_WATCH_HISTORY") {
