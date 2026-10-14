@@ -24,7 +24,7 @@ export function setupTrackUsage() {
     const buffer = new UsageBuffer();
 
     chrome.webRequest.onCompleted.addListener(
-        (details) => trackRequest(buffer, details),
+        (details) => void trackRequest(buffer, details),
         { urls: ["<all_urls>"] },
         isFirefox() ? ["responseHeaders"] : ["responseHeaders", "extraHeaders"],
     );
@@ -32,19 +32,26 @@ export function setupTrackUsage() {
     startFlushTimer(buffer);
 }
 
-function trackRequest(buffer: UsageBuffer, details: chrome.webRequest.OnCompletedDetails) {
-    const requestDetails = details as CompletedRequestDetails;
-    if (!isCountableRequest(requestDetails)) return;
+async function trackRequest(buffer: UsageBuffer, details: chrome.webRequest.OnCompletedDetails) {
+    try {
+        const requestDetails = details as CompletedRequestDetails;
+        if (!isCountableRequest(requestDetails)) return;
 
-    const bytes = getContentLength(requestDetails);
-    if (bytes === undefined) return;
+        const bytes = getContentLength(requestDetails);
+        if (bytes === undefined) return;
 
-    // Requests that can't be attributed to a page origin are skipped.
-    const origin = getRequestOrigin(requestDetails);
-    if (!origin) return;
+        // Requests that can't be attributed to a page origin are skipped.
+        const origin = await getRequestOrigin(requestDetails);
+        if (!origin) {
+            throw new Error("Skipping request from unknown origin: " + requestDetails.url);
+        }
+        console.log(origin);
 
-    buffer.addOrigin(origin, bytes);
-    void trackWatchHistory(buffer, requestDetails.tabId, bytes);
+        buffer.addOrigin(origin, bytes);
+        void trackWatchHistory(buffer, requestDetails.tabId, bytes);
+    } catch (err) {
+        console.error("Failed to track request usage:", err);
+    }
 }
 
 /**
@@ -97,14 +104,13 @@ function isCountableRequest(details: CompletedRequestDetails) {
     );
 }
 
-function getRequestOrigin(details: CompletedRequestDetails): string | undefined {
-    const source = details.initiator ?? details.originUrl ?? details.documentUrl;
-    if (!source || isExtensionUrl(source)) return;
-    try {
-        return new URL(source).origin;
-    } catch {
-        return;
-    }
+async function getRequestOrigin(details: CompletedRequestDetails): Promise<string | undefined> {
+    const tabId = details.tabId;
+
+    const tab = await chrome.tabs.get(tabId);
+    const origin = tab.url ? new URL(tab.url).origin : undefined;
+
+    return origin;
 }
 
 function isExtensionUrl(url: string | undefined): boolean {
