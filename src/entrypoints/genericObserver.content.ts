@@ -10,7 +10,8 @@
 // Usage accounting installed here (all dedup against background.ts's webRequest
 // path, which counts every response with a known Content-Length):
 //   1. fetch() patch — streamed/chunked response bodies fetched by the page
-//   2. Worker wrap — re-hosts classic web workers with a counting bootstrap,
+//   2. XMLHttpRequest patch — response progress for bodies without Content-Length
+//   3. Worker wrap — re-hosts classic web workers with a counting bootstrap,
 //      so fetch() inside workers (Twitch's video worker) is counted too
 
 import { defineContentScript } from "wxt/utils/define-content-script";
@@ -118,6 +119,40 @@ export default defineContentScript({
             });
 
             return response;
+        };
+
+        // Count XHR downloads incrementally, regardless of responseType.
+        // Called below with the original XHR instance as its receiver.
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        const _send = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.send = function (body) {
+            let loaded = 0;
+            const countProgress = (event: ProgressEvent) => {
+                // Local reads (including our worker source reads) aren't network usage.
+                if (this.responseURL.startsWith("blob:") || this.responseURL.startsWith("data:")) {
+                    return;
+                }
+                if (Number(this.getResponseHeader("content-length")) > 0) return;
+
+                total += Math.max(0, event.loaded - loaded);
+                loaded = Math.max(loaded, event.loaded);
+            };
+            const cleanup = () => {
+                this.removeEventListener("progress", countProgress);
+                this.removeEventListener("loadend", onLoadEnd);
+            };
+            const onLoadEnd = (event: ProgressEvent) => {
+                countProgress(event);
+                cleanup();
+            };
+            this.addEventListener("progress", countProgress);
+            this.addEventListener("loadend", onLoadEnd);
+            try {
+                return _send.call(this, body);
+            } catch (err) {
+                cleanup();
+                throw err;
+            }
         };
 
         // ---- Worker wrapping: count streaming inside dedicated workers -------------
