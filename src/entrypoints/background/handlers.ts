@@ -39,9 +39,17 @@ async function refreshBadge() {
     await setUsageBadge(getUsageNumber(siteUsage ? [siteUsage] : []));
 }
 
-export async function handleAddUsage(message: AddUsageMessage): Promise<AddUsageResponse> {
+export async function handleAddUsage(
+    message: AddUsageMessage,
+    sender: chrome.runtime.MessageSender,
+): Promise<AddUsageResponse> {
     try {
-        const { bytes, origin } = message;
+        const tabUrl = sender.tab?.url;
+        if (!tabUrl) throw new Error("No origin in handleAddUsage");
+
+        const origin = new URL(tabUrl).origin;
+
+        const { bytes } = message;
         if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
 
         await addSiteUsage({ [origin]: bytes });

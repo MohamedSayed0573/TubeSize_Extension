@@ -11,7 +11,7 @@ import {
 
 async function handleMessage(
     message: FrontEndMessage,
-    _sender: chrome.runtime.MessageSender,
+    sender: chrome.runtime.MessageSender,
     sendResponse: (response: any) => void,
 ): Promise<void> {
     switch (message.type) {
@@ -27,7 +27,7 @@ async function handleMessage(
             return sendResponse(await handleKick(message));
         }
         case "addUsage": {
-            return sendResponse(await handleAddUsage(message));
+            return sendResponse(await handleAddUsage(message, sender));
         }
         case "getUsage": {
             return sendResponse(await handleGetUsage());
