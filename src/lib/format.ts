@@ -1,9 +1,17 @@
-import { filesize } from "filesize";
+import { filesize, type FilesizeOptions } from "filesize";
 
 /**
  * Formats bytes as a human-readable string.
- * @example formatBytes(1024) returns "1 KB"
+ * @example formatBytes(1000) returns "1 KB"
  */
-export function formatBytes(bytes: number, options?: { round: number }) {
-    return filesize(bytes, { base: 10, standard: "jedec", round: 2, ...options });
+export function formatBytes(bytes: number, options?: FilesizeOptions) {
+    const [value, unit] = filesize(bytes, {
+        base: 10,
+        standard: "si",
+        round: 2,
+        ...options,
+    }).split(" ");
+
+    const formattedUnit = options?.standard === "iec" ? unit : unit!.toUpperCase();
+    return `${value} ${formattedUnit}`;
 }
