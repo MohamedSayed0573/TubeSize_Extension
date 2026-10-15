@@ -28,7 +28,7 @@ export default function PopupUsage({ text, usage, navigateTo, variant, origin }:
             <span className={"flex size-7 items-center justify-center overflow-hidden rounded-md"}>
                 <UsageIcon variant={variant} origin={origin} />
             </span>
-            <span className="flex flex-1 flex-col gap-0.5">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="truncate text-[13px] font-medium text-zinc-400">{text}</span>
                 <span className="flex items-center">
                     <span className="text-[13px] font-semibold text-white">{value}</span>
