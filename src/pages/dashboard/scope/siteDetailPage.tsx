@@ -17,7 +17,7 @@ export default function SiteDetailPage() {
     data.forEach(({ day, usage }) => {
         const bytes = Object.entries(usage)
             .filter(([origin]) => getOriginWithoutSuffix(origin) === siteName)
-            .map(([, bytes]) => bytes)
+            .map(([, byteCount]) => byteCount)
             .reduce((sum, current) => sum + current, 0);
 
         dayToBytes.set(day, bytes);

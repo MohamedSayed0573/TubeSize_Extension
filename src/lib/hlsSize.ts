@@ -66,7 +66,7 @@ export async function estimateHlsStreamSizes(
 
     const streamResults = await Promise.allSettled(
         [...mediaUrlByHeight].map(async ([height, url]) => {
-            const resolution = Number(height);
+            const resolution = height;
 
             const manifest = await fetchMediaM3u8(url);
 
@@ -133,7 +133,7 @@ export async function estimateHlsStreamSizes(
                 return item;
             }
             const masterItem = masterM3U8Data.find(
-                (masterItem) => masterItem.attributes.RESOLUTION?.height === item.resolution,
+                (candidate) => candidate.attributes.RESOLUTION?.height === item.resolution,
             );
             const bitrate = masterItem?.attributes.BANDWIDTH;
             return {

@@ -40,9 +40,9 @@ export default function PlatformUsage() {
     const platform = platformId;
     const rows: VideoRowDetails[] = watchHistory.flatMap(({ day, videos }) => {
         return Object.entries(videos).flatMap(([videoKey, bytes]) => {
-            const { platform, videoTag } = parseVideoKey(videoKey);
+            const { platform: videoPlatform, videoTag } = parseVideoKey(videoKey);
 
-            if (platform !== platformId) return [];
+            if (videoPlatform !== platformId) return [];
 
             const videoMetadata = metadata.find((m) => m.videoKey === videoKey);
 

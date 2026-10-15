@@ -3,7 +3,7 @@ import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.typ
 import { getDateKey } from "@lib/dateUtils";
 import type { SettingsMap, StorageData } from "@app-types/types";
 
-async function setToCache<T extends Record<string, unknown>>(storage: "local" | "sync", input: T) {
+async function setToCache(storage: "local" | "sync", input: Record<string, unknown>) {
     await chrome.storage[storage].set(input);
 }
 export async function setToLocalCache(input: Record<string, unknown>) {
@@ -11,7 +11,7 @@ export async function setToLocalCache(input: Record<string, unknown>) {
 }
 
 export async function setToSyncCache(input: SettingsMap) {
-    return setToCache<SettingsMap>("sync", input);
+    return setToCache("sync", input);
 }
 
 function getFromCache<T>(storage: "local" | "sync"): Promise<Record<string, T> | undefined>;
@@ -60,25 +60,19 @@ export async function getAllFromSyncCache() {
     return getFromCache<SettingsMap>("sync");
 }
 
-export function getFromSyncCache<T extends keyof SettingsMap, K extends SettingsMap[T]>(): Promise<
-    Record<string, K>
->;
-export function getFromSyncCache<T extends keyof SettingsMap, K extends SettingsMap[T]>(
-    key: T,
-): Promise<K>;
-export function getFromSyncCache<T extends keyof SettingsMap, K extends SettingsMap[T]>(
-    key: T[],
-): Promise<Record<string, K>>;
-export async function getFromSyncCache<T extends keyof SettingsMap, K extends SettingsMap[T]>(
-    key?: T | T[],
-) {
+export function getFromSyncCache(): Promise<Partial<SettingsMap>>;
+export function getFromSyncCache<K extends keyof SettingsMap>(key: K): Promise<SettingsMap[K]>;
+export function getFromSyncCache<K extends keyof SettingsMap>(
+    key: K[],
+): Promise<Record<string, SettingsMap[K]>>;
+export async function getFromSyncCache<K extends keyof SettingsMap>(key?: K | K[]) {
     if (!key) {
-        return getFromCache<K>("sync");
+        return getFromCache<SettingsMap[K]>("sync");
     }
     if (Array.isArray(key)) {
-        return getFromCache<K>("sync", key as string[]);
+        return getFromCache<SettingsMap[K]>("sync", key as string[]);
     }
-    return getFromCache<K>("sync", key as string);
+    return getFromCache<SettingsMap[K]>("sync", key as string);
 }
 
 async function removeFromCache(storage: "local" | "sync", key: string | string[]) {
