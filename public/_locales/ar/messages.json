@@ -426,12 +426,16 @@
         "description": "High usage toast title"
     },
     "toast_body": {
-        "message": "تم اكتشاف استهلاك بيانات مرتفع للجودة $1p. هذا يتجاوز الحد المحدد في إعداداتك.",
-        "description": "High usage toast body with quality",
+        "message": "تم اكتشاف استهلاك بيانات مرتفع للجودة $1p. هذا يتجاوز الحد الخاص بك ($2 MB/hour).",
+        "description": "High usage toast body with quality and threshold",
         "placeholders": {
             "quality": {
                 "content": "$1",
                 "example": "1080"
+            },
+            "threshold": {
+                "content": "$2",
+                "example": "500"
             }
         }
     },
@@ -464,6 +468,10 @@
                 "example": "500 MB"
             }
         }
+    },
+    "toast_settingsHint": {
+        "message": "يمكنك تعطيل هذا التنبيه أو تعديل الحد من الإعدادات.",
+        "description": "Hint about disabling the alert or adjusting the threshold in Settings"
     },
     "toast_ok": {
         "message": "حسنًا",
