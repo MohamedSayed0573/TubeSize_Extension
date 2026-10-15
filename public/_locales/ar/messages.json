@@ -465,6 +465,10 @@
             }
         }
     },
+    "toast_settingsHint": {
+        "message": "يمكنك تعطيل هذا التنبيه أو تعديل الحد من الإعدادات.",
+        "description": "Hint about disabling the alert or adjusting the threshold in Settings"
+    },
     "toast_ok": {
         "message": "حسنًا",
         "description": "Toast OK button"

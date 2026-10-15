@@ -60,6 +60,12 @@
     display: inline-flex;
 }
 
+#TubeSize-Toast-Host .settings-hint {
+    font-size: 12px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.65);
+}
+
 #TubeSize-Toast-Host .actions {
     display: flex;
     align-items: center;

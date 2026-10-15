@@ -423,6 +423,10 @@
             }
         }
     },
+    "toast_settingsHint": {
+        "message": "You can disable this alert or adjust the threshold in Settings.",
+        "description": "Hint about disabling the alert or adjusting the threshold in Settings"
+    },
     "toast_ok": {
         "message": "OK",
         "description": "Toast OK button"

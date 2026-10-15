@@ -63,6 +63,7 @@ export function createToast({
 
     const toast = el("div", "toast", t("toast_body", [currentQuality]));
     toast.append(row);
+    toast.append(el("span", "settings-hint", t("toast_settingsHint")));
 
     const actions = el("div", "actions");
     actions.append(okBtn, dontShowBtn);
