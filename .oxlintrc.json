@@ -1,0 +1,67 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "plugins": ["typescript", "react", "unicorn", "promise", "oxc"],
+    "categories": {
+        "correctness": "error",
+        "suspicious": "warn"
+    },
+    "options": {
+        "typeAware": true
+    },
+    "env": {
+        "builtin": true,
+        "browser": true,
+        "node": true,
+        "es2026": true
+    },
+    "globals": {
+        "AsyncDisposableStack": "readonly",
+        "DisposableStack": "readonly",
+        "SuppressedError": "readonly"
+    },
+    "ignorePatterns": [
+        "dist",
+        "dist_firefox",
+        ".output",
+        ".wxt",
+        "coverage",
+        "src/components/ui",
+        "devTest"
+    ],
+    "rules": {
+        "no-empty": "off",
+        "no-unused-vars": "off",
+        "typescript/no-empty-object-type": "off",
+        "typescript/no-explicit-any": "off",
+        "typescript/no-unnecessary-type-assertion": "off",
+        "react/react-in-jsx-scope": "off",
+        "react/only-export-components": [
+            "error",
+            {
+                "allowConstantExport": true,
+                "allowCompoundComponents": true
+            }
+        ],
+        "unicorn/catch-error-name": [
+            "error",
+            {
+                "name": "err"
+            }
+        ],
+        "unicorn/filename-case": [
+            "error",
+            {
+                "case": "camelCase"
+            }
+        ],
+        "unicorn/no-array-sort": "off"
+    },
+    "overrides": [
+        {
+            "files": ["src/tests/**/*.{ts,tsx}"],
+            "env": {
+                "jest": true
+            }
+        }
+    ]
+}

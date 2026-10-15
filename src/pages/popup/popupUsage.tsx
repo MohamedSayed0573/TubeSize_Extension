@@ -3,6 +3,7 @@ import SiteIcon from "@components/siteIcon";
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { chromeNavigate } from "@lib/utils";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState } from "react";
 
 function splitSize(formatted: string): { value: string; unit: string } {
     const [value, unit] = formatted.split(" ");
@@ -58,12 +59,14 @@ function ArrowIcon() {
 }
 
 function UsageIcon({ variant, origin }: { variant?: string; origin?: string }) {
+    const [date] = useState(() => new Date());
+
     if (variant === "todayUsage")
         return (
             <div className="relative">
                 <Calendar className="size-6.5" strokeWidth={2} />
                 <span className="absolute inset-0 flex items-center justify-center pt-1.5 text-[11px] font-semibold">
-                    {new Date().getDate()}
+                    {date?.getDate()}
                 </span>
             </div>
         );
