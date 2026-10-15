@@ -68,8 +68,12 @@
         "description": "Language setting label"
     },
     "settings_language_description": {
-        "message": "اللغة تتبع إعدادات المتصفح.",
-        "description": "Explains language is detected from the browser UI language"
+        "message": "اختر الإنجليزية أو العربية.",
+        "description": "Explains the language dropdown"
+    },
+    "settings_language_saveError": {
+        "message": "تعذّر حفظ اللغة. يُرجى المحاولة مرة أخرى.",
+        "description": "Language preference save failure"
     },
     "settings_language_arabic": {
         "message": "العربية",

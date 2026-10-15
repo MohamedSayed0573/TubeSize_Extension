@@ -1,3 +1,4 @@
+import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
 import { perHourDisplay, totalSizeVideoDisplay } from "@lib/formatting";
 import "@styles/toast.css";
@@ -34,9 +35,10 @@ export function createToast({
     okOnClick,
     dontShowAgainOnClick,
 }: ToastOptions): HTMLElement {
-    const isArabic = chrome.i18n.getUILanguage().toLowerCase().startsWith("ar");
+    const language = getLanguage();
+    const isArabic = language === "ar";
     const container = el("div", "container");
-    container.lang = isArabic ? "ar" : "en";
+    container.lang = language;
     container.dir = isArabic ? "rtl" : "ltr";
 
     const row = el("div");

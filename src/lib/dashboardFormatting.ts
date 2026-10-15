@@ -1,4 +1,5 @@
 import type { DateKey } from "@app-types/types";
+import { getLanguage } from "@/i18n/language";
 
 /**
  * Formats a date or date range into a human-readable string.
@@ -6,7 +7,7 @@ import type { DateKey } from "@app-types/types";
  * @example ["2023-05-15", "2023-05-16"] -> "May 15 – 16, 2023"
  */
 export function formatDate(date: DateKey | DateKey[]) {
-    const dtf = new Intl.DateTimeFormat(chrome.i18n.getUILanguage(), {
+    const dtf = new Intl.DateTimeFormat(getLanguage(), {
         month: "short",
         day: "numeric",
         year: "numeric",

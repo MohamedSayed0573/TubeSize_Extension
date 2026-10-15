@@ -1,3 +1,4 @@
+import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
 import type { PopupData } from "@app-types/uiTypes";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
@@ -62,7 +63,7 @@ interface Props {
 
 export default function Header({ data }: Props) {
     const navigate = useNavigate();
-    const language = chrome.i18n.getUILanguage();
+    const language = getLanguage();
     const isLive = data?.data.type === "live";
     let title: string;
     let duration: string | undefined;

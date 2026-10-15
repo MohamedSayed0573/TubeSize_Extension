@@ -1,4 +1,5 @@
 import { defineContentScript } from "wxt/utils/define-content-script";
+import { initializeLanguage } from "@/i18n/language";
 import { setupMessageHandler } from "./messageHandler";
 import { handlePageNavigation } from "./pageNavigation";
 
@@ -16,7 +17,13 @@ export default defineContentScript({
     runAt: "document_start",
     allFrames: true,
 
-    main() {
+    async main() {
+        try {
+            await initializeLanguage();
+        } catch (err) {
+            console.error("[content] Failed to initialize language; using browser default", err);
+        }
+
         void handlePageNavigation();
 
         setupMessageHandler();
