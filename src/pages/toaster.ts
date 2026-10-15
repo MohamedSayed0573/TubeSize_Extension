@@ -29,6 +29,7 @@ function sizePerHour(bytesPerSecond: number): number {
 
 function mountToast(options: {
     currentQuality: number;
+    thresholdMbph: number;
     sizePerSecondBytes: number;
     sizeBytes?: number;
     isLive: boolean;
@@ -66,6 +67,7 @@ export async function showYoutubeToast(
         if (sizePerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
             mountToast({
                 currentQuality,
+                thresholdMbph: toasterThresholdMbph,
                 sizePerSecondBytes: format.sizePerSecondBytes,
                 sizeBytes: format.sizeBytes,
                 isLive: false,
@@ -78,6 +80,7 @@ export async function showYoutubeToast(
         if (sizePerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
             mountToast({
                 currentQuality,
+                thresholdMbph: toasterThresholdMbph,
                 sizePerSecondBytes: format.sizePerSecondBytes,
                 isLive: true,
             });
@@ -98,6 +101,7 @@ export async function showTwitchToast(
     if (sizePerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
         mountToast({
             currentQuality,
+            thresholdMbph: toasterThresholdMbph,
             sizePerSecondBytes: format.sizePerSecondBytes,
             isLive,
         });

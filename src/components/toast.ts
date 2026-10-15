@@ -5,6 +5,7 @@ import "@styles/toast.css";
 
 export type ToastOptions = {
     currentQuality: number;
+    thresholdMbph: number;
     sizePerSecondBytes: number;
     sizeBytes?: number;
     isLive: boolean;
@@ -29,6 +30,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
  */
 export function createToast({
     currentQuality,
+    thresholdMbph,
     sizePerSecondBytes,
     sizeBytes,
     isLive,
@@ -61,7 +63,7 @@ export function createToast({
     const dontShowBtn = el("button", undefined, t("toast_dontShowAgain"));
     dontShowBtn.addEventListener("click", dontShowAgainOnClick);
 
-    const toast = el("div", "toast", t("toast_body", [currentQuality]));
+    const toast = el("div", "toast", t("toast_body", [currentQuality, thresholdMbph]));
     toast.append(row);
     toast.append(el("span", "settings-hint", t("toast_settingsHint")));
 
