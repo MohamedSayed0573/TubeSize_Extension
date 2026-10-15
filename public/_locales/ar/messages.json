@@ -227,9 +227,25 @@
         "message": "حسب الموقع",
         "description": "By site toggle"
     },
-    "dashboard_days": {
+    "dashboard_days_one": {
+        "message": "يوم",
+        "description": "Singular day label (count shown separately)"
+    },
+    "dashboard_days_two": {
+        "message": "يومان",
+        "description": "Dual day label"
+    },
+    "dashboard_days_few": {
         "message": "أيام",
-        "description": "Days label (count shown separately)"
+        "description": "Few days label"
+    },
+    "dashboard_days_many": {
+        "message": "يومًا",
+        "description": "Many days label"
+    },
+    "dashboard_days_other": {
+        "message": "أيام",
+        "description": "Other days label"
     },
     "dashboard_usageMb": {
         "message": "الاستهلاك (ميجابايت)",

@@ -227,9 +227,13 @@
         "message": "By Site",
         "description": "By site toggle"
     },
-    "dashboard_days": {
+    "dashboard_days_one": {
+        "message": "Day",
+        "description": "Singular day label (count shown separately)"
+    },
+    "dashboard_days_other": {
         "message": "Days",
-        "description": "Days label (count shown separately)"
+        "description": "Plural day label (count shown separately)"
     },
     "dashboard_usageMb": {
         "message": "Usage (MB)",
