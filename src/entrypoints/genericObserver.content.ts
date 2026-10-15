@@ -79,6 +79,17 @@ function readWorkerSource(url: string): string | undefined {
     return;
 }
 
+function revokeWorkerUrlWhenLoaded(worker: Worker, url: string) {
+    worker.addEventListener("message", (event) => {
+        const data = event.data as { type?: string } | null;
+        if (!data || data.type !== "WORKER_READY") return;
+
+        event.stopImmediatePropagation();
+        URL.revokeObjectURL(url);
+    });
+    worker.addEventListener("error", () => URL.revokeObjectURL(url), { once: true });
+}
+
 export default defineContentScript({
     matches: ["<all_urls>"],
     runAt: "document_start",
@@ -89,10 +100,10 @@ export default defineContentScript({
         let total = 0;
 
         // Monkey patch fetch to count bytes
-        const _fetch = fetch;
+        const originalFetch = fetch;
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = async (...args) => {
-            const response = await _fetch(...args);
+            const response = await originalFetch(...args);
 
             const contentLength = response.headers.get("content-length");
             // Background.ts's chrome.webRequest is responsible for tracking requests with known content length.
@@ -124,7 +135,7 @@ export default defineContentScript({
         // Count XHR downloads incrementally, regardless of responseType.
         // Called below with the original XHR instance as its receiver.
         // eslint-disable-next-line @typescript-eslint/unbound-method
-        const _send = XMLHttpRequest.prototype.send;
+        const originalSend = XMLHttpRequest.prototype.send;
         XMLHttpRequest.prototype.send = function (body) {
             let loaded = 0;
             const countProgress = (event: ProgressEvent) => {
@@ -151,7 +162,7 @@ export default defineContentScript({
             this.addEventListener("progress", countProgress);
             this.addEventListener("loadend", onLoadEnd);
             try {
-                return _send.call(this, body);
+                return originalSend.call(this, body);
             } catch (err) {
                 cleanup();
                 throw err;
@@ -206,16 +217,7 @@ export default defineContentScript({
         // first thing a re-hosted worker does — proves. The ping is swallowed so the
         // site never sees it. The error listener (which must not swallow the event)
         // frees URLs of workers that never start.
-        function revokeWorkerUrlWhenLoaded(worker: Worker, url: string) {
-            worker.addEventListener("message", (event) => {
-                const data = event.data as { type?: string } | null;
-                if (!data || data.type !== "WORKER_READY") return;
-
-                event.stopImmediatePropagation();
-                URL.revokeObjectURL(url);
-            });
-            worker.addEventListener("error", () => URL.revokeObjectURL(url), { once: true });
-        }
+        // (revokeWorkerUrlWhenLoaded lives at module scope; see above)
 
         // Read a blob: worker's source synchronously, in the constructor. The Worker
         // constructor can't await, and sites commonly revoke their blob: URL right

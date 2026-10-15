@@ -1,5 +1,1 @@
-export class InvalidImportJson extends Error {
-    constructor(message: string) {
-        super(message);
-    }
-}
+export class InvalidImportJson extends Error {}

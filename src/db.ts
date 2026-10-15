@@ -131,7 +131,8 @@ export async function getWatchHistoryByDate(day: DateKey): Promise<WatchHistory 
 export async function getWatchHistoryByDate(day: DateKey[]): Promise<WatchHistory[] | undefined>;
 export async function getWatchHistoryByDate(day: DateKey | DateKey[]) {
     return Array.isArray(day)
-        ? database.watchHistory.where("day").anyOf(day).reverse().toArray()
+        ? // eslint-disable-next-line unicorn/no-array-reverse -- Dexie Collection.reverse() sets query order, not Array#reverse
+          database.watchHistory.where("day").anyOf(day).reverse().toArray()
         : database.watchHistory.get(day);
 }
 

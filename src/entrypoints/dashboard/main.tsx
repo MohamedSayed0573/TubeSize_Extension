@@ -8,7 +8,8 @@ import { StrictMode } from "react";
 import { AppProviders } from "@layouts/appProviders";
 import { router } from "./router";
 
-const domRoot = document.querySelector("#root") as HTMLElement;
+const domRoot = document.querySelector("#root");
+if (!domRoot) throw new Error("Root element not found");
 
 const root = createRoot(domRoot);
 const queryClient = new QueryClient();

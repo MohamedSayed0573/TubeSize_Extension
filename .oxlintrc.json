@@ -29,6 +29,8 @@
         "devTest"
     ],
     "rules": {
+        "typescript/consistent-return": "off",
+        "typescript/no-unsafe-type-assertion": "off",
         "no-empty": "off",
         "no-unused-vars": "off",
         "typescript/no-empty-object-type": "off",

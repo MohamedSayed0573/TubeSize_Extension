@@ -61,7 +61,7 @@ export async function showYoutubeToast(
     if (await isSuppressedForToday()) return;
 
     if (youtubeData.type === "video") {
-        const format = youtubeData.formats.find((format) => format.height === currentQuality);
+        const format = youtubeData.formats.find((candidate) => candidate.height === currentQuality);
         if (!format) return;
 
         if (sizePerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
@@ -74,7 +74,9 @@ export async function showYoutubeToast(
             });
         }
     } else {
-        const format = youtubeData.formats.find((format) => format.resolution === currentQuality);
+        const format = youtubeData.formats.find(
+            (candidate) => candidate.resolution === currentQuality,
+        );
         if (!format) return;
 
         if (sizePerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
@@ -96,7 +98,7 @@ export async function showTwitchToast(
 ) {
     if (await isSuppressedForToday()) return;
 
-    const format = videoFormats.find((format) => format.resolution === currentQuality);
+    const format = videoFormats.find((candidate) => candidate.resolution === currentQuality);
     if (!format) return;
     if (sizePerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
         mountToast({

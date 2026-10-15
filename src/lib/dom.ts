@@ -24,14 +24,14 @@ export async function waitForElement<T extends keyof ElementSelectorMap>(
         }
 
         const observer = new MutationObserver(() => {
-            const element = findElement();
-            if (!element) {
+            const observedElement = findElement();
+            if (!observedElement) {
                 return;
             }
 
             observer.disconnect();
             clearTimeout(timeoutId);
-            return resolve(element);
+            return resolve(observedElement);
         });
 
         observer.observe(document.body, {
