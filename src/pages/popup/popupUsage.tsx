@@ -1,3 +1,4 @@
+import { getLanguage } from "@/i18n/language";
 import SiteIcon from "@components/siteIcon";
 import { totalSizeVideoDisplay } from "@lib/formatting";
 import { chromeNavigate } from "@lib/utils";
@@ -50,9 +51,7 @@ export default function PopupUsage({ text, usage, navigateTo, variant, origin }:
 }
 
 function ArrowIcon() {
-    const lang = chrome.i18n.getUILanguage().toLowerCase().startsWith("ar") ? "rtl" : "ltr";
-
-    const Icon = lang === "ltr" ? ChevronRight : ChevronLeft;
+    const Icon = getLanguage() === "ar" ? ChevronLeft : ChevronRight;
     return (
         <Icon className="size-4 text-zinc-600 transition-all duration-150 group-hover:translate-x-px group-hover:text-zinc-300" />
     );

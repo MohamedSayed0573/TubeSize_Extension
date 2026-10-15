@@ -5,6 +5,7 @@ import { lazy, Suspense } from "react";
 import { CalendarDays, Database, Globe, type LucideIcon } from "lucide-react";
 import NoUsageData from "../shared/noUsageData";
 import { Skeleton } from "@components/ui/skeleton";
+
 import { t } from "@/i18n/t";
 import { Chart as ChartDaily } from "../chart/chart";
 
@@ -84,11 +85,7 @@ export function UsageChartSection({
                         <span className="font-mono text-sm font-semibold text-teal-300">
                             {dayCount}
                         </span>
-                        <span className="text-sm text-teal-400/70">
-                            {t(
-                                `dashboard_days_${new Intl.PluralRules(chrome.i18n.getUILanguage().toLowerCase().startsWith("ar") ? "ar" : "en").select(dayCount)}`,
-                            ) || t("dashboard_days_other")}
-                        </span>
+                        <span className="text-sm text-teal-400/70">{t("dashboard_days")}</span>
                     </div>
                 </div>
             </div>

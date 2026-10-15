@@ -1,7 +1,13 @@
-// Thin wrapper around chrome.i18n.getMessage() so call sites stay short.
-// Message names are snake_case keys from public/_locales/*/messages.json,
-// substitutions map to $1..$9 in order.
-// See https://developer.chrome.com/docs/extensions/reference/api/i18n#concepts_and_usage
-export function t(messageName: string, substitutions?: string | Array<string | number>): string {
-    return chrome.i18n.getMessage(messageName, substitutions);
+import en from "../../public/_locales/en/messages.json";
+import ar from "../../public/_locales/ar/messages.json";
+import { getLanguage } from "./language";
+
+export function t(key: string, substitutions: string | Array<string | number> = []): string {
+    const messages: Record<string, { message: string }> = getLanguage() === "ar" ? ar : en;
+    const message = messages[key]?.message ?? "";
+    const values = typeof substitutions === "string" ? [substitutions] : substitutions;
+
+    return message.replaceAll(/\$[1-9]/g, (placeholder) =>
+        String(values[Number(placeholder[1]) - 1] ?? ""),
+    );
 }

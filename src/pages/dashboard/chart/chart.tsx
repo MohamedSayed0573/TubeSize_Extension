@@ -1,3 +1,4 @@
+import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { useNavigate } from "react-router";
@@ -44,14 +45,11 @@ function ChartTooltipContentCustom({
         <div className="min-w-52 rounded-xl border border-neutral-800 bg-[#0a0a0a] px-3 py-2 text-xs shadow-xl">
             {/* Date header */}
             <div className="mb-1.5 font-medium text-stone-200">
-                {parseDateKey(data.date as DateKey).toLocaleDateString(
-                    chrome.i18n.getUILanguage(),
-                    {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                    },
-                )}
+                {parseDateKey(data.date as DateKey).toLocaleDateString(getLanguage(), {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                })}
             </div>
 
             {/* List of websites/origins */}
@@ -133,7 +131,7 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
                             minTickGap={32}
                             tickFormatter={(value: DateKey) => {
                                 const d = parseDateKey(value);
-                                return d.toLocaleDateString(chrome.i18n.getUILanguage(), {
+                                return d.toLocaleDateString(getLanguage(), {
                                     month: "short",
                                     day: "numeric",
                                 });

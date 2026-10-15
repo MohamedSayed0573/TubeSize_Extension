@@ -68,8 +68,12 @@
         "description": "Language setting label"
     },
     "settings_language_description": {
-        "message": "Language follows your browser settings.",
-        "description": "Explains language is detected from the browser UI language"
+        "message": "Choose English or Arabic.",
+        "description": "Explains the language dropdown"
+    },
+    "settings_language_saveError": {
+        "message": "Could not save your language. Please try again.",
+        "description": "Language preference save failure"
     },
     "settings_language_arabic": {
         "message": "Arabic",
@@ -223,13 +227,9 @@
         "message": "By Site",
         "description": "By site toggle"
     },
-    "dashboard_days_one": {
-        "message": "Day",
-        "description": "Singular day label (count shown separately)"
-    },
-    "dashboard_days_other": {
+    "dashboard_days": {
         "message": "Days",
-        "description": "Plural day label (count shown separately)"
+        "description": "Days label (count shown separately)"
     },
     "dashboard_usageMb": {
         "message": "Usage (MB)",

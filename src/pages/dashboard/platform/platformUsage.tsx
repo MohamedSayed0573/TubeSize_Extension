@@ -10,6 +10,7 @@ import { useWatchHistory } from "@hooks/useWatchHistory";
 import { capitalize, isPlatformId } from "@lib/utils";
 import DashboardNotFound from "../shared/notFound";
 import type { PlatformId, UsageScope } from "@app-types/types";
+import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
 
 export default function PlatformUsage() {
@@ -79,11 +80,7 @@ export default function PlatformUsage() {
                             {rows.length === 0
                                 ? t("dashboard_noVideos")
                                 : t(
-                                      `dashboard_videosCount_${new Intl.PluralRules(
-                                          chrome.i18n.getUILanguage().toLowerCase().startsWith("ar")
-                                              ? "ar"
-                                              : "en",
-                                      ).select(rows.length)}`,
+                                      `dashboard_videosCount_${new Intl.PluralRules(getLanguage()).select(rows.length)}`,
                                       [rows.length],
                                   ) || t("dashboard_videosCount_other", [rows.length])}
                         </span>
