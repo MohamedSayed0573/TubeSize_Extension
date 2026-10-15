@@ -12,5 +12,6 @@ export function formatBytes(bytes: number, options?: FilesizeOptions) {
         ...options,
     }).split(" ");
 
-    return `${value} ${unit!.toUpperCase()}`;
+    const formattedUnit = options?.standard === "iec" ? unit : unit!.toUpperCase();
+    return `${value} ${formattedUnit}`;
 }
