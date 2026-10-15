@@ -11,3 +11,8 @@
 @source "../pages/popup";
 @source "../pages/settings";
 @source "../entrypoints/popup";
+
+html,
+body {
+    overflow-x: hidden;
+}
