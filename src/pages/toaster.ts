@@ -1,9 +1,27 @@
 import type { TwitchData, YoutubeData } from "@app-types/platforms.types";
+import type { DateKey } from "@app-types/types";
 import { createToast } from "@components/toast";
+import { getFromLocalCache, setToLocalCache } from "@lib/cache";
+import { getDateKey } from "@lib/dateUtils";
 
 const HOST_ID = "TubeSize-Toast-Host";
 
-let shouldSuppressToast: boolean = false;
+const SUPPRESSED_DATE_KEY = "toasterSuppressedDate";
+
+let suppressedDateCache: DateKey | undefined;
+
+async function isSuppressedForToday(): Promise<boolean> {
+    const today = getDateKey();
+    if (suppressedDateCache === today) return true;
+    suppressedDateCache = await getFromLocalCache<DateKey>(SUPPRESSED_DATE_KEY);
+    return suppressedDateCache === today;
+}
+
+async function suppressForToday(): Promise<void> {
+    const today = getDateKey();
+    suppressedDateCache = today;
+    await setToLocalCache({ [SUPPRESSED_DATE_KEY]: today });
+}
 
 function sizePerHour(bytesPerSecond: number): number {
     return (bytesPerSecond * 60 * 60) / 1_000_000;
@@ -27,19 +45,19 @@ function mountToast(options: {
             ...options,
             okOnClick: unmountToast,
             dontShowAgainOnClick: () => {
-                shouldSuppressToast = true;
+                void suppressForToday();
                 unmountToast();
             },
         }),
     );
 }
 
-export function showYoutubeToast(
+export async function showYoutubeToast(
     currentQuality: number,
     youtubeData: YoutubeData,
     toasterThresholdMbph: number,
 ) {
-    if (shouldSuppressToast) return;
+    if (await isSuppressedForToday()) return;
 
     if (youtubeData.type === "video") {
         const format = youtubeData.formats.find((format) => format.height === currentQuality);
@@ -67,13 +85,13 @@ export function showYoutubeToast(
     }
 }
 
-export function showTwitchToast(
+export async function showTwitchToast(
     currentQuality: number,
     videoFormats: TwitchData["data"],
     toasterThresholdMbph: number,
     isLive: boolean = true,
 ) {
-    if (shouldSuppressToast) return;
+    if (await isSuppressedForToday()) return;
 
     const format = videoFormats.find((format) => format.resolution === currentQuality);
     if (!format) return;
