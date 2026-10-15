@@ -470,7 +470,7 @@
         "description": "Toast OK button"
     },
     "toast_dontShowAgain": {
-        "message": "لا تعرض مرة أخرى في هذه الجلسة",
+        "message": "لا تعرض مرة أخرى اليوم",
         "description": "Toast dismiss button"
     },
     "extName": {

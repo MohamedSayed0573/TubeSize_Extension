@@ -428,7 +428,7 @@
         "description": "Toast OK button"
     },
     "toast_dontShowAgain": {
-        "message": "Don't show again for this session",
+        "message": "Don't show again for today",
         "description": "Toast dismiss button"
     },
     "extName": {

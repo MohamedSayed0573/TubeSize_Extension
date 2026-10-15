@@ -18,7 +18,7 @@ async function getToasterThreshold() {
 export async function startYoutubeToastTracking(youtubeData: YoutubeData) {
     const toasterThresholdMbph = await getToasterThreshold();
     await trackResolutionChanges((resolution) => {
-        showYoutubeToast(resolution, youtubeData, toasterThresholdMbph);
+        void showYoutubeToast(resolution, youtubeData, toasterThresholdMbph);
     });
 }
 
@@ -29,7 +29,7 @@ export async function startYoutubeToastTracking(youtubeData: YoutubeData) {
 export async function startToastTwitchPolling(twitchData: TwitchData) {
     const toasterThresholdMbph = await getToasterThreshold();
     await trackResolutionChanges((resolution) => {
-        showTwitchToast(
+        void showTwitchToast(
             resolution,
             twitchData.data,
             toasterThresholdMbph,
@@ -45,6 +45,6 @@ export async function startToastTwitchPolling(twitchData: TwitchData) {
 export async function startToastKickPolling(kickData: KickData) {
     const toasterThresholdMbph = await getToasterThreshold();
     await trackResolutionChanges((resolution) => {
-        showTwitchToast(resolution, kickData.data, toasterThresholdMbph);
+        void showTwitchToast(resolution, kickData.data, toasterThresholdMbph);
     });
 }
