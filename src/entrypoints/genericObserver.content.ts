@@ -129,10 +129,13 @@ export default defineContentScript({
             let loaded = 0;
             const countProgress = (event: ProgressEvent) => {
                 // Local reads (including our worker source reads) aren't network usage.
-                if (this.responseURL.startsWith("blob:") || this.responseURL.startsWith("data:")) {
+                if (
+                    this.responseURL.startsWith("blob:") ||
+                    this.responseURL.startsWith("data:") ||
+                    Number(this.getResponseHeader("content-length")) > 0
+                ) {
                     return;
                 }
-                if (Number(this.getResponseHeader("content-length")) > 0) return;
 
                 total += Math.max(0, event.loaded - loaded);
                 loaded = Math.max(loaded, event.loaded);
