@@ -27,35 +27,36 @@ jobs:
               with:
                   fetch-depth: 0
 
-            - name: Install pnpm
-              uses: pnpm/action-setup@v5
+            - name: Setup Bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: 1.4.3
 
             - name: Set up Node.js
               uses: actions/setup-node@v6.4.0
               with:
                   node-version: 24
-                  cache: "pnpm"
 
             - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+              run: bun install --frozen-lockfile
 
             - name: Bump version
               id: bump
               run: |
-                  pnpm version ${{ inputs.bump }} --no-git-tag-version
+                  npm version ${{ inputs.bump }} --no-git-tag-version
                   echo "version=$(node -p "JSON.parse(require('fs').readFileSync('./package.json', 'utf8')).version")" >> $GITHUB_OUTPUT
 
             - name: TypeCheck
-              run: pnpm run tsc
+              run: bun run tsc
 
             - name: Lint
-              run: pnpm run lint
+              run: bun run lint
 
             - name: Knip
-              run: pnpm run knip
+              run: bun run knip
 
             - name: Run Tests
-              run: pnpm run test
+              run: bun run test
 
             - name: Commit, tag, and push version bump
               if: inputs.dryRun != true
@@ -69,8 +70,8 @@ jobs:
 
             - name: Build release packages
               run: |
-                  pnpm run zip
-                  pnpm run zip:firefox
+                  bun run zip
+                  bun run zip:firefox
 
             - name: Submit to stores
               env:
@@ -91,7 +92,7 @@ jobs:
                       ARGS="--dry-run"
                   fi
                   # Edge reuses the Chrome zip (same MV3 package)
-                  pnpm exec wxt submit $ARGS \
+                  bunx wxt submit $ARGS \
                       --chrome-zip .output/*-chrome.zip \
                       --firefox-zip .output/*-firefox.zip \
                       --firefox-sources-zip .output/*-sources.zip \
