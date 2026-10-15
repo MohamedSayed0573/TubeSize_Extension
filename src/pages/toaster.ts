@@ -11,8 +11,10 @@ const SUPPRESSED_DATE_KEY = "toasterSuppressedDate";
 let suppressedDateCache: DateKey | undefined;
 
 async function isSuppressedForToday(): Promise<boolean> {
-    suppressedDateCache ??= await getFromLocalCache<DateKey>(SUPPRESSED_DATE_KEY);
-    return suppressedDateCache === getDateKey();
+    const today = getDateKey();
+    if (suppressedDateCache === today) return true;
+    suppressedDateCache = await getFromLocalCache<DateKey>(SUPPRESSED_DATE_KEY);
+    return suppressedDateCache === today;
 }
 
 async function suppressForToday(): Promise<void> {
