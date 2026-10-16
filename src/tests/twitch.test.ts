@@ -1,3 +1,4 @@
+import { describe, test, expect, afterEach, jest } from "bun:test";
 import {
     getTwitchClientId,
     getTwitchMasterM3u8,
@@ -20,7 +21,7 @@ describe("getTwitchClientId", () => {
         globalThis.fetch = jest.fn().mockResolvedValue({
             ok: true,
             text: () => fs.readFileSync(htmlPath, "utf8"),
-        });
+        }) as unknown as typeof fetch;
         const clientId = await getTwitchClientId({
             channelName,
             type: "twitchLive",
@@ -51,7 +52,7 @@ describe("getTwitchToken", () => {
             });
 
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = fetchMock;
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
 
         const token = await getTwitchToken({
             type: "twitchLive",
@@ -112,7 +113,7 @@ describe("getTwitchToken", () => {
             });
 
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = fetchMock;
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
 
         const token = await getTwitchToken({ type: "twitchVod", vodId: "2748008198" });
 
@@ -153,7 +154,7 @@ describe("getTwitchMasterM3u8", () => {
         });
 
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = fetchMock;
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
 
         const data = await getTwitchMasterM3u8(
             { value: '{"token":"live"}', signature: "live-signature" },
@@ -184,7 +185,7 @@ describe("getTwitchMasterM3u8", () => {
         });
 
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = fetchMock;
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
 
         const data = await getTwitchMasterM3u8(
             { value: '{"token":"vod"}', signature: "vod-signature" },

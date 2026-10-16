@@ -1,3 +1,4 @@
+import { describe, test, expect, jest } from "bun:test";
 import {
     isYoutubePage,
     isShortsVideo,
@@ -148,23 +149,23 @@ describe("extractVideoTag", () => {
     });
 
     test("should return undefined if the video id is shorter than 11", () => {
-        expect(extractVideoTag("https://www.youtube.com/watch?v=yaodD79Q")).toBeNil();
+        expect(extractVideoTag("https://www.youtube.com/watch?v=yaodD79Q")).toBeUndefined();
     });
 
     test("should return undefined if the video id is missing", () => {
-        expect(extractVideoTag("https://www.youtube.com/")).toBeNil();
+        expect(extractVideoTag("https://www.youtube.com/")).toBeUndefined();
     });
 
     test("should return undefined if the video id has wrong characters", () => {
-        expect(extractVideoTag("https://www.youtube.com/watch?v=123456789.;")).toBeNil();
+        expect(extractVideoTag("https://www.youtube.com/watch?v=123456789.;")).toBeUndefined();
     });
 
     test("should return undefined if the params is wrong", () => {
-        expect(extractVideoTag("https://www.youtube.com/watch?s=yaodD79Q4iE")).toBeNil();
+        expect(extractVideoTag("https://www.youtube.com/watch?s=yaodD79Q4iE")).toBeUndefined();
     });
 
     test("should return undefined if the url is wrong", () => {
-        expect(extractVideoTag("https://www.youtube.com/example?v=yaodD79Q4iE")).toBeNil();
+        expect(extractVideoTag("https://www.youtube.com/example?v=yaodD79Q4iE")).toBeUndefined();
     });
 
     test("should return the video id if there are multiple params", () => {
@@ -180,11 +181,13 @@ describe("extractVideoTag", () => {
     });
 
     test("should return undefined for invalid youtube short video", () => {
-        expect(extractVideoTag("https://www.youtube.com/shorts/example/muzkvikbNA0")).toBeNil();
+        expect(
+            extractVideoTag("https://www.youtube.com/shorts/example/muzkvikbNA0"),
+        ).toBeUndefined();
     });
 
     test("should return undefined for youtube short video with invalid itag", () => {
-        expect(extractVideoTag("https://www.youtube.com/shorts/muzkbNA0")).toBeNil();
+        expect(extractVideoTag("https://www.youtube.com/shorts/muzkbNA0")).toBeUndefined();
     });
 });
 
@@ -218,14 +221,13 @@ describe("fetchAndRetry", () => {
         globalThis.fetch = jest.fn().mockResolvedValue({
             status: 400,
             ok: false,
-        });
+        }) as unknown as typeof fetch;
 
-        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).resolves.toEqual(
-            {
-                success: false,
-                error: new Error("Client Error: 400, won't retry"),
-            },
-        );
+        const result = await fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE");
+        expect(result).toEqual({
+            success: false,
+            error: new Error("Client Error: 400, won't retry"),
+        });
 
         expect(fetch).toHaveBeenCalledTimes(1);
     });
@@ -241,16 +243,15 @@ describe("fetchAndRetry", () => {
             .mockResolvedValueOnce({
                 status: 200,
                 ok: true,
-            });
+            }) as unknown as typeof fetch;
 
-        await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).resolves.toEqual(
-            {
-                success: true,
-                response: {
-                    status: 200,
-                    ok: true,
-                },
-            },
-        );
+        const result = await fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE");
+        expect(result).toEqual({
+            success: true,
+            response: {
+                status: 200,
+                ok: true,
+            } as unknown as Response,
+        });
     });
 });

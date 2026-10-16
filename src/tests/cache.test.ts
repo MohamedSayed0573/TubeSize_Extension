@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeEach, jest } from "bun:test";
 import {
     clearLocalCache,
     getFromLocalCache,
@@ -5,8 +6,8 @@ import {
     setToLocalCache,
 } from "@lib/cache";
 
-const localGet = jest.fn<Promise<Record<string, unknown>>, [string | string[] | undefined]>();
-const syncGet = jest.fn<Promise<Record<string, unknown>>, [string | string[] | undefined]>();
+const localGet = jest.fn<(keys?: string | string[]) => Promise<Record<string, unknown>>>();
+const syncGet = jest.fn<(keys?: string | string[]) => Promise<Record<string, unknown>>>();
 
 const localRemove = jest.fn();
 const syncRemove = jest.fn();
@@ -19,6 +20,12 @@ const syncSet = jest.fn();
 
 // eslint-disable-next-line unicorn/no-global-object-property-assignment
 globalThis.chrome = {
+    // Keep i18n from setup.ts: Bun shares globals across test files,
+    // unlike Jest's per-file environments.
+    i18n: {
+        getUILanguage: () => "en-US",
+        getMessage: () => "",
+    },
     storage: {
         local: {
             set: async (input: Record<string | number, unknown>) => {

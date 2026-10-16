@@ -48,7 +48,7 @@ export default defineConfig({
     // ships MV3 manifests to Firefox.
     manifestVersion: 3,
     // Auto-imports are disabled on purpose: the codebase uses explicit imports
-    // everywhere so that Jest (ts-jest) and ESLint keep working unchanged.
+    // everywhere so that tooling keeps working unchanged.
     imports: false,
     modules: ["@wxt-dev/module-react"],
     alias: {

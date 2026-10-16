@@ -1,3 +1,4 @@
+import { describe, test, expect } from "bun:test";
 import type { ytInitialPlayerResponse, RawFormat } from "@app-types/platforms.types";
 import fs from "node:fs";
 import path from "node:path";
@@ -19,9 +20,8 @@ describe("extractYtInitialResponse", () => {
             .trim();
         const html = `<script>var ytInitialPlayerResponse = ${ytInitialPlayerResponse};</script>`;
 
-        await expect(extractYtInitialResponse("I82j7AzMU80", html)).resolves.toEqual(
-            ytInitialSchema.parse(JSON.parse(ytInitialPlayerResponse)),
-        );
+        const result = await extractYtInitialResponse("I82j7AzMU80", html);
+        expect(result).toEqual(ytInitialSchema.parse(JSON.parse(ytInitialPlayerResponse)));
     });
 });
 
