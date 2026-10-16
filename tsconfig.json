@@ -3,7 +3,7 @@
     "compilerOptions": {
         "useDefineForClassFields": true,
         "lib": ["es2023", "DOM", "DOM.Iterable"],
-        "types": ["vite/client", "chrome", "jest", "jest-extended", "node", "@types/jest"],
+        "types": ["vite/client", "chrome", "bun", "node"],
         "skipLibCheck": true,
         "jsx": "react-jsx",
 

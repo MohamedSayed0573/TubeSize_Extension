@@ -12,7 +12,5 @@
     ],
     "tags": ["-lintignore"],
     "ignore": ["src/components/ui/**"],
-    "vite": true,
-    "jest": true,
-    "ignoreBinaries": ["wslview"]
+    "vite": true
 }

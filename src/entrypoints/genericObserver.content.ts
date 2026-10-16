@@ -102,7 +102,7 @@ export default defineContentScript({
         // Monkey patch fetch to count bytes
         const originalFetch = fetch;
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = async (...args) => {
+        globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
             const response = await originalFetch(...args);
 
             const contentLength = response.headers.get("content-length");
@@ -130,7 +130,7 @@ export default defineContentScript({
             });
 
             return response;
-        };
+        }) as typeof fetch;
 
         // Count XHR downloads incrementally, regardless of responseType.
         // Called below with the original XHR instance as its receiver.
