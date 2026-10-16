@@ -12,5 +12,7 @@
     ],
     "tags": ["-lintignore"],
     "ignore": ["src/components/ui/**"],
+    "ignoreBinaries": ["check"],
+    "ignoreDependencies": ["@types/chrome"],
     "vite": true
 }
