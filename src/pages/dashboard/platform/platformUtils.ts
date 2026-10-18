@@ -1,7 +1,7 @@
 import { t } from "@/i18n/t";
 import type { DateKey, PlatformId, UsageScope } from "@app-types/types";
 import CONFIG from "@lib/constants";
-import { formatDate } from "@lib/dashboardFormatting";
+import { formatDate } from "@lib/format";
 
 export function buildPlatformSearch(scope: UsageScope): string {
     return scope.type === "date" ? `?date=${scope.date}` : `?range=${scope.range}`;

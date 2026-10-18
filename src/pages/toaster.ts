@@ -3,6 +3,7 @@ import type { DateKey } from "@app-types/types";
 import { createToast } from "@components/toast";
 import { getFromLocalCache, setToLocalCache } from "@lib/cache";
 import { getDateKey } from "@lib/dateUtils";
+import { megabytesPerHour } from "@lib/format";
 
 const HOST_ID = "TubeSize-Toast-Host";
 
@@ -21,10 +22,6 @@ async function suppressForToday(): Promise<void> {
     const today = getDateKey();
     suppressedDateCache = today;
     await setToLocalCache({ [SUPPRESSED_DATE_KEY]: today });
-}
-
-function sizePerHour(bytesPerSecond: number): number {
-    return (bytesPerSecond * 60 * 60) / 1_000_000;
 }
 
 function mountToast(options: {
@@ -64,7 +61,7 @@ export async function showYoutubeToast(
         const format = youtubeData.formats.find((candidate) => candidate.height === currentQuality);
         if (!format) return;
 
-        if (sizePerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
+        if (megabytesPerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
             mountToast({
                 currentQuality,
                 thresholdMbph: toasterThresholdMbph,
@@ -79,7 +76,7 @@ export async function showYoutubeToast(
         );
         if (!format) return;
 
-        if (sizePerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
+        if (megabytesPerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
             mountToast({
                 currentQuality,
                 thresholdMbph: toasterThresholdMbph,
@@ -100,7 +97,7 @@ export async function showTwitchToast(
 
     const format = videoFormats.find((candidate) => candidate.resolution === currentQuality);
     if (!format) return;
-    if (sizePerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
+    if (megabytesPerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
         mountToast({
             currentQuality,
             thresholdMbph: toasterThresholdMbph,

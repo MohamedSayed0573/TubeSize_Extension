@@ -1,6 +1,6 @@
 import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
-import { perHourDisplay, totalSizeVideoDisplay } from "@lib/formatting";
+import { formatBytes, formatRate } from "@lib/format";
 import "@styles/toast.css";
 
 export type ToastOptions = {
@@ -48,12 +48,10 @@ export function createToast({
 
     const inner = el("div", "toast-inner");
     if (!isLive && sizeBytes) {
-        inner.append(
-            el("span", undefined, t("toast_totalUsage", [totalSizeVideoDisplay(sizeBytes)])),
-        );
+        inner.append(el("span", undefined, t("toast_totalUsage", [formatBytes(sizeBytes)])));
     }
     inner.append(
-        el("span", undefined, t("toast_perHourUsage", [perHourDisplay(sizePerSecondBytes)])),
+        el("span", undefined, t("toast_perHourUsage", [formatRate(sizePerSecondBytes, "hour")])),
     );
     row.append(inner);
 
