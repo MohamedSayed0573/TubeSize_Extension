@@ -45,7 +45,6 @@ async function trackRequest(buffer: UsageBuffer, details: chrome.webRequest.OnCo
         if (!origin) {
             throw new Error("Skipping request from unknown origin: " + requestDetails.url);
         }
-        console.log(origin);
 
         buffer.addOrigin(origin, bytes);
         void trackWatchHistory(buffer, requestDetails.tabId, bytes);

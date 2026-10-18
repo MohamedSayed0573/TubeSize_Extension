@@ -30,7 +30,7 @@ jobs:
               run: bun run tsc
 
             - name: Lint
-              run: bun run lint
+              run: bun run lint --deny-warnings
 
             - name: Knip
               run: bun run knip

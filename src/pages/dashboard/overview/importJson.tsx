@@ -47,7 +47,7 @@ export function ImportJson({
         importJson()
             .then(() => void queryClient.invalidateQueries({ queryKey: ["siteUsage"] }))
             .catch((err) => {
-                console.log(err);
+                console.error(err);
                 setError(err as Error);
             });
     };
