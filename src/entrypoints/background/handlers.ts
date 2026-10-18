@@ -75,7 +75,7 @@ export async function handleAddWatchHistory(
         await addWatchHistory({ [videoKey]: bytes });
         return { success: true, data: null };
     } catch (err) {
-        console.log(err);
+        console.error(err);
         return { success: false, message: err instanceof Error ? err.message : String(err) };
     }
 }
