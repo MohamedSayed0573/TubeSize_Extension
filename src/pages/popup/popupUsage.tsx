@@ -1,6 +1,6 @@
 import { getLanguage } from "@/i18n/language";
 import SiteIcon from "@components/siteIcon";
-import { totalSizeVideoDisplay } from "@lib/formatting";
+import { formatBytes } from "@lib/format";
 import { chromeNavigate } from "@lib/utils";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
@@ -21,7 +21,7 @@ interface PopupUsageProps {
 export default function PopupUsage({ text, usage, navigateTo, variant, origin }: PopupUsageProps) {
     if (!usage) return;
 
-    const formatted = totalSizeVideoDisplay(usage);
+    const formatted = formatBytes(usage);
     const { value, unit } = splitSize(formatted);
 
     const content = (

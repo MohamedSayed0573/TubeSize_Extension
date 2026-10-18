@@ -1,5 +1,5 @@
 import { t } from "@/i18n/t";
-import { perHourDisplay, perMinuteDisplay, totalSizeVideoDisplay } from "@lib/formatting";
+import { formatBytes, formatRate } from "@lib/format";
 import type { YoutubeData } from "@app-types/platforms.types";
 import { cn } from "@lib/utils";
 
@@ -31,11 +31,11 @@ export default function FormatItem({ item, isShorts, currentQuality }: Props) {
             <div className="flex flex-col items-end text-right text-sm font-semibold text-teal-200">
                 <span>
                     {item.type === "live"
-                        ? perHourDisplay(item.sizePerSecondBytes)
-                        : totalSizeVideoDisplay(item.sizeBytes)}
+                        ? formatRate(item.sizePerSecondBytes, "hour")
+                        : formatBytes(item.sizeBytes)}
                 </span>
                 <span className="mt-0.5 text-xs font-normal text-cyan-500">
-                    {!isShorts && perMinuteDisplay(item.sizePerSecondBytes)}
+                    {!isShorts && formatRate(item.sizePerSecondBytes, "minute")}
                 </span>
             </div>
         </div>

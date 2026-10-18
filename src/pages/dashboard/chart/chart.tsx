@@ -61,9 +61,7 @@ function ChartTooltipContentCustom({
                             <span className="size-3 shrink-0 rounded bg-white" />
                             <span className="text-neutral-300">{t("dashboard_allSites")}</span>
                         </span>
-                        <span className="font-mono text-stone-200">
-                            {formatBytes(data.usage * 1024 * 1024)}
-                        </span>
+                        <span className="font-mono text-stone-200">{formatBytes(data.usage)}</span>
                     </div>
 
                     {visibleEntries.map((site, index) => (
@@ -101,7 +99,7 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
     const usageData = usage.map(({ day, usage: sites }) => {
         return {
             date: day,
-            usage: getUsageNumber([{ day, usage: sites }]) / (1024 * 1024),
+            usage: getUsageNumber([{ day, usage: sites }]),
             sites: Array.from(sumByDomain(sites).values()).toSorted((a, b) => b.bytes - a.bytes),
         };
     }) satisfies ChartUsageItem[];
@@ -141,7 +139,7 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
                             tickLine={false}
                             axisLine={false}
                             width={60}
-                            tickFormatter={(value: number) => `${Math.round(value)} MB`}
+                            tickFormatter={(value: number) => formatBytes(value)}
                         />
                         <ChartTooltip content={<ChartTooltipContentCustom />} />
                         <Bar

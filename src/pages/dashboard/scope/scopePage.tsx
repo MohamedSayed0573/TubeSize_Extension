@@ -1,5 +1,5 @@
 import { t } from "@/i18n/t";
-import { formatDate } from "@lib/dashboardFormatting";
+import { formatDate } from "@lib/format";
 import { isValidDateKey, getLastNDays } from "@lib/dateUtils";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import VideosTableSkeleton from "@pages/dashboard/platform/videosTableSkeleton";

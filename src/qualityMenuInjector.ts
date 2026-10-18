@@ -14,7 +14,7 @@
  * on navigation away from a supported page and before each re-injection.
  */
 import type { YoutubeData } from "@app-types/platforms.types";
-import { totalSizeVideoDisplay } from "@lib/formatting";
+import { formatBytes, formatRate } from "@lib/format";
 import { waitForElement } from "@lib/dom";
 
 let settingsBtnEl: Element | undefined;
@@ -95,23 +95,15 @@ function createQualitySizeLookup() {
     const lookup = new Map<number, string>();
     if (currentYoutubeData?.type === "video") {
         for (const format of currentYoutubeData.formats) {
-            lookup.set(format.height, totalSizeVideoDisplay(format.sizeBytes));
+            lookup.set(format.height, formatBytes(format.sizeBytes));
         }
     } else {
         const formats = currentYoutubeData?.formats ?? [];
         for (const format of formats) {
-            lookup.set(format.resolution, perHourDisplay(format.sizePerSecondBytes));
+            lookup.set(format.resolution, formatRate(format.sizePerSecondBytes, "hour"));
         }
     }
     return lookup;
-}
-
-function perHourDisplay(sizePerSecondBytes: number): string {
-    const sizePerHourMB = (sizePerSecondBytes * 3600) / 1_000_000;
-    if (sizePerHourMB >= 1000) {
-        return `${(sizePerHourMB / 1000).toFixed(2)} GB/hour`;
-    }
-    return `${sizePerHourMB.toFixed(2)} MB/hour`;
 }
 
 function clearInjectedQualityMenuSizes() {

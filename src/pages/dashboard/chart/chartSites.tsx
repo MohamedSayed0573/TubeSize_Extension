@@ -14,7 +14,7 @@ const chartConfig = {
     },
 } satisfies ChartConfig;
 
-const MIN_SITE_BYTES = 1024 * 1024; // 1 MB
+const MIN_SITE_BYTES = 1_000_000; // 1 MB
 const MAX_SITES = 10;
 
 type ChartSiteItem = { site: string; bytes: number; fill: string };
