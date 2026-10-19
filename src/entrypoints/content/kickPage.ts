@@ -2,7 +2,8 @@ import type { KickData } from "@app-types/platforms.types";
 import type { PlatformPage } from "./platformPage";
 import { extractChannelName, extractKickVodId, isKickPage, isKickStream } from "@lib/utils";
 import { sendMessageToBackground } from "@/runtime";
-import { startToastKickPolling } from "@pages/toasterTracking";
+import { kickAdapter } from "@/adapters/kickAdapter";
+import { startToastTracking } from "@pages/toasterTracking";
 
 // Unlike Twitch, Kick VODs are resolved through the channel's video list, so
 // the channel name is required alongside the VOD id.
@@ -32,5 +33,5 @@ async function initKick(url: string): Promise<KickData | undefined> {
 export const kickPage: PlatformPage<KickData> = {
     matches: isKickPage,
     init: initKick,
-    startToaster: startToastKickPolling,
+    startToaster: (data) => startToastTracking(kickAdapter, data),
 };

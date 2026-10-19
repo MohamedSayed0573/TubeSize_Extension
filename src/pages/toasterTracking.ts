@@ -1,6 +1,6 @@
-import { showTwitchToast, showYoutubeToast } from "@pages/toaster";
+import { showPlatformToast } from "@pages/toaster";
 import { trackResolutionChanges } from "@/resolution";
-import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
+import type { PlatformData, ToastAdapter } from "@/adapters/types";
 import CONFIG from "@lib/constants";
 import { getFromSyncCache } from "@lib/cache";
 
@@ -12,39 +12,12 @@ async function getToasterThreshold() {
 }
 
 /**
- * Starts tracking resolution changes and shows toasts for YouTube videos.
- * @param youtubeData The data from the YouTube background script.
+ * Starts tracking resolution changes and shows toasts for any platform whose
+ * adapter can map its data to display formats.
  */
-export async function startYoutubeToastTracking(youtubeData: YoutubeData) {
+export async function startToastTracking(adapter: ToastAdapter, data: PlatformData) {
     const toasterThresholdMbph = await getToasterThreshold();
     await trackResolutionChanges((resolution) => {
-        void showYoutubeToast(resolution, youtubeData, toasterThresholdMbph);
-    });
-}
-
-/**
- * Starts tracking resolution changes and shows toasts for Twitch videos.
- * @param twitchData The Twitch data from the background script.
- */
-export async function startToastTwitchPolling(twitchData: TwitchData) {
-    const toasterThresholdMbph = await getToasterThreshold();
-    await trackResolutionChanges((resolution) => {
-        void showTwitchToast(
-            resolution,
-            twitchData.data,
-            toasterThresholdMbph,
-            twitchData.type === "live",
-        );
-    });
-}
-
-/**
- * Starts tracking resolution changes and shows toasts for Kick streams.
- * @param kickData The Kick data from the background script.
- */
-export async function startToastKickPolling(kickData: KickData) {
-    const toasterThresholdMbph = await getToasterThreshold();
-    await trackResolutionChanges((resolution) => {
-        void showTwitchToast(resolution, kickData.data, toasterThresholdMbph);
+        void showPlatformToast(adapter, data, resolution, toasterThresholdMbph);
     });
 }

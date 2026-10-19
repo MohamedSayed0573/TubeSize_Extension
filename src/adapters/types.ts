@@ -16,7 +16,17 @@ export type HeaderViewData = {
     duration?: string;
 };
 
-export interface PlatformAdapter {
+/**
+ * The subset of a platform adapter the toaster needs: it only maps platform
+ * data to the format list (resolution, total size, bitrate). Keeping this
+ * narrow lets the content script reuse adapters without depending on popup
+ * loading/header behaviour.
+ */
+export interface ToastAdapter {
+    formats: (data: PlatformData) => DisplayFormat[];
+}
+
+export interface PlatformAdapter extends ToastAdapter {
     // The unique identifier for the platform (e.g., "youtube", "twitch", "kick")
     platform: PlatformId;
 

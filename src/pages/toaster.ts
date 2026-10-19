@@ -1,4 +1,4 @@
-import type { TwitchData, YoutubeData } from "@app-types/platforms.types";
+import type { PlatformData, ToastAdapter } from "@/adapters/types";
 import type { DateKey } from "@app-types/types";
 import { createToast } from "@components/toast";
 import { getFromLocalCache, setToLocalCache } from "@lib/cache";
@@ -50,61 +50,28 @@ function mountToast(options: {
     );
 }
 
-export async function showYoutubeToast(
+export async function showPlatformToast(
+    adapter: ToastAdapter,
+    data: PlatformData,
     currentQuality: number,
-    youtubeData: YoutubeData,
     toasterThresholdMbph: number,
 ) {
     if (await isSuppressedForToday()) return;
 
-    if (youtubeData.type === "video") {
-        const format = youtubeData.formats.find((candidate) => candidate.height === currentQuality);
-        if (!format) return;
-
-        if (megabytesPerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
-            mountToast({
-                currentQuality,
-                thresholdMbph: toasterThresholdMbph,
-                sizePerSecondBytes: format.sizePerSecondBytes,
-                sizeBytes: format.sizeBytes,
-                isLive: false,
-            });
-        }
-    } else {
-        const format = youtubeData.formats.find(
-            (candidate) => candidate.resolution === currentQuality,
-        );
-        if (!format) return;
-
-        if (megabytesPerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
-            mountToast({
-                currentQuality,
-                thresholdMbph: toasterThresholdMbph,
-                sizePerSecondBytes: format.sizePerSecondBytes,
-                isLive: true,
-            });
-        }
-    }
-}
-
-export async function showTwitchToast(
-    currentQuality: number,
-    videoFormats: TwitchData["data"],
-    toasterThresholdMbph: number,
-    isLive: boolean = true,
-) {
-    if (await isSuppressedForToday()) return;
-
-    const format = videoFormats.find((candidate) => candidate.resolution === currentQuality);
+    const format = adapter
+        .formats(data)
+        .find((candidate) => candidate.resolution === currentQuality);
     if (!format) return;
-    if (megabytesPerHour(format.sizePerSecondBytes) > toasterThresholdMbph) {
-        mountToast({
-            currentQuality,
-            thresholdMbph: toasterThresholdMbph,
-            sizePerSecondBytes: format.sizePerSecondBytes,
-            isLive,
-        });
-    }
+
+    if (megabytesPerHour(format.sizePerSecondBytes) <= toasterThresholdMbph) return;
+
+    mountToast({
+        currentQuality,
+        thresholdMbph: toasterThresholdMbph,
+        sizePerSecondBytes: format.sizePerSecondBytes,
+        sizeBytes: format.sizeBytes,
+        isLive: data.type === "live",
+    });
 }
 
 function unmountToast() {
