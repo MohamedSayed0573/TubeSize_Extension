@@ -74,6 +74,10 @@ function youtubeHeader(data: PlatformData): HeaderViewData {
     };
 }
 
+function youtubeVideoUrl(videoTag: string): string {
+    return `https://youtube.com/watch?v=${videoTag}`;
+}
+
 export const youtubeAdapter = {
     platform: "youtube" as const,
     load: loadYoutubeData,
@@ -81,4 +85,5 @@ export const youtubeAdapter = {
     isRunningVideo,
     formats: youtubeFormats,
     header: youtubeHeader,
+    videoUrl: youtubeVideoUrl,
 };

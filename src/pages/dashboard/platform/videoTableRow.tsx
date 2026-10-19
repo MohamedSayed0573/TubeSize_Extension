@@ -2,7 +2,9 @@ import { t } from "@/i18n/t";
 import { formatBytes } from "@lib/format";
 import { Link } from "react-router";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { getPlatformAdapter } from "@/adapters/registry";
 import type { DateKey, PlatformId } from "@app-types/types";
+import type { VideoContentType } from "@/adapters/types";
 
 import { TableCell, TableRow } from "@/components/ui/table";
 
@@ -14,24 +16,6 @@ const PLATFORM_PLACEHOLDER_IMAGE: Record<PlatformId, string> = {
     kick: PLACEHOLDER_IMAGE,
 };
 
-function getVideoUrl(platform: PlatformId, videoTag: string, contentType?: "live" | "vod") {
-    switch (platform) {
-        case "youtube": {
-            return `https://youtube.com/watch?v=${videoTag}`;
-        }
-        case "twitch": {
-            const isVod =
-                contentType === undefined ? /^[0-9]+$/.test(videoTag) : contentType === "vod";
-            return isVod
-                ? `https://www.twitch.tv/videos/${videoTag}`
-                : `https://www.twitch.tv/${videoTag}`;
-        }
-        case "kick": {
-            return `https://kick.com/video/${videoTag}`;
-        }
-    }
-}
-
 export interface VideoRowDetails {
     videoTag: string;
     usage: number;
@@ -39,7 +23,7 @@ export interface VideoRowDetails {
     thumbnailUrl: string | undefined;
     channelName: string | undefined;
     channelUrl: string | undefined;
-    contentType?: "live" | "vod";
+    contentType?: VideoContentType;
     date: DateKey;
 }
 
@@ -52,8 +36,8 @@ export default function VideoTableRow({
     index: number;
     platform: PlatformId;
 }) {
-    const { date, usage, channelUrl } = videoDetails;
-    const url = getVideoUrl(platform, videoDetails.videoTag, videoDetails.contentType);
+    const { date, usage, channelUrl, videoTag, contentType } = videoDetails;
+    const url = getPlatformAdapter(platform).videoUrl(videoTag, contentType);
 
     const imageUrl = videoDetails.thumbnailUrl || PLATFORM_PLACEHOLDER_IMAGE[platform];
     const videoTitle = videoDetails.title || platform;
