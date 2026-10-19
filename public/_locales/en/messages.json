@@ -145,17 +145,9 @@
         "message": "Open a YouTube, Twitch, or Kick video to see estimated data usage.",
         "description": "Info shown on unsupported pages"
     },
-    "popup_openYoutubeVideo": {
-        "message": "Open a Youtube video",
-        "description": "Prompt to open a YouTube video"
-    },
-    "popup_openTwitchStream": {
-        "message": "Open a Twitch stream or video",
-        "description": "Prompt to open a Twitch stream"
-    },
-    "popup_openKickStream": {
-        "message": "Open a Kick Stream or Video",
-        "description": "Prompt to open a Kick stream"
+    "popup_noRunningVideo": {
+        "message": "No video is playing. Open a video or stream to see estimated data usage.",
+        "description": "Info shown when the page has no video or stream to load"
     },
     "popup_current": {
         "message": "Current",

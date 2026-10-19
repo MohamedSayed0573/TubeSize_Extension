@@ -1,15 +1,9 @@
-import { t } from "@/i18n/t";
-import { isYoutubePage, isTwitchPage, isKickPage } from "@lib/utils";
+import { findPlatformAdapter } from "@/adapters/registry";
 import Header from "@pages/popup/header";
 import useTab from "@hooks/useTab";
-import InfoCard from "@components/infoCard";
 import Spinner from "@components/spinner";
-import { PopupViewContainer } from "@pages/popup/popupViewContainer";
-import { lazy } from "react";
-
-const YoutubeView = lazy(async () => await import("@pages/popup/platforms/youtube/youtubeView"));
-const TwitchView = lazy(async () => await import("@pages/popup/platforms/twitch/twitchView"));
-const KickView = lazy(async () => await import("@pages/popup/platforms/kick/kickView"));
+import UnsupportedPage from "@pages/popup/unsupportedPage";
+import { PlatformView } from "./platforms/platformView";
 
 export default function Popup() {
     const { data: tab, error, isPending, isError } = useTab();
@@ -24,27 +18,11 @@ export default function Popup() {
     }
 
     const { tabUrl, tabId } = tab;
+    const adapter = tabUrl ? findPlatformAdapter(tabUrl) : undefined;
 
-    // 2. Platform sub-views
-    if (tabUrl && tabId) {
-        if (isYoutubePage(tabUrl)) {
-            return <YoutubeView tabUrl={tabUrl} tabId={tabId} />;
-        }
-        if (isTwitchPage(tabUrl)) {
-            return <TwitchView tabUrl={tabUrl} />;
-        }
-        if (isKickPage(tabUrl)) {
-            return <KickView tabUrl={tabUrl} tabId={tabId} />;
-        }
+    if (!tabUrl || !tabId || !adapter) {
+        return <UnsupportedPage />;
     }
 
-    return (
-        <>
-            <Header />
-            <PopupViewContainer>
-                <InfoCard tone="success" message={t("popup_usageTrackingEnabled")} />
-                <InfoCard message={t("popup_unsupportedPage")} />
-            </PopupViewContainer>
-        </>
-    );
+    return <PlatformView adapter={adapter} tabUrl={tabUrl} tabId={tabId} />;
 }
