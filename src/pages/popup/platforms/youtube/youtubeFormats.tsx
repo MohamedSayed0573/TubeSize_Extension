@@ -1,16 +1,6 @@
-import { t } from "@/i18n/t";
 import type { YoutubeData } from "@app-types/platforms.types";
-import CONFIG from "@lib/constants";
-import useSettings from "@hooks/useSettings";
 import useCurrentQuality from "@hooks/useCurrentQuality";
 import FormatItem from "@pages/popup/platforms/formatItem";
-import InfoCard from "@components/infoCard";
-import type { SettingsMap } from "@app-types/types";
-
-function getEnabledSettings(settingsState: SettingsMap) {
-    const qualityIds = settingsState["qualityIds"] ?? {};
-    return CONFIG.optionIDs.filter((option) => qualityIds[option] ?? true);
-}
 
 export default function YoutubeFormats({
     data,
@@ -21,46 +11,27 @@ export default function YoutubeFormats({
 }) {
     const { currentQuality } = useCurrentQuality(tabId);
 
-    const { query } = useSettings();
-    const { data: settingsState, isError, isPending, error } = query;
-
-    if (isError) throw error;
-    if (isPending) return null;
-
-    const enabledSettings = getEnabledSettings(settingsState);
-
-    if (enabledSettings.length === 0) {
-        return <InfoCard message={t("popup_allResolutionsDisabled")} />;
-    }
-
     if (data.type === "live") {
-        return data.formats
-            .filter((item) => {
-                return enabledSettings.includes("p" + item.resolution);
-            })
-            .map((item) => {
-                return (
-                    <FormatItem
-                        key={item.resolution}
-                        item={item}
-                        currentQuality={currentQuality?.quality}
-                        isShorts={false}
-                    />
-                );
-            });
-    }
-    return data.formats
-        .filter((item) => {
-            return enabledSettings.includes("p" + item.height);
-        })
-        .map((item) => {
+        return data.formats.map((item) => {
             return (
                 <FormatItem
-                    key={item.formatId}
+                    key={item.resolution}
                     item={item}
-                    isShorts={data.isShorts || false}
                     currentQuality={currentQuality?.quality}
+                    isShorts={false}
                 />
             );
         });
+    }
+
+    return data.formats.map((item) => {
+        return (
+            <FormatItem
+                key={item.formatId}
+                item={item}
+                isShorts={data.isShorts || false}
+                currentQuality={currentQuality?.quality}
+            />
+        );
+    });
 }

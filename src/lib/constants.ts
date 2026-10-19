@@ -14,8 +14,6 @@ const PLATFORMS = ["youtube", "twitch", "kick"] as const;
 
 const DEFAULT_CACHE_TTL = 3 * 24 * 60 * 60;
 
-const optionIDs = ["p144", "p240", "p360", "p480", "p720", "p1080", "p1440", "p2160", "p4320"];
-
 const CONFIG = {
     FETCH_HTML_TIMEOUT: 5000,
     VIDEO_ITAGS,
@@ -23,7 +21,6 @@ const CONFIG = {
     AUDIO_ITAG: 251,
     LIVE_AUDIO_ITAG: 140,
     DEFAULT_CACHE_TTL,
-    optionIDs,
     DEFAULT_MAX_RETRIES: 3,
     RANGE_RESOLUTION_THRESHOLD: 1080,
     VIDEO_ID_REGEX: /^[a-zA-Z0-9_-]{11}$/,

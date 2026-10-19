@@ -83,14 +83,6 @@
         "message": "الإنجليزية",
         "description": "English language name"
     },
-    "settings_resolutions_legend": {
-        "message": "خيارات الجودة",
-        "description": "Resolutions setting legend"
-    },
-    "settings_resolutions_description": {
-        "message": "اختر خيارات الجودة التي تريد عرضها عند النقر على أيقونة الإضافة:",
-        "description": "Resolutions setting description"
-    },
     "settings_toaster_legend": {
         "message": "تنبيه تجاوز حد استهلاك الفيديو",
         "description": "Toaster setting legend"
@@ -164,10 +156,6 @@
     "popup_openKickStream": {
         "message": "افتح بثًا أو فيديو على كيك",
         "description": "Prompt to open a Kick stream"
-    },
-    "popup_allResolutionsDisabled": {
-        "message": "جميع خيارات الجودة معطّلة. فعّلها من الإعدادات",
-        "description": "Shown when all resolutions are disabled"
     },
     "popup_current": {
         "message": "الحالي",
