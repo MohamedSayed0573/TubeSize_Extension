@@ -1,16 +1,15 @@
 import { t } from "@/i18n/t";
 import { formatBytes, formatRate } from "@lib/format";
-import type { YoutubeData } from "@app-types/platforms.types";
+import type { DisplayFormat } from "@/adapters/types";
 import { cn } from "@lib/utils";
 
 interface Props {
-    item: YoutubeData["formats"][number];
+    format: DisplayFormat;
     currentQuality: number | undefined;
-    isShorts?: boolean;
 }
 
-export default function FormatItem({ item, isShorts, currentQuality }: Props) {
-    const resolution = item.type === "live" ? item.resolution : item.height;
+export default function FormatItem({ format, currentQuality }: Props) {
+    const { resolution, sizeBytes, sizePerSecondBytes, hideRate } = format;
 
     return (
         <div
@@ -30,12 +29,12 @@ export default function FormatItem({ item, isShorts, currentQuality }: Props) {
             </div>
             <div className="flex flex-col items-end text-right text-sm font-semibold text-teal-200">
                 <span>
-                    {item.type === "live"
-                        ? formatRate(item.sizePerSecondBytes, "hour")
-                        : formatBytes(item.sizeBytes)}
+                    {sizeBytes != null
+                        ? formatBytes(sizeBytes)
+                        : formatRate(sizePerSecondBytes, "hour")}
                 </span>
                 <span className="mt-0.5 text-xs font-normal text-cyan-500">
-                    {!isShorts && formatRate(item.sizePerSecondBytes, "minute")}
+                    {!hideRate && formatRate(sizePerSecondBytes, "minute")}
                 </span>
             </div>
         </div>

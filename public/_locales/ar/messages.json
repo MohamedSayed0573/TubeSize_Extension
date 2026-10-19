@@ -145,17 +145,9 @@
         "message": "افتح فيديو على يوتيوب أو تويتش أو كيك لرؤية تقدير استهلاك البيانات.",
         "description": "Info shown on unsupported pages"
     },
-    "popup_openYoutubeVideo": {
-        "message": "افتح فيديو يوتيوب",
-        "description": "Prompt to open a YouTube video"
-    },
-    "popup_openTwitchStream": {
-        "message": "افتح بثًا أو فيديو على تويتش",
-        "description": "Prompt to open a Twitch stream"
-    },
-    "popup_openKickStream": {
-        "message": "افتح بثًا أو فيديو على كيك",
-        "description": "Prompt to open a Kick stream"
+    "popup_noRunningVideo": {
+        "message": "لا يوجد فيديو قيد التشغيل. افتح فيديو أو بثًا لرؤية تقدير استهلاك البيانات.",
+        "description": "Info shown when the page has no video or stream to load"
     },
     "popup_current": {
         "message": "الحالي",
