@@ -83,14 +83,6 @@
         "message": "English",
         "description": "English language name"
     },
-    "settings_resolutions_legend": {
-        "message": "Resolutions",
-        "description": "Resolutions setting legend"
-    },
-    "settings_resolutions_description": {
-        "message": "Select which resolutions to display when you click on the extension icon:",
-        "description": "Resolutions setting description"
-    },
     "settings_toaster_legend": {
         "message": "Video Usage Limit Exceeded Alert",
         "description": "Toaster setting legend"
@@ -164,10 +156,6 @@
     "popup_openKickStream": {
         "message": "Open a Kick Stream or Video",
         "description": "Prompt to open a Kick stream"
-    },
-    "popup_allResolutionsDisabled": {
-        "message": "All Resolutions Disabled. Enable in settings",
-        "description": "Shown when all resolutions are disabled"
     },
     "popup_current": {
         "message": "Current",

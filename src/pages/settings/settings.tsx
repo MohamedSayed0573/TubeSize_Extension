@@ -1,7 +1,6 @@
 import ToasterSettings from "@pages/settings/toasterSettings";
 import useSettings from "@hooks/useSettings";
 import { SettingsFooter } from "@pages/settings/settingsFooter";
-import ResolutionsSettings from "@pages/settings/resolutionsSettings";
 import Spinner from "@components/spinner";
 import { FieldSeparator } from "@components/ui/field";
 import { LanguageSettings } from "./langSettings";
@@ -17,8 +16,6 @@ export default function Settings() {
         <>
             <div className="flex flex-col gap-2 px-3 py-2">
                 <LanguageSettings />
-                <FieldSeparator />
-                <ResolutionsSettings settingsState={settingsState} />
                 <FieldSeparator />
                 <ToasterSettings settingsState={settingsState} />
             </div>
