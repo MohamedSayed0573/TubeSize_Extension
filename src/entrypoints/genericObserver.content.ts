@@ -261,6 +261,7 @@ export default defineContentScript({
                         // used — free it — and fall back to the original URL so the
                         // site's worker still starts.
                         URL.revokeObjectURL(wrappedUrl);
+                        // oxlint-disable-next-line constructor-super
                         super(scriptURL, options);
                     }
                     if (didRehost) {
@@ -268,6 +269,7 @@ export default defineContentScript({
                         revokeWorkerUrlWhenLoaded(this, wrappedUrl);
                     }
                 } else {
+                    // oxlint-disable-next-line constructor-super
                     super(scriptURL, options);
                 }
             }

@@ -12,7 +12,7 @@
     ],
     "tags": ["-lintignore"],
     "ignore": ["src/components/ui/**"],
-    "ignoreBinaries": ["check"],
-    "ignoreDependencies": ["@types/chrome"],
+    "ignoreBinaries": ["check", "fmt"],
+    "ignoreDependencies": ["@types/chrome", "oxfmt", "oxlint", "oxlint-tsgolint"],
     "vite": true
 }

@@ -15,8 +15,8 @@
         "postinstall": "wxt prepare",
         "test": "bun test --isolate",
         "test:coverage": "bun test --coverage --isolate",
-        "prettier:write": "bun fmt . --write",
-        "prettier:check": "bun fmt . --check",
+        "prettier:write": "bun fmt .",
+        "prettier:check": "bun fmt. --check",
         "lint": "bun lint .",
         "tsc": "bun check",
         "knip": "KNIP_DISABLE_RAW_TRANSFER=1 knip",
@@ -70,9 +70,9 @@
         "wxt": "^0.21.4"
     },
     "lint-staged": {
-        "*.{css,html,js,jsx,json,md,ts,tsx}": "bun fmt . --write"
+        "*.{css,html,js,jsx,json,md,ts,tsx}": "bun fmt --no-script"
     },
-    "packageManager": "bun@1.4.3",
+    "packageManager": "bun@1.4.4-canary.1",
     "trustedDependencies": [
         "@parcel/watcher",
         "unrs-resolver"
