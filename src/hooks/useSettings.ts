@@ -1,3 +1,4 @@
+import CONFIG from "@/lib/constants";
 import { clearLocalCache, getAllFromSyncCache, setToSyncCache } from "@lib/cache";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -20,9 +21,9 @@ export default function useSettings() {
         mutationFn: clearLocalCache,
 
         onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["youtube"] });
-            await queryClient.invalidateQueries({ queryKey: ["twitch"] });
-            await queryClient.invalidateQueries({ queryKey: ["kick"] });
+            for (const key of Object.keys(CONFIG.PLATFORMS)) {
+                await queryClient.invalidateQueries({ queryKey: [key] });
+            }
         },
     });
 

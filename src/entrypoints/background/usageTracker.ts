@@ -146,7 +146,7 @@ async function trackWatchHistory(buffer: UsageBuffer, tabId: number, bytes: numb
 
         if (target.platform === "youtube") void recordYoutubeMetadata(url);
         else if (target.platform === "twitch") void recordTwitchMetadata(url);
-        else void recordKickMetadata(url);
+        else if (target.platform === "kick") void recordKickMetadata(url);
     } catch (err) {
         console.error("Failed to attribute usage to a video:", err);
     }

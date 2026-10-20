@@ -7,7 +7,7 @@ import { useWatchHistory } from "@hooks/useWatchHistory";
 import { ArrowRight } from "lucide-react";
 import type { PlatformId, UsageScope } from "@app-types/types";
 
-const PLATFORM_STYLES = {
+const PLATFORM_STYLES: Record<PlatformId, string> = {
     youtube: "border-l-red-500 hover:shadow-red-950/40",
     twitch: "border-l-violet-500 hover:shadow-violet-950/40",
     kick: "border-l-lime-500 hover:shadow-lime-950/40",
