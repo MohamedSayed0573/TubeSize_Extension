@@ -16,7 +16,7 @@
         "test": "bun test --isolate",
         "test:coverage": "bun test --coverage --isolate",
         "prettier:write": "bun fmt .",
-        "prettier:check": "bun fmt. --check",
+        "prettier:check": "bun fmt --check",
         "lint": "bun lint .",
         "tsc": "bun check",
         "knip": "KNIP_DISABLE_RAW_TRANSFER=1 knip",
