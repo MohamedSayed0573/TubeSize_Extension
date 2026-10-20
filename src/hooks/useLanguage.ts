@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+
 import type { Language } from "@/i18n/language";
 
 export const LanguageContext = createContext<{

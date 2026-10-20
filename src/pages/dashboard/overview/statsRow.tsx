@@ -1,12 +1,13 @@
-import { t } from "@/i18n/t";
+import { getLastNDays } from "@lib/dateUtils";
 import { formatBytes } from "@lib/format";
 import { getUsageNumber } from "@lib/usage";
-import { getLastNDays } from "@lib/dateUtils";
 import { cn } from "@lib/utils";
-import type { SiteUsage } from "@/db";
 import { Activity, CalendarDays, CalendarRange, Database } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
+
+import type { SiteUsage } from "@/db";
+import { t } from "@/i18n/t";
 
 function StatsCard({
     title,

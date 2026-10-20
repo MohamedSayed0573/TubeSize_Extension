@@ -1,5 +1,7 @@
-import type { SiteUsage } from "@/db";
 import type { DateKey, UsageScope } from "@app-types/types";
+
+import type { SiteUsage } from "@/db";
+
 import { getLastNDays } from "./dateUtils";
 
 export function getUsageNumber(usage: SiteUsage[] | undefined): number {

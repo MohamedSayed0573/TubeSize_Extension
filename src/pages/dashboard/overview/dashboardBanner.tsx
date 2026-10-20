@@ -1,4 +1,5 @@
 import { t } from "@/i18n/t";
+
 export default function DashboardBanner() {
     return (
         <div className="flex items-center justify-between gap-3 border-b border-neutral-800 bg-neutral-900 px-4 py-1 text-gray-300">

@@ -1,14 +1,15 @@
-import { cn } from "@lib/utils";
-import type { SiteUsage } from "@/db";
-import { NavLink } from "react-router";
-import { lazy, Suspense } from "react";
-import { CalendarDays, Database, Globe, type LucideIcon } from "lucide-react";
-import NoUsageData from "../shared/noUsageData";
 import { Skeleton } from "@components/ui/skeleton";
+import { cn } from "@lib/utils";
+import { CalendarDays, Database, Globe, type LucideIcon } from "lucide-react";
+import { lazy, Suspense } from "react";
+import { NavLink } from "react-router";
 
-import { t } from "@/i18n/t";
+import type { SiteUsage } from "@/db";
 import { getLanguage } from "@/i18n/language";
+import { t } from "@/i18n/t";
+
 import { Chart as ChartDaily } from "../chart/chart";
+import NoUsageData from "../shared/noUsageData";
 
 const ChartSites = lazy(async () => import("../chart/chartSites"));
 

@@ -1,10 +1,12 @@
 import type { YoutubeData } from "@app-types/platforms.types";
-import type { PlatformPage } from "./platformPage";
 import { extractVideoTag, isYoutubePage } from "@lib/utils";
+import { startToastTracking } from "@pages/toasterTracking";
+
+import { youtubeAdapter } from "@/adapters/youtubeAdapter";
 import { injectQualityMenu } from "@/qualityMenuInjector";
 import { sendMessageToBackground } from "@/runtime";
-import { youtubeAdapter } from "@/adapters/youtubeAdapter";
-import { startToastTracking } from "@pages/toasterTracking";
+
+import type { PlatformPage } from "./platformPage";
 
 async function initYoutube(url: string): Promise<YoutubeData | undefined> {
     const videoTag = extractVideoTag(url);

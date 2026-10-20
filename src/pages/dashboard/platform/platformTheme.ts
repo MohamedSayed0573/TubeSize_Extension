@@ -1,7 +1,7 @@
+import type { PlatformId } from "@app-types/types";
 import kickLogo from "@assets/kick.svg";
 import twitchLogo from "@assets/twitch.svg";
 import youtubeLogo from "@assets/youtube.svg";
-import type { PlatformId } from "@app-types/types";
 
 export type PlatformTheme = {
     // Logo shown on the platform card and the platform page header.

@@ -1,7 +1,7 @@
+import type { PlatformId } from "@app-types/types";
 import CONFIG from "@lib/constants";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { PlatformId } from "@app-types/types";
 
 export function isPlatformId(value: unknown): value is PlatformId {
     // eslint-disable-next-line unicorn/prefer-includes

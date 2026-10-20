@@ -1,9 +1,10 @@
-import type { PlatformData, ToastAdapter } from "@/adapters/types";
 import type { DateKey } from "@app-types/types";
 import { createToast } from "@components/toast";
 import { getFromLocalCache, setToLocalCache } from "@lib/cache";
 import { getDateKey } from "@lib/dateUtils";
 import { megabytesPerHour } from "@lib/format";
+
+import type { PlatformData, ToastAdapter } from "@/adapters/types";
 
 const HOST_ID = "TubeSize-Toast-Host";
 

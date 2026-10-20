@@ -1,13 +1,14 @@
-import { t } from "@/i18n/t";
+import type { DateKey, PlatformId } from "@app-types/types";
 import { formatBytes } from "@lib/format";
 import { Link } from "react-router";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { getPlatformAdapter } from "@/adapters/registry";
-import { PLATFORM_THEME } from "./platformTheme";
-import type { DateKey, PlatformId } from "@app-types/types";
-import type { VideoContentType } from "@/adapters/types";
 
+import { getPlatformAdapter } from "@/adapters/registry";
+import type { VideoContentType } from "@/adapters/types";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { t } from "@/i18n/t";
+
+import { PLATFORM_THEME } from "./platformTheme";
 
 export interface VideoRowDetails {
     videoTag: string;

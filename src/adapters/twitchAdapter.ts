@@ -1,3 +1,6 @@
+import { getLanguage } from "@/i18n/language";
+import { t } from "@/i18n/t";
+import { humanizeDuration } from "@/lib/humanize";
 import {
     extractChannelName,
     extractTwitchVodId,
@@ -6,10 +9,8 @@ import {
     isTwitchVod,
 } from "@/lib/utils";
 import { sendMessageToBackground } from "@/runtime";
-import { getLanguage } from "@/i18n/language";
-import { t } from "@/i18n/t";
-import { humanizeDuration } from "@/lib/humanize";
 import type { TwitchData } from "@/types/platforms.types";
+
 import type { DisplayFormat, HeaderViewData, PlatformData, VideoContentType } from "./types";
 
 async function loadTwitchData(tabUrl: string): Promise<TwitchData> {

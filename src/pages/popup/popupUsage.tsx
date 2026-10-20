@@ -1,9 +1,10 @@
-import { getLanguage } from "@/i18n/language";
 import SiteIcon from "@components/siteIcon";
 import { formatBytes } from "@lib/format";
 import { chromeNavigate } from "@lib/utils";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
+
+import { getLanguage } from "@/i18n/language";
 
 function splitSize(formatted: string): { value: string; unit: string } {
     const [value, unit] = formatted.split(" ");

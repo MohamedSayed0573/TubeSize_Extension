@@ -1,5 +1,6 @@
-import { t } from "@/i18n/t";
 import Header from "@pages/popup/header";
+
+import { t } from "@/i18n/t";
 
 export default function PopupError({ error }: { error: unknown }) {
     const routeError = error;

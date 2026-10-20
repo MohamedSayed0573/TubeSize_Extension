@@ -1,7 +1,8 @@
-import { getAllWatchHistory, getWatchHistoryByDate } from "@/db";
 import type { UsageScope } from "@app-types/types";
 import { scopeToDateKey } from "@lib/usage";
 import { useQuery } from "@tanstack/react-query";
+
+import { getAllWatchHistory, getWatchHistoryByDate } from "@/db";
 
 export function useWatchHistory(scope?: UsageScope) {
     return useQuery({

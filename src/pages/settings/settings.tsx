@@ -1,8 +1,9 @@
-import ToasterSettings from "@pages/settings/toasterSettings";
-import useSettings from "@hooks/useSettings";
-import { SettingsFooter } from "@pages/settings/settingsFooter";
 import Spinner from "@components/spinner";
 import { FieldSeparator } from "@components/ui/field";
+import useSettings from "@hooks/useSettings";
+import { SettingsFooter } from "@pages/settings/settingsFooter";
+import ToasterSettings from "@pages/settings/toasterSettings";
+
 import { LanguageSettings } from "./langSettings";
 
 export default function Settings() {

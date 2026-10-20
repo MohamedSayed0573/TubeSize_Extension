@@ -1,5 +1,7 @@
-import { t } from "@/i18n/t";
 import InfoCard from "@components/infoCard";
+
+import { t } from "@/i18n/t";
+
 import Header from "./header";
 import { PopupViewContainer } from "./popupViewContainer";
 

@@ -1,4 +1,5 @@
 import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
+
 import type { PlatformId } from "@/types/types";
 
 export type PlatformData = YoutubeData | TwitchData | KickData;

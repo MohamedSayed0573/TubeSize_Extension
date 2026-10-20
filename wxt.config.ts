@@ -1,8 +1,9 @@
-import { defineConfig } from "wxt";
-import tailwindcss from "@tailwindcss/vite";
-import type { Plugin } from "vite";
 import path from "node:path";
+
+import tailwindcss from "@tailwindcss/vite";
 import { visualizer } from "rollup-plugin-visualizer";
+import type { Plugin } from "vite";
+import { defineConfig } from "wxt";
 
 // WXT runs one Vite/Rollup build per entrypoint (background, each content
 // script), except pages (popup, dashboard, ...), which share a single build

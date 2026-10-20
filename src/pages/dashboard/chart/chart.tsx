@@ -1,18 +1,19 @@
-import { getLanguage } from "@/i18n/language";
-import { t } from "@/i18n/t";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { useNavigate } from "react-router";
+import type { DateKey } from "@app-types/types";
+import { ChartContainer, ChartTooltip, type ChartConfig } from "@components/ui/chart";
+import { parseDateKey } from "@lib/dateUtils";
+import { sumByDomain, type DomainUsage } from "@lib/domain";
 
 import "@styles/chart.css";
-
-import { Card, CardContent } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, type ChartConfig } from "@components/ui/chart";
-import type { SiteUsage } from "@/db";
 import { formatBytes } from "@lib/format";
 import { getUsageNumber } from "@lib/usage";
-import { sumByDomain, type DomainUsage } from "@lib/domain";
-import { parseDateKey } from "@lib/dateUtils";
-import type { DateKey } from "@app-types/types";
+import { useNavigate } from "react-router";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+
+import { Card, CardContent } from "@/components/ui/card";
+import type { SiteUsage } from "@/db";
+import { getLanguage } from "@/i18n/language";
+import { t } from "@/i18n/t";
+
 import { getSiteColor } from "./siteColors";
 
 const chartConfig = {

@@ -7,9 +7,10 @@ import {
     getKickContentType,
     getTwitchContentType,
 } from "@lib/utils";
+import * as cheerio from "cheerio";
+
 import { addVideoMetadata, getVideoMetadata } from "@/db";
 import { handleYoutube } from "@/entrypoints/background/handlers";
-import * as cheerio from "cheerio";
 
 export async function recordTwitchMetadata(url: string) {
     try {

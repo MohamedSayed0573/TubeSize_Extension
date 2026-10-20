@@ -1,11 +1,13 @@
+import { getOriginWithoutSuffix, sumByDomain } from "@lib/domain";
+import { formatBytes } from "@lib/format";
+import { useNavigate } from "react-router";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import type { SiteUsage } from "@/db";
-import { formatBytes } from "@lib/format";
-import { sumByDomain, getOriginWithoutSuffix } from "@lib/domain";
+
 import { getSiteColor } from "./siteColors";
-import { useNavigate } from "react-router";
 
 const chartConfig = {
     sites: {

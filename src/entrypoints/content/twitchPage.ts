@@ -1,9 +1,11 @@
 import type { TwitchData } from "@app-types/platforms.types";
-import type { PlatformPage } from "./platformPage";
 import { extractChannelName, extractTwitchVodId, isTwitchLive, isTwitchPage } from "@lib/utils";
-import { sendMessageToBackground } from "@/runtime";
-import { twitchAdapter } from "@/adapters/twitchAdapter";
 import { startToastTracking } from "@pages/toasterTracking";
+
+import { twitchAdapter } from "@/adapters/twitchAdapter";
+import { sendMessageToBackground } from "@/runtime";
+
+import type { PlatformPage } from "./platformPage";
 
 async function initTwitch(url: string): Promise<TwitchData | undefined> {
     const isLive = isTwitchLive(url);

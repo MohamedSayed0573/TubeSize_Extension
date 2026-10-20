@@ -1,4 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
+
 import { getSiteUsage } from "@/db";
 
 export function useOriginUsage(origin: string | undefined) {

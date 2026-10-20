@@ -4,9 +4,9 @@ import type {
     YoutubeVideoFormat,
     ytInitialPlayerResponse,
 } from "@app-types/platforms.types";
-import { fetchAndRetry } from "@lib/utils";
 import CONFIG from "@lib/constants";
 import { ytInitialSchema } from "@lib/schema";
+import { fetchAndRetry } from "@lib/utils";
 
 export function parseVideoFormats(formats: RawFormat): YoutubeVideoFormat[] {
     const audioSize = getAverageAudioSize(formats.audioFormats);

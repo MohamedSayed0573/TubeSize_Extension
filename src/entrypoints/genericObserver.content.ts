@@ -12,9 +12,9 @@
 //   3. Worker wrap — re-hosts classic web workers with a counting bootstrap,
 //      so fetch() inside workers (Twitch's video worker) is counted too
 
-import { defineContentScript } from "wxt/utils/define-content-script";
-import { getWatchHistoryTarget } from "@lib/utils";
 import type { UsageMessage, WatchHistoryMessage } from "@app-types/types";
+import { getWatchHistoryTarget } from "@lib/utils";
+import { defineContentScript } from "wxt/utils/define-content-script";
 
 function workerBootstrap(originalUrl: string): string {
     return `
@@ -261,6 +261,7 @@ export default defineContentScript({
                         // used — free it — and fall back to the original URL so the
                         // site's worker still starts.
                         URL.revokeObjectURL(wrappedUrl);
+                        // oxlint-disable-next-line constructor-super
                         super(scriptURL, options);
                     }
                     if (didRehost) {
@@ -268,6 +269,7 @@ export default defineContentScript({
                         revokeWorkerUrlWhenLoaded(this, wrappedUrl);
                     }
                 } else {
+                    // oxlint-disable-next-line constructor-super
                     super(scriptURL, options);
                 }
             }

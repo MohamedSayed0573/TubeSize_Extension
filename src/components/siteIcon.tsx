@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Globe } from "lucide-react";
 import { faviconURL, isFirefox, originFaviconURL } from "@lib/utils";
+import { Globe } from "lucide-react";
+import { useState } from "react";
 
 interface SiteIconProps {
     origin?: string;

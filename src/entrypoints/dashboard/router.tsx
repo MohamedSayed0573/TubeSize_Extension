@@ -1,6 +1,7 @@
-import { Navigate, createHashRouter } from "react-router";
 import Spinner from "@components/spinner";
 import DashboardLayout from "@layouts/dashboardLayout";
+import { createHashRouter, Navigate } from "react-router";
+
 import { DashboardRouteErrorElement } from "./routeErrorElement";
 
 const dashboardLoadingFallback = (

@@ -1,8 +1,9 @@
+import { useSiteUsage } from "@hooks/useSiteUsage";
+import { getOriginWithoutSuffix } from "@lib/domain";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useParams } from "react-router";
-import { useSiteUsage } from "@hooks/useSiteUsage";
-import { getOriginWithoutSuffix } from "@lib/domain";
+
 import DailyUsageTable from "./dailyUsageTable";
 
 export default function SiteDetailPage() {

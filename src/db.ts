@@ -1,6 +1,7 @@
 import type { DateKey } from "@app-types/types";
 import { getDateKey } from "@lib/dateUtils";
 import { Dexie, type Table } from "dexie";
+
 import type { VideoContentType } from "./adapters/types";
 
 export interface SiteUsage {

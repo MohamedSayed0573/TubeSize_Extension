@@ -1,4 +1,5 @@
 import { t } from "@/i18n/t";
+
 export function SettingsFooter() {
     return (
         <div className="flex items-center justify-around p-3">

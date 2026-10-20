@@ -1,11 +1,11 @@
 import type {
+    AddUsageResponse,
+    AddWatchHistoryResponse,
+    GetUsageResponse,
+    GetWatchHistoryResponse,
     KickBackgroundResponse,
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
-    GetUsageResponse,
-    AddUsageResponse,
-    AddWatchHistoryResponse,
-    GetWatchHistoryResponse,
 } from "@app-types/platforms.types";
 import type { FrontEndMessage } from "@app-types/types";
 

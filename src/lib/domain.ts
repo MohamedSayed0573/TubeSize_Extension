@@ -1,4 +1,5 @@
 import { getDomain, getDomainWithoutSuffix } from "tldts-icann";
+
 import { capitalize } from "./utils";
 
 function getDomainName(origin: string) {
