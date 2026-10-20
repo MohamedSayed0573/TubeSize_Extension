@@ -14,8 +14,6 @@ export function getLanguage(): Language {
 
 export async function initializeLanguage(): Promise<void> {
     const stored = await languageItem.getValue();
-    // `defineItem<Language>` is compile-time only; storage can hold any value
-    // (legacy builds, manual edits), so validate before trusting it.
     language = stored === "en" || stored === "ar" ? stored : browserLanguage();
 }
 
