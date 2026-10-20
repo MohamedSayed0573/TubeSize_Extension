@@ -70,7 +70,7 @@
         "wxt": "^0.21.4"
     },
     "lint-staged": {
-        "*.{css,html,js,jsx,json,md,ts,tsx}": "bun fmt . --write"
+        "*.{css,html,js,jsx,json,md,ts,tsx}": "bun fmt --write"
     },
     "packageManager": "bun@1.4.3",
     "trustedDependencies": [
