@@ -1,5 +1,4 @@
-import { getFromSyncCache } from "@lib/cache";
-import CONFIG from "@lib/constants";
+import { toasterThreshold } from "@lib/storage";
 import { showPlatformToast } from "@pages/toaster";
 
 import type { PlatformData, ToastAdapter } from "@/adapters/types";
@@ -9,7 +8,7 @@ import { trackResolutionChanges } from "@/resolution";
  * @returns The toaster threshold in MB per hour.
  */
 async function getToasterThreshold() {
-    return (await getFromSyncCache("toasterThreshold")) ?? CONFIG.DEFAULT_TOASTER_THRESHOLD;
+    return toasterThreshold.getValue();
 }
 
 /**

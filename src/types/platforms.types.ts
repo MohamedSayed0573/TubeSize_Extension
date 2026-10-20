@@ -118,3 +118,17 @@ export type AddUsageResponse = BackgroundResponse<null>;
 export type GetUsageResponse = BackgroundResponse<Record<string, number> | undefined>;
 export type AddWatchHistoryResponse = BackgroundResponse<null>;
 export type GetWatchHistoryResponse = BackgroundResponse<Record<string, number> | undefined>;
+
+/**
+ * Platform id -> the data shape that platform produces. `mediaCacheItem` keys
+ * cached media off this map, so reads/writes are typed per platform. Adding a
+ * platform requires adding one entry here, in the file its data types live in.
+ */
+export type PlatformDataMap = {
+    youtube: YoutubeData;
+    twitch: TwitchData;
+    kick: KickData;
+};
+
+/** The data shape any platform produces. */
+export type PlatformData = YoutubeData | TwitchData | KickData;

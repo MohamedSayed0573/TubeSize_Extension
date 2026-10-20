@@ -18,8 +18,8 @@ import type {
     TwitchVodMessage,
     YoutubeMessage,
 } from "@app-types/types";
-import { getFromStorage, saveToStorage } from "@lib/cache";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
+import { getMediaCache, saveMediaCache } from "@lib/storageService";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import {
     extractYtInitialResponse,
@@ -154,7 +154,7 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
             throw new Error("No video tag provided");
         }
 
-        const cached = await getFromStorage("youtube", videoTag);
+        const cached = await getMediaCache("youtube", videoTag);
         if (cached) {
             return {
                 success: true,
@@ -179,7 +179,7 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
                 thumbnailUrl,
                 channelUrl,
             };
-            await saveToStorage(videoTag, data, "youtube");
+            await saveMediaCache("youtube", videoTag, data);
 
             return {
                 success: true,
@@ -198,7 +198,7 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
             channelName: rawData.videoDetails.author,
             channelUrl,
         };
-        await saveToStorage(videoTag, youtubeData, "youtube");
+        await saveMediaCache("youtube", videoTag, youtubeData);
         return {
             success: true,
             data: youtubeData,

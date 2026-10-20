@@ -1,3 +1,5 @@
+import { language as languageItem } from "@lib/storage";
+
 export type Language = "en" | "ar";
 
 let language: Language | undefined;
@@ -11,12 +13,11 @@ export function getLanguage(): Language {
 }
 
 export async function initializeLanguage(): Promise<void> {
-    const stored = await chrome.storage.sync.get("language");
-    language =
-        stored.language === "en" || stored.language === "ar" ? stored.language : browserLanguage();
+    const stored = await languageItem.getValue();
+    language = stored ?? browserLanguage();
 }
 
 export async function setLanguage(next: Language): Promise<void> {
-    await chrome.storage.sync.set({ language: next });
+    await languageItem.setValue(next);
     language = next;
 }
