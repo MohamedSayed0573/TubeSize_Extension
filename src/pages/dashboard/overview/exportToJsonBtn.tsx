@@ -1,6 +1,6 @@
+import { getAllSiteUsage, type SiteUsage } from "@/db";
 import { t } from "@/i18n/t";
 import { Button } from "@components/ui/button";
-import { getAllSiteUsage, type SiteUsage } from "@/db";
 import { InvalidImportJson } from "@lib/errors";
 
 function isValidUsageEntry(url: string, bytes: number): boolean {

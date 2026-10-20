@@ -1,16 +1,16 @@
 import { t } from "@/i18n/t";
-import { formatDate } from "@lib/format";
-import { isValidDateKey, getLastNDays } from "@lib/dateUtils";
-import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
-import VideosTableSkeleton from "@pages/dashboard/platform/videosTableSkeleton";
-import NoUsageData from "@pages/dashboard/shared/noUsageData";
+import type { DateKey, UsageRange, UsageScope } from "@app-types/types";
 import { useSiteUsage } from "@hooks/useSiteUsage";
+import { getLastNDays, isValidDateKey } from "@lib/dateUtils";
+import { formatDate } from "@lib/format";
 import { getUsageNumber } from "@lib/usage";
+import VideosTableSkeleton from "@pages/dashboard/platform/videosTableSkeleton";
+import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
+import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useParams } from "react-router";
 import DashboardNotFound from "../shared/notFound";
-import type { DateKey, UsageRange, UsageScope } from "@app-types/types";
-import PlatformCards from "./platformCards";
 import AllSitesTable from "./allSitesTable";
+import PlatformCards from "./platformCards";
 
 function getTitle(range: UsageScope): string {
     if (range.type === "range") {

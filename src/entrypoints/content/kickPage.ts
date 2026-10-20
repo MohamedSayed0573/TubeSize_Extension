@@ -1,9 +1,9 @@
-import type { KickData } from "@app-types/platforms.types";
-import type { PlatformPage } from "./platformPage";
-import { extractChannelName, extractKickVodId, isKickPage, isKickStream } from "@lib/utils";
-import { sendMessageToBackground } from "@/runtime";
 import { kickAdapter } from "@/adapters/kickAdapter";
+import { sendMessageToBackground } from "@/runtime";
+import type { KickData } from "@app-types/platforms.types";
+import { extractChannelName, extractKickVodId, isKickPage, isKickStream } from "@lib/utils";
 import { startToastTracking } from "@pages/toasterTracking";
+import type { PlatformPage } from "./platformPage";
 
 // Unlike Twitch, Kick VODs are resolved through the channel's video list, so
 // the channel name is required alongside the VOD id.

@@ -1,3 +1,5 @@
+import { getLanguage } from "@/i18n/language";
+import { humanizeDuration } from "@/lib/humanize";
 import {
     extractChannelName,
     extractKickVodId,
@@ -6,8 +8,6 @@ import {
     isKickVod,
 } from "@/lib/utils";
 import { sendMessageToBackground } from "@/runtime";
-import { getLanguage } from "@/i18n/language";
-import { humanizeDuration } from "@/lib/humanize";
 import type { KickData } from "@/types/platforms.types";
 import type { DisplayFormat, HeaderViewData, PlatformData } from "./types";
 

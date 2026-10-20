@@ -1,5 +1,5 @@
-import { useRouteError } from "react-router";
 import DashboardErrorPage from "@pages/dashboard/shared/dashboardError";
+import { useRouteError } from "react-router";
 
 export function DashboardRouteErrorElement() {
     const error = useRouteError();

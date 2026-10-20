@@ -1,10 +1,10 @@
 import { t } from "@/i18n/t";
-import { useTotalUsage } from "@hooks/useTotalUsage";
 import { useOriginUsage } from "@hooks/useOriginUsage";
 import useTab from "@hooks/useTab";
-import PopupUsage from "./popupUsage";
-import { PopupFooter } from "./popupFooter";
+import { useTotalUsage } from "@hooks/useTotalUsage";
 import { getOriginWithoutSuffix } from "@lib/domain";
+import { PopupFooter } from "./popupFooter";
+import PopupUsage from "./popupUsage";
 
 function getTabOrigin(tabUrl: string | undefined) {
     if (!tabUrl) return;

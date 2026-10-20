@@ -1,7 +1,7 @@
 import { findPlatformAdapter } from "@/adapters/registry";
-import Header from "@pages/popup/header";
-import useTab from "@hooks/useTab";
 import Spinner from "@components/spinner";
+import useTab from "@hooks/useTab";
+import Header from "@pages/popup/header";
 import UnsupportedPage from "@pages/popup/unsupportedPage";
 import { PlatformView } from "./platforms/platformView";
 

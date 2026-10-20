@@ -1,10 +1,9 @@
+import { getLanguage } from "@/i18n/language";
+import { t } from "@/i18n/t";
 import { Skeleton } from "@components/ui/skeleton";
 import { Link } from "react-router";
-
-import { t } from "@/i18n/t";
-import { getLanguage } from "@/i18n/language";
-import DashboardBanner from "./dashboardBanner";
 import ClearUsageButton from "./clearUsageButton";
+import DashboardBanner from "./dashboardBanner";
 
 function StatsCard({ title }: { title: string }) {
     return (

@@ -1,7 +1,7 @@
+import { clearDatabaseData } from "@/db";
 import { t } from "@/i18n/t";
 import { AlertDialogBasic } from "@components/alertDialogBasic";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { clearDatabaseData } from "@/db";
 
 export default function ClearUsageButton() {
     const queryClient = useQueryClient();

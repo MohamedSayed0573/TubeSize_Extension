@@ -1,18 +1,18 @@
-import { useParams, useSearchParams } from "react-router";
-import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
-import NoUsageData from "@pages/dashboard/shared/noUsageData";
-import VideosTableSkeleton from "./videosTableSkeleton";
-import VideosTable, { type VideoRowDetails } from "./videosTable";
-import { PlatformLogo } from "./platformLogos";
-import { getScopeLabel, parseUsageScope, parseVideoKey } from "./platformUtils";
+import { getVideoContentType } from "@/db";
+import { getLanguage } from "@/i18n/language";
+import { t } from "@/i18n/t";
+import type { PlatformId, UsageScope } from "@app-types/types";
 import { useVideoMetadata } from "@hooks/useVideoMetadata";
 import { useWatchHistory } from "@hooks/useWatchHistory";
 import { capitalize, isPlatformId } from "@lib/utils";
+import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
+import NoUsageData from "@pages/dashboard/shared/noUsageData";
+import { useParams, useSearchParams } from "react-router";
 import DashboardNotFound from "../shared/notFound";
-import type { PlatformId, UsageScope } from "@app-types/types";
-import { getLanguage } from "@/i18n/language";
-import { t } from "@/i18n/t";
-import { getVideoContentType } from "@/db";
+import { PlatformLogo } from "./platformLogos";
+import { getScopeLabel, parseUsageScope, parseVideoKey } from "./platformUtils";
+import VideosTable, { type VideoRowDetails } from "./videosTable";
+import VideosTableSkeleton from "./videosTableSkeleton";
 
 export default function PlatformUsage() {
     const { platformId } = useParams();

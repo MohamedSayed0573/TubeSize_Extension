@@ -14,8 +14,8 @@
  * on navigation away from a supported page and before each re-injection.
  */
 import type { YoutubeData } from "@app-types/platforms.types";
-import { formatBytes, formatRate } from "@lib/format";
 import { waitForElement } from "@lib/dom";
+import { formatBytes, formatRate } from "@lib/format";
 
 let settingsBtnEl: Element | undefined;
 let qualityBtnEl: Element | undefined;

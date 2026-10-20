@@ -1,7 +1,7 @@
-import { getFromSyncCache } from "@lib/cache";
-import CONFIG from "@lib/constants";
 import { removeEventListeners } from "@/qualityMenuInjector";
 import { stopResolutionTracking } from "@/resolution";
+import { getFromSyncCache } from "@lib/cache";
+import CONFIG from "@lib/constants";
 import { PLATFORMS } from "./platformPage";
 
 export async function handlePageNavigation() {

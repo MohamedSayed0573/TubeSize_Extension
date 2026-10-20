@@ -1,6 +1,6 @@
+import type { PlatformId } from "@app-types/types";
 import { cn } from "@lib/utils";
 import { PLATFORM_THEME } from "./platformTheme";
-import type { PlatformId } from "@app-types/types";
 
 export function PlatformLogo({ platform }: { platform: PlatformId }) {
     const theme = PLATFORM_THEME[platform];

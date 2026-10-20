@@ -1,6 +1,6 @@
+import type { DisplayFormat } from "@/adapters/types";
 import { t } from "@/i18n/t";
 import { formatBytes, formatRate } from "@lib/format";
-import type { DisplayFormat } from "@/adapters/types";
 import { cn } from "@lib/utils";
 
 interface Props {

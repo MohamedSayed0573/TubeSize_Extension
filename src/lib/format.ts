@@ -1,7 +1,6 @@
-import { filesize, type FilesizeOptions } from "filesize";
-
-import type { DateKey } from "@app-types/types";
 import { getLanguage } from "@/i18n/language";
+import type { DateKey } from "@app-types/types";
+import { filesize, type FilesizeOptions } from "filesize";
 
 /**
  * Formats bytes as a human-readable string using decimal SI units (1000-based).

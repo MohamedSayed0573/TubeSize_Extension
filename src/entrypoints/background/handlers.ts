@@ -1,34 +1,34 @@
+import { setUsageBadge } from "@/badge";
 import { addSiteUsage, addWatchHistory, getSiteUsage, getWatchHistory } from "@/db";
+import { getUsageNumber } from "@/lib/usage";
 import type {
-    YoutubeBackgroundResponse,
-    TwitchBackgroundResponse,
-    KickBackgroundResponse,
-    YoutubeVideoData,
-    YoutubeData,
-    GetUsageResponse,
     AddUsageResponse,
     AddWatchHistoryResponse,
+    GetUsageResponse,
     GetWatchHistoryResponse,
+    KickBackgroundResponse,
+    TwitchBackgroundResponse,
+    YoutubeBackgroundResponse,
+    YoutubeData,
+    YoutubeVideoData,
 } from "@app-types/platforms.types";
 import type {
-    YoutubeMessage,
-    TwitchMessage,
-    KickMessage,
     AddUsageMessage,
     AddWatchHistoryMessage,
+    KickMessage,
+    TwitchMessage,
+    YoutubeMessage,
 } from "@app-types/types";
 import { getFromStorage, saveToStorage } from "@lib/cache";
+import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
+import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import {
     extractYtInitialResponse,
-    parseDataFromYtInitial,
-    parseVideoFormats,
-    parseLiveStreamInfo,
     getThumbnailUrl,
+    parseDataFromYtInitial,
+    parseLiveStreamInfo,
+    parseVideoFormats,
 } from "@lib/youtube";
-import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
-import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
-import { getUsageNumber } from "@/lib/usage";
-import { setUsageBadge } from "@/badge";
 
 function isValidUsageBytes(usage: unknown): usage is number {
     return typeof usage === "number" && Number.isFinite(usage) && usage >= 0;

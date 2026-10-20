@@ -1,8 +1,8 @@
-import { createHashRouter } from "react-router";
-import Popup from "@pages/popup/popup";
-import { PopupLayout } from "@layouts/popupLayout";
-import { PopupRouteErrorElement, SettingsRouteErrorElement } from "./routeErrorElements";
 import SettingsLayout from "@/layouts/settingsLayout";
+import { PopupLayout } from "@layouts/popupLayout";
+import Popup from "@pages/popup/popup";
+import { createHashRouter } from "react-router";
+import { PopupRouteErrorElement, SettingsRouteErrorElement } from "./routeErrorElements";
 
 export const router = createHashRouter([
     {

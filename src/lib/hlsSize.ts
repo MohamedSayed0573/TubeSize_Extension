@@ -1,8 +1,7 @@
 import type { StreamInfo } from "@app-types/platforms.types";
 import CONFIG from "@lib/constants";
+import { fetchMediaM3u8, filterM3u8, mediaPlaylistUrlByHeight } from "@lib/m3u8";
 import type { Manifest, PlaylistItem } from "m3u8-parser";
-import { fetchMediaM3u8, mediaPlaylistUrlByHeight } from "@lib/m3u8";
-import { filterM3u8 } from "@lib/m3u8";
 
 async function fetchActualSegments(
     segments: {

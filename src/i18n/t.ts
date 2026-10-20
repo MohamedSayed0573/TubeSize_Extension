@@ -1,5 +1,5 @@
-import en from "../../public/_locales/en/messages.json";
 import ar from "../../public/_locales/ar/messages.json";
+import en from "../../public/_locales/en/messages.json";
 import { getLanguage } from "./language";
 
 export function t(key: string, substitutions: string | Array<string | number> = []): string {

@@ -1,12 +1,12 @@
-import { Link } from "react-router";
+import type { PlatformId, UsageScope } from "@app-types/types";
+import { useWatchHistory } from "@hooks/useWatchHistory";
 import { formatBytes } from "@lib/format";
+import { capitalize, cn } from "@lib/utils";
+import { ArrowRight } from "lucide-react";
+import { Link } from "react-router";
 import { PlatformLogo } from "../platform/platformLogos";
 import { PLATFORM_THEME } from "../platform/platformTheme";
 import { buildPlatformSearch, parseVideoKey } from "../platform/platformUtils";
-import { capitalize, cn } from "@lib/utils";
-import { useWatchHistory } from "@hooks/useWatchHistory";
-import { ArrowRight } from "lucide-react";
-import type { PlatformId, UsageScope } from "@app-types/types";
 
 export default function PlatformCards({ scope }: { scope: UsageScope }) {
     const { data, isError, error, isPending } = useWatchHistory(scope);

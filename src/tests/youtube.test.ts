@@ -1,14 +1,14 @@
-import { describe, test, expect } from "bun:test";
-import type { ytInitialPlayerResponse, RawFormat } from "@app-types/platforms.types";
 import fs from "node:fs";
 import path from "node:path";
+import type { RawFormat, ytInitialPlayerResponse } from "@app-types/platforms.types";
+import { ytInitialSchema } from "@lib/schema";
 import {
     extractYtInitialResponse,
     getAverageAudioSize,
     mergeAudioWithVideo,
     parseDataFromYtInitial,
 } from "@lib/youtube";
-import { ytInitialSchema } from "@lib/schema";
+import { describe, expect, test } from "bun:test";
 
 describe("extractYtInitialResponse", () => {
     test("should extract YtInitialPlayerResponse from html page", async () => {

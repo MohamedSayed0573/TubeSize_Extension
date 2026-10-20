@@ -1,7 +1,7 @@
-import CONFIG from "@lib/constants";
 import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
-import { getDateKey } from "@lib/dateUtils";
 import type { SettingsMap, StorageData } from "@app-types/types";
+import CONFIG from "@lib/constants";
+import { getDateKey } from "@lib/dateUtils";
 
 async function setToCache(storage: "local" | "sync", input: Record<string, unknown>) {
     await chrome.storage[storage].set(input);

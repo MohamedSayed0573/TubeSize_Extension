@@ -1,9 +1,3 @@
-import { t } from "@/i18n/t";
-import type { SettingsMap } from "@app-types/types";
-import useSettings from "@hooks/useSettings";
-import { cn } from "@lib/utils";
-import CONFIG from "@lib/constants";
-import { Switch } from "@/components/ui/switch";
 import {
     Field,
     FieldDescription,
@@ -12,7 +6,13 @@ import {
     FieldLegend,
     FieldSet,
 } from "@/components/ui/field";
+import { Switch } from "@/components/ui/switch";
+import { t } from "@/i18n/t";
+import type { SettingsMap } from "@app-types/types";
 import { Slider } from "@components/ui/slider";
+import useSettings from "@hooks/useSettings";
+import CONFIG from "@lib/constants";
+import { cn } from "@lib/utils";
 import { useState } from "react";
 
 export default function ToasterSettings({ settingsState }: { settingsState: SettingsMap }) {

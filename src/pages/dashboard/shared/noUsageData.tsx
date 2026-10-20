@@ -1,4 +1,5 @@
 import { t } from "@/i18n/t";
+
 export default function NoUsageData() {
     return (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-white/8 bg-[#1d1d1d] p-8">

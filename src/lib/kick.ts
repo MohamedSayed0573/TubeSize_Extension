@@ -1,15 +1,15 @@
-import { filterM3u8, parseM3U8 } from "@lib/m3u8";
-import type { PlaylistItem } from "m3u8-parser";
-import { estimateHlsStreamSizes } from "@lib/hlsSize";
-import { getFromStorage, saveToStorage } from "@lib/cache";
 import type { KickBackgroundResponse, KickLiveData, KickVodData } from "@app-types/platforms.types";
 import type { KickLiveMessage, KickVodMessage } from "@app-types/types";
+import { getFromStorage, saveToStorage } from "@lib/cache";
+import { estimateHlsStreamSizes } from "@lib/hlsSize";
+import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import {
     kickChannelVideosResponseSchema,
     kickPlaybackResponseSchema,
     kickVideoResponseSchema,
 } from "@lib/schema";
 import { fetchAndRetry } from "@lib/utils";
+import type { PlaylistItem } from "m3u8-parser";
 
 async function getKickHtml(url: string): Promise<string> {
     const res = await fetchAndRetry(url, {

@@ -1,4 +1,5 @@
 import { t } from "@/i18n/t";
+
 export function PopupFooter() {
     return (
         <div className="flex items-center justify-around border-t border-white/8 px-3 pt-2 pb-1">

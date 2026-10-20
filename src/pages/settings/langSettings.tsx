@@ -1,6 +1,3 @@
-import { useMutation } from "@tanstack/react-query";
-import { t } from "@/i18n/t";
-import useLanguage from "@hooks/useLanguage";
 import { Field, FieldDescription, FieldLegend } from "@/components/ui/field";
 import {
     Select,
@@ -9,6 +6,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { t } from "@/i18n/t";
+import useLanguage from "@hooks/useLanguage";
+import { useMutation } from "@tanstack/react-query";
 
 export function LanguageSettings() {
     const { language, changeLanguage } = useLanguage();

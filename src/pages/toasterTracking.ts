@@ -1,8 +1,8 @@
-import { showPlatformToast } from "@pages/toaster";
-import { trackResolutionChanges } from "@/resolution";
 import type { PlatformData, ToastAdapter } from "@/adapters/types";
-import CONFIG from "@lib/constants";
+import { trackResolutionChanges } from "@/resolution";
 import { getFromSyncCache } from "@lib/cache";
+import CONFIG from "@lib/constants";
+import { showPlatformToast } from "@pages/toaster";
 
 /**
  * @returns The toaster threshold in MB per hour.

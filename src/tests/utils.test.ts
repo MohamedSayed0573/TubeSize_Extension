@@ -1,15 +1,15 @@
-import { describe, test, expect, jest } from "bun:test";
 import {
-    isYoutubePage,
-    isShortsVideo,
+    extractChannelName,
+    extractTwitchVodId,
     extractVideoTag,
     fetchAndRetry,
-    isTwitchPage,
+    isShortsVideo,
     isTwitchLive,
+    isTwitchPage,
     isTwitchVod,
-    extractTwitchVodId,
-    extractChannelName,
+    isYoutubePage,
 } from "@lib/utils";
+import { describe, expect, jest, test } from "bun:test";
 
 describe("isYoutubePage", () => {
     test("should return true for a valid YouTube URL", () => {

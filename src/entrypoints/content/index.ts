@@ -1,5 +1,5 @@
-import { defineContentScript } from "wxt/utils/define-content-script";
 import { initializeLanguage } from "@/i18n/language";
+import { defineContentScript } from "wxt/utils/define-content-script";
 import { setupMessageHandler } from "./messageHandler";
 import { handlePageNavigation } from "./pageNavigation";
 

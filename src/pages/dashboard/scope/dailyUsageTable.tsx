@@ -1,5 +1,4 @@
 import { t } from "@/i18n/t";
-import { Link } from "react-router";
 import {
     Table,
     TableBody,
@@ -10,6 +9,7 @@ import {
     TableRow,
 } from "@components/ui/table";
 import { formatBytes } from "@lib/format";
+import { Link } from "react-router";
 
 export interface DailyUsage {
     day: string;

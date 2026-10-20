@@ -1,10 +1,10 @@
-import { usePlatformData } from "@/hooks/usePlatformData";
 import type { PlatformAdapter } from "@/adapters/types";
-import Header from "../header";
-import Spinner from "@/components/spinner";
 import InfoCard from "@/components/infoCard";
-import { PopupViewContainer } from "../popupViewContainer";
+import Spinner from "@/components/spinner";
+import { usePlatformData } from "@/hooks/usePlatformData";
 import { t } from "@/i18n/t";
+import Header from "../header";
+import { PopupViewContainer } from "../popupViewContainer";
 import FormatView from "./formatView";
 
 type Props = {

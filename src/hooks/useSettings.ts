@@ -1,6 +1,6 @@
 import CONFIG from "@/lib/constants";
 import { clearLocalCache, getAllFromSyncCache, setToSyncCache } from "@lib/cache";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function useSettings() {
     const queryClient = useQueryClient();

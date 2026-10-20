@@ -12,9 +12,9 @@
 //   3. Worker wrap — re-hosts classic web workers with a counting bootstrap,
 //      so fetch() inside workers (Twitch's video worker) is counted too
 
-import { defineContentScript } from "wxt/utils/define-content-script";
-import { getWatchHistoryTarget } from "@lib/utils";
 import type { UsageMessage, WatchHistoryMessage } from "@app-types/types";
+import { getWatchHistoryTarget } from "@lib/utils";
+import { defineContentScript } from "wxt/utils/define-content-script";
 
 function workerBootstrap(originalUrl: string): string {
     return `

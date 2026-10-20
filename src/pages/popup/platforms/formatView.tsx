@@ -1,6 +1,6 @@
+import type { PlatformAdapter, PlatformData } from "@/adapters/types";
 import useCurrentQuality from "@/hooks/useCurrentQuality";
 import useTab from "@/hooks/useTab";
-import type { PlatformAdapter, PlatformData } from "@/adapters/types";
 import FormatItem from "./formatItem";
 
 export default function FormatView({
