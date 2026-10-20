@@ -12,6 +12,7 @@ import DashboardNotFound from "../shared/notFound";
 import type { PlatformId, UsageScope } from "@app-types/types";
 import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
+import { getVideoContentType } from "@/db";
 
 export default function PlatformUsage() {
     const { platformId } = useParams();
@@ -54,10 +55,7 @@ export default function PlatformUsage() {
                 channelName: videoMetadata?.channelName,
                 channelUrl: videoMetadata?.channelUrl,
                 thumbnailUrl: videoMetadata?.thumbnailUrl,
-                contentType:
-                    videoMetadata?.type === "twitch" || videoMetadata?.type === "kick"
-                        ? videoMetadata.contentType
-                        : undefined,
+                contentType: getVideoContentType(videoMetadata),
             };
         });
     });

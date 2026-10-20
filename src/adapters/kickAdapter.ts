@@ -76,6 +76,10 @@ function kickHeader(data: PlatformData): HeaderViewData {
     };
 }
 
+function kickVideoUrl(videoTag: string): string {
+    return `https://kick.com/video/${videoTag}`;
+}
+
 export const kickAdapter = {
     platform: "kick" as const,
     load: loadKickData,
@@ -83,4 +87,5 @@ export const kickAdapter = {
     isRunningVideo,
     formats: kickFormats,
     header: kickHeader,
+    videoUrl: kickVideoUrl,
 };

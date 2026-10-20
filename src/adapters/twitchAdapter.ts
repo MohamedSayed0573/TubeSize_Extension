@@ -10,7 +10,7 @@ import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
 import { humanizeDuration } from "@/lib/humanize";
 import type { TwitchData } from "@/types/platforms.types";
-import type { DisplayFormat, HeaderViewData, PlatformData } from "./types";
+import type { DisplayFormat, HeaderViewData, PlatformData, VideoContentType } from "./types";
 
 async function loadTwitchData(tabUrl: string): Promise<TwitchData> {
     // The page is a Twitch Video (Not a live stream)
@@ -79,6 +79,12 @@ function twitchHeader(data: PlatformData): HeaderViewData {
     };
 }
 
+function twitchVideoUrl(videoTag: string, contentType?: VideoContentType): string {
+    const isVod = contentType === undefined ? /^\d+$/.test(videoTag) : contentType === "vod";
+
+    return isVod ? `https://www.twitch.tv/videos/${videoTag}` : `https://www.twitch.tv/${videoTag}`;
+}
+
 export const twitchAdapter = {
     platform: "twitch" as const,
     load: loadTwitchData,
@@ -86,4 +92,5 @@ export const twitchAdapter = {
     isRunningVideo,
     formats: twitchFormats,
     header: twitchHeader,
+    videoUrl: twitchVideoUrl,
 };

@@ -16,7 +16,19 @@ export type HeaderViewData = {
     duration?: string;
 };
 
-export interface PlatformAdapter {
+export type VideoContentType = "live" | "vod";
+
+/**
+ * The subset of a platform adapter the toaster needs: it only maps platform
+ * data to the format list (resolution, total size, bitrate). Keeping this
+ * narrow lets the content script reuse adapters without depending on popup
+ * loading/header behaviour.
+ */
+export interface ToastAdapter {
+    formats: (data: PlatformData) => DisplayFormat[];
+}
+
+export interface PlatformAdapter extends ToastAdapter {
     // The unique identifier for the platform (e.g., "youtube", "twitch", "kick")
     platform: PlatformId;
 
@@ -34,4 +46,7 @@ export interface PlatformAdapter {
 
     // The function to map the platform's data to the popup header's title and duration.
     header: (data: PlatformData) => HeaderViewData;
+
+    // The function to build the canonical watch URL for a video tag.
+    videoUrl: (videoTag: string, contentType?: VideoContentType) => string;
 }

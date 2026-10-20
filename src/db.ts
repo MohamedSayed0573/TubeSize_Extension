@@ -1,6 +1,7 @@
 import type { DateKey } from "@app-types/types";
 import { getDateKey } from "@lib/dateUtils";
 import { Dexie, type Table } from "dexie";
+import type { VideoContentType } from "./adapters/types";
 
 export interface SiteUsage {
     day: DateKey;
@@ -170,4 +171,10 @@ export async function clearDatabaseData() {
             await database.videoMetaData.clear();
         },
     );
+}
+
+export function getVideoContentType(
+    metadata: VideoMetadata | undefined,
+): VideoContentType | undefined {
+    return metadata && "contentType" in metadata ? metadata.contentType : undefined;
 }

@@ -198,6 +198,7 @@ export function extractVideoTag(ytUrl: string): string | undefined {
         return videoTag;
     } catch (err) {
         console.error(err);
+        return;
     }
 }
 

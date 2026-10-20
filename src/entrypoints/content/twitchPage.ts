@@ -2,7 +2,8 @@ import type { TwitchData } from "@app-types/platforms.types";
 import type { PlatformPage } from "./platformPage";
 import { extractChannelName, extractTwitchVodId, isTwitchLive, isTwitchPage } from "@lib/utils";
 import { sendMessageToBackground } from "@/runtime";
-import { startToastTwitchPolling } from "@pages/toasterTracking";
+import { twitchAdapter } from "@/adapters/twitchAdapter";
+import { startToastTracking } from "@pages/toasterTracking";
 
 async function initTwitch(url: string): Promise<TwitchData | undefined> {
     const isLive = isTwitchLive(url);
@@ -28,5 +29,5 @@ async function initTwitch(url: string): Promise<TwitchData | undefined> {
 export const twitchPage: PlatformPage<TwitchData> = {
     matches: isTwitchPage,
     init: initTwitch,
-    startToaster: startToastTwitchPolling,
+    startToaster: (data) => startToastTracking(twitchAdapter, data),
 };

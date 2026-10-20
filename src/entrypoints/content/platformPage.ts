@@ -1,3 +1,7 @@
+import { kickPage } from "./kickPage";
+import { twitchPage } from "./twitchPage";
+import { youtubePage } from "./youtubePage";
+
 /**
  * Contract for a per-platform page module. Each supported site implements this
  * interface and registers itself in the `PLATFORMS` registry in `pageNavigation.ts`;
@@ -17,3 +21,5 @@ export interface PlatformPage<TData> {
     // Starts the toast polling for the given platform data.
     startToaster(data: TData): Promise<void>;
 }
+
+export const PLATFORMS: PlatformPage<unknown>[] = [youtubePage, twitchPage, kickPage];

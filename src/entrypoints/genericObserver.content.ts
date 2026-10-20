@@ -3,9 +3,7 @@
 // imports into one self-contained classic script, so the shared helpers can be
 // imported directly — but the bundle must never touch `chrome.*` at runtime
 // (the old CRXJS build pulled in @lib/utils -> i18n -> chrome.storage and died
-// on load). Whenever the import graph changes, check the built
-// .output/<browser>-mv3/content-scripts/genericObserver.js for `chrome.`
-// references before shipping.
+// on load). Whenever the import graph changes.
 //
 // Usage accounting installed here (all dedup against background.ts's webRequest
 // path, which counts every response with a known Content-Length):
