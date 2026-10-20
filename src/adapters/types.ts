@@ -1,8 +1,8 @@
-import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
+import type { PlatformData } from "@app-types/platforms.types";
 
 import type { PlatformId } from "@/types/types";
 
-export type PlatformData = YoutubeData | TwitchData | KickData;
+export type { PlatformData };
 
 export type DisplayFormat = {
     key: string | number;

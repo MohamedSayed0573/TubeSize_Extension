@@ -1,6 +1,5 @@
 import type { KickBackgroundResponse, KickLiveData, KickVodData } from "@app-types/platforms.types";
 import type { KickLiveMessage, KickVodMessage } from "@app-types/types";
-import { getFromStorage, saveToStorage } from "@lib/cache";
 import { estimateHlsStreamSizes } from "@lib/hlsSize";
 import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import {
@@ -8,6 +7,7 @@ import {
     kickPlaybackResponseSchema,
     kickVideoResponseSchema,
 } from "@lib/schema";
+import { getMediaCache, saveMediaCache } from "@lib/storageService";
 import { fetchAndRetry } from "@lib/utils";
 import type { PlaylistItem } from "m3u8-parser";
 
@@ -170,7 +170,7 @@ async function findKickVodInChannelVideos(channelName: string, videoId: string) 
 
 export async function getKickVodResponse(message: KickVodMessage): Promise<KickBackgroundResponse> {
     try {
-        const cached = await getFromStorage("kick", message.vodId);
+        const cached = await getMediaCache("kick", message.vodId);
         if (cached) {
             return {
                 success: true,
@@ -202,7 +202,7 @@ export async function getKickVodResponse(message: KickVodMessage): Promise<KickB
             channelUrl: `https://kick.com/${message.channelName}`,
             durationSeconds: Math.round(durationMs / 1000),
         };
-        await saveToStorage(message.vodId, response, "kick");
+        await saveMediaCache("kick", message.vodId, response);
 
         return {
             success: true,

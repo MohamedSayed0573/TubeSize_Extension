@@ -1,5 +1,4 @@
-import { getFromSyncCache } from "@lib/cache";
-import CONFIG from "@lib/constants";
+import { toasterEnabled } from "@lib/storage";
 
 import { removeEventListeners } from "@/qualityMenuInjector";
 import { stopResolutionTracking } from "@/resolution";
@@ -35,7 +34,7 @@ function resetFeatureState() {
 }
 
 async function isToasterEnabled() {
-    return (await getFromSyncCache("toasterEnabled")) ?? CONFIG.DEFAULT_TOASTER_ENABLED;
+    return toasterEnabled.getValue();
 }
 
 function getCurrentUrl() {

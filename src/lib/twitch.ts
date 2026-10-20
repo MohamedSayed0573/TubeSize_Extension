@@ -5,11 +5,11 @@ import type {
     TwitchVodData,
 } from "@app-types/platforms.types";
 import type { TwitchLiveMessage, TwitchVodMessage } from "@app-types/types";
-import { getFromStorage, saveToStorage } from "@lib/cache";
 import CONFIG from "@lib/constants";
 import { estimateHlsStreamSizes } from "@lib/hlsSize";
 import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import { twitchGqlResponseSchema, twitchPageLdJsonSchema } from "@lib/schema";
+import { getMediaCache, saveMediaCache } from "@lib/storageService";
 import { fetchAndRetry } from "@lib/utils";
 import * as cheerio from "cheerio";
 import type { PlaylistItem } from "m3u8-parser";
@@ -186,7 +186,7 @@ export async function getTwitchLiveResponse(
 export async function getTwitchVodResponse(
     message: TwitchVodMessage,
 ): Promise<TwitchBackgroundResponse> {
-    const cached = await getFromStorage("twitch", message.vodId);
+    const cached = await getMediaCache("twitch", message.vodId);
     if (cached) {
         return {
             success: true,
@@ -207,7 +207,7 @@ export async function getTwitchVodResponse(
         channelName: undefined,
         channelUrl: undefined,
     };
-    await saveToStorage(message.vodId, response, "twitch");
+    await saveMediaCache("twitch", message.vodId, response);
 
     return {
         success: true,
