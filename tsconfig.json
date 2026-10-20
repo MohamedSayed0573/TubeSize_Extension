@@ -30,5 +30,6 @@
             "@layouts/*": ["./src/layouts/*"]
         }
     },
-    "include": ["./src", "wxt.config.ts"]
+    // `.wxt/wxt.d.ts` pulls in WXT's generated types (import.meta.env` globals like `BROWSER`/`FIREFOX`).
+    "include": ["./src", "wxt.config.ts", "./.wxt/wxt.d.ts"]
 }

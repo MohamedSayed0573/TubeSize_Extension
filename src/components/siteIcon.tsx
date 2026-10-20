@@ -13,6 +13,7 @@ interface SiteIconProps {
  * website request), else a `Globe` placeholder. No third-party service.
  */
 export default function SiteIcon({ origin, className, alt = "" }: SiteIconProps) {
+    // `/_favicon/` is Chromium-only, so Firefox goes straight to the site favicon.
     const isFirefoxBrowser = isFirefox();
     const primary = isFirefoxBrowser ? originFaviconURL(origin) : faviconURL(origin);
     const fallback = isFirefoxBrowser ? undefined : originFaviconURL(origin);
