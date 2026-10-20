@@ -4,7 +4,7 @@ import type {
     TwitchTokenData,
     TwitchVodData,
 } from "@app-types/platforms.types";
-import type { TwitchLiveMessage, TwitchMessage, TwitchVodMessage } from "@app-types/types";
+import type { TwitchLiveMessage, TwitchVodMessage } from "@app-types/types";
 import { getFromStorage, saveToStorage } from "@lib/cache";
 import CONFIG from "@lib/constants";
 import { estimateHlsStreamSizes } from "@lib/hlsSize";
@@ -14,11 +14,20 @@ import { fetchAndRetry } from "@lib/utils";
 import * as cheerio from "cheerio";
 import type { PlaylistItem } from "m3u8-parser";
 
-export async function getTwitchClientId(message: TwitchMessage): Promise<string> {
-    const url =
-        message.type === "twitchVod"
-            ? `https://www.twitch.tv/videos/${message.vodId}`
-            : `https://www.twitch.tv/${message.channelName}`;
+/**
+ * The variables the Twitch GQL API expects. A live stream and a VOD use the
+ * same query and only differ in these fields.
+ */
+type TwitchGqlVariables = {
+    login: string;
+    isLive: boolean;
+    vodID: string;
+    isVod: boolean;
+    playerType: string;
+    platform: string;
+};
+
+async function getTwitchClientId(url: string): Promise<string> {
     const res = await fetchAndRetry(url);
     if (!res.success) {
         throw new Error("Failed to fetch Twitch page");
@@ -33,23 +42,26 @@ export async function getTwitchClientId(message: TwitchMessage): Promise<string>
     return clientId[1];
 }
 
-export async function getTwitchToken(message: TwitchMessage): Promise<TwitchTokenData> {
+export async function getTwitchLiveClientId(channelName: string): Promise<string> {
+    return await getTwitchClientId(`https://www.twitch.tv/${channelName}`);
+}
+
+export async function getTwitchVodClientId(vodId: string): Promise<string> {
+    return await getTwitchClientId(`https://www.twitch.tv/videos/${vodId}`);
+}
+
+async function getTwitchToken(
+    clientId: string,
+    variables: TwitchGqlVariables,
+): Promise<TwitchTokenData> {
     try {
-        const clientId = await getTwitchClientId(message);
         const headers = {
             "Client-Id": clientId,
             "Content-Type": "application/json",
         };
         const body = {
             query: CONFIG.TWITCH_GQL_GRAPHQL_QUERY,
-            variables: {
-                login: message.type === "twitchLive" ? message.channelName : "",
-                isLive: message.type === "twitchLive",
-                vodID: message.type === "twitchVod" ? message.vodId : "",
-                isVod: message.type === "twitchVod",
-                playerType: "site",
-                platform: "web",
-            },
+            variables,
         };
 
         const res = await fetchAndRetry("https://gql.twitch.tv/gql", {
@@ -88,21 +100,39 @@ export async function getTwitchToken(message: TwitchMessage): Promise<TwitchToke
     }
 }
 
-export async function getTwitchMasterM3u8(
+export async function getTwitchLiveToken(channelName: string): Promise<TwitchTokenData> {
+    return await getTwitchToken(await getTwitchLiveClientId(channelName), {
+        login: channelName,
+        isLive: true,
+        vodID: "",
+        isVod: false,
+        playerType: "site",
+        platform: "web",
+    });
+}
+
+export async function getTwitchVodToken(vodId: string): Promise<TwitchTokenData> {
+    return await getTwitchToken(await getTwitchVodClientId(vodId), {
+        login: "",
+        isLive: false,
+        vodID: vodId,
+        isVod: true,
+        playerType: "site",
+        platform: "web",
+    });
+}
+
+async function getTwitchMasterM3u8(
     tokenData: TwitchTokenData,
-    message: TwitchMessage,
+    url: string,
 ): Promise<PlaylistItem[]> {
-    const url = new URL(
-        message.type === "twitchLive"
-            ? `https://usher.ttvnw.net/api/v2/channel/hls/${message.channelName}.m3u8`
-            : `https://usher.ttvnw.net/vod/v2/${message.vodId}.m3u8`,
-    );
+    const masterUrl = new URL(url);
 
-    url.searchParams.set("token", tokenData.value);
-    url.searchParams.set("sig", tokenData.signature);
-    url.searchParams.set("allow_source", "true");
+    masterUrl.searchParams.set("token", tokenData.value);
+    masterUrl.searchParams.set("sig", tokenData.signature);
+    masterUrl.searchParams.set("allow_source", "true");
 
-    const res = await fetchAndRetry(url);
+    const res = await fetchAndRetry(masterUrl);
     if (!res.success) {
         throw new Error("Failed to fetch Twitch m3u8 data");
     }
@@ -115,11 +145,28 @@ export async function getTwitchMasterM3u8(
     return playlists;
 }
 
+export async function getTwitchLiveMasterM3u8(
+    tokenData: TwitchTokenData,
+    channelName: string,
+): Promise<PlaylistItem[]> {
+    return await getTwitchMasterM3u8(
+        tokenData,
+        `https://usher.ttvnw.net/api/v2/channel/hls/${channelName}.m3u8`,
+    );
+}
+
+export async function getTwitchVodMasterM3u8(
+    tokenData: TwitchTokenData,
+    vodId: string,
+): Promise<PlaylistItem[]> {
+    return await getTwitchMasterM3u8(tokenData, `https://usher.ttvnw.net/vod/v2/${vodId}.m3u8`);
+}
+
 export async function getTwitchLiveResponse(
     message: TwitchLiveMessage,
 ): Promise<TwitchBackgroundResponse> {
-    const twitchToken = await getTwitchToken(message);
-    const masterM3u8 = await getTwitchMasterM3u8(twitchToken, message);
+    const twitchToken = await getTwitchLiveToken(message.channelName);
+    const masterM3u8 = await getTwitchLiveMasterM3u8(twitchToken, message.channelName);
     const twitchData = message.isFromPopup
         ? await estimateHlsStreamSizes(masterM3u8)
         : filterM3u8(masterM3u8);
@@ -148,8 +195,8 @@ export async function getTwitchVodResponse(
         };
     }
 
-    const twitchToken = await getTwitchToken(message);
-    const m3u8Data = await getTwitchMasterM3u8(twitchToken, message);
+    const twitchToken = await getTwitchVodToken(message.vodId);
+    const m3u8Data = await getTwitchVodMasterM3u8(twitchToken, message.vodId);
     const filteredM3U8Data = filterM3u8(m3u8Data);
 
     const response: TwitchVodData = {

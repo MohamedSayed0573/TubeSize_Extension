@@ -4,9 +4,12 @@ import path from "node:path";
 
 import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import {
-    getTwitchClientId,
-    getTwitchMasterM3u8,
-    getTwitchToken,
+    getTwitchLiveClientId,
+    getTwitchLiveMasterM3u8,
+    getTwitchLiveToken,
+    getTwitchVodClientId,
+    getTwitchVodMasterM3u8,
+    getTwitchVodToken,
     parseTwitchPageMetadata,
 } from "@lib/twitch";
 
@@ -14,7 +17,7 @@ afterEach(() => {
     jest.resetAllMocks();
 });
 
-describe("getTwitchClientId", () => {
+describe("getTwitchLiveClientId", () => {
     test("should extract client ID from Twitch page", async () => {
         const channelName = "hivise";
         const htmlPath = path.join(process.cwd(), "src", "tests", "assets", "twitch.html");
@@ -23,12 +26,25 @@ describe("getTwitchClientId", () => {
             ok: true,
             text: () => fs.readFileSync(htmlPath, "utf8"),
         }) as unknown as typeof fetch;
-        const clientId = await getTwitchClientId({
-            channelName,
-            type: "twitchLive",
-            isFromPopup: true,
-        });
+        const clientId = await getTwitchLiveClientId(channelName);
         expect(clientId).toBe("kimne78kx3ncx6brgo4mv6wki5et0ko");
+    });
+});
+
+describe("getTwitchVodClientId", () => {
+    test("should extract client ID from the VOD page", async () => {
+        const htmlPath = path.join(process.cwd(), "src", "tests", "assets", "twitch.html");
+        const fetchMock = jest.fn().mockResolvedValue({
+            ok: true,
+            text: () => fs.readFileSync(htmlPath, "utf8"),
+        });
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const clientId = await getTwitchVodClientId("2748008198");
+
+        expect(clientId).toBe("kimne78kx3ncx6brgo4mv6wki5et0ko");
+        expect(fetchMock).toHaveBeenCalledWith("https://www.twitch.tv/videos/2748008198", {});
     });
 });
 
@@ -55,11 +71,7 @@ describe("getTwitchToken", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const token = await getTwitchToken({
-            type: "twitchLive",
-            channelName: "hivise",
-            isFromPopup: true,
-        });
+        const token = await getTwitchLiveToken("hivise");
 
         expect(token).toEqual({
             value: '{"foo":"bar"}',
@@ -116,7 +128,7 @@ describe("getTwitchToken", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const token = await getTwitchToken({ type: "twitchVod", vodId: "2748008198" });
+        const token = await getTwitchVodToken("2748008198");
 
         expect(token).toEqual({
             value: '{"vod":true}',
@@ -157,9 +169,9 @@ describe("getTwitchMasterM3u8", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const data = await getTwitchMasterM3u8(
+        const data = await getTwitchLiveMasterM3u8(
             { value: '{"token":"live"}', signature: "live-signature" },
-            { type: "twitchLive", channelName: "hivise", isFromPopup: true },
+            "hivise",
         );
 
         expect(data).toHaveLength(1);
@@ -188,9 +200,9 @@ describe("getTwitchMasterM3u8", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const data = await getTwitchMasterM3u8(
+        const data = await getTwitchVodMasterM3u8(
             { value: '{"token":"vod"}', signature: "vod-signature" },
-            { type: "twitchVod", vodId: "2748008198" },
+            "2748008198",
         );
 
         expect(data).toHaveLength(1);

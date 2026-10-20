@@ -4,15 +4,14 @@ import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
 import { humanizeDuration } from "@/lib/humanize";
 import { extractVideoTag, isShortsVideo, isYoutubePage } from "@/lib/utils";
-import { sendMessageToBackground } from "@/runtime";
+import { sendMessage } from "@/messaging";
 
 import type { DisplayFormat, HeaderViewData, PlatformData } from "./types";
 
 async function loadYoutubeData(tabUrl: string, tabId: number) {
     const videoTag = extractVideoTag(tabUrl)!;
 
-    const response = await sendMessageToBackground({
-        type: "youtubeVideo",
+    const response = await sendMessage("youtubeVideo", {
         videoTag,
         tabId,
     });

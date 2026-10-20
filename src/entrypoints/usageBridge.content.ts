@@ -7,7 +7,7 @@ import { defineContentScript } from "wxt/utils/define-content-script";
 // on non-platform pages, and forwards them to the background. It is kept apart
 // from content.ts so the heavy platform pipeline is not injected everywhere.
 import { isPlatformId } from "@/lib/utils";
-import { sendMessageToBackground } from "@/runtime";
+import { sendMessage } from "@/messaging";
 
 export default defineContentScript({
     matches: ["<all_urls>"],
@@ -25,9 +25,10 @@ export default defineContentScript({
                 const { bytes } = message;
                 if (!isValidBytes(bytes)) return;
 
-                void sendMessageToBackground({
-                    type: "addUsage",
+                void sendMessage("addUsage", {
                     bytes,
+                }).catch((err: unknown) => {
+                    console.error("[usageBridge] Failed to record site usage", err);
                 });
                 //eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
             } else if (message.type === "TUBESIZE_WATCH_HISTORY") {
@@ -36,11 +37,12 @@ export default defineContentScript({
                 if (typeof videoId !== "string" || !isValidBytes(bytes) || !isPlatformId(platform))
                     return;
 
-                void sendMessageToBackground({
-                    type: "addWatchHistory",
+                void sendMessage("addWatchHistory", {
                     videoId,
                     platform,
                     bytes,
+                }).catch((err: unknown) => {
+                    console.error("[usageBridge] Failed to record watch history", err);
                 });
             }
         });

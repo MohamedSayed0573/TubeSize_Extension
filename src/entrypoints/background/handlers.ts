@@ -12,8 +12,10 @@ import type {
 import type {
     AddUsageMessage,
     AddWatchHistoryMessage,
-    KickMessage,
-    TwitchMessage,
+    KickLiveMessage,
+    KickVodMessage,
+    TwitchLiveMessage,
+    TwitchVodMessage,
     YoutubeMessage,
 } from "@app-types/types";
 import { getFromStorage, saveToStorage } from "@lib/cache";
@@ -81,11 +83,11 @@ export async function handleAddWatchHistory(
     }
 }
 
-export async function handleTwitch(message: TwitchMessage): Promise<TwitchBackgroundResponse> {
+export async function handleTwitchVod(
+    message: TwitchVodMessage,
+): Promise<TwitchBackgroundResponse> {
     try {
-        return message.type === "twitchLive"
-            ? await getTwitchLiveResponse(message)
-            : await getTwitchVodResponse(message);
+        return await getTwitchVodResponse(message);
     } catch (err) {
         return {
             success: false,
@@ -94,11 +96,33 @@ export async function handleTwitch(message: TwitchMessage): Promise<TwitchBackgr
     }
 }
 
-export async function handleKick(message: KickMessage): Promise<KickBackgroundResponse> {
+export async function handleTwitchLive(
+    message: TwitchLiveMessage,
+): Promise<TwitchBackgroundResponse> {
     try {
-        return message.type === "kickLive"
-            ? await getKickLiveResponse(message)
-            : await getKickVodResponse(message);
+        return await getTwitchLiveResponse(message);
+    } catch (err) {
+        return {
+            success: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        };
+    }
+}
+
+export async function handleKickVod(message: KickVodMessage): Promise<KickBackgroundResponse> {
+    try {
+        return await getKickVodResponse(message);
+    } catch (err) {
+        return {
+            success: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        };
+    }
+}
+
+export async function handleKickLive(message: KickLiveMessage): Promise<KickBackgroundResponse> {
+    try {
+        return await getKickLiveResponse(message);
     } catch (err) {
         return {
             success: false,

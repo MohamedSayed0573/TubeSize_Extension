@@ -1,54 +1,35 @@
-import type { FrontEndMessage } from "@/types/types";
+import { onMessage } from "@/messaging";
 
 import {
     handleAddUsage,
     handleAddWatchHistory,
     handleGetUsage,
     handleGetWatchHistory,
-    handleKick,
-    handleTwitch,
+    handleKickLive,
+    handleKickVod,
+    handleTwitchLive,
+    handleTwitchVod,
     handleYoutube,
 } from "./handlers";
 
-async function handleMessage(
-    message: FrontEndMessage,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response: any) => void,
-): Promise<void> {
-    switch (message.type) {
-        case "youtubeVideo": {
-            return sendResponse(await handleYoutube(message));
-        }
-        case "twitchVod":
-        case "twitchLive": {
-            return sendResponse(await handleTwitch(message));
-        }
-        case "kickVod":
-        case "kickLive": {
-            return sendResponse(await handleKick(message));
-        }
-        case "addUsage": {
-            return sendResponse(await handleAddUsage(message, sender));
-        }
-        case "getUsage": {
-            return sendResponse(await handleGetUsage());
-        }
-        case "addWatchHistory": {
-            return sendResponse(await handleAddWatchHistory(message));
-        }
-        case "getWatchHistory": {
-            return sendResponse(await handleGetWatchHistory());
-        }
-        default: {
-            console.error("Unknown message type:", message);
-            return;
-        }
-    }
-}
-
+/**
+ * Registers the background handlers for every message in the protocol map.
+ *
+ * `@webext-core/messaging` routes messages by type, so each type gets its own
+ * listener and the payload never has to repeat the message type.
+ */
 export function attachMessageHandler() {
-    chrome.runtime.onMessage.addListener((message: FrontEndMessage, _sender, sendResponse) => {
-        void handleMessage(message, _sender, sendResponse);
-        return true;
-    });
+    onMessage("youtubeVideo", ({ data }) => handleYoutube(data));
+
+    onMessage("twitchVod", ({ data }) => handleTwitchVod(data));
+    onMessage("twitchLive", ({ data }) => handleTwitchLive(data));
+
+    onMessage("kickVod", ({ data }) => handleKickVod(data));
+    onMessage("kickLive", ({ data }) => handleKickLive(data));
+
+    onMessage("addUsage", ({ data, sender }) => handleAddUsage(data, sender));
+    onMessage("getUsage", () => handleGetUsage());
+
+    onMessage("addWatchHistory", ({ data }) => handleAddWatchHistory(data));
+    onMessage("getWatchHistory", () => handleGetWatchHistory());
 }

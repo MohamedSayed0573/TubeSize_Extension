@@ -3,7 +3,7 @@ import { extractChannelName, extractKickVodId, isKickPage, isKickStream } from "
 import { startToastTracking } from "@pages/toasterTracking";
 
 import { kickAdapter } from "@/adapters/kickAdapter";
-import { sendMessageToBackground } from "@/runtime";
+import { sendMessage } from "@/messaging";
 
 import type { PlatformPage } from "./platformPage";
 
@@ -16,13 +16,11 @@ async function initKick(url: string): Promise<KickData | undefined> {
     if (!tag || !channelName) return undefined;
 
     const kickData = isLive
-        ? await sendMessageToBackground({
-              type: "kickLive",
+        ? await sendMessage("kickLive", {
               channelName: tag,
               isFromPopup: false,
           })
-        : await sendMessageToBackground({
-              type: "kickVod",
+        : await sendMessage("kickVod", {
               vodId: tag,
               channelName: channelName,
           });
