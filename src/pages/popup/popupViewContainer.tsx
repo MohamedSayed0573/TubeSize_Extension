@@ -1,8 +1,10 @@
-import { t } from "@/i18n/t";
 import { useOriginUsage } from "@hooks/useOriginUsage";
 import useTab from "@hooks/useTab";
 import { useTotalUsage } from "@hooks/useTotalUsage";
 import { getOriginWithoutSuffix } from "@lib/domain";
+
+import { t } from "@/i18n/t";
+
 import { PopupFooter } from "./popupFooter";
 import PopupUsage from "./popupUsage";
 

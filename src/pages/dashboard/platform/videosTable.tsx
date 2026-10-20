@@ -1,6 +1,8 @@
+import type { PlatformId } from "@app-types/types";
+
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { t } from "@/i18n/t";
-import type { PlatformId } from "@app-types/types";
+
 import VideoTableRow from "./videoTableRow";
 import type { VideoRowDetails } from "./videoTableRow";
 

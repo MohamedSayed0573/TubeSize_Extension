@@ -1,7 +1,8 @@
-import { t } from "@/i18n/t";
 import ButtonLink from "@components/buttonLink";
 import DashboardBanner from "@pages/dashboard/overview/dashboardBanner";
 import { ArrowLeft } from "lucide-react";
+
+import { t } from "@/i18n/t";
 
 export default function DashboardNotFound() {
     return (

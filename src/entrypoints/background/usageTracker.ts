@@ -1,5 +1,3 @@
-import { setUsageBadge } from "@/badge";
-import { addSiteUsage, addWatchHistory, getSiteUsage } from "@/db";
 import { getUsageNumber } from "@lib/usage";
 import { getWatchHistoryTarget, isFirefox, toVideoKey } from "@lib/utils";
 import {
@@ -7,6 +5,10 @@ import {
     recordTwitchMetadata,
     recordYoutubeMetadata,
 } from "@lib/videoMetadata";
+
+import { setUsageBadge } from "@/badge";
+import { addSiteUsage, addWatchHistory, getSiteUsage } from "@/db";
+
 import { UsageBuffer } from "./usageBuffer";
 
 const FLUSH_INTERVAL_MS = 3000;

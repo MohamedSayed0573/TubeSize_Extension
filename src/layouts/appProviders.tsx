@@ -1,7 +1,8 @@
-import { DirectionProvider } from "@/components/ui/direction";
-import { getLanguage, initializeLanguage, setLanguage, type Language } from "@/i18n/language";
 import { LanguageContext } from "@hooks/useLanguage";
 import { useEffect, useLayoutEffect, useState } from "react";
+
+import { DirectionProvider } from "@/components/ui/direction";
+import { getLanguage, initializeLanguage, setLanguage, type Language } from "@/i18n/language";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
     const [language, setCurrentLanguage] = useState(getLanguage);

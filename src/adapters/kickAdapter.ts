@@ -9,6 +9,7 @@ import {
 } from "@/lib/utils";
 import { sendMessageToBackground } from "@/runtime";
 import type { KickData } from "@/types/platforms.types";
+
 import type { DisplayFormat, HeaderViewData, PlatformData } from "./types";
 
 async function loadKickData(tabUrl: string): Promise<KickData> {

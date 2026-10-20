@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import tailwindcss from "@tailwindcss/vite";
 import { visualizer } from "rollup-plugin-visualizer";
 import type { Plugin } from "vite";

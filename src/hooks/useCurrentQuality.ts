@@ -1,5 +1,6 @@
-import { sendMessageToContentScript } from "@/runtime";
 import { useQuery } from "@tanstack/react-query";
+
+import { sendMessageToContentScript } from "@/runtime";
 
 export default function useCurrentQuality(tabId: number | undefined) {
     const query = useQuery({

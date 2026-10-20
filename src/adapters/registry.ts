@@ -1,4 +1,5 @@
 import type { PlatformId } from "@app-types/types";
+
 import { kickAdapter } from "./kickAdapter";
 import { twitchAdapter } from "./twitchAdapter";
 import type { PlatformAdapter } from "./types";

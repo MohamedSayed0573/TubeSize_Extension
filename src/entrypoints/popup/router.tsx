@@ -1,7 +1,9 @@
-import SettingsLayout from "@/layouts/settingsLayout";
 import { PopupLayout } from "@layouts/popupLayout";
 import Popup from "@pages/popup/popup";
 import { createHashRouter } from "react-router";
+
+import SettingsLayout from "@/layouts/settingsLayout";
+
 import { PopupRouteErrorElement, SettingsRouteErrorElement } from "./routeErrorElements";
 
 export const router = createHashRouter([

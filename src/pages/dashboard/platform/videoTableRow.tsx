@@ -1,11 +1,13 @@
+import type { DateKey, PlatformId } from "@app-types/types";
+import { formatBytes } from "@lib/format";
+import { Link } from "react-router";
+
 import { getPlatformAdapter } from "@/adapters/registry";
 import type { VideoContentType } from "@/adapters/types";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { t } from "@/i18n/t";
-import type { DateKey, PlatformId } from "@app-types/types";
-import { formatBytes } from "@lib/format";
-import { Link } from "react-router";
+
 import { PLATFORM_THEME } from "./platformTheme";
 
 export interface VideoRowDetails {

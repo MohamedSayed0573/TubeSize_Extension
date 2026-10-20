@@ -1,5 +1,6 @@
-import { t } from "@/i18n/t";
 import DashboardBanner from "@pages/dashboard/overview/dashboardBanner";
+
+import { t } from "@/i18n/t";
 
 export default function DashboardErrorPage({ error }: { error: unknown }) {
     const routeError = error;

@@ -1,6 +1,3 @@
-import { setUsageBadge } from "@/badge";
-import { addSiteUsage, addWatchHistory, getSiteUsage, getWatchHistory } from "@/db";
-import { getUsageNumber } from "@/lib/usage";
 import type {
     AddUsageResponse,
     AddWatchHistoryResponse,
@@ -29,6 +26,10 @@ import {
     parseLiveStreamInfo,
     parseVideoFormats,
 } from "@lib/youtube";
+
+import { setUsageBadge } from "@/badge";
+import { addSiteUsage, addWatchHistory, getSiteUsage, getWatchHistory } from "@/db";
+import { getUsageNumber } from "@/lib/usage";
 
 function isValidUsageBytes(usage: unknown): usage is number {
     return typeof usage === "number" && Number.isFinite(usage) && usage >= 0;

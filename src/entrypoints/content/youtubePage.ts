@@ -1,9 +1,11 @@
-import { youtubeAdapter } from "@/adapters/youtubeAdapter";
-import { injectQualityMenu } from "@/qualityMenuInjector";
-import { sendMessageToBackground } from "@/runtime";
 import type { YoutubeData } from "@app-types/platforms.types";
 import { extractVideoTag, isYoutubePage } from "@lib/utils";
 import { startToastTracking } from "@pages/toasterTracking";
+
+import { youtubeAdapter } from "@/adapters/youtubeAdapter";
+import { injectQualityMenu } from "@/qualityMenuInjector";
+import { sendMessageToBackground } from "@/runtime";
+
 import type { PlatformPage } from "./platformPage";
 
 async function initYoutube(url: string): Promise<YoutubeData | undefined> {

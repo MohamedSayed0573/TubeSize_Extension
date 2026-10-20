@@ -1,5 +1,6 @@
-import { formatBadge, formatBytes, formatDate, formatRate } from "@lib/format";
 import { describe, expect, test } from "bun:test";
+
+import { formatBadge, formatBytes, formatDate, formatRate } from "@lib/format";
 
 // Intl.DateTimeFormat.formatRange uses narrow no-break spaces (U+2009) around
 // the range separator in Node.js, but regular spaces in Bun. Normalize so the

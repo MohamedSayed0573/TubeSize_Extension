@@ -1,7 +1,8 @@
-import { getAllSiteUsage, type SiteUsage } from "@/db";
-import { t } from "@/i18n/t";
 import { Button } from "@components/ui/button";
 import { InvalidImportJson } from "@lib/errors";
+
+import { getAllSiteUsage, type SiteUsage } from "@/db";
+import { t } from "@/i18n/t";
 
 function isValidUsageEntry(url: string, bytes: number): boolean {
     if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes < 0) return false;

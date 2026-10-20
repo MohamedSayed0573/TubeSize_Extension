@@ -1,5 +1,6 @@
-import type { PlatformAdapter } from "@/adapters/types";
 import { useQuery } from "@tanstack/react-query";
+
+import type { PlatformAdapter } from "@/adapters/types";
 
 export function usePlatformData(adapter: PlatformAdapter, tabUrl: string, tabId: number) {
     const isRunningVideo = adapter.isRunningVideo(tabUrl);

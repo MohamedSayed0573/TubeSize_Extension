@@ -10,6 +10,7 @@ import {
 } from "@/lib/utils";
 import { sendMessageToBackground } from "@/runtime";
 import type { TwitchData } from "@/types/platforms.types";
+
 import type { DisplayFormat, HeaderViewData, PlatformData, VideoContentType } from "./types";
 
 async function loadTwitchData(tabUrl: string): Promise<TwitchData> {

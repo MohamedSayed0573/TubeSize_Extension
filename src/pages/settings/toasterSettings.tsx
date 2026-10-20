@@ -1,3 +1,10 @@
+import type { SettingsMap } from "@app-types/types";
+import { Slider } from "@components/ui/slider";
+import useSettings from "@hooks/useSettings";
+import CONFIG from "@lib/constants";
+import { cn } from "@lib/utils";
+import { useState } from "react";
+
 import {
     Field,
     FieldDescription,
@@ -8,12 +15,6 @@ import {
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { t } from "@/i18n/t";
-import type { SettingsMap } from "@app-types/types";
-import { Slider } from "@components/ui/slider";
-import useSettings from "@hooks/useSettings";
-import CONFIG from "@lib/constants";
-import { cn } from "@lib/utils";
-import { useState } from "react";
 
 export default function ToasterSettings({ settingsState }: { settingsState: SettingsMap }) {
     const toasterThreshold = settingsState.toasterThreshold ?? CONFIG.DEFAULT_TOASTER_THRESHOLD;

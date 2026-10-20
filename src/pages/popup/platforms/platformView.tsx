@@ -3,6 +3,7 @@ import InfoCard from "@/components/infoCard";
 import Spinner from "@/components/spinner";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { t } from "@/i18n/t";
+
 import Header from "../header";
 import { PopupViewContainer } from "../popupViewContainer";
 import FormatView from "./formatView";

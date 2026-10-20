@@ -1,5 +1,6 @@
-import { getTab } from "@/runtime";
 import { useQuery } from "@tanstack/react-query";
+
+import { getTab } from "@/runtime";
 
 export default function useTab() {
     return useQuery({

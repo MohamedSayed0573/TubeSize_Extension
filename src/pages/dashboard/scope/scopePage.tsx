@@ -1,4 +1,3 @@
-import { t } from "@/i18n/t";
 import type { DateKey, UsageRange, UsageScope } from "@app-types/types";
 import { useSiteUsage } from "@hooks/useSiteUsage";
 import { getLastNDays, isValidDateKey } from "@lib/dateUtils";
@@ -8,6 +7,9 @@ import VideosTableSkeleton from "@pages/dashboard/platform/videosTableSkeleton";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useParams } from "react-router";
+
+import { t } from "@/i18n/t";
+
 import DashboardNotFound from "../shared/notFound";
 import AllSitesTable from "./allSitesTable";
 import PlatformCards from "./platformCards";

@@ -1,5 +1,7 @@
+import { afterEach, describe, expect, jest, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
+
 import { filterM3u8, parseM3U8 } from "@lib/m3u8";
 import {
     getTwitchClientId,
@@ -7,7 +9,6 @@ import {
     getTwitchToken,
     parseTwitchPageMetadata,
 } from "@lib/twitch";
-import { afterEach, describe, expect, jest, test } from "bun:test";
 
 afterEach(() => {
     jest.resetAllMocks();

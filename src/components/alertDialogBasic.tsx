@@ -1,4 +1,3 @@
-import { t } from "@/i18n/t";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -11,6 +10,8 @@ import {
     AlertDialogTrigger,
 } from "@components/ui/alertDialog";
 import { Button } from "@components/ui/button";
+
+import { t } from "@/i18n/t";
 
 export function AlertDialogBasic({
     descriptionText,
@@ -25,7 +26,14 @@ export function AlertDialogBasic({
     disabled?: boolean;
     className?: string;
     variant?:
-        "link" | "default" | "outline" | "secondary" | "ghost" | "destructive" | null | undefined;
+        | "link"
+        | "default"
+        | "outline"
+        | "secondary"
+        | "ghost"
+        | "destructive"
+        | null
+        | undefined;
     onConfirm: () => void;
 }) {
     return (

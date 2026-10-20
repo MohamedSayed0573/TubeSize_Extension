@@ -1,4 +1,5 @@
 import { t } from "@/i18n/t";
+
 import SettingsHeader from "./settingsHeader";
 
 export default function SettingsErrorPage({ error }: { error: unknown }) {

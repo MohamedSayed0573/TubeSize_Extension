@@ -1,7 +1,8 @@
-import { getAllSiteUsage, getSiteUsageByDate } from "@/db";
 import type { UsageScope } from "@app-types/types";
 import { scopeToDateKey } from "@lib/usage";
 import { useQuery } from "@tanstack/react-query";
+
+import { getAllSiteUsage, getSiteUsageByDate } from "@/db";
 
 export function useSiteUsage(scope?: UsageScope) {
     return useQuery({

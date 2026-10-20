@@ -1,6 +1,7 @@
-import { t } from "@/i18n/t";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
+
+import { t } from "@/i18n/t";
 
 export default function SettingsHeader() {
     return (

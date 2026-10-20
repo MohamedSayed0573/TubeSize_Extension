@@ -1,8 +1,9 @@
-import type { HeaderViewData, PlatformAdapter, PlatformData } from "@/adapters/types";
-import { t } from "@/i18n/t";
 import { chromeNavigate } from "@lib/utils";
 import { ExternalLink, Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router";
+
+import type { HeaderViewData, PlatformAdapter, PlatformData } from "@/adapters/types";
+import { t } from "@/i18n/t";
 
 type Props = {
     adapter?: PlatformAdapter;
