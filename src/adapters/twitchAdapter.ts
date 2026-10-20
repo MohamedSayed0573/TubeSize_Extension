@@ -8,7 +8,7 @@ import {
     isTwitchPage,
     isTwitchVod,
 } from "@/lib/utils";
-import { sendMessageToBackground } from "@/runtime";
+import { sendMessage } from "@/messaging";
 import type { TwitchData } from "@/types/platforms.types";
 
 import type { DisplayFormat, HeaderViewData, PlatformData, VideoContentType } from "./types";
@@ -21,8 +21,7 @@ async function loadTwitchData(tabUrl: string): Promise<TwitchData> {
             throw new Error("Open a Twitch stream or video");
         }
 
-        const response = await sendMessageToBackground({
-            type: "twitchVod",
+        const response = await sendMessage("twitchVod", {
             vodId,
         });
         if (!response.success) throw new Error(response.message);
@@ -36,8 +35,7 @@ async function loadTwitchData(tabUrl: string): Promise<TwitchData> {
         throw new Error("Open a Twitch stream or video");
     }
 
-    const response = await sendMessageToBackground({
-        type: "twitchLive",
+    const response = await sendMessage("twitchLive", {
         channelName,
         isFromPopup: true,
     });

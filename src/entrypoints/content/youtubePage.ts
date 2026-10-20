@@ -3,8 +3,8 @@ import { extractVideoTag, isYoutubePage } from "@lib/utils";
 import { startToastTracking } from "@pages/toasterTracking";
 
 import { youtubeAdapter } from "@/adapters/youtubeAdapter";
+import { sendMessage } from "@/messaging";
 import { injectQualityMenu } from "@/qualityMenuInjector";
-import { sendMessageToBackground } from "@/runtime";
 
 import type { PlatformPage } from "./platformPage";
 
@@ -19,8 +19,7 @@ async function initYoutube(url: string): Promise<YoutubeData | undefined> {
 
     const scriptContent = ytInitialPlayerResponse?.textContent;
 
-    const youtubeResponse = await sendMessageToBackground({
-        type: "youtubeVideo",
+    const youtubeResponse = await sendMessage("youtubeVideo", {
         videoTag: videoTag,
         html: scriptContent,
     });

@@ -25,6 +25,7 @@ type CompletedRequestDetails = chrome.webRequest.OnCompletedDetails & {
 export function setupTrackUsage() {
     const buffer = new UsageBuffer();
 
+    // `extraHeaders` is Chromium-only; Firefox rejects it.
     chrome.webRequest.onCompleted.addListener(
         (details) => void trackRequest(buffer, details),
         { urls: ["<all_urls>"] },

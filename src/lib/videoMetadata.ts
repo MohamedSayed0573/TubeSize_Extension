@@ -104,7 +104,7 @@ export async function recordYoutubeMetadata(url: string) {
         const existing = await getVideoMetadata(videoTag, "youtube");
         if (existing) return;
 
-        const response = await handleYoutube({ type: "youtubeVideo", videoTag });
+        const response = await handleYoutube({ videoTag });
         if (!response.success) return;
 
         const { data } = response;

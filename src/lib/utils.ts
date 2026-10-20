@@ -273,10 +273,14 @@ export function chromeNavigate(pageName: string | undefined) {
 }
 
 /**
- * True on Firefox (user-agent check; avoids Chromium-only endpoints).
+ * True on Firefox builds.
+ *
+ * WXT inlines `import.meta.env.FIREFOX` at build time, so this is a
+ * compile-time constant: the Chromium-only branches are stripped from
+ * Firefox builds entirely.
  */
 export function isFirefox(): boolean {
-    return typeof navigator !== "undefined" && navigator.userAgent.includes("Firefox");
+    return import.meta.env.FIREFOX;
 }
 
 export function faviconURL(u: string | undefined) {

@@ -18,63 +18,37 @@ export type SettingsMap = {
     cacheTTL?: number;
 };
 
-export type FrontEndMessage =
-    | YoutubeMessage
-    | TwitchVodMessage
-    | TwitchLiveMessage
-    | KickVodMessage
-    | KickLiveMessage
-    | GetUsageMessage
-    | AddUsageMessage
-    | AddWatchHistoryMessage
-    | GetWatchHistoryMessage;
-
-type GetUsageMessage = {
-    type: "getUsage";
-};
-
 export type AddUsageMessage = {
-    type: "addUsage";
     bytes: number;
 };
 
-export type AddWatchHistoryMessage = Prettify<
-    Omit<WatchHistoryMessage, "type"> & { type: "addWatchHistory" }
->;
-
-type GetWatchHistoryMessage = {
-    type: "getWatchHistory";
+export type AddWatchHistoryMessage = {
+    videoId: string;
+    bytes: number;
+    platform: PlatformId;
 };
 
 export type YoutubeMessage = {
-    type: "youtubeVideo";
     videoTag: string;
     tabId?: number;
     html?: string;
 };
-export type TwitchMessage = TwitchVodMessage | TwitchLiveMessage;
 
 export type TwitchVodMessage = {
-    type: "twitchVod";
     vodId: string;
 };
 
 export type TwitchLiveMessage = {
-    type: "twitchLive";
     channelName: string;
     isFromPopup: boolean;
 };
 
-export type KickMessage = KickVodMessage | KickLiveMessage;
-
 export type KickVodMessage = {
-    type: "kickVod";
     vodId: string;
     channelName: string;
 };
 
 export type KickLiveMessage = {
-    type: "kickLive";
     channelName: string;
     isFromPopup: boolean;
 };

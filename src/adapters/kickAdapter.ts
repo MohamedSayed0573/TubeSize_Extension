@@ -7,7 +7,7 @@ import {
     isKickStream,
     isKickVod,
 } from "@/lib/utils";
-import { sendMessageToBackground } from "@/runtime";
+import { sendMessage } from "@/messaging";
 import type { KickData } from "@/types/platforms.types";
 
 import type { DisplayFormat, HeaderViewData, PlatformData } from "./types";
@@ -21,8 +21,7 @@ async function loadKickData(tabUrl: string): Promise<KickData> {
             throw new Error("Open a Kick stream or video");
         }
 
-        const response = await sendMessageToBackground({
-            type: "kickVod",
+        const response = await sendMessage("kickVod", {
             vodId: vodId,
             channelName: channelName,
         });
@@ -37,8 +36,7 @@ async function loadKickData(tabUrl: string): Promise<KickData> {
         throw new Error("Open a Kick stream or video");
     }
 
-    const response = await sendMessageToBackground({
-        type: "kickLive",
+    const response = await sendMessage("kickLive", {
         channelName: channelName,
         isFromPopup: true,
     });

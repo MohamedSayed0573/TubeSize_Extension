@@ -3,7 +3,7 @@ import { extractChannelName, extractTwitchVodId, isTwitchLive, isTwitchPage } fr
 import { startToastTracking } from "@pages/toasterTracking";
 
 import { twitchAdapter } from "@/adapters/twitchAdapter";
-import { sendMessageToBackground } from "@/runtime";
+import { sendMessage } from "@/messaging";
 
 import type { PlatformPage } from "./platformPage";
 
@@ -13,13 +13,11 @@ async function initTwitch(url: string): Promise<TwitchData | undefined> {
     if (!tag) return undefined;
 
     const twitchData = isLive
-        ? await sendMessageToBackground({
-              type: "twitchLive",
+        ? await sendMessage("twitchLive", {
               channelName: tag,
               isFromPopup: false,
           })
-        : await sendMessageToBackground({
-              type: "twitchVod",
+        : await sendMessage("twitchVod", {
               vodId: tag,
           });
     if (!twitchData.success) {

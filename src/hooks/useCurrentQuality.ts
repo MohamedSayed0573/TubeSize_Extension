@@ -1,14 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { sendMessageToContentScript } from "@/runtime";
+import { sendMessage } from "@/messaging";
 
 export default function useCurrentQuality(tabId: number | undefined) {
     const query = useQuery({
         queryKey: ["current-quality", tabId],
         queryFn: async () => {
-            const quality = await sendMessageToContentScript(tabId!, {
-                type: "getCurrentResolution",
-            });
+            const quality = await sendMessage("getCurrentResolution", undefined, { tabId: tabId! });
 
             if (!quality) throw new Error("Couldn't get the current quality.");
 
