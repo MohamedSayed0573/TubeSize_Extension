@@ -3,7 +3,7 @@ import { afterEach, describe, expect, jest, test } from "bun:test";
 import type { GetUsageResponse } from "@app-types/platforms.types";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
-import { onMessage, sendMessage, sendMessageToTab } from "@/messaging";
+import { onMessage, sendMessage } from "@/messaging";
 
 // The fake browser is installed as the global `chrome` so that the messenger
 // resolves the same APIs it uses in the extension.
@@ -76,7 +76,7 @@ describe("sendMessage", () => {
     });
 });
 
-describe("sendMessageToTab", () => {
+describe("sendMessage to a tab", () => {
     test("returns the response of the content script", async () => {
         fakeChrome.tabs.sendMessage = ((
             _tabId: number,
@@ -87,12 +87,12 @@ describe("sendMessageToTab", () => {
             callback({ res: 1080 });
         }) as typeof chrome.tabs.sendMessage;
 
-        const resolution = await sendMessageToTab("getCurrentResolution", undefined, 7);
+        const resolution = await sendMessage("getCurrentResolution", undefined, { tabId: 7 });
 
         expect(resolution).toBe(1080);
     });
 
-    test("resolves with undefined when the tab has no receiver", async () => {
+    test("rejects when the tab has no receiver", async () => {
         // A tab without a content script leaves the callback without a response,
         // which is what the browser reports as a missing receiving end.
         fakeChrome.tabs.sendMessage = ((
@@ -104,8 +104,8 @@ describe("sendMessageToTab", () => {
             callback(undefined);
         }) as typeof chrome.tabs.sendMessage;
 
-        const resolution = await sendMessageToTab("getCurrentResolution", undefined, 7);
-
-        expect(resolution).toBeUndefined();
+        await expect(sendMessage("getCurrentResolution", undefined, { tabId: 7 })).rejects.toThrow(
+            "No response",
+        );
     });
 });
