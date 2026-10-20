@@ -3,18 +3,11 @@ import { formatBytes } from "@lib/format";
 import { Link } from "react-router";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { getPlatformAdapter } from "@/adapters/registry";
+import { PLATFORM_THEME } from "./platformTheme";
 import type { DateKey, PlatformId } from "@app-types/types";
 import type { VideoContentType } from "@/adapters/types";
 
 import { TableCell, TableRow } from "@/components/ui/table";
-
-const PLACEHOLDER_IMAGE = "/thumbnail-placeholder.svg";
-
-const PLATFORM_PLACEHOLDER_IMAGE: Record<PlatformId, string> = {
-    youtube: PLACEHOLDER_IMAGE,
-    twitch: "/thumbnail-placeholder-twitch.svg",
-    kick: PLACEHOLDER_IMAGE,
-};
 
 export interface VideoRowDetails {
     videoTag: string;
@@ -39,7 +32,7 @@ export default function VideoTableRow({
     const { date, usage, channelUrl, videoTag, contentType } = videoDetails;
     const url = getPlatformAdapter(platform).videoUrl(videoTag, contentType);
 
-    const imageUrl = videoDetails.thumbnailUrl || PLATFORM_PLACEHOLDER_IMAGE[platform];
+    const imageUrl = videoDetails.thumbnailUrl || PLATFORM_THEME[platform].placeholderImage;
     const videoTitle = videoDetails.title || platform;
 
     return (
@@ -54,7 +47,7 @@ export default function VideoTableRow({
                             src={imageUrl}
                             alt={t("common_video")}
                             onError={(e) => {
-                                e.currentTarget.src = PLATFORM_PLACEHOLDER_IMAGE[platform];
+                                e.currentTarget.src = PLATFORM_THEME[platform].placeholderImage;
                             }}
                         />
                     </a>

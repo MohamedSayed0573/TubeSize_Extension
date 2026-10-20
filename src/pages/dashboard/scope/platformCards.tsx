@@ -1,17 +1,12 @@
 import { Link } from "react-router";
 import { formatBytes } from "@lib/format";
 import { PlatformLogo } from "../platform/platformLogos";
+import { PLATFORM_THEME } from "../platform/platformTheme";
 import { buildPlatformSearch, parseVideoKey } from "../platform/platformUtils";
 import { capitalize, cn } from "@lib/utils";
 import { useWatchHistory } from "@hooks/useWatchHistory";
 import { ArrowRight } from "lucide-react";
 import type { PlatformId, UsageScope } from "@app-types/types";
-
-const PLATFORM_STYLES: Record<PlatformId, string> = {
-    youtube: "border-l-red-500 hover:shadow-red-950/40",
-    twitch: "border-l-violet-500 hover:shadow-violet-950/40",
-    kick: "border-l-lime-500 hover:shadow-lime-950/40",
-} as const;
 
 export default function PlatformCards({ scope }: { scope: UsageScope }) {
     const { data, isError, error, isPending } = useWatchHistory(scope);
@@ -45,7 +40,7 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
                         to={`/platform/${platform}${search}`}
                         className={cn(
                             "group flex w-full items-center gap-3 rounded-xl border border-l-6 border-neutral-800 bg-neutral-900 py-3 pr-3 pl-2 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-neutral-800/80 sm:w-[340px] sm:flex-none",
-                            PLATFORM_STYLES[platform],
+                            PLATFORM_THEME[platform].card,
                         )}
                     >
                         <PlatformLogo platform={platform} />
