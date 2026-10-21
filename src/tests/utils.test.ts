@@ -5,6 +5,7 @@ import {
     extractTwitchVodId,
     extractVideoTag,
     fetchAndRetry,
+    getWatchHistoryTarget,
     isShortsVideo,
     isTwitchLive,
     isTwitchPage,
@@ -189,6 +190,61 @@ describe("extractVideoTag", () => {
 
     test("should return undefined for youtube short video with invalid itag", () => {
         expect(extractVideoTag("https://www.youtube.com/shorts/muzkbNA0")).toBeUndefined();
+    });
+
+    test("should return the video id for a youtube live stream", () => {
+        expect(extractVideoTag("https://www.youtube.com/live/yaodD79Q4iE")).toBe("yaodD79Q4iE");
+    });
+
+    test("should return undefined for a youtube live stream without an id", () => {
+        expect(extractVideoTag("https://www.youtube.com/live/")).toBeUndefined();
+    });
+});
+
+describe("getWatchHistoryTarget", () => {
+    test("should return the youtube target for a watch URL", () => {
+        expect(getWatchHistoryTarget("https://www.youtube.com/watch?v=yaodD79Q4iE")).toEqual({
+            videoId: "yaodD79Q4iE",
+            platform: "youtube",
+        });
+    });
+
+    // Live streams keep the `/live/<id>` URL while they are on air, so it has to
+    // be tracked like any other watch URL.
+    test("should return the youtube target for a live stream URL", () => {
+        expect(getWatchHistoryTarget("https://www.youtube.com/live/yaodD79Q4iE")).toEqual({
+            videoId: "yaodD79Q4iE",
+            platform: "youtube",
+        });
+    });
+
+    test("should return the youtube target for a shorts URL", () => {
+        expect(getWatchHistoryTarget("https://www.youtube.com/shorts/muzkvikbNA0")).toEqual({
+            videoId: "muzkvikbNA0",
+            platform: "youtube",
+        });
+    });
+
+    test("should return undefined for a youtube page without a video", () => {
+        expect(getWatchHistoryTarget("https://www.youtube.com/")).toBeUndefined();
+    });
+
+    test("should return undefined for a live stream URL without an id", () => {
+        expect(getWatchHistoryTarget("https://www.youtube.com/live/")).toBeUndefined();
+    });
+
+    test("should return the twitch target for a live channel URL", () => {
+        expect(getWatchHistoryTarget("https://www.twitch.tv/somechannel")).toEqual({
+            videoId: "somechannel",
+            platform: "twitch",
+        });
+    });
+
+    test("should return the kick target for a live channel URL", () => {
+        expect(getWatchHistoryTarget("https://www.kick.com/somechannel")).toEqual({
+            videoId: "somechannel",
+            platform: "kick",
+        });
     });
 });
 

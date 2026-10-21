@@ -174,6 +174,7 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
 
             const data: YoutubeData = {
                 channelName: rawData.videoDetails.author,
+                title: rawData.videoDetails.title,
                 formats: youtubeData.toSorted((a, b) => b.resolution - a.resolution),
                 type: "live",
                 thumbnailUrl,

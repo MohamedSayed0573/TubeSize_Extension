@@ -20,8 +20,9 @@ export function isYoutubePage(url: string): boolean {
 function isYoutubeVideo(url: string): boolean {
     try {
         if (!isYoutubePage(url)) return false;
-        const videoTag = new URL(url).searchParams.get("v");
-        return !!videoTag || isShortsVideo(url);
+        const parsedUrl = new URL(url);
+        if (parsedUrl.pathname === "/watch") return !!parsedUrl.searchParams.get("v");
+        return parsedUrl.pathname.startsWith("/shorts/") || parsedUrl.pathname.startsWith("/live/");
     } catch {
         return false;
     }
