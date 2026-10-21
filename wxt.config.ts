@@ -45,11 +45,7 @@ const shouldEmitStats = process.env.ANALYZE === "true";
 
 export default defineConfig({
     srcDir: "src",
-    // Force MV3 for all targets. Firefox defaults to MV2, but this project
-    // ships MV3 manifests to Firefox.
     manifestVersion: 3,
-    // Auto-imports are disabled on purpose: the codebase uses explicit imports
-    // everywhere so that tooling keeps working unchanged.
     imports: false,
     modules: ["@wxt-dev/module-react"],
     alias: {
@@ -80,12 +76,11 @@ export default defineConfig({
             },
         },
         host_permissions: ["<all_urls>"],
-        // `favicon` is Chromium-only; unknown to Firefox so omitted there.
         permissions: [
             "activeTab",
             "storage",
             "webRequest",
-            ...(browser === "firefox" ? [] : ["favicon"]),
+            ...(browser === "firefox" ? [] : ["favicon"]), // `favicon` is Chromium-only; unknown to Firefox so omitted there.
         ],
         commands: {
             _execute_action: {

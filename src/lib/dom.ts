@@ -1,14 +1,8 @@
-import {
-    PANEL_MENU_SELECTOR,
-    QUALITY_MENU_BTN_SELECTOR,
-    SETTINGS_BTN_SELECTOR,
-} from "@/qualityMenuInjector";
-
 type ElementSelectorMap = {
     video: HTMLVideoElement;
-    [PANEL_MENU_SELECTOR]: HTMLDivElement;
-    [SETTINGS_BTN_SELECTOR]: HTMLButtonElement;
-    [QUALITY_MENU_BTN_SELECTOR]: HTMLDivElement;
+    ".ytp-panel-menu": HTMLDivElement;
+    ".ytp-button.ytp-settings-button": HTMLButtonElement;
+    ".ytp-panel.ytp-quality-menu": HTMLDivElement;
 };
 
 export async function waitForElement<T extends keyof ElementSelectorMap>(

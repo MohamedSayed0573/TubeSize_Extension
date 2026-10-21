@@ -1,6 +1,5 @@
 import { toasterEnabled } from "@lib/storage";
 
-import { removeEventListeners } from "@/qualityMenuInjector";
 import { stopResolutionTracking } from "@/resolution";
 
 import { PLATFORMS } from "./platformPage";
@@ -19,7 +18,7 @@ export async function handlePageNavigation() {
         const data = await platform.init(url);
         if (data === undefined) return;
 
-        await platform.afterInit?.(data);
+        platform.afterInit?.(data);
         if (await isToasterEnabled()) {
             await platform.startToaster(data);
         }
@@ -29,7 +28,6 @@ export async function handlePageNavigation() {
 }
 
 function resetFeatureState() {
-    removeEventListeners();
     stopResolutionTracking();
 }
 
