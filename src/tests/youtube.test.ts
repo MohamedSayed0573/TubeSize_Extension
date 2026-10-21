@@ -11,6 +11,12 @@ import {
     parseDataFromYtInitial,
 } from "@lib/youtube";
 
+import { handleYoutube } from "@/entrypoints/background/handlers";
+
+function readAsset(name: string): string {
+    return fs.readFileSync(path.join(process.cwd(), "src", "tests", "assets", name), "utf8").trim();
+}
+
 describe("extractYtInitialResponse", () => {
     test("should extract YtInitialPlayerResponse from html page", async () => {
         const ytInitialPlayerResponse = fs
@@ -23,6 +29,35 @@ describe("extractYtInitialResponse", () => {
 
         const result = await extractYtInitialResponse("I82j7AzMU80", html);
         expect(result).toEqual(ytInitialSchema.parse(JSON.parse(ytInitialPlayerResponse)));
+    });
+});
+
+describe("handleYoutube", () => {
+    test("should return the video title and channel for a video", async () => {
+        const html = `<script>var ytInitialPlayerResponse = ${readAsset("ytInitialPlayerResponse.json")};</script>`;
+
+        const response = await handleYoutube({ videoTag: "I82j7AzMU80", html });
+
+        expect(response.success).toBe(true);
+        if (!response.success) return;
+        expect(response.data.type).toBe("video");
+        expect(response.data.title).toBe("How does Claude Code *actually* work?");
+        expect(response.data.channelName).toBe("Theo - t3․gg");
+    });
+
+    // A live stream has no length, so its payload carries the stream title
+    // instead of a duration. Without it the recorder stored the channel name
+    // as the title of every live stream.
+    test("should return the stream title and channel for a live stream", async () => {
+        const html = `<script>var ytInitialPlayerResponse = ${readAsset("ytInitialPlayerResponseLive.json")};</script>`;
+
+        const response = await handleYoutube({ videoTag: "feSFplc7tMY", html });
+
+        expect(response.success).toBe(true);
+        if (!response.success) return;
+        expect(response.data.type).toBe("live");
+        expect(response.data.title).toBe("🔴LIVE Manchester Airport Plane Spotting 🛫");
+        expect(response.data.channelName).toBe("Think Planes");
     });
 });
 

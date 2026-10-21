@@ -57,6 +57,7 @@ export type YoutubeVideoData = {
 type YoutubeLiveData = {
     type: "live";
     formats: StreamInfo[];
+    title: string;
     channelName: string;
     thumbnailUrl: string | undefined;
     channelUrl: string | undefined;

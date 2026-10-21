@@ -111,7 +111,7 @@ export async function recordYoutubeMetadata(url: string) {
         await addVideoMetadata({
             type: "youtube",
             videoTag,
-            title: data.type === "video" ? data.title : data.channelName || "Youtube",
+            title: data.title || data.channelName || "Youtube",
             channelName: data.channelName ?? "",
             thumbnailUrl: data.thumbnailUrl ?? "https://www.youtube.com/img/desktop/yt_1200.png",
             channelUrl: data.channelUrl ?? "",
