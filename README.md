@@ -131,7 +131,7 @@ See [PRIVACY.md](PRIVACY.md) for details on what is stored and why.
 | **Storage**        | Dexie (IndexedDB), `chrome.storage.local` / `sync`                                        |
 | **Data parsing**   | Zod, `m3u8-parser`, cheerio, tldts                                                        |
 | **Testing**        | Bun test runner                                                                           |
-| **Tooling**        | ESLint, Knip, Prettier, Husky, lint-staged                                                |
+| **Tooling**        | oxlint, Knip, bun fmt, Husky                                                              |
 | **Packaging / CI** | WXT Manifest V3 builds, GitHub Actions                                                    |
 
 ---
