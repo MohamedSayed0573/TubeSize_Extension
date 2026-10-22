@@ -55,7 +55,19 @@ function isRunningVideo(tabUrl: string): boolean {
 
 function kickFormats(data: PlatformData): DisplayFormat[] {
     const kick = data as KickData;
+
+    if (kick.type === "vod") {
+        return kick.data.map((stream) => ({
+            kind: "vod",
+            key: stream.resolution,
+            resolution: stream.resolution,
+            sizeBytes: Math.round(stream.sizePerSecondBytes * kick.durationSeconds),
+            sizePerSecondBytes: stream.sizePerSecondBytes,
+        }));
+    }
+
     return kick.data.map((stream) => ({
+        kind: "live",
         key: stream.resolution,
         resolution: stream.resolution,
         sizePerSecondBytes: stream.sizePerSecondBytes,

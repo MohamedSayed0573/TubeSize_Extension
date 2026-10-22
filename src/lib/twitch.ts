@@ -196,6 +196,9 @@ export async function getTwitchVodResponse(
     }
 
     const twitchToken = await getTwitchVodToken(message.vodId);
+    if (!twitchToken.durationSeconds) {
+        throw new Error("Failed to get Twitch VOD duration");
+    }
     const m3u8Data = await getTwitchVodMasterM3u8(twitchToken, message.vodId);
     const filteredM3U8Data = filterM3u8(m3u8Data);
 

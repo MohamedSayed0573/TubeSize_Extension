@@ -33,6 +33,6 @@ async function initYoutube(url: string): Promise<YoutubeData | undefined> {
 export const youtubePage: PlatformPage<YoutubeData> = {
     matches: isYoutubePage,
     init: initYoutube,
-    afterInit: (data) => void injectMenu(data),
+    afterInit: (data) => void injectMenu(youtubeAdapter, data),
     startToaster: (data) => startToastTracking(youtubeAdapter, data),
 };

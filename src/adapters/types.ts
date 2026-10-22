@@ -4,13 +4,21 @@ import type { PlatformId } from "@/types/types";
 
 export type { PlatformData };
 
-export type DisplayFormat = {
+type DisplayFormatBase = {
     key: string | number;
     resolution: number;
-    sizeBytes?: number; // video/VOD: total size shown as primary
-    sizePerSecondBytes: number; // live: per-hour primary; everyone: per-minute secondary
+    sizePerSecondBytes: number; // live: per-hour primary; VOD: per-minute secondary
     hideRate?: boolean; // shorts
 };
+
+export type DisplayFormat =
+    | (DisplayFormatBase & {
+          kind: "vod";
+          sizeBytes: number; // total size, shown as primary
+      })
+    | (DisplayFormatBase & {
+          kind: "live";
+      });
 
 export type HeaderViewData = {
     title: string;

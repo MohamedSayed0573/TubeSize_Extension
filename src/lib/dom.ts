@@ -2,6 +2,7 @@ type ElementSelectorMap = {
     video: HTMLVideoElement;
     ".ytp-panel-menu": HTMLDivElement;
     ".ytp-button.ytp-settings-button": HTMLButtonElement;
+    ".ytp-settings-menu": HTMLDivElement;
     ".ytp-panel.ytp-quality-menu": HTMLDivElement;
 };
 
