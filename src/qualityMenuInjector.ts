@@ -8,8 +8,6 @@ const PANEL_MENU_SELECTOR = ".ytp-panel-menu";
 const QUALITY_MENU_BTN_SELECTOR = ".ytp-panel.ytp-quality-menu";
 const MENU_ITEM_LABEL_SELECTOR = ".ytp-menuitem-label";
 const TUBESIZE_QUALITY_MENU_CLASS = "tubesize-quality-menu-panel";
-const INNER_DIV_SELECTOR = "div";
-const SPAN_SELECTOR = "span";
 const SETTINGS_WAIT_TIMEOUT = 5_000;
 
 export async function injectMenu(adapter: ToastAdapter, data: PlatformData) {
@@ -33,13 +31,23 @@ function injectBadges(qualityMenu: HTMLElement, lookup: Map<number, string>) {
     if (!ytpPanelMenu) return;
 
     for (const label of ytpPanelMenu.querySelectorAll(MENU_ITEM_LABEL_SELECTOR)) {
-        const innerDiv = label?.querySelector<HTMLElement>(INNER_DIV_SELECTOR);
+        const innerDiv = label?.querySelector<HTMLElement>("div");
         if (!innerDiv) continue;
         if (innerDiv.querySelector(`.${TUBESIZE_QUALITY_MENU_CLASS}`)) continue;
 
-        const qualityText = innerDiv.querySelector(SPAN_SELECTOR)?.textContent;
+        const innerSpan = innerDiv.querySelector("span");
+        if (!innerSpan) continue;
+
+        // Skip premium formats, as we don't support them.
+        // TODO: Add support for premium formats.
+        const isPremium = innerSpan.querySelector(".ytp-premium-label");
+        if (isPremium) continue;
+
+        const qualityText = innerSpan.textContent;
         if (!qualityText) continue;
 
+        // Parse the quality text to get the resolution number (e.g., "1080p" -> 1080)
+        // This also skips any non-numeric quality labels ("Auto")
         const size = lookup.get(parseInt(qualityText));
         if (!size) continue;
 
