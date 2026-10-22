@@ -55,7 +55,19 @@ function isRunningVideo(tabUrl: string): boolean {
 
 function twitchFormats(data: PlatformData): DisplayFormat[] {
     const twitch = data as TwitchData;
+
+    if (twitch.type === "vod") {
+        return twitch.data.map((stream) => ({
+            kind: "vod",
+            key: stream.resolution,
+            resolution: stream.resolution,
+            sizeBytes: Math.round(stream.sizePerSecondBytes * twitch.durationSeconds),
+            sizePerSecondBytes: stream.sizePerSecondBytes,
+        }));
+    }
+
     return twitch.data.map((stream) => ({
+        kind: "live",
         key: stream.resolution,
         resolution: stream.resolution,
         sizePerSecondBytes: stream.sizePerSecondBytes,

@@ -1,5 +1,6 @@
 import { formatBytes, formatRate } from "@lib/format";
 
+import type { DisplayFormat } from "@/adapters/types";
 import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
 
@@ -8,9 +9,7 @@ import "@styles/toast.css";
 export type ToastOptions = {
     currentQuality: number;
     thresholdMbph: number;
-    sizePerSecondBytes: number;
-    sizeBytes?: number;
-    isLive: boolean;
+    format: DisplayFormat;
     okOnClick: () => void;
     dontShowAgainOnClick: () => void;
 };
@@ -33,9 +32,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 export function createToast({
     currentQuality,
     thresholdMbph,
-    sizePerSecondBytes,
-    sizeBytes,
-    isLive,
+    format,
     okOnClick,
     dontShowAgainOnClick,
 }: ToastOptions): HTMLElement {
@@ -49,11 +46,15 @@ export function createToast({
     row.append(el("span", "current-quality", t("toast_currentQuality", [currentQuality])));
 
     const inner = el("div", "toast-inner");
-    if (!isLive && sizeBytes) {
-        inner.append(el("span", undefined, t("toast_totalUsage", [formatBytes(sizeBytes)])));
+    if (format.kind === "vod") {
+        inner.append(el("span", undefined, t("toast_totalUsage", [formatBytes(format.sizeBytes)])));
     }
     inner.append(
-        el("span", undefined, t("toast_perHourUsage", [formatRate(sizePerSecondBytes, "hour")])),
+        el(
+            "span",
+            undefined,
+            t("toast_perHourUsage", [formatRate(format.sizePerSecondBytes, "hour")]),
+        ),
     );
     row.append(inner);
 

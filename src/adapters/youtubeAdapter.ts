@@ -44,6 +44,7 @@ function youtubeFormats(data: PlatformData): DisplayFormat[] {
 
     if (youtube.type === "video") {
         return youtube.formats.map((format) => ({
+            kind: "vod",
             key: format.formatId,
             resolution: format.height,
             sizeBytes: format.sizeBytes,
@@ -53,6 +54,7 @@ function youtubeFormats(data: PlatformData): DisplayFormat[] {
     }
 
     return youtube.formats.map((stream) => ({
+        kind: "live",
         key: stream.resolution,
         resolution: stream.resolution,
         sizePerSecondBytes: stream.sizePerSecondBytes,

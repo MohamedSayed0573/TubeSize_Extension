@@ -4,7 +4,7 @@ import { startToastTracking } from "@pages/toasterTracking";
 
 import { youtubeAdapter } from "@/adapters/youtubeAdapter";
 import { sendMessage } from "@/messaging";
-import { injectQualityMenu } from "@/qualityMenuInjector";
+import { injectMenu } from "@/qualityMenuInjector";
 
 import type { PlatformPage } from "./platformPage";
 
@@ -33,6 +33,6 @@ async function initYoutube(url: string): Promise<YoutubeData | undefined> {
 export const youtubePage: PlatformPage<YoutubeData> = {
     matches: isYoutubePage,
     init: initYoutube,
-    afterInit: async (data) => await injectQualityMenu(data),
+    afterInit: (data) => void injectMenu(youtubeAdapter, data),
     startToaster: (data) => startToastTracking(youtubeAdapter, data),
 };

@@ -17,7 +17,7 @@ export interface PlatformPage<TData> {
      */
     init(url: string): Promise<TData | undefined>;
     // Optional platform-specific post-init hook (e.g. quality menu injection).
-    afterInit?(data: TData): Promise<void>;
+    afterInit?(data: TData): void;
     // Starts the toast polling for the given platform data.
     startToaster(data: TData): Promise<void>;
 }

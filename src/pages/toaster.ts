@@ -4,7 +4,7 @@ import { getDateKey } from "@lib/dateUtils";
 import { megabytesPerHour } from "@lib/format";
 import { toasterSuppressedDate } from "@lib/storage";
 
-import type { PlatformData, ToastAdapter } from "@/adapters/types";
+import type { DisplayFormat, PlatformData, ToastAdapter } from "@/adapters/types";
 
 const HOST_ID = "TubeSize-Toast-Host";
 
@@ -26,9 +26,7 @@ async function suppressForToday(): Promise<void> {
 function mountToast(options: {
     currentQuality: number;
     thresholdMbph: number;
-    sizePerSecondBytes: number;
-    sizeBytes?: number;
-    isLive: boolean;
+    format: DisplayFormat;
 }) {
     let host = document.querySelector<HTMLDivElement>(`#${HOST_ID}`);
     if (!host) {
@@ -67,9 +65,7 @@ export async function showPlatformToast(
     mountToast({
         currentQuality,
         thresholdMbph: toasterThresholdMbph,
-        sizePerSecondBytes: format.sizePerSecondBytes,
-        sizeBytes: format.sizeBytes,
-        isLive: data.type === "live",
+        format,
     });
 }
 

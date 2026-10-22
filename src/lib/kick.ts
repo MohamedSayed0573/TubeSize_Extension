@@ -193,6 +193,9 @@ export async function getKickVodResponse(message: KickVodMessage): Promise<KickB
         if (!playlists || playlists.length === 0) {
             throw new Error("No playlists found in master M3U8");
         }
+        if (!Number.isFinite(durationMs) || durationMs <= 0) {
+            throw new Error("Kick VOD duration not found");
+        }
 
         const response: KickVodData = {
             type: "vod",

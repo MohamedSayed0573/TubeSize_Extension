@@ -1,161 +1,74 @@
-/**
- * Injects per-quality data-usage labels into YouTube's player quality menu.
- *
- * Flow:
- *  - `injectQualityMenu` is called by the content script on navigation; it remembers
- *    the current video data and listens for clicks on the player's settings button.
- *  - When the settings button is clicked, the "Quality" item in the settings panel
- *    is located and a click listener is attached to it.
- *  - When the quality menu opens, `renderQualityLabels` appends a TubeSize-styled
- *    label (total size for VODs, size per hour for live streams) to each quality
- *    option, based on the current `YoutubeData`.
- *
- * `removeEventListeners` clears all listeners and injected labels; it is called
- * on navigation away from a supported page and before each re-injection.
- */
-import type { YoutubeData } from "@app-types/platforms.types";
-import { waitForElement } from "@lib/dom";
-import { formatBytes, formatRate } from "@lib/format";
+import type { DisplayFormat, PlatformData, ToastAdapter } from "@/adapters/types";
 
-let settingsBtnEl: Element | undefined;
-let qualityBtnEl: Element | undefined;
+import { waitForElement } from "./lib/dom";
+import { formatBytes, formatRate } from "./lib/format";
 
-export const PANEL_MENU_SELECTOR = ".ytp-panel-menu";
-export const QUALITY_MENU_BTN_SELECTOR = ".ytp-panel.ytp-quality-menu";
-export const SETTINGS_BTN_SELECTOR = ".ytp-button.ytp-settings-button";
-const MENU_ITEM_SELECTOR = ".ytp-menuitem";
+const SETTINGS_MENU_SELECTOR = ".ytp-settings-menu";
+const PANEL_MENU_SELECTOR = ".ytp-panel-menu";
+const QUALITY_MENU_BTN_SELECTOR = ".ytp-panel.ytp-quality-menu";
 const MENU_ITEM_LABEL_SELECTOR = ".ytp-menuitem-label";
 const TUBESIZE_QUALITY_MENU_CLASS = "tubesize-quality-menu-panel";
-const INNER_DIV_SELECTOR = "div";
-const SPAN_SELECTOR = "span";
+const SETTINGS_WAIT_TIMEOUT = 5_000;
 
-export function removeEventListeners() {
-    clearInjectedQualityMenuSizes();
+export async function injectMenu(adapter: ToastAdapter, data: PlatformData) {
+    const settingsMenu = await waitForElement(SETTINGS_MENU_SELECTOR, SETTINGS_WAIT_TIMEOUT);
+    if (!settingsMenu) return;
 
-    if (settingsBtnEl) {
-        settingsBtnEl.removeEventListener("click", settingsBtnHandler);
-    }
-    settingsBtnEl = undefined;
+    const lookup = createQualitySizeLookup(adapter.formats(data));
 
-    if (qualityBtnEl) {
-        qualityBtnEl.removeEventListener("click", qualityBtnHandler);
-    }
-    qualityBtnEl = undefined;
+    const observer = new MutationObserver(() => {
+        const qualityMenu = settingsMenu.querySelector<HTMLElement>(QUALITY_MENU_BTN_SELECTOR);
+        if (!qualityMenu) return;
+
+        injectBadges(qualityMenu, lookup);
+    });
+
+    observer.observe(settingsMenu, { childList: true, subtree: true });
 }
 
-const settingsBtnHandler = () => {
-    const videoEl = document.querySelector("video");
-    if (videoEl && videoEl.paused) {
-        void videoEl.play();
-    }
-    void settingsBtnClickListener().catch((err) => {
-        console.error("Error in settings button click handler:", err);
-    });
-};
-
-const qualityBtnHandler = () => {
-    const videoEl = document.querySelector("video");
-    if (videoEl && videoEl.paused) {
-        void videoEl.play();
-    }
-    void renderQualityLabels().catch((err) => {
-        console.error("Error in quality button click handler:", err);
-    });
-};
-
-let currentYoutubeData: YoutubeData | undefined;
-
-export async function injectQualityMenu(youtubeData: YoutubeData) {
-    try {
-        removeEventListeners();
-        currentYoutubeData = youtubeData;
-        settingsBtnEl = await waitForElement(SETTINGS_BTN_SELECTOR);
-        if (!settingsBtnEl) return;
-
-        settingsBtnEl.addEventListener("click", settingsBtnHandler);
-    } catch (err) {
-        console.error("Error in qualityMenuInjector:", err);
-    }
-}
-
-async function settingsBtnClickListener() {
-    const ytpPanelMenu = await waitForElement(PANEL_MENU_SELECTOR);
+function injectBadges(qualityMenu: HTMLElement, lookup: Map<number, string>) {
+    const ytpPanelMenu = qualityMenu.querySelector(PANEL_MENU_SELECTOR);
     if (!ytpPanelMenu) return;
 
-    const ytpMenuItems = ytpPanelMenu.querySelectorAll(MENU_ITEM_SELECTOR);
+    for (const label of ytpPanelMenu.querySelectorAll(MENU_ITEM_LABEL_SELECTOR)) {
+        const innerDiv = label?.querySelector<HTMLElement>("div");
+        if (!innerDiv) continue;
+        if (innerDiv.querySelector(`.${TUBESIZE_QUALITY_MENU_CLASS}`)) continue;
 
-    qualityBtnEl = findQualityButton(ytpMenuItems);
-    if (!qualityBtnEl) return;
+        const innerSpan = innerDiv.querySelector("span");
+        if (!innerSpan) continue;
 
-    qualityBtnEl.removeEventListener("click", qualityBtnHandler);
-    qualityBtnEl.addEventListener("click", qualityBtnHandler);
+        // Skip premium formats, as we don't support them.
+        // TODO: Add support for premium formats.
+        const isPremium = innerSpan.querySelector(".ytp-premium-label");
+        if (isPremium) continue;
+
+        const qualityText = innerSpan.textContent;
+        if (!qualityText) continue;
+
+        // Parse the quality text to get the resolution number (e.g., "1080p" -> 1080)
+        // This also skips any non-numeric quality labels ("Auto")
+        const size = lookup.get(parseInt(qualityText));
+        if (!size) continue;
+
+        const badge = document.createElement("div");
+        badge.textContent = size;
+        badge.className = TUBESIZE_QUALITY_MENU_CLASS;
+        badge.style.cssText =
+            "font-size:13px;color:#38bdf8;font-weight:500;margin-left:6px;opacity:.9";
+        innerDiv.append(badge);
+    }
 }
 
-function createQualitySizeLookup() {
+function createQualitySizeLookup(formats: DisplayFormat[]) {
     const lookup = new Map<number, string>();
-    if (currentYoutubeData?.type === "video") {
-        for (const format of currentYoutubeData.formats) {
-            lookup.set(format.height, formatBytes(format.sizeBytes));
-        }
-    } else {
-        const formats = currentYoutubeData?.formats ?? [];
-        for (const format of formats) {
-            lookup.set(format.resolution, formatRate(format.sizePerSecondBytes, "hour"));
-        }
+    for (const format of formats) {
+        lookup.set(
+            format.resolution,
+            format.kind === "vod"
+                ? formatBytes(format.sizeBytes)
+                : formatRate(format.sizePerSecondBytes, "hour"),
+        );
     }
     return lookup;
-}
-
-function clearInjectedQualityMenuSizes() {
-    const tubeSizeLabelElements = document.querySelectorAll(`.${TUBESIZE_QUALITY_MENU_CLASS}`);
-    for (const el of tubeSizeLabelElements) {
-        el.remove();
-    }
-}
-
-async function renderQualityLabels() {
-    clearInjectedQualityMenuSizes();
-
-    const ytpPanelMenu = await waitForElement(QUALITY_MENU_BTN_SELECTOR);
-    if (!ytpPanelMenu) return;
-
-    const ytpMenuItems = ytpPanelMenu.querySelectorAll(MENU_ITEM_SELECTOR);
-    if (ytpMenuItems.length === 0) return;
-
-    const lookup = createQualitySizeLookup();
-    for (const ytMenuItem of ytpMenuItems) {
-        const ytMenuItemLabel = ytMenuItem.querySelector(MENU_ITEM_LABEL_SELECTOR);
-        const innerDiv = ytMenuItemLabel?.querySelector(INNER_DIV_SELECTOR);
-        const qualityText = innerDiv?.querySelector(SPAN_SELECTOR)?.textContent;
-        if (!qualityText || qualityText.includes("Auto") || qualityText.includes("Premium"))
-            continue;
-
-        const newDiv = document.createElement("div");
-        const size = lookup.get(Number(qualityText));
-        if (!size) continue;
-        newDiv.textContent = size;
-        newDiv.className = TUBESIZE_QUALITY_MENU_CLASS;
-        newDiv.style.cssText = `
-            font-size: 13px;
-            color: #38bdf8;
-            font-weight: 500;
-            margin-left: 6px;
-            opacity: 0.9;
-        `;
-
-        innerDiv.append(newDiv);
-    }
-}
-
-function findQualityButton(ytMenuItems: NodeListOf<Element>): Element | undefined {
-    for (const ytMenuItem of ytMenuItems) {
-        const ytMenuItemLabel = ytMenuItem.querySelector(MENU_ITEM_LABEL_SELECTOR);
-        // No need to support more languages since the expected user base has English or Arabic as their YouTube language.
-        if (
-            ytMenuItemLabel?.textContent.includes("Quality") ||
-            ytMenuItemLabel?.textContent.includes("الجودة")
-        )
-            return ytMenuItem;
-    }
-    return;
 }

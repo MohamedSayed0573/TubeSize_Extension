@@ -16,7 +16,7 @@ export default defineContentScript({
         "*://www.kick.com/*",
         "*://kick.com/*",
     ],
-    runAt: "document_start",
+    runAt: "document_idle",
     allFrames: true,
 
     async main() {

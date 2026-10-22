@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function FormatItem({ format, currentQuality }: Props) {
-    const { resolution, sizeBytes, sizePerSecondBytes, hideRate } = format;
+    const { resolution, sizePerSecondBytes, hideRate } = format;
 
     return (
         <div
@@ -30,8 +30,8 @@ export default function FormatItem({ format, currentQuality }: Props) {
             </div>
             <div className="flex flex-col items-end text-right text-sm font-semibold text-teal-200">
                 <span>
-                    {sizeBytes != null
-                        ? formatBytes(sizeBytes)
+                    {format.kind === "vod"
+                        ? formatBytes(format.sizeBytes)
                         : formatRate(sizePerSecondBytes, "hour")}
                 </span>
                 <span className="mt-0.5 text-xs font-normal text-cyan-500">
