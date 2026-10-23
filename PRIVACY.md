@@ -10,7 +10,7 @@ TubeSize tracks data usage across all websites and estimates YouTube, Twitch, an
 - **Per-video totals:** date + `platform:videoId` (YouTube ID, Twitch VOD ID or channel, Kick VOD ID or channel) + bytes.
 - **Video display data:** title, channel name/URL, thumbnail, platform. Twitch/Kick entries also keep the visited page URL; YouTube entries do not.
 - **Size-estimate cache:** video IDs, durations, quality/bitrate estimates. Stops being used after 3 days and is deleted on next read; entries never read again remain until storage is cleared.
-- **Settings:** alert on/off, alert threshold, quality filters, language.
+- **Settings:** alert on/off, alert threshold, cache duration, language.
 
 ## Where it is stored
 

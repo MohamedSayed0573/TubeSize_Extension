@@ -125,8 +125,3 @@ export async function saveSettings(settings: SettingsMap): Promise<void> {
 export async function clearLocalStorage(): Promise<void> {
     await storage.clear("local");
 }
-
-/** Clear all sync storage, including settings and language. */
-export async function clearSyncStorage(): Promise<void> {
-    await storage.clear("sync");
-}
