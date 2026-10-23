@@ -16,3 +16,7 @@ html,
 body {
     overflow-x: hidden;
 }
+
+html {
+    width: 240px;
+}
