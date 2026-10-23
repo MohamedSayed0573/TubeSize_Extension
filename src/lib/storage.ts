@@ -16,6 +16,8 @@ import type { Language } from "@/i18n/language";
 /** Last date (`YYYY-MM-DD`) the user dismissed the toaster for the day. */
 export const toasterSuppressedDate = storage.defineItem<DateKey>("local:toasterSuppressedDate");
 
+export const lastSeenVersion = storage.defineItem<string>("sync:lastSeenVersion");
+
 /** Local storage key prefix for a platform's cached media: `local:<platform>:`. */
 export function mediaCachePrefix(target: PlatformId) {
     return `local:${target}:` as const;

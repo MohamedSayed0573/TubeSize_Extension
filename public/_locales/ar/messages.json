@@ -117,6 +117,20 @@
         "message": "الإعدادات",
         "description": "Popup settings button"
     },
+    "popup_newReleaseTitle": {
+        "message": "إصدار جديد v$1",
+        "description": "Changelog banner title with the running extension version",
+        "placeholders": {
+            "version": {
+                "content": "$1",
+                "example": "3.1.0"
+            }
+        }
+    },
+    "popup_newReleaseLink": {
+        "message": "اطلع على ما تغيّر",
+        "description": "Changelog banner link to the GitHub release page"
+    },
     "popup_dashboard": {
         "message": "لوحة الاستخدام",
         "description": "Popup dashboard button"
