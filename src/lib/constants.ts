@@ -1,15 +1,3 @@
-const VIDEO_ITAGS = new Map([
-    [144, [394, 330, 278, 160]],
-    [240, [395, 331, 242, 133]],
-    [360, [396, 332, 243, 134]],
-    [480, [397, 333, 244, 135]],
-    [720, [398, 334, 302, 247, 298, 136]],
-    [1080, [399, 335, 303, 248, 299, 137]],
-    [1440, [400, 336, 308, 271, 304, 264]],
-    [2160, [401, 337, 315, 313, 305, 266]],
-    [4320, [402, 571, 272, 138]],
-]);
-
 const PLATFORMS = ["youtube", "twitch", "kick"] as const;
 
 const DEFAULT_CACHE_TTL = 3 * 24 * 60 * 60;
@@ -19,8 +7,6 @@ const LIVE_CACHE_TTL = 5 * 60;
 
 const CONFIG = {
     FETCH_HTML_TIMEOUT: 5000,
-    VIDEO_ITAGS,
-    liveResolutions: [248, 247, 244, 243, 242, 278],
     AUDIO_ITAG: 251,
     LIVE_AUDIO_ITAG: 140,
     DEFAULT_CACHE_TTL,

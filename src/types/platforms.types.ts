@@ -12,7 +12,6 @@ export type ChosenVideoFormat = {
     formatId: number;
     height: number;
     sizeBytes: number;
-    bitrateBitsPerSecond?: number;
 };
 
 type SuccessResponse<T> = {

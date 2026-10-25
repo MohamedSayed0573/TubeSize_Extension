@@ -7,6 +7,7 @@ import type {
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
     YoutubeData,
+    YoutubeVideoData,
 } from "@app-types/platforms.types";
 import type {
     AddUsageMessage,
@@ -17,6 +18,7 @@ import type {
     TwitchVodMessage,
     YoutubeMessage,
 } from "@app-types/types";
+import { getCachedAv1Support } from "@lib/codecSupport";
 import CONFIG from "@lib/constants";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
 import { getMediaCache, saveMediaCache } from "@lib/storageService";
@@ -153,6 +155,7 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
             throw new Error("No video tag provided");
         }
 
+        const av1Supported = message.av1Supported ?? (await getCachedAv1Support());
         const cached = await getMediaCache("youtube", videoTag);
         if (cached) {
             return {
@@ -174,24 +177,36 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
             channelUrl,
         };
 
-        const data: YoutubeData = isLive
-            ? {
-                  ...baseData,
-                  type: "live",
-                  formats: parseLiveFormats(ytInitialPlayerResponse),
-              }
-            : {
-                  ...baseData,
-                  type: "video",
-                  formats: parseVideoFormats(ytInitialPlayerResponse),
-                  durationSeconds: Number(videoDetails.lengthSeconds),
-              };
+        if (isLive) {
+            const data: YoutubeData = {
+                ...baseData,
+                type: "live",
+                formats: parseLiveFormats(ytInitialPlayerResponse, av1Supported),
+            };
+            await saveMediaCache("youtube", videoTag, data, CONFIG.LIVE_CACHE_TTL);
 
-        await saveMediaCache("youtube", videoTag, data, isLive ? CONFIG.LIVE_CACHE_TTL : undefined);
+            return {
+                success: true,
+                data,
+            };
+        }
+
+        const videoFormats = parseVideoFormats(ytInitialPlayerResponse, av1Supported);
+        const youtubeData: YoutubeVideoData = {
+            formats: videoFormats,
+            type: "video" as const,
+            durationSeconds: Number(videoDetails.lengthSeconds),
+            title,
+            thumbnailUrl: getThumbnailUrl(ytInitialPlayerResponse),
+            channelName,
+            channelUrl,
+        };
+
+        await saveMediaCache("youtube", videoTag, youtubeData);
 
         return {
             success: true,
-            data,
+            data: youtubeData,
         };
     } catch (err) {
         return {

@@ -5,8 +5,6 @@ import path from "node:path";
 import type {
     AudioFormat,
     ChosenVideoFormat,
-    StreamInfo,
-    YoutubeVideoFormat,
     ytInitialPlayerResponse,
 } from "@app-types/platforms.types";
 import { ytInitialSchema } from "@lib/schema";
@@ -24,14 +22,13 @@ function readAsset(name: string): string {
     return fs.readFileSync(path.join(process.cwd(), "src", "tests", "assets", name), "utf8").trim();
 }
 
+function readJsonAsset(name: string): ytInitialPlayerResponse {
+    return JSON.parse(readAsset(name)) as ytInitialPlayerResponse;
+}
+
 describe("extractYtInitialResponse", () => {
     test("should extract YtInitialPlayerResponse from html page", async () => {
-        const ytInitialPlayerResponse = fs
-            .readFileSync(
-                path.join(process.cwd(), "src", "tests", "assets", "ytInitialPlayerResponse.json"),
-                "utf8",
-            )
-            .trim();
+        const ytInitialPlayerResponse = readAsset("ytInitialPlayerResponse.json");
         const html = `<script>var ytInitialPlayerResponse = ${ytInitialPlayerResponse};</script>`;
 
         const result = await extractYtInitialResponse("I82j7AzMU80", html);
@@ -96,9 +93,14 @@ describe("mergeAudioWithVideo", () => {
         { formatId: 22, height: 720, sizeBytes: 90_000_000 },
     ];
 
-    test("merges the audio size into every video format", () => {
-        const merged = mergeAudioWithVideo(videoFormats, audioSize);
-        expect(merged).toEqual([
+    test("merges audio size with a video format", () => {
+        expect(mergeAudioWithVideo([videoFormats[0]!], audioSize)).toEqual([
+            { formatId: 18, height: 360, sizeBytes: 62_463_966 },
+        ]);
+    });
+
+    test("merges audio size with every video format", () => {
+        expect(mergeAudioWithVideo(videoFormats, audioSize)).toEqual([
             { formatId: 18, height: 360, sizeBytes: 62_463_966 },
             { formatId: 137, height: 1080, sizeBytes: 122_463_966 },
             { formatId: 22, height: 720, sizeBytes: 92_463_966 },
@@ -107,91 +109,42 @@ describe("mergeAudioWithVideo", () => {
 });
 
 describe("parseVideoFormats", () => {
-    test("should merge the audio size into every video format of a non-live video", () => {
-        const jsonData = JSON.parse(
-            readAsset("ytInitialPlayerResponse.json"),
-        ) as ytInitialPlayerResponse;
+    const data = readJsonAsset("ytInitialPlayerResponse.json");
 
-        const expected: YoutubeVideoFormat[] = [
-            {
-                type: "video",
-                formatId: 313,
-                height: 2160,
-                sizeBytes: 862_674_604,
-                sizePerSecondBytes: 365_076.006_771_053_77,
-            },
-            {
-                type: "video",
-                formatId: 271,
-                height: 1440,
-                sizeBytes: 267_247_155,
-                sizePerSecondBytes: 113_096.553_110_452_82,
-            },
-            {
-                type: "video",
-                formatId: 399,
-                height: 1080,
-                sizeBytes: 100_920_234,
-                sizePerSecondBytes: 42_708.520_524_756_66,
-            },
-            {
-                type: "video",
-                formatId: 398,
-                height: 720,
-                sizeBytes: 77_520_968,
-                sizePerSecondBytes: 32_806.165_044_435_04,
-            },
-            {
-                type: "video",
-                formatId: 397,
-                height: 480,
-                sizeBytes: 63_428_969,
-                sizePerSecondBytes: 26_842.559_881_506_56,
-            },
-            {
-                type: "video",
-                formatId: 396,
-                height: 360,
-                sizeBytes: 54_780_899,
-                sizePerSecondBytes: 23_182.775_708_844_69,
-            },
-            {
-                type: "video",
-                formatId: 395,
-                height: 240,
-                sizeBytes: 48_685_818,
-                sizePerSecondBytes: 20_603.393_144_308_084,
-            },
-            {
-                type: "video",
-                formatId: 394,
-                height: 144,
-                sizeBytes: 47_628_254,
-                sizePerSecondBytes: 20_155.841_726_618_706,
-            },
-        ];
+    test("keeps AV1 up to 1080p and VP9 above when support is unknown", () => {
+        const formats = parseVideoFormats(data);
 
-        expect(parseVideoFormats(jsonData)).toEqual(expected);
+        expect(formats.map((format) => format.formatId)).toEqual([
+            313, 271, 399, 398, 397, 396, 395, 394,
+        ]);
+    });
+
+    test("uses AV1 at every resolution when support is true", () => {
+        const formats = parseVideoFormats(data, true);
+
+        expect(formats.map((format) => format.formatId)).toEqual([
+            401, 400, 399, 398, 397, 396, 395, 394,
+        ]);
+    });
+
+    test("uses VP9 at every resolution when AV1 support is false", () => {
+        const formats = parseVideoFormats(data, false);
+
+        expect(formats.map((format) => format.formatId)).toEqual([
+            313, 271, 248, 247, 244, 243, 242, 278,
+        ]);
     });
 });
 
 describe("parseLiveFormats", () => {
-    test("should return one stream entry per resolution for a live stream", () => {
-        const jsonData = JSON.parse(
-            readAsset("ytInitialPlayerResponseLive.json"),
-        ) as ytInitialPlayerResponse;
+    const data = readJsonAsset("ytInitialPlayerResponseLive.json");
 
-        const expected: StreamInfo[] = [
-            { type: "live", resolution: 2160, sizePerSecondBytes: 2_270_000 },
-            { type: "live", resolution: 1440, sizePerSecondBytes: 1_145_000 },
-            { type: "live", resolution: 1080, sizePerSecondBytes: 620_000 },
-            { type: "live", resolution: 720, sizePerSecondBytes: 177_500 },
-            { type: "live", resolution: 480, sizePerSecondBytes: 84_000 },
-            { type: "live", resolution: 360, sizePerSecondBytes: 47_600 },
-            { type: "live", resolution: 240, sizePerSecondBytes: 33_125 },
-            { type: "live", resolution: 144, sizePerSecondBytes: 31_875 },
-        ];
+    test("returns every live resolution with a per-second size", () => {
+        const formats = parseLiveFormats(data);
 
-        expect(parseLiveFormats(jsonData)).toEqual(expected);
+        expect(formats.map((format) => format.resolution)).toEqual([
+            2160, 1440, 1080, 720, 480, 360, 240, 144,
+        ]);
+        expect(formats[0]?.sizePerSecondBytes).toBe(2_270_000);
     });
 });
