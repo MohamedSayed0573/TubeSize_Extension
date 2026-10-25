@@ -1,9 +1,8 @@
-import { codecSupport, type CodecSupportCache } from "@lib/storage";
+import { codecSupport } from "@lib/storage";
+import { isFresh } from "@lib/storageService";
 
-// Level 5.0 covers 1440p/2160p AV1, which is what we need before using AV1
-// above 1080p.
 const AV1_MIME_TYPE = 'video/mp4; codecs="av01.0.12M.08"';
-const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const AV1_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 async function detectAv1Support(): Promise<boolean | undefined> {
     if (typeof navigator !== "undefined" && navigator.mediaCapabilities?.decodingInfo) {
@@ -29,10 +28,6 @@ async function detectAv1Support(): Promise<boolean | undefined> {
     return undefined;
 }
 
-function isFresh(cached: CodecSupportCache): boolean {
-    return Date.now() - cached.checkedAt < MAX_AGE_MS;
-}
-
 /**
  * Reads cached AV1 support and refreshes it when missing or stale. Returns the
  * last known value when the current context cannot check media capabilities.
@@ -46,7 +41,7 @@ export async function getAv1Support(): Promise<boolean | undefined> {
 
     await codecSupport.setValue({
         av1,
-        checkedAt: Date.now(),
+        expiry: Date.now() + AV1_TTL_MS,
     });
     return av1;
 }

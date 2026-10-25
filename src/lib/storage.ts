@@ -15,7 +15,7 @@ import type { Language } from "@/i18n/language";
 
 export type CodecSupportCache = {
     av1: boolean;
-    checkedAt: number;
+    expiry: number;
 };
 
 /** Last date (`YYYY-MM-DD`) the user dismissed the toaster for the day. */

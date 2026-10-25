@@ -22,6 +22,13 @@ import { storage, type StorageItemKey } from "@wxt-dev/storage";
  * and area cleanup. Key definitions live in `storage.ts`.
  */
 
+/**
+ * Whether a cache entry is still valid.
+ */
+export function isFresh(entry: { expiry?: number } | null): boolean {
+    return entry !== null && entry.expiry !== undefined && entry.expiry > Date.now();
+}
+
 function isCacheable(target: PlatformId, data: PlatformData): boolean {
     if (data.type === "video") {
         return data.formats.length > 0 && data.formats.every((format) => format.sizeBytes !== 0);
@@ -55,7 +62,7 @@ export async function getMediaCache<T extends PlatformId>(
 
     if (!cached) return null;
 
-    if (cached.expiry && cached.expiry < Date.now()) {
+    if (!isFresh(cached)) {
         await item.removeValue();
         return null;
     }
