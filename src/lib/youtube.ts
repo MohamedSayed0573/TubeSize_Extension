@@ -98,28 +98,34 @@ function getFormatSizeBytes(
     return Number(format.contentLength || "0");
 }
 
-// Order of each key is important. It's the same order the user sees.
-// Order of itags is important. The first index of each key means higher priority.
-// For example, for 144p, if itag 394 is available, we choose that. If not, we check for itag 330 and so on.
+// YouTube serves several codecs per resolution. Prefer AV1 up to 1080p and VP9
+// above it, falling back to any other available codec (live streams, for
+// example, usually have no AV1 formats).
 function chooseVideoFormats(data: ytInitialPlayerResponse): ChosenVideoFormat[] {
     const chosenFormats: ChosenVideoFormat[] = [];
     const adaptiveFormats = data.streamingData.adaptiveFormats;
     const isLive = data.videoDetails.isLive || false;
 
     for (const [resolution, itags] of CONFIG.VIDEO_ITAGS) {
-        const matchingFormats = itags
+        const formats = itags
             .map((itag) => adaptiveFormats.find((format) => format.itag === itag))
             .filter((format): format is NonNullable<typeof format> => Boolean(format))
             .filter((format) => {
                 return getFormatSizeBytes(format, isLive) > 0;
             });
 
-        if (matchingFormats.length === 0) {
+        if (formats.length === 0) {
             continue;
         }
 
-        const sizes = matchingFormats.map((format) => getFormatSizeBytes(format, isLive));
-        const firstFormat = matchingFormats[0]!;
+        const preferredCodec = resolution <= 1080 ? "av01" : "vp9";
+        const preferredFormats = formats.filter((format) =>
+            format.mimeType?.includes(preferredCodec),
+        );
+        const candidates = preferredFormats.length > 0 ? preferredFormats : formats;
+
+        const sizes = candidates.map((format) => getFormatSizeBytes(format, isLive));
+        const firstFormat = candidates[0]!;
         const shouldShowRange = resolution >= CONFIG.RANGE_RESOLUTION_THRESHOLD;
         const minSize = Math.min(...sizes);
         const maxSize = Math.max(...sizes);
