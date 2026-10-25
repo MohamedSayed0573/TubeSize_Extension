@@ -175,8 +175,6 @@ function pickVideoFormat(
             if (format) return format;
         }
 
-        // YouTube added or renumbered a format: keep the codec priority and
-        // fall back to the first SDR variant of that codec.
         const matchingCodec = formats.filter((format) => getVideoCodec(format) === codec);
         if (matchingCodec.length === 0) continue;
 

@@ -34,7 +34,7 @@ export type YoutubeVideoFormat = {
     sizePerSecondBytes: number;
 };
 
-export type YoutubeVideoData = {
+type YoutubeVideoData = {
     type: "video";
     formats: YoutubeVideoFormat[];
     title: string;
@@ -45,7 +45,7 @@ export type YoutubeVideoData = {
     channelUrl: string | undefined;
 };
 
-export type YoutubeLiveData = {
+type YoutubeLiveData = {
     type: "live";
     formats: StreamInfo[];
     title: string;
