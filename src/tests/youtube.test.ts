@@ -114,8 +114,63 @@ describe("parseVideoFormats", () => {
     test("keeps AV1 up to 1080p and VP9 above when support is unknown", () => {
         const formats = parseVideoFormats(data);
 
-        expect(formats.map((format) => format.formatId)).toEqual([
-            313, 271, 399, 398, 397, 396, 395, 394,
+        expect(formats).toEqual([
+            {
+                type: "video",
+                formatId: 313,
+                height: 2160,
+                sizeBytes: 862_674_604,
+                sizePerSecondBytes: 365_076.006_771_053_77,
+            },
+            {
+                type: "video",
+                formatId: 271,
+                height: 1440,
+                sizeBytes: 267_247_155,
+                sizePerSecondBytes: 113_096.553_110_452_82,
+            },
+            {
+                type: "video",
+                formatId: 399,
+                height: 1080,
+                sizeBytes: 100_920_234,
+                sizePerSecondBytes: 42_708.520_524_756_66,
+            },
+            {
+                type: "video",
+                formatId: 398,
+                height: 720,
+                sizeBytes: 77_520_968,
+                sizePerSecondBytes: 32_806.165_044_435_04,
+            },
+            {
+                type: "video",
+                formatId: 397,
+                height: 480,
+                sizeBytes: 63_428_969,
+                sizePerSecondBytes: 26_842.559_881_506_56,
+            },
+            {
+                type: "video",
+                formatId: 396,
+                height: 360,
+                sizeBytes: 54_780_899,
+                sizePerSecondBytes: 23_182.775_708_844_69,
+            },
+            {
+                type: "video",
+                formatId: 395,
+                height: 240,
+                sizeBytes: 48_685_818,
+                sizePerSecondBytes: 20_603.393_144_308_084,
+            },
+            {
+                type: "video",
+                formatId: 394,
+                height: 144,
+                sizeBytes: 47_628_254,
+                sizePerSecondBytes: 20_155.841_726_618_706,
+            },
         ]);
     });
 
