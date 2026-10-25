@@ -1,5 +1,6 @@
 import type {
-    RawFormat,
+    AudioFormat,
+    ChosenVideoFormat,
     StreamInfo,
     YoutubeVideoFormat,
     ytInitialPlayerResponse,
@@ -8,22 +9,24 @@ import CONFIG from "@lib/constants";
 import { ytInitialSchema } from "@lib/schema";
 import { fetchAndRetry } from "@lib/utils";
 
-export function parseVideoFormats(formats: RawFormat): YoutubeVideoFormat[] {
-    const audioSize = getAverageAudioSize(formats.audioFormats);
-    const mergedFormats = mergeAudioWithVideo(formats.formats, audioSize);
-    const parsedFormats = mergedFormats.map((format) => {
-        const data = format;
-        delete data.bitrateBitsPerSecond;
-        return {
-            type: "video" as const,
-            ...data,
-            sizePerSecondBytes: format.sizeBytes / formats.durationSeconds,
-        };
-    });
-    return parsedFormats;
+export function parseVideoFormats(data: ytInitialPlayerResponse): YoutubeVideoFormat[] {
+    const audioSize = getAverageAudioSize(chooseAudioFormats(data));
+    const mergedFormats = mergeAudioWithVideo(chooseVideoFormats(data), audioSize);
+    const durationSeconds = Number(data.videoDetails.lengthSeconds || "0");
+
+    return mergedFormats
+        .map((format) => {
+            delete format.bitrateBitsPerSecond;
+            return {
+                type: "video" as const,
+                ...format,
+                sizePerSecondBytes: format.sizeBytes / durationSeconds,
+            };
+        })
+        .toSorted((a, b) => b.height - a.height);
 }
 
-export function getAverageAudioSize(audioFormatArray: RawFormat["audioFormats"]) {
+export function getAverageAudioSize(audioFormatArray: AudioFormat[]) {
     // Note: ytInitialPlayerResponse usually returns three formats with itag 251, so we take the average of the content size of all three.
     if (audioFormatArray.length === 0) return 0;
     if (audioFormatArray.length === 1) return Math.round(audioFormatArray[0]!.sizeBytes);
@@ -34,7 +37,7 @@ export function getAverageAudioSize(audioFormatArray: RawFormat["audioFormats"])
     );
 }
 
-export function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSize: number) {
+export function mergeAudioWithVideo(videoFormats: ChosenVideoFormat[], audioSize: number) {
     return videoFormats.map((videoFormat) => {
         return {
             ...videoFormat,
@@ -46,14 +49,16 @@ export function mergeAudioWithVideo(videoFormats: RawFormat["formats"], audioSiz
     });
 }
 
-export function parseLiveStreamInfo(formats: RawFormat): StreamInfo[] {
-    const audioSizeBytes = getAverageAudioSize(formats.audioFormats);
+export function parseLiveFormats(data: ytInitialPlayerResponse): StreamInfo[] {
+    const audioSizeBytes = getAverageAudioSize(chooseAudioFormats(data));
 
-    return formats.formats.map((format) => ({
-        type: "live" as const,
-        resolution: format.height,
-        sizePerSecondBytes: (format.sizeBytes + audioSizeBytes) / 3600,
-    }));
+    return chooseVideoFormats(data)
+        .map((format) => ({
+            type: "live" as const,
+            resolution: format.height,
+            sizePerSecondBytes: (format.sizeBytes + audioSizeBytes) / 3600,
+        }))
+        .toSorted((a, b) => b.resolution - a.resolution);
 }
 
 async function fetchYoutubeHtml(videoTag: string) {
@@ -96,8 +101,8 @@ function getFormatSizeBytes(
 // Order of each key is important. It's the same order the user sees.
 // Order of itags is important. The first index of each key means higher priority.
 // For example, for 144p, if itag 394 is available, we choose that. If not, we check for itag 330 and so on.
-function chooseVideoFormats(data: ytInitialPlayerResponse): RawFormat["formats"] {
-    const chosenFormats: RawFormat["formats"] = [];
+function chooseVideoFormats(data: ytInitialPlayerResponse): ChosenVideoFormat[] {
+    const chosenFormats: ChosenVideoFormat[] = [];
     const adaptiveFormats = data.streamingData.adaptiveFormats;
     const isLive = data.videoDetails.isLive || false;
 
@@ -132,7 +137,7 @@ function chooseVideoFormats(data: ytInitialPlayerResponse): RawFormat["formats"]
     return chosenFormats;
 }
 
-function chooseAudioFormats(data: ytInitialPlayerResponse) {
+function chooseAudioFormats(data: ytInitialPlayerResponse): AudioFormat[] {
     if (data.videoDetails.isLive) {
         const audioFormat = data.streamingData.adaptiveFormats.find(
             (format) => format.itag === CONFIG.LIVE_AUDIO_ITAG,
@@ -156,21 +161,6 @@ function chooseAudioFormats(data: ytInitialPlayerResponse) {
                 sizeBytes: Number(format.contentLength || "0"),
             };
         });
-}
-
-export function parseDataFromYtInitial(data: ytInitialPlayerResponse): RawFormat {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!data || !data.videoDetails || !data.streamingData || !data.streamingData.adaptiveFormats)
-        throw new Error("No data found");
-
-    return {
-        id: data.videoDetails.videoId,
-        title: data.videoDetails.title,
-        durationSeconds: Number(data.videoDetails.lengthSeconds || "0"),
-        formats: chooseVideoFormats(data),
-        audioFormats: chooseAudioFormats(data),
-        isLive: data.videoDetails.isLive || false,
-    };
 }
 
 export function getThumbnailUrl(data: ytInitialPlayerResponse): string | undefined {

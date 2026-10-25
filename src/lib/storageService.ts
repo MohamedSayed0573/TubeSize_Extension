@@ -64,20 +64,23 @@ export async function getMediaCache<T extends PlatformId>(
 }
 
 /**
- * Cache a media response in local storage for `CONFIG.DEFAULT_CACHE_TTL`
- * seconds. Responses with empty or partially unknown sizes are skipped, since
- * they may be incomplete.
+ * Cache a media response in local storage. `ttlSeconds` defaults to the
+ * user-configured `cacheTTL` setting. Responses with empty or partially
+ * unknown sizes are skipped, since they may be incomplete.
  */
 export async function saveMediaCache<T extends PlatformId>(
     target: T,
     id: string,
     data: PlatformDataMap[T],
+    ttlSeconds?: number,
 ): Promise<void> {
     if (!isCacheable(target, data)) return;
 
+    const ttl = ttlSeconds ?? (await cacheTTL.getValue());
+
     await mediaCacheItem(target, id).setValue({
         data,
-        expiry: Date.now() + CONFIG.DEFAULT_CACHE_TTL * 1000,
+        expiry: Date.now() + ttl * 1000,
         createdAt: getDateKey(),
     });
 }

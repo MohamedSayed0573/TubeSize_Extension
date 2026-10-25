@@ -3,22 +3,17 @@ import { z } from "zod";
 
 export type ytInitialPlayerResponse = z.infer<typeof ytInitialSchema>;
 
-export type RawFormat = {
-    id: string;
-    title: string;
-    durationSeconds: number;
-    isLive: boolean;
-    formats: {
-        formatId: number;
-        height: number;
-        sizeBytes: number;
-        maxSizeBytes?: number;
-        bitrateBitsPerSecond?: number;
-    }[];
-    audioFormats: {
-        formatId: number;
-        sizeBytes: number;
-    }[];
+export type AudioFormat = {
+    formatId: number;
+    sizeBytes: number;
+};
+
+export type ChosenVideoFormat = {
+    formatId: number;
+    height: number;
+    sizeBytes: number;
+    maxSizeBytes?: number;
+    bitrateBitsPerSecond?: number;
 };
 
 type SuccessResponse<T> = {
@@ -47,14 +42,13 @@ export type YoutubeVideoData = {
     formats: YoutubeVideoFormat[];
     title: string;
     durationSeconds: number;
-    id: string;
     isShorts?: boolean;
     thumbnailUrl: string | undefined;
     channelName: string | undefined;
     channelUrl: string | undefined;
 };
 
-type YoutubeLiveData = {
+export type YoutubeLiveData = {
     type: "live";
     formats: StreamInfo[];
     title: string;

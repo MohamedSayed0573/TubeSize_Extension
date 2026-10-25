@@ -2,13 +2,20 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 
-import type { RawFormat, ytInitialPlayerResponse } from "@app-types/platforms.types";
+import type {
+    AudioFormat,
+    ChosenVideoFormat,
+    StreamInfo,
+    YoutubeVideoFormat,
+    ytInitialPlayerResponse,
+} from "@app-types/platforms.types";
 import { ytInitialSchema } from "@lib/schema";
 import {
     extractYtInitialResponse,
     getAverageAudioSize,
     mergeAudioWithVideo,
-    parseDataFromYtInitial,
+    parseLiveFormats,
+    parseVideoFormats,
 } from "@lib/youtube";
 
 import { handleYoutube } from "@/entrypoints/background/handlers";
@@ -62,7 +69,7 @@ describe("handleYoutube", () => {
 });
 
 describe("getAverageAudioSize", () => {
-    const audioFormats: RawFormat["audioFormats"] = [
+    const audioFormats: AudioFormat[] = [
         { formatId: 251, sizeBytes: 2_467_654 },
         { formatId: 252, sizeBytes: 2_434_644 },
         { formatId: 253, sizeBytes: 2_489_600 },
@@ -83,7 +90,7 @@ describe("getAverageAudioSize", () => {
 
 describe("mergeAudioWithVideo", () => {
     const audioSize = 2_463_966;
-    const videoFormats: RawFormat["formats"] = [
+    const videoFormats: ChosenVideoFormat[] = [
         { formatId: 18, height: 360, sizeBytes: 60_000_000 },
         { formatId: 137, height: 1080, sizeBytes: 120_000_000, maxSizeBytes: 180_000_000 },
         { formatId: 22, height: 720, sizeBytes: 90_000_000, maxSizeBytes: 150_000_000 },
@@ -106,96 +113,100 @@ describe("mergeAudioWithVideo", () => {
     });
 });
 
-describe("parseDataFromYtInitial", () => {
-    test("should throw an error if videoDetails is missing", () => {
-        const rawData: ytInitialPlayerResponse = {
-            videoDetails: undefined as unknown as ytInitialPlayerResponse["videoDetails"],
-            streamingData: {
-                adaptiveFormats: [],
+describe("parseVideoFormats", () => {
+    test("should merge the audio size into every video format of a non-live video", () => {
+        const jsonData = JSON.parse(
+            readAsset("ytInitialPlayerResponse.json"),
+        ) as ytInitialPlayerResponse;
+
+        const expected: YoutubeVideoFormat[] = [
+            {
+                type: "video",
+                formatId: 401,
+                height: 2160,
+                sizeBytes: 320_750_081,
+                maxSizeBytes: 862_674_604,
+                sizePerSecondBytes: 135_738.502_327_549_74,
             },
-        };
-
-        expect(() => parseDataFromYtInitial(rawData)).toThrow("No data found");
-    });
-
-    test("should throw an error if streamingData is missing", () => {
-        const rawData: ytInitialPlayerResponse = {
-            videoDetails: {
-                videoId: "123",
-                title: "Test Video",
-                lengthSeconds: "300",
-                isLive: false,
-                author: "Test Author",
-                thumbnail: { thumbnails: [] },
+            {
+                type: "video",
+                formatId: 400,
+                height: 1440,
+                sizeBytes: 179_971_752,
+                maxSizeBytes: 267_247_155,
+                sizePerSecondBytes: 76_162.400_338_552_69,
             },
-            streamingData: undefined as unknown as ytInitialPlayerResponse["streamingData"],
-        };
+            {
+                type: "video",
+                formatId: 399,
+                height: 1080,
+                sizeBytes: 100_920_234,
+                maxSizeBytes: 138_828_997,
+                sizePerSecondBytes: 42_708.520_524_756_66,
+            },
+            {
+                type: "video",
+                formatId: 398,
+                height: 720,
+                sizeBytes: 77_520_968,
+                maxSizeBytes: undefined,
+                sizePerSecondBytes: 32_806.165_044_435_04,
+            },
+            {
+                type: "video",
+                formatId: 397,
+                height: 480,
+                sizeBytes: 63_428_969,
+                maxSizeBytes: undefined,
+                sizePerSecondBytes: 26_842.559_881_506_56,
+            },
+            {
+                type: "video",
+                formatId: 396,
+                height: 360,
+                sizeBytes: 54_780_899,
+                maxSizeBytes: undefined,
+                sizePerSecondBytes: 23_182.775_708_844_69,
+            },
+            {
+                type: "video",
+                formatId: 395,
+                height: 240,
+                sizeBytes: 48_685_818,
+                maxSizeBytes: undefined,
+                sizePerSecondBytes: 20_603.393_144_308_084,
+            },
+            {
+                type: "video",
+                formatId: 394,
+                height: 144,
+                sizeBytes: 47_628_254,
+                maxSizeBytes: undefined,
+                sizePerSecondBytes: 20_155.841_726_618_706,
+            },
+        ];
 
-        expect(() => parseDataFromYtInitial(rawData)).toThrow("No data found");
+        expect(parseVideoFormats(jsonData)).toEqual(expected);
     });
+});
 
-    test("should return the correct data structure when given valid YtInitialPlayerResponse data and video is NOT live", () => {
-        const ytInitialPlayerResponse = fs.readFileSync(
-            path.join(process.cwd(), "src", "tests", "assets", "ytInitialPlayerResponse.json"),
-            "utf8",
-        );
-        const jsonData = JSON.parse(ytInitialPlayerResponse) as ytInitialPlayerResponse;
+describe("parseLiveFormats", () => {
+    test("should return one stream entry per resolution for a live stream", () => {
+        const jsonData = JSON.parse(
+            readAsset("ytInitialPlayerResponseLive.json"),
+        ) as ytInitialPlayerResponse;
 
-        const expected: RawFormat = {
-            id: "I82j7AzMU80",
-            title: "How does Claude Code *actually* work?",
-            durationSeconds: 2363,
-            isLive: false,
-            audioFormats: [
-                { formatId: 251, sizeBytes: 39_775_547 },
-                { formatId: 251, sizeBytes: 40_016_418 },
-                { formatId: 251, sizeBytes: 39_636_553 },
-            ],
-            formats: [
-                { formatId: 394, height: 144, sizeBytes: 7_818_748, maxSizeBytes: undefined },
-                { formatId: 395, height: 240, sizeBytes: 8_876_312, maxSizeBytes: undefined },
-                { formatId: 396, height: 360, sizeBytes: 14_971_393, maxSizeBytes: undefined },
-                { formatId: 397, height: 480, sizeBytes: 23_619_463, maxSizeBytes: undefined },
-                { formatId: 398, height: 720, sizeBytes: 37_711_462, maxSizeBytes: undefined },
-                { formatId: 399, height: 1080, sizeBytes: 61_110_728, maxSizeBytes: 99_019_491 },
-                { formatId: 400, height: 1440, sizeBytes: 140_162_246, maxSizeBytes: 227_437_649 },
-                { formatId: 401, height: 2160, sizeBytes: 280_940_575, maxSizeBytes: 822_865_098 },
-            ],
-        };
+        const expected: StreamInfo[] = [
+            { type: "live", resolution: 2160, sizePerSecondBytes: 2_270_000 },
+            { type: "live", resolution: 1440, sizePerSecondBytes: 1_145_000 },
+            { type: "live", resolution: 1080, sizePerSecondBytes: 620_000 },
+            { type: "live", resolution: 720, sizePerSecondBytes: 177_500 },
+            { type: "live", resolution: 480, sizePerSecondBytes: 84_000 },
+            { type: "live", resolution: 360, sizePerSecondBytes: 47_600 },
+            { type: "live", resolution: 240, sizePerSecondBytes: 33_125 },
+            { type: "live", resolution: 144, sizePerSecondBytes: 31_875 },
+        ];
 
-        expect(parseDataFromYtInitial(jsonData)).toEqual(expected);
-    });
-
-    test("should return the correct data structure when given valid YtInitialPlayerResponse data and video is live", () => {
-        const ytInitialPlayerResponse = fs.readFileSync(
-            path.join(process.cwd(), "src", "tests", "assets", "ytInitialPlayerResponseLive.json"),
-            "utf8",
-        );
-        const jsonData = JSON.parse(ytInitialPlayerResponse) as ytInitialPlayerResponse;
-
-        const expected: RawFormat = {
-            id: "feSFplc7tMY",
-            title: "🔴LIVE Manchester Airport Plane Spotting 🛫",
-            durationSeconds: 0,
-            isLive: true,
-            audioFormats: [{ formatId: 140, sizeBytes: 64_800_000 }],
-            formats: [
-                { formatId: 278, height: 144, sizeBytes: 49_950_000, maxSizeBytes: undefined },
-                { formatId: 242, height: 240, sizeBytes: 54_450_000, maxSizeBytes: undefined },
-                { formatId: 243, height: 360, sizeBytes: 106_560_000, maxSizeBytes: undefined },
-                { formatId: 244, height: 480, sizeBytes: 237_600_000, maxSizeBytes: undefined },
-                { formatId: 302, height: 720, sizeBytes: 574_200_000, maxSizeBytes: undefined },
-                {
-                    formatId: 303,
-                    height: 1080,
-                    sizeBytes: 2_167_200_000,
-                    maxSizeBytes: 3_008_756_250,
-                },
-                { formatId: 308, height: 1440, sizeBytes: 4_057_200_000, maxSizeBytes: undefined },
-                { formatId: 315, height: 2160, sizeBytes: 8_107_200_000, maxSizeBytes: undefined },
-            ],
-        };
-
-        expect(parseDataFromYtInitial(jsonData)).toEqual(expected);
+        expect(parseLiveFormats(jsonData)).toEqual(expected);
     });
 });
