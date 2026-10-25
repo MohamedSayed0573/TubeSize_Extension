@@ -152,10 +152,9 @@ function getVideoCodec(format: AdaptiveFormat): VideoCodec | undefined {
     return undefined;
 }
 
-// Unknown support keeps the historical behaviour: AV1 up to 1080p, VP9 above.
-// Support detected as false removes AV1 everywhere; true enables it above 1080p.
+// AV1 support only matters above 1080p. Below that, AV1 is always preferred;
+// when it is unsupported, higher resolutions fall back to VP9/AVC.
 function getPreferredCodecs(height: number, av1Supported?: boolean): readonly VideoCodec[] {
-    if (av1Supported === false) return ["vp9", "avc"];
     if (height <= 1080 || av1Supported === true) return ["av01", "vp9", "avc"];
     return ["vp9", "avc"];
 }

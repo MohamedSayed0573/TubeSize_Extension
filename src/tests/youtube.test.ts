@@ -182,11 +182,11 @@ describe("parseVideoFormats", () => {
         ]);
     });
 
-    test("uses VP9 at every resolution when AV1 support is false", () => {
+    test("keeps AV1 up to 1080p and VP9 above when AV1 support is false", () => {
         const formats = parseVideoFormats(data, false);
 
         expect(formats.map((format) => format.formatId)).toEqual([
-            313, 271, 248, 247, 244, 243, 242, 278,
+            313, 271, 399, 398, 397, 396, 395, 394,
         ]);
     });
 });
