@@ -7,7 +7,6 @@ import type {
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
     YoutubeData,
-    YoutubeVideoData,
 } from "@app-types/platforms.types";
 import type {
     AddUsageMessage,
@@ -18,7 +17,6 @@ import type {
     TwitchVodMessage,
     YoutubeMessage,
 } from "@app-types/types";
-import { getCachedAv1Support } from "@lib/codecSupport";
 import CONFIG from "@lib/constants";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
 import { getMediaCache, saveMediaCache } from "@lib/storageService";
@@ -155,13 +153,11 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
             throw new Error("No video tag provided");
         }
 
-        const av1Supported = message.av1Supported ?? (await getCachedAv1Support());
         const cached = await getMediaCache("youtube", videoTag);
         if (cached) {
             return {
                 success: true,
-                data: cached.data,
-                createdAt: cached.createdAt,
+                ...cached,
             };
         }
 
@@ -177,36 +173,27 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
             channelUrl,
         };
 
+        let data: YoutubeData;
         if (isLive) {
-            const data: YoutubeData = {
+            data = {
                 ...baseData,
                 type: "live",
-                formats: parseLiveFormats(ytInitialPlayerResponse, av1Supported),
+                formats: parseLiveFormats(ytInitialPlayerResponse, message.av1Supported),
             };
-            await saveMediaCache("youtube", videoTag, data, CONFIG.LIVE_CACHE_TTL);
-
-            return {
-                success: true,
-                data,
+        } else {
+            data = {
+                ...baseData,
+                type: "video" as const,
+                durationSeconds: Number(videoDetails.lengthSeconds),
+                formats: parseVideoFormats(ytInitialPlayerResponse, message.av1Supported),
             };
         }
 
-        const videoFormats = parseVideoFormats(ytInitialPlayerResponse, av1Supported);
-        const youtubeData: YoutubeVideoData = {
-            formats: videoFormats,
-            type: "video" as const,
-            durationSeconds: Number(videoDetails.lengthSeconds),
-            title,
-            thumbnailUrl: getThumbnailUrl(ytInitialPlayerResponse),
-            channelName,
-            channelUrl,
-        };
-
-        await saveMediaCache("youtube", videoTag, youtubeData);
+        await saveMediaCache("youtube", videoTag, data, isLive ? CONFIG.LIVE_CACHE_TTL : undefined);
 
         return {
             success: true,
-            data: youtubeData,
+            data,
         };
     } catch (err) {
         return {

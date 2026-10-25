@@ -11,6 +11,7 @@ import * as cheerio from "cheerio";
 
 import { addVideoMetadata, getVideoMetadata } from "@/db";
 import { handleYoutube } from "@/entrypoints/background/handlers";
+import { getCachedAv1Support } from "@/lib/codecSupport";
 
 export async function recordTwitchMetadata(url: string) {
     try {
@@ -104,7 +105,10 @@ export async function recordYoutubeMetadata(url: string) {
         const existing = await getVideoMetadata(videoTag, "youtube");
         if (existing) return;
 
-        const response = await handleYoutube({ videoTag });
+        const response = await handleYoutube({
+            videoTag,
+            av1Supported: await getCachedAv1Support(),
+        });
         if (!response.success) return;
 
         const { data } = response;
