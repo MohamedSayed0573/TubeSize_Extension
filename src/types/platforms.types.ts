@@ -12,7 +12,6 @@ export type ChosenVideoFormat = {
     formatId: number;
     height: number;
     sizeBytes: number;
-    maxSizeBytes?: number;
     bitrateBitsPerSecond?: number;
 };
 
@@ -33,7 +32,6 @@ export type YoutubeVideoFormat = {
     formatId: number;
     height: number;
     sizeBytes: number;
-    maxSizeBytes?: number;
     sizePerSecondBytes: number;
 };
 

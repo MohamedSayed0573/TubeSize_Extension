@@ -92,23 +92,16 @@ describe("mergeAudioWithVideo", () => {
     const audioSize = 2_463_966;
     const videoFormats: ChosenVideoFormat[] = [
         { formatId: 18, height: 360, sizeBytes: 60_000_000 },
-        { formatId: 137, height: 1080, sizeBytes: 120_000_000, maxSizeBytes: 180_000_000 },
-        { formatId: 22, height: 720, sizeBytes: 90_000_000, maxSizeBytes: 150_000_000 },
+        { formatId: 137, height: 1080, sizeBytes: 120_000_000 },
+        { formatId: 22, height: 720, sizeBytes: 90_000_000 },
     ];
 
-    test("merges audio size with video formats without max size", () => {
-        const merged = mergeAudioWithVideo([videoFormats[0]!], audioSize);
-        expect(merged).toEqual([
-            { formatId: 18, height: 360, sizeBytes: 62_463_966, maxSizeBytes: undefined },
-        ]);
-    });
-
-    test("merges audio size with video formats with max size", () => {
+    test("merges the audio size into every video format", () => {
         const merged = mergeAudioWithVideo(videoFormats, audioSize);
         expect(merged).toEqual([
-            { formatId: 18, height: 360, sizeBytes: 62_463_966, maxSizeBytes: undefined },
-            { formatId: 137, height: 1080, sizeBytes: 122_463_966, maxSizeBytes: 182_463_966 },
-            { formatId: 22, height: 720, sizeBytes: 92_463_966, maxSizeBytes: 152_463_966 },
+            { formatId: 18, height: 360, sizeBytes: 62_463_966 },
+            { formatId: 137, height: 1080, sizeBytes: 122_463_966 },
+            { formatId: 22, height: 720, sizeBytes: 92_463_966 },
         ]);
     });
 });
@@ -125,7 +118,6 @@ describe("parseVideoFormats", () => {
                 formatId: 313,
                 height: 2160,
                 sizeBytes: 862_674_604,
-                maxSizeBytes: undefined,
                 sizePerSecondBytes: 365_076.006_771_053_77,
             },
             {
@@ -133,7 +125,6 @@ describe("parseVideoFormats", () => {
                 formatId: 271,
                 height: 1440,
                 sizeBytes: 267_247_155,
-                maxSizeBytes: undefined,
                 sizePerSecondBytes: 113_096.553_110_452_82,
             },
             {
@@ -141,7 +132,6 @@ describe("parseVideoFormats", () => {
                 formatId: 399,
                 height: 1080,
                 sizeBytes: 100_920_234,
-                maxSizeBytes: undefined,
                 sizePerSecondBytes: 42_708.520_524_756_66,
             },
             {
@@ -149,7 +139,6 @@ describe("parseVideoFormats", () => {
                 formatId: 398,
                 height: 720,
                 sizeBytes: 77_520_968,
-                maxSizeBytes: undefined,
                 sizePerSecondBytes: 32_806.165_044_435_04,
             },
             {
@@ -157,7 +146,6 @@ describe("parseVideoFormats", () => {
                 formatId: 397,
                 height: 480,
                 sizeBytes: 63_428_969,
-                maxSizeBytes: undefined,
                 sizePerSecondBytes: 26_842.559_881_506_56,
             },
             {
@@ -165,7 +153,6 @@ describe("parseVideoFormats", () => {
                 formatId: 396,
                 height: 360,
                 sizeBytes: 54_780_899,
-                maxSizeBytes: undefined,
                 sizePerSecondBytes: 23_182.775_708_844_69,
             },
             {
@@ -173,7 +160,6 @@ describe("parseVideoFormats", () => {
                 formatId: 395,
                 height: 240,
                 sizeBytes: 48_685_818,
-                maxSizeBytes: undefined,
                 sizePerSecondBytes: 20_603.393_144_308_084,
             },
             {
@@ -181,7 +167,6 @@ describe("parseVideoFormats", () => {
                 formatId: 394,
                 height: 144,
                 sizeBytes: 47_628_254,
-                maxSizeBytes: undefined,
                 sizePerSecondBytes: 20_155.841_726_618_706,
             },
         ];

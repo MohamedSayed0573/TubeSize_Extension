@@ -38,15 +38,10 @@ export function getAverageAudioSize(audioFormatArray: AudioFormat[]) {
 }
 
 export function mergeAudioWithVideo(videoFormats: ChosenVideoFormat[], audioSize: number) {
-    return videoFormats.map((videoFormat) => {
-        return {
-            ...videoFormat,
-            sizeBytes: videoFormat.sizeBytes + audioSize,
-            maxSizeBytes: videoFormat.maxSizeBytes
-                ? videoFormat.maxSizeBytes + audioSize
-                : undefined,
-        };
-    });
+    return videoFormats.map((videoFormat) => ({
+        ...videoFormat,
+        sizeBytes: videoFormat.sizeBytes + audioSize,
+    }));
 }
 
 export function parseLiveFormats(data: ytInitialPlayerResponse): StreamInfo[] {
@@ -109,34 +104,22 @@ function chooseVideoFormats(data: ytInitialPlayerResponse): ChosenVideoFormat[] 
     for (const [resolution, itags] of CONFIG.VIDEO_ITAGS) {
         const formats = itags
             .map((itag) => adaptiveFormats.find((format) => format.itag === itag))
-            .filter((format): format is NonNullable<typeof format> => Boolean(format))
-            .filter((format) => {
-                return getFormatSizeBytes(format, isLive) > 0;
-            });
+            .filter((format) => format !== undefined)
+            .filter((format) => getFormatSizeBytes(format, isLive) > 0);
 
-        if (formats.length === 0) {
-            continue;
-        }
+        if (formats.length === 0) continue;
 
         const preferredCodec = resolution <= 1080 ? "av01" : "vp9";
         const preferredFormats = formats.filter((format) =>
             format.mimeType?.includes(preferredCodec),
         );
         const candidates = preferredFormats.length > 0 ? preferredFormats : formats;
+        const format = candidates[0]!;
 
-        const sizes = candidates.map((format) => getFormatSizeBytes(format, isLive));
-        const firstFormat = candidates[0]!;
-        const shouldShowRange = resolution >= CONFIG.RANGE_RESOLUTION_THRESHOLD;
-        const minSize = Math.min(...sizes);
-        const maxSize = Math.max(...sizes);
-
-        // Keep one entry per resolution. Starting from 1080p, show the smallest size first.
         chosenFormats.push({
-            formatId: firstFormat.itag,
+            formatId: format.itag,
             height: resolution,
-            sizeBytes: shouldShowRange ? minSize : sizes[0]!,
-            // Only attach a max size when there is an actual range to display.
-            maxSizeBytes: shouldShowRange && maxSize > minSize ? maxSize : undefined,
+            sizeBytes: getFormatSizeBytes(format, isLive),
         });
     }
 
