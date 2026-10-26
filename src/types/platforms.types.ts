@@ -29,9 +29,12 @@ export type AudioItag = {
 export type AudioStreamInfo = {
     formatId: number;
     codec?: AudioCodec;
+    /** Average bitrate in bits per second, when YouTube reports one. */
     bitrate?: number;
-    sizeBytes?: number;
-    itags?: AudioItag[];
+    /** Stream size; this is how much audio is merged into every video size. */
+    sizeBytes: number;
+    /** Every distinct audio itag YouTube offered, for the advanced view tooltip. */
+    itags: AudioItag[];
 };
 
 export type ChosenVideoFormat = {

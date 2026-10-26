@@ -18,10 +18,10 @@ export function parseVideoFormats(
     data: ytInitialPlayerResponse,
     av1Supported?: boolean,
 ): { formats: YoutubeVideoFormat[]; audio?: AudioStreamInfo } {
-    const { audio, audioSizeBytes } = parseAudio(data);
+    const audio = parseAudio(data);
     const mergedFormats = mergeAudioWithVideo(
         chooseVideoFormats(data, av1Supported),
-        audioSizeBytes,
+        audio?.sizeBytes ?? 0,
     );
     const durationSeconds = Number(data.videoDetails.lengthSeconds || "0");
 
@@ -58,9 +58,12 @@ export function parseLiveFormats(
     data: ytInitialPlayerResponse,
     av1Supported?: boolean,
 ): { formats: StreamInfo[]; audio?: AudioStreamInfo } {
-    const { audio, audioSizeBytes } = parseAudio(data);
+    const audio = parseAudio(data);
 
-    const formats = mergeAudioWithVideo(chooseVideoFormats(data, av1Supported), audioSizeBytes)
+    const formats = mergeAudioWithVideo(
+        chooseVideoFormats(data, av1Supported),
+        audio?.sizeBytes ?? 0,
+    )
         .map((format) => ({
             type: "live" as const,
             resolution: format.height,
@@ -194,33 +197,25 @@ function getAudioItags(data: ytInitialPlayerResponse): AudioItag[] {
     return [...itagById.values()];
 }
 
-function parseAudio(data: ytInitialPlayerResponse): {
-    audio?: AudioStreamInfo;
-    audioSizeBytes: number;
-} {
+function parseAudio(data: ytInitialPlayerResponse): AudioStreamInfo | undefined {
     const audioFormats = chooseAudioFormats(data);
-    const audioSizeBytes = getAverageAudioSize(audioFormats);
     const [first] = audioFormats;
+    if (!first) return undefined;
 
-    let audio: AudioStreamInfo | undefined;
-    if (first) {
-        const bitrates = audioFormats
-            .map((format) => format.bitrate)
-            .filter((bitrate) => bitrate !== undefined);
-        const avgBitrate = bitrates.length
-            ? Math.round(bitrates.reduce((acc, bitrate) => acc + bitrate, 0) / bitrates.length)
-            : undefined;
+    const bitrates = audioFormats
+        .map((format) => format.bitrate)
+        .filter((bitrate) => bitrate !== undefined);
+    const averageBitrate = bitrates.length
+        ? Math.round(bitrates.reduce((acc, bitrate) => acc + bitrate, 0) / bitrates.length)
+        : undefined;
 
-        audio = {
-            formatId: first.formatId,
-            codec: first.codec,
-            bitrate: avgBitrate,
-            sizeBytes: audioSizeBytes,
-            itags: getAudioItags(data),
-        };
-    }
-
-    return { audio, audioSizeBytes };
+    return {
+        formatId: first.formatId,
+        codec: first.codec,
+        bitrate: averageBitrate,
+        sizeBytes: getAverageAudioSize(audioFormats),
+        itags: getAudioItags(data),
+    };
 }
 
 function toVideoItag(format: AdaptiveFormat): VideoItag {

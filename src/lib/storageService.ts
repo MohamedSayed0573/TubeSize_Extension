@@ -11,9 +11,9 @@ import { getDateKey } from "@lib/dateUtils";
 import {
     advancedView,
     cacheTTL,
+    includeAudio,
     mediaCacheItem,
     mediaCachePrefix,
-    mergeAudio,
     toasterEnabled,
     toasterThreshold,
 } from "@lib/storage";
@@ -107,12 +107,12 @@ export async function clearMediaCache(): Promise<void> {
 
 /** Read all sync settings, applying defaults for unset keys. */
 export async function getSettings(): Promise<Required<SettingsMap>> {
-    const [enabled, threshold, ttl, isAdvancedView, isMergeAudio] = await Promise.all([
+    const [enabled, threshold, ttl, isAdvancedView, isAudioIncluded] = await Promise.all([
         toasterEnabled.getValue(),
         toasterThreshold.getValue(),
         cacheTTL.getValue(),
         advancedView.getValue(),
-        mergeAudio.getValue(),
+        includeAudio.getValue(),
     ]);
 
     return {
@@ -120,7 +120,7 @@ export async function getSettings(): Promise<Required<SettingsMap>> {
         toasterThreshold: threshold,
         cacheTTL: ttl,
         advancedView: isAdvancedView,
-        mergeAudio: isMergeAudio,
+        includeAudio: isAudioIncluded,
     };
 }
 
@@ -140,8 +140,8 @@ export async function saveSettings(settings: SettingsMap): Promise<void> {
     if (settings.advancedView !== undefined) {
         updates.push(advancedView.setValue(settings.advancedView));
     }
-    if (settings.mergeAudio !== undefined) {
-        updates.push(mergeAudio.setValue(settings.mergeAudio));
+    if (settings.includeAudio !== undefined) {
+        updates.push(includeAudio.setValue(settings.includeAudio));
     }
 
     await Promise.all(updates);

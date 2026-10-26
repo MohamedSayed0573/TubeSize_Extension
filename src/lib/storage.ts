@@ -47,8 +47,8 @@ export const advancedView = storage.defineItem<boolean>("sync:advancedView", {
 });
 
 /** Whether the popup size estimates include the audio stream. */
-export const mergeAudio = storage.defineItem<boolean>("sync:mergeAudio", {
-    fallback: CONFIG.DEFAULT_MERGE_AUDIO,
+export const includeAudio = storage.defineItem<boolean>("sync:includeAudio", {
+    fallback: CONFIG.DEFAULT_INCLUDE_AUDIO,
 });
 
 /** Toaster usage limit in MB per hour. */

@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+    formatAudioCodec,
     formatBadge,
+    formatBitrate,
     formatBytes,
     formatCodec,
     formatDate,
@@ -60,6 +62,28 @@ describe("formatCodec", () => {
     });
 });
 
+describe("formatAudioCodec", () => {
+    test("maps audio codec identifiers to display names", () => {
+        expect(formatAudioCodec("opus")).toBe("Opus");
+        expect(formatAudioCodec("aac")).toBe("AAC");
+        expect(formatAudioCodec("vorbis")).toBe("Vorbis");
+    });
+});
+
+describe("formatBitrate", () => {
+    test("uses bps below one kilobit per second", () => {
+        expect(formatBitrate(320)).toBe("320 bps");
+    });
+
+    test("uses kbps below one megabit per second", () => {
+        expect(formatBitrate(146_084)).toBe("146 kbps");
+    });
+
+    test("uses Mbps with one decimal above one megabit per second", () => {
+        expect(formatBitrate(1_200_000)).toBe("1.2 Mbps");
+    });
+});
+
 describe("formatDate", () => {
     test("Should return formatted date if the input is not array", () => {
         expect(formatDate("2023-05-15")).toBe("May 15, 2023");
@@ -101,8 +125,15 @@ const vodAudio: AudioStreamInfo = {
     codec: "opus",
     bitrate: 8000,
     sizeBytes: 500_000,
+    itags: [],
 };
-const liveAudio: AudioStreamInfo = { formatId: 140, codec: "aac", bitrate: 8000 };
+const liveAudio: AudioStreamInfo = {
+    formatId: 140,
+    codec: "aac",
+    bitrate: 8000,
+    sizeBytes: 3_600_000,
+    itags: [],
+};
 
 const vodFormat: DisplayFormat = {
     kind: "vod",
@@ -159,7 +190,7 @@ describe("formatDisplaySizes", () => {
     });
 
     test("never shows a negative size when audio exceeds the total", () => {
-        const hugeAudio: AudioStreamInfo = { formatId: 251, sizeBytes: 5_000_000 };
+        const hugeAudio: AudioStreamInfo = { formatId: 251, sizeBytes: 5_000_000, itags: [] };
         expect(formatDisplaySizes(vodFormat, hugeAudio, false).primary).toBe("0 B");
     });
 });

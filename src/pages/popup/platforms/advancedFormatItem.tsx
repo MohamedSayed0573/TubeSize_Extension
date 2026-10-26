@@ -5,6 +5,8 @@ import type { AudioStreamInfo, DisplayFormat } from "@/adapters/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { t } from "@/i18n/t";
 
+import SizeColumn from "./sizeColumn";
+
 interface Props {
     format: DisplayFormat;
     currentQuality: number | undefined;
@@ -16,7 +18,6 @@ export default function AdvancedFormatItem({ format, currentQuality, audio, incl
     const { resolution, codec, formatId, fps, itags } = format;
     const isCurrent = resolution === currentQuality;
     const hasFormatDetails = codec !== undefined || formatId !== undefined || fps !== undefined;
-    const { primary, secondary } = formatDisplaySizes(format, audio, includeAudio);
 
     return (
         <Tooltip>
@@ -51,14 +52,7 @@ export default function AdvancedFormatItem({ format, currentQuality, audio, incl
                         </span>
                     )}
                 </div>
-                <div className="flex shrink-0 flex-col items-end text-right text-sm font-semibold whitespace-nowrap text-teal-200">
-                    <span>{primary}</span>
-                    {secondary && (
-                        <span className="mt-0.5 text-xs font-normal text-cyan-500">
-                            {secondary}
-                        </span>
-                    )}
-                </div>
+                <SizeColumn {...formatDisplaySizes(format, audio, includeAudio)} />
             </TooltipTrigger>
 
             {itags && itags.length > 0 && (

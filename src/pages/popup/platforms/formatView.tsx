@@ -2,6 +2,7 @@ import useSettings from "@hooks/useSettings";
 import CONFIG from "@lib/constants";
 
 import type { PlatformAdapter, PlatformData } from "@/adapters/types";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import useCurrentQuality from "@/hooks/useCurrentQuality";
@@ -25,31 +26,33 @@ export default function FormatView({
     const { data: settingsState } = query;
     const { mutate: updateSettings } = updateSettingsMutation;
     const advancedView = settingsState?.advancedView ?? CONFIG.DEFAULT_ADVANCED_VIEW;
-    const includeAudio = settingsState?.mergeAudio ?? CONFIG.DEFAULT_MERGE_AUDIO;
+    const includeAudio = settingsState?.includeAudio ?? CONFIG.DEFAULT_INCLUDE_AUDIO;
 
     const formats = adapter.formats(data);
     const audio = adapter.audio?.(data);
-    // The audio row and its merge switch are YouTube-only details.
+    // The audio row and its include-audio switch are YouTube-only details.
     const showAudioControls = advancedView && audio !== undefined;
 
     return (
         <TooltipProvider delay={200}>
             {showAudioControls && (
-                <div className="flex items-center justify-between rounded-lg border border-white/8 bg-white/4 px-3 py-1.5">
-                    <label
-                        htmlFor="mergeAudioToggle"
-                        className="cursor-pointer text-xs font-medium text-zinc-400"
-                    >
-                        {t("popup_includeAudio")}
-                    </label>
-                    <Switch
-                        id="mergeAudioToggle"
-                        size="sm"
-                        className="cursor-pointer"
-                        checked={includeAudio}
-                        onClick={() => updateSettings({ mergeAudio: !includeAudio })}
-                    />
-                </div>
+                <FieldGroup className="rounded-lg border border-teal-950 bg-stone-800 px-3 py-1.5">
+                    <Field orientation="horizontal">
+                        <FieldLabel
+                            htmlFor="includeAudioToggle"
+                            className="cursor-pointer text-xs font-medium text-zinc-400"
+                        >
+                            {t("popup_includeAudio")}
+                        </FieldLabel>
+                        <Switch
+                            id="includeAudioToggle"
+                            size="sm"
+                            className="cursor-pointer"
+                            checked={includeAudio}
+                            onClick={() => updateSettings({ includeAudio: !includeAudio })}
+                        />
+                    </Field>
+                </FieldGroup>
             )}
             {formats.map((format) =>
                 advancedView ? (
@@ -61,8 +64,8 @@ export default function FormatView({
                         includeAudio={includeAudio}
                     />
                 ) : (
-                    // The merge switch only exists in advanced view, so simple
-                    // view always shows the merged (default) numbers.
+                    // The include-audio switch only exists in advanced view, so the
+                    // simple view always shows the merged (default) numbers.
                     <FormatItem
                         key={format.key}
                         format={format}

@@ -4,6 +4,8 @@ import { cn } from "@lib/utils";
 import type { AudioStreamInfo, DisplayFormat } from "@/adapters/types";
 import { t } from "@/i18n/t";
 
+import SizeColumn from "./sizeColumn";
+
 interface Props {
     format: DisplayFormat;
     currentQuality: number | undefined;
@@ -13,7 +15,6 @@ interface Props {
 
 export default function FormatItem({ format, currentQuality, audio, includeAudio }: Props) {
     const { resolution } = format;
-    const { primary, secondary } = formatDisplaySizes(format, audio, includeAudio);
 
     return (
         <div
@@ -31,12 +32,7 @@ export default function FormatItem({ format, currentQuality, audio, includeAudio
                     </span>
                 )}
             </div>
-            <div className="flex flex-col items-end text-right text-sm font-semibold text-teal-200">
-                <span>{primary}</span>
-                {secondary && (
-                    <span className="mt-0.5 text-xs font-normal text-cyan-500">{secondary}</span>
-                )}
-            </div>
+            <SizeColumn {...formatDisplaySizes(format, audio, includeAudio)} />
         </div>
     );
 }
