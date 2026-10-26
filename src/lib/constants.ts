@@ -19,6 +19,7 @@ const CONFIG = {
     TOASTER_POLLING_INTERVAL: 5000,
     DEFAULT_TOASTER_ENABLED: true,
     DEFAULT_ADVANCED_VIEW: false,
+    DEFAULT_MERGE_AUDIO: true,
     NUMBER_OF_SEGMENTS_TO_CHECK: 10,
     RANGES: ["today", "week", "month", "lifetime"],
     PLATFORMS,

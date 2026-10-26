@@ -179,6 +179,14 @@
         "message": "الحالي",
         "description": "Current quality badge"
     },
+    "popup_audio": {
+        "message": "الصوت",
+        "description": "Audio stream label in the advanced view"
+    },
+    "popup_includeAudio": {
+        "message": "تضمين الصوت في الحجم",
+        "description": "Popup switch controlling whether the size estimates include the audio stream"
+    },
     "popup_totalUsageToday": {
         "message": "إجمالي الاستهلاك اليوم",
         "description": "Total usage today label"

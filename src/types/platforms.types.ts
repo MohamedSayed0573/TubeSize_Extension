@@ -6,6 +6,8 @@ export type ytInitialPlayerResponse = z.infer<typeof ytInitialSchema>;
 export type AudioFormat = {
     formatId: number;
     sizeBytes: number;
+    codec?: AudioCodec;
+    bitrate?: number;
 };
 
 export type VideoCodec = "av01" | "vp9" | "avc";
@@ -14,6 +16,22 @@ export type VideoItag = {
     formatId: number;
     codec?: VideoCodec;
     fps?: number;
+};
+
+export type AudioCodec = "opus" | "aac" | "vorbis";
+
+export type AudioItag = {
+    formatId: number;
+    codec?: AudioCodec;
+    bitrate?: number;
+};
+
+export type AudioStreamInfo = {
+    formatId: number;
+    codec?: AudioCodec;
+    bitrate?: number;
+    sizeBytes?: number;
+    itags?: AudioItag[];
 };
 
 export type ChosenVideoFormat = {
@@ -57,6 +75,9 @@ type YoutubeVideoData = {
     thumbnailUrl: string | undefined;
     channelName: string | undefined;
     channelUrl: string | undefined;
+    // One audio stream shared by every video format; sizes below are merged
+    // with it, and only the popup's display layer subtracts it.
+    audio?: AudioStreamInfo;
 };
 
 type YoutubeLiveData = {
@@ -66,6 +87,7 @@ type YoutubeLiveData = {
     channelName: string;
     thumbnailUrl: string | undefined;
     channelUrl: string | undefined;
+    audio?: AudioStreamInfo;
 };
 
 export type YoutubeData = YoutubeVideoData | YoutubeLiveData;

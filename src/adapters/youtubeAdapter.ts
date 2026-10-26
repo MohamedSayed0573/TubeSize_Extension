@@ -72,6 +72,11 @@ function youtubeFormats(data: PlatformData): DisplayFormat[] {
     }));
 }
 
+// One audio stream for the whole video; the display layer threads it separately.
+function youtubeAudio(data: PlatformData) {
+    return (data as YoutubeData).audio;
+}
+
 function youtubeHeader(data: PlatformData): HeaderViewData {
     const youtube = data as YoutubeData;
     const language = getLanguage();
@@ -99,5 +104,6 @@ export const youtubeAdapter = {
     isRunningVideo,
     formats: youtubeFormats,
     header: youtubeHeader,
+    audio: youtubeAudio,
     videoUrl: youtubeVideoUrl,
 };

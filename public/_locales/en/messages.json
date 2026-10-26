@@ -179,6 +179,14 @@
         "message": "Current",
         "description": "Current quality badge"
     },
+    "popup_audio": {
+        "message": "Audio",
+        "description": "Audio stream label in the advanced view"
+    },
+    "popup_includeAudio": {
+        "message": "Include audio in sizes",
+        "description": "Popup switch controlling whether the size estimates include the audio stream"
+    },
     "popup_totalUsageToday": {
         "message": "Total Usage Today",
         "description": "Total usage today label"

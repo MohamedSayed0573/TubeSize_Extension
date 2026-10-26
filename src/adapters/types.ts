@@ -1,8 +1,13 @@
-import type { PlatformData, VideoCodec, VideoItag } from "@app-types/platforms.types";
+import type {
+    AudioStreamInfo,
+    PlatformData,
+    VideoCodec,
+    VideoItag,
+} from "@app-types/platforms.types";
 
 import type { PlatformId } from "@/types/types";
 
-export type { PlatformData };
+export type { AudioStreamInfo, PlatformData };
 
 type DisplayFormatBase = {
     key: string | number;
@@ -59,6 +64,10 @@ export interface PlatformAdapter extends ToastAdapter {
 
     // The function to map the platform's data to the popup header's title and duration.
     header: (data: PlatformData) => HeaderViewData;
+
+    // The function to map the platform's data to the popup's audio stream facts
+    // (YouTube only; other platforms have no audio data and return undefined).
+    audio?: (data: PlatformData) => AudioStreamInfo | undefined;
 
     // The function to build the canonical watch URL for a video tag.
     videoUrl: (videoTag: string, contentType?: VideoContentType) => string;

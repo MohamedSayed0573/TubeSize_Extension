@@ -4,6 +4,7 @@ import path from "node:path";
 
 import type {
     AudioFormat,
+    AudioStreamInfo,
     ChosenVideoFormat,
     ytInitialPlayerResponse,
 } from "@app-types/platforms.types";
@@ -26,6 +27,27 @@ function readJsonAsset(name: string): ytInitialPlayerResponse {
     return JSON.parse(readAsset(name)) as ytInitialPlayerResponse;
 }
 
+const audio: AudioStreamInfo = {
+    formatId: 251,
+    codec: "opus",
+    bitrate: 146_084,
+    sizeBytes: 39_809_506,
+    itags: [
+        { formatId: 140, codec: "aac", bitrate: 132_580 },
+        { formatId: 249, codec: "opus", bitrate: 54_256 },
+        { formatId: 250, codec: "opus", bitrate: 82_494 },
+        { formatId: 251, codec: "opus", bitrate: 146_312 },
+    ],
+};
+
+const liveAudio: AudioStreamInfo = {
+    formatId: 140,
+    codec: "aac",
+    bitrate: 144_000,
+    sizeBytes: 64_800_000,
+    itags: [{ formatId: 140, codec: "aac", bitrate: 144_000 }],
+};
+
 describe("extractYtInitialResponse", () => {
     test("should extract YtInitialPlayerResponse from html page", async () => {
         const ytInitialPlayerResponse = readAsset("ytInitialPlayerResponse.json");
@@ -47,6 +69,7 @@ describe("handleYoutube", () => {
         expect(response.data.type).toBe("video");
         expect(response.data.title).toBe("How does Claude Code *actually* work?");
         expect(response.data.channelName).toBe("Theo - t3․gg");
+        expect(response.data.audio).toEqual(audio);
     });
 
     // A live stream has no length, so its payload carries the stream title
@@ -62,6 +85,7 @@ describe("handleYoutube", () => {
         expect(response.data.type).toBe("live");
         expect(response.data.title).toBe("🔴LIVE Manchester Airport Plane Spotting 🛫");
         expect(response.data.channelName).toBe("Think Planes");
+        expect(response.data.audio).toEqual(liveAudio);
     });
 });
 
@@ -112,7 +136,7 @@ describe("parseVideoFormats", () => {
     const data = readJsonAsset("ytInitialPlayerResponse.json");
 
     test("keeps AV1 up to 1080p and VP9 above when support is unknown", () => {
-        const formats = parseVideoFormats(data);
+        const { formats } = parseVideoFormats(data);
 
         expect(formats).toEqual([
             {
@@ -229,7 +253,7 @@ describe("parseVideoFormats", () => {
     });
 
     test("uses AV1 at every resolution when support is true", () => {
-        const formats = parseVideoFormats(data, true);
+        const { formats } = parseVideoFormats(data, true);
 
         expect(formats.map((format) => format.formatId)).toEqual([
             401, 400, 399, 398, 397, 396, 395, 394,
@@ -237,7 +261,7 @@ describe("parseVideoFormats", () => {
     });
 
     test("keeps AV1 up to 1080p and VP9 above when AV1 support is false", () => {
-        const formats = parseVideoFormats(data, false);
+        const { formats } = parseVideoFormats(data, false);
 
         expect(formats.map((format) => format.formatId)).toEqual([
             313, 271, 399, 398, 397, 396, 395, 394,
@@ -249,7 +273,7 @@ describe("parseLiveFormats", () => {
     const data = readJsonAsset("ytInitialPlayerResponseLive.json");
 
     test("returns every live resolution with a per-second size", () => {
-        const formats = parseLiveFormats(data);
+        const { formats } = parseLiveFormats(data);
 
         expect(formats.map((format) => format.resolution)).toEqual([
             2160, 1440, 1080, 720, 480, 360, 240, 144,

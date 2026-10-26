@@ -1,19 +1,22 @@
-import { formatBytes, formatCodec, formatRate } from "@lib/format";
+import { formatCodec, formatDisplaySizes } from "@lib/format";
 import { cn } from "@lib/utils";
 
-import type { DisplayFormat } from "@/adapters/types";
+import type { AudioStreamInfo, DisplayFormat } from "@/adapters/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { t } from "@/i18n/t";
 
 interface Props {
     format: DisplayFormat;
     currentQuality: number | undefined;
+    audio: AudioStreamInfo | undefined;
+    includeAudio: boolean;
 }
 
-export default function AdvancedFormatItem({ format, currentQuality }: Props) {
-    const { resolution, sizePerSecondBytes, hideRate, codec, formatId, fps, itags } = format;
+export default function AdvancedFormatItem({ format, currentQuality, audio, includeAudio }: Props) {
+    const { resolution, codec, formatId, fps, itags } = format;
     const isCurrent = resolution === currentQuality;
     const hasFormatDetails = codec !== undefined || formatId !== undefined || fps !== undefined;
+    const { primary, secondary } = formatDisplaySizes(format, audio, includeAudio);
 
     return (
         <Tooltip>
@@ -49,14 +52,12 @@ export default function AdvancedFormatItem({ format, currentQuality }: Props) {
                     )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end text-right text-sm font-semibold whitespace-nowrap text-teal-200">
-                    <span>
-                        {format.kind === "vod"
-                            ? formatBytes(format.sizeBytes)
-                            : formatRate(sizePerSecondBytes, "hour")}
-                    </span>
-                    <span className="mt-0.5 text-xs font-normal text-cyan-500">
-                        {!hideRate && formatRate(sizePerSecondBytes, "minute")}
-                    </span>
+                    <span>{primary}</span>
+                    {secondary && (
+                        <span className="mt-0.5 text-xs font-normal text-cyan-500">
+                            {secondary}
+                        </span>
+                    )}
                 </div>
             </TooltipTrigger>
 

@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatBadge, formatBytes, formatCodec, formatDate, formatRate } from "@lib/format";
+import {
+    formatBadge,
+    formatBytes,
+    formatCodec,
+    formatDate,
+    formatDisplaySizes,
+    formatRate,
+} from "@lib/format";
+
+import type { AudioStreamInfo, DisplayFormat } from "@/adapters/types";
 
 // Intl.DateTimeFormat.formatRange uses narrow no-break spaces (U+2009) around
 // the range separator in Node.js, but regular spaces in Bun. Normalize so the
@@ -84,5 +93,73 @@ describe("formatBadge", () => {
 
     test("formats gigabytes", () => {
         expect(formatBadge(2_400_000_000)).toBe("2.4G");
+    });
+});
+
+const vodAudio: AudioStreamInfo = {
+    formatId: 251,
+    codec: "opus",
+    bitrate: 8000,
+    sizeBytes: 500_000,
+};
+const liveAudio: AudioStreamInfo = { formatId: 140, codec: "aac", bitrate: 8000 };
+
+const vodFormat: DisplayFormat = {
+    kind: "vod",
+    key: 399,
+    resolution: 1080,
+    sizeBytes: 2_000_000,
+    sizePerSecondBytes: 2000,
+};
+
+const liveFormat: DisplayFormat = {
+    kind: "live",
+    key: 1080,
+    resolution: 1080,
+    sizePerSecondBytes: 2000,
+};
+
+describe("formatDisplaySizes", () => {
+    test("with audio included, shows the merged numbers", () => {
+        expect(formatDisplaySizes(vodFormat, vodAudio, true)).toEqual({
+            primary: "2 MB",
+            secondary: "120 KB/min",
+        });
+        expect(formatDisplaySizes(liveFormat, liveAudio, true)).toEqual({
+            primary: "7.2 MB/hour",
+            secondary: "120 KB/min",
+        });
+    });
+
+    test("with audio excluded, subtracts the audio share from a VOD", () => {
+        // Audio bitrate 8000 bps = 1000 bytes/s, so per-second drops to 1000.
+        expect(formatDisplaySizes(vodFormat, vodAudio, false)).toEqual({
+            primary: "1.5 MB",
+            secondary: "60 KB/min",
+        });
+    });
+
+    test("with audio excluded, subtracts the audio share from a live stream", () => {
+        expect(formatDisplaySizes(liveFormat, liveAudio, false)).toEqual({
+            primary: "3.6 MB/hour",
+            secondary: "60 KB/min",
+        });
+    });
+
+    test("hides the secondary rate for shorts", () => {
+        const shorts: DisplayFormat = { ...vodFormat, hideRate: true };
+        expect(formatDisplaySizes(shorts, vodAudio, true).secondary).toBeUndefined();
+    });
+
+    test("without audio data, exclusion changes nothing", () => {
+        expect(formatDisplaySizes(vodFormat, undefined, false)).toEqual({
+            primary: "2 MB",
+            secondary: "120 KB/min",
+        });
+    });
+
+    test("never shows a negative size when audio exceeds the total", () => {
+        const hugeAudio: AudioStreamInfo = { formatId: 251, sizeBytes: 5_000_000 };
+        expect(formatDisplaySizes(vodFormat, hugeAudio, false).primary).toBe("0 B");
     });
 });

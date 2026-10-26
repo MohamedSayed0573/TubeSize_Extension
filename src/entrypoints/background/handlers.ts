@@ -175,17 +175,22 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
 
         let data: YoutubeData;
         if (isLive) {
-            data = {
-                ...baseData,
-                type: "live",
-                formats: parseLiveFormats(ytInitialPlayerResponse, message.av1Supported),
-            };
+            const { formats, audio } = parseLiveFormats(
+                ytInitialPlayerResponse,
+                message.av1Supported,
+            );
+            data = { ...baseData, type: "live", formats, audio };
         } else {
+            const { formats, audio } = parseVideoFormats(
+                ytInitialPlayerResponse,
+                message.av1Supported,
+            );
             data = {
                 ...baseData,
                 type: "video" as const,
                 durationSeconds: Number(videoDetails.lengthSeconds),
-                formats: parseVideoFormats(ytInitialPlayerResponse, message.av1Supported),
+                formats,
+                audio,
             };
         }
 
