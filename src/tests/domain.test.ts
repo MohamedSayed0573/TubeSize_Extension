@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import { getSiteKey, getSiteLabel, sumBySite } from "@lib/domain";
+import { getSiteDisplayName, getSiteKey, getSiteLabel, sumBySite } from "@lib/domain";
 
 describe("getSiteKey", () => {
-    test("should drop the suffix and capitalize regular sites", () => {
-        expect(getSiteKey("https://www.example.com")).toBe("Example");
-        expect(getSiteKey("https://docs.example.com")).toBe("Example");
+    test("should keep the full domain for regular sites", () => {
+        expect(getSiteKey("https://www.example.com")).toBe("example.com");
+        expect(getSiteKey("https://docs.example.com")).toBe("example.com");
+        expect(getSiteKey("https://example.org")).toBe("example.org");
     });
 
     test("should keep the full host for Google subdomains", () => {
@@ -16,17 +17,17 @@ describe("getSiteKey", () => {
     });
 
     test("should ignore the www prefix", () => {
-        expect(getSiteKey("https://www.google.com")).toBe("Google");
+        expect(getSiteKey("https://www.google.com")).toBe("google.com");
         expect(getSiteKey("https://www.maps.google.com")).toBe("maps.google.com");
     });
 
     test("should keep regional Google subdomains intact", () => {
         expect(getSiteKey("https://maps.google.co.uk")).toBe("maps.google.co.uk");
-        expect(getSiteKey("https://www.google.co.uk")).toBe("Google");
+        expect(getSiteKey("https://www.google.co.uk")).toBe("google.co.uk");
     });
 
     test("should keep non-Google domains that contain google in the name", () => {
-        expect(getSiteKey("https://notgoogle.com")).toBe("Notgoogle");
+        expect(getSiteKey("https://notgoogle.com")).toBe("notgoogle.com");
     });
 
     test("should fall back to the origin when there is no domain name", () => {
@@ -54,10 +55,29 @@ describe("getSiteLabel", () => {
         expect(getSiteLabel("https://unknown-product.google.com")).toBe("Google");
     });
 
-    test("should match getSiteKey for regular sites", () => {
+    test("should use the short name for regular sites", () => {
         expect(getSiteLabel("https://www.example.com")).toBe("Example");
+        expect(getSiteLabel("https://docs.example.com")).toBe("Example");
+        expect(getSiteLabel("https://example.org")).toBe("Example");
         expect(getSiteLabel("https://notgoogle.com")).toBe("Notgoogle");
         expect(getSiteLabel("http://127.0.0.1:8080")).toBe("http://127.0.0.1:8080");
+    });
+});
+
+describe("getSiteDisplayName", () => {
+    test("should drop the suffix for regular sites", () => {
+        expect(getSiteDisplayName("https://www.example.com")).toBe("Example");
+        expect(getSiteDisplayName("https://example.org")).toBe("Example");
+        expect(getSiteDisplayName("https://notgoogle.com")).toBe("Notgoogle");
+        expect(getSiteDisplayName("http://127.0.0.1:8080")).toBe("http://127.0.0.1:8080");
+    });
+
+    test("should keep Google subdomain hostnames", () => {
+        expect(getSiteDisplayName("https://maps.google.com")).toBe("maps.google.com");
+        expect(getSiteDisplayName("https://console.cloud.google.com")).toBe(
+            "console.cloud.google.com",
+        );
+        expect(getSiteDisplayName("https://www.google.com")).toBe("Google");
     });
 });
 
@@ -72,7 +92,7 @@ describe("sumBySite", () => {
 
         expect([...totals.values()].toSorted((a, b) => a.site.localeCompare(b.site))).toEqual([
             { site: "gemini.google.com", bytes: 8, origin: "https://gemini.google.com" },
-            { site: "Google", bytes: 3, origin: "https://www.google.com" },
+            { site: "google.com", bytes: 3, origin: "https://www.google.com" },
             { site: "maps.google.com", bytes: 4, origin: "https://maps.google.com" },
         ]);
     });
@@ -84,7 +104,19 @@ describe("sumBySite", () => {
         });
 
         expect([...totals.values()]).toEqual([
-            { site: "Example", bytes: 3, origin: "https://www.example.com" },
+            { site: "example.com", bytes: 3, origin: "https://www.example.com" },
+        ]);
+    });
+
+    test("should keep sites with matching names under different suffixes separate", () => {
+        const totals = sumBySite({
+            "https://www.example.com": 2,
+            "https://example.org": 3,
+        });
+
+        expect([...totals.values()].toSorted((a, b) => a.site.localeCompare(b.site))).toEqual([
+            { site: "example.com", bytes: 2, origin: "https://www.example.com" },
+            { site: "example.org", bytes: 3, origin: "https://example.org" },
         ]);
     });
 

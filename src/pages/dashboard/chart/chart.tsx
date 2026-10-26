@@ -1,7 +1,7 @@
 import type { DateKey } from "@app-types/types";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@components/ui/chart";
 import { parseDateKey } from "@lib/dateUtils";
-import { sumBySite, type SiteUsageTotal } from "@lib/domain";
+import { getSiteDisplayName, sumBySite, type SiteUsageTotal } from "@lib/domain";
 
 import "@styles/chart.css";
 import { formatBytes } from "@lib/format";
@@ -75,7 +75,7 @@ function ChartTooltipContentCustom({
                                     }}
                                 />
                                 <span className="max-w-35 truncate text-neutral-300">
-                                    {site.site}
+                                    {getSiteDisplayName(site.site)}
                                 </span>
                             </span>
                             <span className="font-mono text-stone-200">

@@ -1,5 +1,5 @@
 import { useSiteUsage } from "@hooks/useSiteUsage";
-import { getSiteKey } from "@lib/domain";
+import { getSiteDisplayName, getSiteKey } from "@lib/domain";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useParams } from "react-router";
@@ -35,7 +35,7 @@ export default function SiteDetailPage() {
 
     return (
         <>
-            <DashboardHeader title={siteName} totalDataUsage={totalUsage} />
+            <DashboardHeader title={getSiteDisplayName(siteName)} totalDataUsage={totalUsage} />
             <div className="flex flex-1 flex-col gap-1 bg-neutral-950/70 pt-1">
                 <DailyUsageTable usage={sortedUsage} totalUsage={totalUsage} />
             </div>

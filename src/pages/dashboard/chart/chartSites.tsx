@@ -1,4 +1,4 @@
-import { sumBySite } from "@lib/domain";
+import { getSiteDisplayName, sumBySite } from "@lib/domain";
 import { formatBytes } from "@lib/format";
 import { useNavigate } from "react-router";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
@@ -19,7 +19,7 @@ const chartConfig = {
 const MIN_SITE_BYTES = 1_000_000; // 1 MB
 const MAX_SITES = 10;
 
-type ChartSiteItem = { site: string; bytes: number; fill: string };
+type ChartSiteItem = { site: string; label: string; bytes: number; fill: string };
 type TooltipPayloadEntry = { payload: ChartSiteItem };
 
 // Sum each site's usage across all days, dropping sites under 1 MB,
@@ -38,6 +38,7 @@ function buildSiteData(usage: SiteUsage[]): ChartSiteItem[] {
         .slice(0, MAX_SITES)
         .map((item, index) => ({
             site: item.site,
+            label: getSiteDisplayName(item.site),
             bytes: item.bytes,
             fill: getSiteColor(index),
         }));
@@ -64,7 +65,7 @@ function ChartSitesTooltipContent({
                     />
 
                     {/* Website Name */}
-                    <span className="max-w-35 truncate text-neutral-300">{data.site}</span>
+                    <span className="max-w-35 truncate text-neutral-300">{data.label}</span>
                 </span>
 
                 {/* Formatted Usage */}
@@ -99,7 +100,7 @@ export default function ChartSites({ usage }: { usage: SiteUsage[] }) {
                         <CartesianGrid horizontal={false} />
                         <XAxis dataKey="bytes" type="number" axisLine={false} hide />
                         <YAxis
-                            dataKey="site"
+                            dataKey="label"
                             type="category"
                             tickLine={false}
                             tickMargin={10}

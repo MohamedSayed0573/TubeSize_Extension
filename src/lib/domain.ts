@@ -1,4 +1,4 @@
-import { getDomainWithoutSuffix, getSubdomain } from "tldts-icann";
+import { getDomain, getDomainWithoutSuffix, getSubdomain } from "tldts-icann";
 
 import { capitalize } from "./utils";
 
@@ -55,6 +55,11 @@ function stripWww(host: string) {
     return host.startsWith("www.") ? host.slice(4) : host;
 }
 
+/** `example.com` for any origin on that domain, the origin itself otherwise. */
+function getOriginDomain(origin: string) {
+    return getDomain(origin) ?? origin;
+}
+
 /** `Example` for example.com, the origin itself when it has no domain name. */
 function getOriginWithoutSuffix(origin: string) {
     const websiteName = getDomainWithoutSuffix(origin);
@@ -78,17 +83,18 @@ function getGoogleProduct(host: string) {
 }
 
 /**
- * Stable key for the site a URL belongs to: the domain name without its suffix
- * (`https://www.example.com` -> `Example`), or the origin itself when it has no
- * domain name (`http://127.0.0.1:8080`).
+ * Stable key for the site a URL belongs to: the registrable domain
+ * (`https://www.example.com` -> `example.com`), or the origin itself when it
+ * has no domain name (`http://127.0.0.1:8080`). Domains that share a name but
+ * not a suffix (`example.com` and `example.org`) stay separate.
  *
  * Google is the exception. It serves many products from subdomains of one
  * registrable domain and they share its favicon, so `maps.google.com` and
- * `gemini.google.com` would both become `Google`. Google subdomains keep their
- * full hostname as the site key instead.
+ * `gemini.google.com` would both become `google.com`. Google subdomains keep
+ * their full hostname as the site key instead.
  */
 export function getSiteKey(url: string) {
-    return getGoogleSubdomainHost(url) ?? getOriginWithoutSuffix(url);
+    return getGoogleSubdomainHost(url) ?? getOriginDomain(url);
 }
 
 /** Display name for the popup: `Google Drive` instead of `drive.google.com`. */
@@ -97,6 +103,14 @@ export function getSiteLabel(url: string) {
     if (!host) return getOriginWithoutSuffix(url);
 
     return GOOGLE_PRODUCT_NAMES[getGoogleProduct(host)] ?? "Google";
+}
+
+/**
+ * Display name for dashboard rows: Google subdomains keep their hostname
+ * (`maps.google.com`), everything else drops the suffix (`Example`).
+ */
+export function getSiteDisplayName(url: string) {
+    return getGoogleSubdomainHost(url) ?? getOriginWithoutSuffix(url);
 }
 
 export interface SiteUsageTotal {
@@ -108,7 +122,7 @@ export interface SiteUsageTotal {
 /*
  * Merges origin-keyed bytes (e.g. https://accounts.google.com and
  * https://www.google.com) into totals keyed by getSiteKey(), so Google
- * subdomains stay separate while everything else merges by site key.
+ * subdomains stay separate while everything else merges by registrable domain.
  */
 export function sumBySite(origins: Record<string, number>): Map<string, SiteUsageTotal> {
     const totals = new Map<string, SiteUsageTotal>();
