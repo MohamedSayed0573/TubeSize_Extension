@@ -41,12 +41,13 @@ const GOOGLE_PRODUCT_NAMES: Record<string, string> = {
     workspace: "Google Workspace",
 };
 
-/** Hostname of a URL, or undefined when the value is not a URL. */
-function getHostname(url: string) {
+/** Hostname of a URL or a bare site key, or undefined when it has no domain name. */
+function getHostname(value: string) {
     try {
-        return new URL(url).hostname.toLowerCase();
+        return new URL(value).hostname.toLowerCase();
     } catch {
-        return undefined;
+        const host = value.toLowerCase();
+        return getDomain(host) ? host : undefined;
     }
 }
 
