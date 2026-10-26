@@ -1,3 +1,4 @@
+import type { VideoCodec } from "@app-types/platforms.types";
 import type { DateKey } from "@app-types/types";
 import { filesize, type FilesizeOptions } from "filesize";
 
@@ -36,6 +37,19 @@ export function formatRate(bytesPerSecond: number, per: "hour" | "minute"): stri
  */
 export function megabytesPerHour(bytesPerSecond: number): number {
     return (bytesPerSecond * 3600) / 1_000_000;
+}
+
+/**
+ * Formats a video codec identifier for display.
+ * @example formatCodec("avc") returns "H.264"
+ */
+export function formatCodec(codec: VideoCodec) {
+    const labels: Record<VideoCodec, string> = {
+        av01: "AV1",
+        vp9: "VP9",
+        avc: "H.264",
+    };
+    return labels[codec];
 }
 
 /**

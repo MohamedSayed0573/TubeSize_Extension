@@ -109,6 +109,18 @@
         "message": "Usage limit",
         "description": "Aria label for usage limit slider"
     },
+    "settings_advancedView_legend": {
+        "message": "Advanced View",
+        "description": "Advanced view setting legend"
+    },
+    "settings_advancedView_description": {
+        "message": "Show developer details in the popup, such as itags, codecs, and frame rates.",
+        "description": "Advanced view setting description"
+    },
+    "settings_advancedView_enable": {
+        "message": "Enable advanced view",
+        "description": "Advanced view switch label"
+    },
     "settings_errorFailed": {
         "message": "Failed to load your settings.",
         "description": "Settings load error"

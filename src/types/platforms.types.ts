@@ -8,10 +8,21 @@ export type AudioFormat = {
     sizeBytes: number;
 };
 
+export type VideoCodec = "av01" | "vp9" | "avc";
+
+export type VideoItag = {
+    formatId: number;
+    codec?: VideoCodec;
+    fps?: number;
+};
+
 export type ChosenVideoFormat = {
     formatId: number;
     height: number;
     sizeBytes: number;
+    codec?: VideoCodec;
+    fps?: number;
+    itags: VideoItag[];
 };
 
 type SuccessResponse<T> = {
@@ -32,6 +43,9 @@ export type YoutubeVideoFormat = {
     height: number;
     sizeBytes: number;
     sizePerSecondBytes: number;
+    codec?: VideoCodec;
+    fps?: number;
+    itags?: VideoItag[];
 };
 
 type YoutubeVideoData = {
@@ -61,6 +75,10 @@ export type StreamInfo = {
     type: "live";
     sizePerSecondBytes: number;
     resolution: number;
+    formatId?: number;
+    codec?: VideoCodec;
+    fps?: number;
+    itags?: VideoItag[];
 };
 
 export type TwitchLiveData = {

@@ -88,22 +88,22 @@ describe("getAverageAudioSize", () => {
 describe("mergeAudioWithVideo", () => {
     const audioSize = 2_463_966;
     const videoFormats: ChosenVideoFormat[] = [
-        { formatId: 18, height: 360, sizeBytes: 60_000_000 },
-        { formatId: 137, height: 1080, sizeBytes: 120_000_000 },
-        { formatId: 22, height: 720, sizeBytes: 90_000_000 },
+        { formatId: 18, height: 360, sizeBytes: 60_000_000, itags: [] },
+        { formatId: 137, height: 1080, sizeBytes: 120_000_000, itags: [] },
+        { formatId: 22, height: 720, sizeBytes: 90_000_000, itags: [] },
     ];
 
     test("merges audio size with a video format", () => {
         expect(mergeAudioWithVideo([videoFormats[0]!], audioSize)).toEqual([
-            { formatId: 18, height: 360, sizeBytes: 62_463_966 },
+            { formatId: 18, height: 360, sizeBytes: 62_463_966, itags: [] },
         ]);
     });
 
     test("merges audio size with every video format", () => {
         expect(mergeAudioWithVideo(videoFormats, audioSize)).toEqual([
-            { formatId: 18, height: 360, sizeBytes: 62_463_966 },
-            { formatId: 137, height: 1080, sizeBytes: 122_463_966 },
-            { formatId: 22, height: 720, sizeBytes: 92_463_966 },
+            { formatId: 18, height: 360, sizeBytes: 62_463_966, itags: [] },
+            { formatId: 137, height: 1080, sizeBytes: 122_463_966, itags: [] },
+            { formatId: 22, height: 720, sizeBytes: 92_463_966, itags: [] },
         ]);
     });
 });
@@ -121,6 +121,12 @@ describe("parseVideoFormats", () => {
                 height: 2160,
                 sizeBytes: 862_674_604,
                 sizePerSecondBytes: 365_076.006_771_053_77,
+                codec: "vp9",
+                fps: 30,
+                itags: [
+                    { formatId: 313, codec: "vp9", fps: 30 },
+                    { formatId: 401, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -128,6 +134,12 @@ describe("parseVideoFormats", () => {
                 height: 1440,
                 sizeBytes: 267_247_155,
                 sizePerSecondBytes: 113_096.553_110_452_82,
+                codec: "vp9",
+                fps: 30,
+                itags: [
+                    { formatId: 271, codec: "vp9", fps: 30 },
+                    { formatId: 400, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -135,6 +147,13 @@ describe("parseVideoFormats", () => {
                 height: 1080,
                 sizeBytes: 100_920_234,
                 sizePerSecondBytes: 42_708.520_524_756_66,
+                codec: "av01",
+                fps: 30,
+                itags: [
+                    { formatId: 137, codec: "avc", fps: 30 },
+                    { formatId: 248, codec: "vp9", fps: 30 },
+                    { formatId: 399, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -142,6 +161,13 @@ describe("parseVideoFormats", () => {
                 height: 720,
                 sizeBytes: 77_520_968,
                 sizePerSecondBytes: 32_806.165_044_435_04,
+                codec: "av01",
+                fps: 30,
+                itags: [
+                    { formatId: 136, codec: "avc", fps: 30 },
+                    { formatId: 247, codec: "vp9", fps: 30 },
+                    { formatId: 398, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -149,6 +175,13 @@ describe("parseVideoFormats", () => {
                 height: 480,
                 sizeBytes: 63_428_969,
                 sizePerSecondBytes: 26_842.559_881_506_56,
+                codec: "av01",
+                fps: 30,
+                itags: [
+                    { formatId: 135, codec: "avc", fps: 30 },
+                    { formatId: 244, codec: "vp9", fps: 30 },
+                    { formatId: 397, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -156,6 +189,13 @@ describe("parseVideoFormats", () => {
                 height: 360,
                 sizeBytes: 54_780_899,
                 sizePerSecondBytes: 23_182.775_708_844_69,
+                codec: "av01",
+                fps: 30,
+                itags: [
+                    { formatId: 134, codec: "avc", fps: 30 },
+                    { formatId: 243, codec: "vp9", fps: 30 },
+                    { formatId: 396, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -163,6 +203,13 @@ describe("parseVideoFormats", () => {
                 height: 240,
                 sizeBytes: 48_685_818,
                 sizePerSecondBytes: 20_603.393_144_308_084,
+                codec: "av01",
+                fps: 30,
+                itags: [
+                    { formatId: 133, codec: "avc", fps: 30 },
+                    { formatId: 242, codec: "vp9", fps: 30 },
+                    { formatId: 395, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -170,6 +217,13 @@ describe("parseVideoFormats", () => {
                 height: 144,
                 sizeBytes: 47_628_254,
                 sizePerSecondBytes: 20_155.841_726_618_706,
+                codec: "av01",
+                fps: 30,
+                itags: [
+                    { formatId: 160, codec: "avc", fps: 30 },
+                    { formatId: 278, codec: "vp9", fps: 30 },
+                    { formatId: 394, codec: "av01", fps: 30 },
+                ],
             },
         ]);
     });
@@ -201,5 +255,16 @@ describe("parseLiveFormats", () => {
             2160, 1440, 1080, 720, 480, 360, 240, 144,
         ]);
         expect(formats[0]?.sizePerSecondBytes).toBe(2_270_000);
+        expect(formats[0]).toMatchObject({
+            formatId: 315,
+            codec: "vp9",
+            fps: 60,
+            itags: [{ formatId: 315, codec: "vp9", fps: 60 }],
+        });
+        expect(formats.find((format) => format.resolution === 1080)?.itags).toEqual([
+            { formatId: 299, codec: "avc", fps: 60 },
+            { formatId: 303, codec: "vp9", fps: 60 },
+        ]);
+        expect(formats.find((format) => format.resolution === 144)?.fps).toBe(30);
     });
 });

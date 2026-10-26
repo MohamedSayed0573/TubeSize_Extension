@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatBadge, formatBytes, formatDate, formatRate } from "@lib/format";
+import { formatBadge, formatBytes, formatCodec, formatDate, formatRate } from "@lib/format";
 
 // Intl.DateTimeFormat.formatRange uses narrow no-break spaces (U+2009) around
 // the range separator in Node.js, but regular spaces in Bun. Normalize so the
@@ -40,6 +40,14 @@ describe("formatRate", () => {
 
     test("scales small rates into smaller units", () => {
         expect(formatRate(1000, "minute")).toBe("60 KB/min");
+    });
+});
+
+describe("formatCodec", () => {
+    test("maps codec identifiers to display names", () => {
+        expect(formatCodec("av01")).toBe("AV1");
+        expect(formatCodec("vp9")).toBe("VP9");
+        expect(formatCodec("avc")).toBe("H.264");
     });
 });
 

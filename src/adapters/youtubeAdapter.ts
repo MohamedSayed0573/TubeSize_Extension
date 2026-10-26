@@ -53,6 +53,10 @@ function youtubeFormats(data: PlatformData): DisplayFormat[] {
             sizeBytes: format.sizeBytes,
             sizePerSecondBytes: format.sizePerSecondBytes,
             hideRate: youtube.isShorts,
+            codec: format.codec,
+            formatId: format.formatId,
+            fps: format.fps,
+            itags: format.itags,
         }));
     }
 
@@ -61,6 +65,10 @@ function youtubeFormats(data: PlatformData): DisplayFormat[] {
         key: stream.resolution,
         resolution: stream.resolution,
         sizePerSecondBytes: stream.sizePerSecondBytes,
+        codec: stream.codec,
+        formatId: stream.formatId,
+        fps: stream.fps,
+        itags: stream.itags,
     }));
 }
 

@@ -109,6 +109,18 @@
         "message": "حد الاستخدام",
         "description": "Aria label for usage limit slider"
     },
+    "settings_advancedView_legend": {
+        "message": "العرض المتقدم",
+        "description": "Advanced view setting legend"
+    },
+    "settings_advancedView_description": {
+        "message": "اعرض تفاصيل المطوّرين في النافذة المنبثقة، مثل itags وترميزات الفيديو ومعدّل الإطارات.",
+        "description": "Advanced view setting description"
+    },
+    "settings_advancedView_enable": {
+        "message": "تفعيل العرض المتقدم",
+        "description": "Advanced view switch label"
+    },
     "settings_errorFailed": {
         "message": "فشل تحميل الإعدادات.",
         "description": "Settings load error"

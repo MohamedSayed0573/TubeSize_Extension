@@ -28,6 +28,7 @@ export const ytInitialSchema = z.object({
             z.object({
                 itag: z.number(),
                 height: z.number().optional(),
+                fps: z.number().optional(),
                 qualityLabel: z.string().optional(),
                 contentLength: z.string().optional(),
                 bitrate: z.number().optional(),

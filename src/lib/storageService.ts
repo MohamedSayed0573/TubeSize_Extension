@@ -9,6 +9,7 @@ import type { PlatformId, SettingsMap, StorageData } from "@app-types/types";
 import CONFIG from "@lib/constants";
 import { getDateKey } from "@lib/dateUtils";
 import {
+    advancedView,
     cacheTTL,
     mediaCacheItem,
     mediaCachePrefix,
@@ -105,13 +106,19 @@ export async function clearMediaCache(): Promise<void> {
 
 /** Read all sync settings, applying defaults for unset keys. */
 export async function getSettings(): Promise<Required<SettingsMap>> {
-    const [enabled, threshold, ttl] = await Promise.all([
+    const [enabled, threshold, ttl, isAdvancedView] = await Promise.all([
         toasterEnabled.getValue(),
         toasterThreshold.getValue(),
         cacheTTL.getValue(),
+        advancedView.getValue(),
     ]);
 
-    return { toasterEnabled: enabled, toasterThreshold: threshold, cacheTTL: ttl };
+    return {
+        toasterEnabled: enabled,
+        toasterThreshold: threshold,
+        cacheTTL: ttl,
+        advancedView: isAdvancedView,
+    };
 }
 
 /** Persist any provided sync settings; omitted keys are left untouched. */
@@ -126,6 +133,9 @@ export async function saveSettings(settings: SettingsMap): Promise<void> {
     }
     if (settings.cacheTTL !== undefined) {
         updates.push(cacheTTL.setValue(settings.cacheTTL));
+    }
+    if (settings.advancedView !== undefined) {
+        updates.push(advancedView.setValue(settings.advancedView));
     }
 
     await Promise.all(updates);

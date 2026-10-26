@@ -1,4 +1,4 @@
-import type { PlatformData } from "@app-types/platforms.types";
+import type { PlatformData, VideoCodec, VideoItag } from "@app-types/platforms.types";
 
 import type { PlatformId } from "@/types/types";
 
@@ -9,6 +9,10 @@ type DisplayFormatBase = {
     resolution: number;
     sizePerSecondBytes: number; // live: per-hour primary; VOD: per-minute secondary
     hideRate?: boolean; // shorts
+    codec?: VideoCodec;
+    formatId?: number;
+    fps?: number;
+    itags?: VideoItag[];
 };
 
 export type DisplayFormat =

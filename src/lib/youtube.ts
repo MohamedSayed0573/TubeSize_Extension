@@ -2,6 +2,8 @@ import type {
     AudioFormat,
     ChosenVideoFormat,
     StreamInfo,
+    VideoCodec,
+    VideoItag,
     YoutubeVideoFormat,
     ytInitialPlayerResponse,
 } from "@app-types/platforms.types";
@@ -55,6 +57,10 @@ export function parseLiveFormats(
             type: "live" as const,
             resolution: format.height,
             sizePerSecondBytes: (format.sizeBytes + audioSizeBytes) / 3600,
+            formatId: format.formatId,
+            codec: format.codec,
+            fps: format.fps,
+            itags: format.itags,
         }))
         .toSorted((a, b) => b.resolution - a.resolution);
 }
@@ -102,8 +108,6 @@ function getFormatHeight(format: AdaptiveFormat): number {
     return Number.isNaN(labelHeight) ? (format.height ?? 0) : labelHeight;
 }
 
-type VideoCodec = "av01" | "vp9" | "avc";
-
 // Known SDR itags, ordered from most to least preferred within each codec.
 // The first entries are 30fps; later entries cover 60fps/streaming variants.
 // New/unknown itags fall back to codec detection below.
@@ -150,6 +154,14 @@ function getVideoCodec(format: AdaptiveFormat): VideoCodec | undefined {
     if (mimeType.includes("vp9") || mimeType.includes("vp09")) return "vp9";
     if (mimeType.includes("avc1") || mimeType.includes("avc3")) return "avc";
     return undefined;
+}
+
+function toVideoItag(format: AdaptiveFormat): VideoItag {
+    return {
+        formatId: format.itag,
+        codec: getVideoCodec(format),
+        fps: format.fps,
+    };
 }
 
 // AV1 support only matters above 1080p. Below that, AV1 is always preferred;
@@ -215,6 +227,9 @@ function chooseVideoFormats(
             formatId: format.itag,
             height,
             sizeBytes: getFormatSizeBytes(format, isLive),
+            codec: getVideoCodec(format),
+            fps: format.fps,
+            itags: formats.map(toVideoItag),
         });
     }
 
