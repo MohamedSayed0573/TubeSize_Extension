@@ -1,4 +1,4 @@
-import { sumByDomain } from "@lib/domain";
+import { sumBySite } from "@lib/domain";
 import { formatBytes } from "@lib/format";
 import { useNavigate } from "react-router";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
@@ -32,12 +32,12 @@ function buildSiteData(usage: SiteUsage[]): ChartSiteItem[] {
         }
     }
 
-    return Array.from(sumByDomain(usageByOrigin).values())
+    return Array.from(sumBySite(usageByOrigin).values())
         .filter((item) => item.bytes >= MIN_SITE_BYTES)
         .sort((a, b) => b.bytes - a.bytes)
         .slice(0, MAX_SITES)
         .map((item, index) => ({
-            site: item.domain,
+            site: item.site,
             bytes: item.bytes,
             fill: getSiteColor(index),
         }));
@@ -115,7 +115,7 @@ export default function ChartSites({ usage }: { usage: SiteUsage[] }) {
                             cursor="pointer"
                             onClick={(data) => {
                                 const site = (data.payload as ChartSiteItem).site;
-                                void navigate(`/site/${site}`);
+                                void navigate(`/site/${encodeURIComponent(site)}`);
                             }}
                         >
                             <LabelList

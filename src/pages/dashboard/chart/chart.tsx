@@ -1,7 +1,7 @@
 import type { DateKey } from "@app-types/types";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@components/ui/chart";
 import { parseDateKey } from "@lib/dateUtils";
-import { sumByDomain, type DomainUsage } from "@lib/domain";
+import { sumBySite, type SiteUsageTotal } from "@lib/domain";
 
 import "@styles/chart.css";
 import { formatBytes } from "@lib/format";
@@ -23,7 +23,7 @@ const chartConfig = {
     },
 } satisfies ChartConfig;
 
-type ChartUsageItem = { date: string; usage: number; sites: DomainUsage[] };
+type ChartUsageItem = { date: string; usage: number; sites: SiteUsageTotal[] };
 
 type TooltipPayloadEntry = { payload: ChartUsageItem };
 
@@ -66,7 +66,7 @@ function ChartTooltipContentCustom({
                     </div>
 
                     {visibleEntries.map((site, index) => (
-                        <div key={site.domain} className="flex items-center justify-between">
+                        <div key={site.site} className="flex items-center justify-between">
                             <span className="flex min-w-0 items-center gap-1.5">
                                 <span
                                     className="size-3 shrink-0 rounded-lg"
@@ -75,7 +75,7 @@ function ChartTooltipContentCustom({
                                     }}
                                 />
                                 <span className="max-w-35 truncate text-neutral-300">
-                                    {site.domain}
+                                    {site.site}
                                 </span>
                             </span>
                             <span className="font-mono text-stone-200">
@@ -101,7 +101,7 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
         return {
             date: day,
             usage: getUsageNumber([{ day, usage: sites }]),
-            sites: Array.from(sumByDomain(sites).values()).toSorted((a, b) => b.bytes - a.bytes),
+            sites: Array.from(sumBySite(sites).values()).toSorted((a, b) => b.bytes - a.bytes),
         };
     }) satisfies ChartUsageItem[];
 

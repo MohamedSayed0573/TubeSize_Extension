@@ -1,7 +1,7 @@
 import { useOriginUsage } from "@hooks/useOriginUsage";
 import useTab from "@hooks/useTab";
 import { useTotalUsage } from "@hooks/useTotalUsage";
-import { getSiteLabel, getSiteName } from "@lib/domain";
+import { getSiteKey, getSiteLabel } from "@lib/domain";
 
 import { t } from "@/i18n/t";
 
@@ -40,7 +40,7 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
                     <PopupUsage
                         text={t("popup_siteUsage", [getSiteLabel(origin)])}
                         usage={originUsage}
-                        navigateTo={`dashboard/site/${getSiteName(origin)}`}
+                        navigateTo={`dashboard/site/${encodeURIComponent(getSiteKey(origin))}`}
                         variant="siteUsage"
                         origin={origin}
                     />

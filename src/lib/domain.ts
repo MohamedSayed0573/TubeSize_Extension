@@ -41,12 +41,12 @@ const GOOGLE_PRODUCT_NAMES: Record<string, string> = {
     workspace: "Google Workspace",
 };
 
-/** Hostname of an origin, tolerating bare hosts ("maps.google.com"). */
-function getHostname(value: string) {
+/** Hostname of a URL, or undefined when the value is not a URL. */
+function getHostname(url: string) {
     try {
-        return new URL(value).hostname.toLowerCase();
+        return new URL(url).hostname.toLowerCase();
     } catch {
-        return value.toLowerCase();
+        return undefined;
     }
 }
 
@@ -55,14 +55,18 @@ function stripWww(host: string) {
     return host.startsWith("www.") ? host.slice(4) : host;
 }
 
+/** `Example` for example.com, the origin itself when it has no domain name. */
 function getOriginWithoutSuffix(origin: string) {
-    const websiteName = getDomainWithoutSuffix(origin) ?? origin;
-    return capitalize(websiteName);
+    const websiteName = getDomainWithoutSuffix(origin);
+    return websiteName ? capitalize(websiteName) : origin;
 }
 
 /** Google subdomain host (`console.cloud.google.com`), else undefined. */
 function getGoogleSubdomainHost(url: string) {
-    const host = stripWww(getHostname(url));
+    const hostname = getHostname(url);
+    if (!hostname) return;
+
+    const host = stripWww(hostname);
     if (!getSubdomain(host) || getDomainWithoutSuffix(host) !== "google") return;
 
     return host;
@@ -74,46 +78,47 @@ function getGoogleProduct(host: string) {
 }
 
 /**
- * Site name for an origin: the domain name without its suffix
- * (`https://www.example.com` -> `Example`).
+ * Stable key for the site a URL belongs to: the domain name without its suffix
+ * (`https://www.example.com` -> `Example`), or the origin itself when it has no
+ * domain name (`http://127.0.0.1:8080`).
  *
  * Google is the exception. It serves many products from subdomains of one
  * registrable domain and they share its favicon, so `maps.google.com` and
  * `gemini.google.com` would both become `Google`. Google subdomains keep their
- * full hostname as the site name instead.
+ * full hostname as the site key instead.
  */
-export function getSiteName(url: string) {
+export function getSiteKey(url: string) {
     return getGoogleSubdomainHost(url) ?? getOriginWithoutSuffix(url);
 }
 
 /** Display name for the popup: `Google Drive` instead of `drive.google.com`. */
 export function getSiteLabel(url: string) {
     const host = getGoogleSubdomainHost(url);
-    if (!host) return getSiteName(url);
+    if (!host) return getOriginWithoutSuffix(url);
 
     return GOOGLE_PRODUCT_NAMES[getGoogleProduct(host)] ?? "Google";
 }
 
-export interface DomainUsage {
-    domain: string;
+export interface SiteUsageTotal {
+    site: string;
     bytes: number;
     origin: string;
 }
 
 /*
  * Merges origin-keyed bytes (e.g. https://accounts.google.com and
- * https://www.google.com) into totals keyed by getSiteName(), so Google
- * subdomains stay separate while everything else merges by site name.
+ * https://www.google.com) into totals keyed by getSiteKey(), so Google
+ * subdomains stay separate while everything else merges by site key.
  */
-export function sumByDomain(origins: Record<string, number>): Map<string, DomainUsage> {
-    const totals = new Map<string, DomainUsage>();
+export function sumBySite(origins: Record<string, number>): Map<string, SiteUsageTotal> {
+    const totals = new Map<string, SiteUsageTotal>();
 
     for (const [origin, bytes] of Object.entries(origins)) {
-        const domain = getSiteName(origin);
-        const existing = totals.get(domain);
+        const site = getSiteKey(origin);
+        const existing = totals.get(site);
 
         if (existing) existing.bytes += bytes;
-        else totals.set(domain, { domain, bytes, origin });
+        else totals.set(site, { site, bytes, origin });
     }
 
     return totals;
