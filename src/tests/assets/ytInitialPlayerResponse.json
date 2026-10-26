@@ -809,5 +809,10 @@
         "isUnpluggedCorpus": false,
         "isLiveContent": false,
         "isTvfilmVideo": false
+    },
+    "microformat": {
+        "playerMicroformatRenderer": {
+            "ownerProfileUrl": "http://www.youtube.com/@t3dotgg"
+        }
     }
 }

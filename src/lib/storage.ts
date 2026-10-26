@@ -13,8 +13,16 @@ import type { Language } from "@/i18n/language";
  * written, which callers treat as "unset".
  */
 
+export type CodecSupportCache = {
+    av1: boolean;
+    expiry: number;
+};
+
 /** Last date (`YYYY-MM-DD`) the user dismissed the toaster for the day. */
 export const toasterSuppressedDate = storage.defineItem<DateKey>("local:toasterSuppressedDate");
+
+/** Device AV1 support, cached locally because it is device-specific. */
+export const codecSupport = storage.defineItem<CodecSupportCache>("local:codecSupport");
 
 export const lastSeenVersion = storage.defineItem<string>("local:lastSeenVersion");
 

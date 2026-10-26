@@ -2,6 +2,7 @@ import type { YoutubeData } from "@app-types/platforms.types";
 
 import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
+import { getAv1Support } from "@/lib/codecSupport";
 import { humanizeDuration } from "@/lib/humanize";
 import { extractVideoTag, isShortsVideo, isYoutubePage } from "@/lib/utils";
 import { sendMessage } from "@/messaging";
@@ -10,10 +11,12 @@ import type { DisplayFormat, HeaderViewData, PlatformData } from "./types";
 
 async function loadYoutubeData(tabUrl: string, tabId: number) {
     const videoTag = extractVideoTag(tabUrl)!;
+    const av1Supported = await getAv1Support();
 
     const response = await sendMessage("youtubeVideo", {
         videoTag,
         tabId,
+        av1Supported,
     });
 
     if (!response.success) {

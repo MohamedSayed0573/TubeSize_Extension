@@ -313,5 +313,10 @@
         "latencyClass": "MDE_STREAM_OPTIMIZATIONS_RENDERER_LATENCY_NORMAL",
         "isLiveContent": true,
         "isTvfilmVideo": false
+    },
+    "microformat": {
+        "playerMicroformatRenderer": {
+            "ownerProfileUrl": "http://www.youtube.com/@ThinkPlanes"
+        }
     }
 }

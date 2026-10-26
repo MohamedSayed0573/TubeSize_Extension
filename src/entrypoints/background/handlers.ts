@@ -7,7 +7,6 @@ import type {
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
     YoutubeData,
-    YoutubeVideoData,
 } from "@app-types/platforms.types";
 import type {
     AddUsageMessage,
@@ -18,14 +17,14 @@ import type {
     TwitchVodMessage,
     YoutubeMessage,
 } from "@app-types/types";
+import CONFIG from "@lib/constants";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
 import { getMediaCache, saveMediaCache } from "@lib/storageService";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import {
     extractYtInitialResponse,
     getThumbnailUrl,
-    parseDataFromYtInitial,
-    parseLiveStreamInfo,
+    parseLiveFormats,
     parseVideoFormats,
 } from "@lib/youtube";
 
@@ -158,51 +157,43 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
         if (cached) {
             return {
                 success: true,
-                data: cached.data,
-                createdAt: cached.createdAt,
+                ...cached,
             };
         }
 
-        const rawData = await extractYtInitialResponse(videoTag, html);
-        const isLive = rawData.videoDetails.isLive;
-        const channelUrl = rawData.microformat?.playerMicroformatRenderer.ownerProfileUrl;
+        const ytInitialPlayerResponse = await extractYtInitialResponse(videoTag, html);
+        const { videoDetails, microformat } = ytInitialPlayerResponse;
+        const { author: channelName, title, isLive } = videoDetails;
+        const { ownerProfileUrl: channelUrl } = microformat.playerMicroformatRenderer;
 
-        if (isLive) {
-            const rawFormats = parseDataFromYtInitial(rawData);
-            const youtubeData = parseLiveStreamInfo(rawFormats);
-            const thumbnailUrl = getThumbnailUrl(rawData);
-
-            const data: YoutubeData = {
-                channelName: rawData.videoDetails.author,
-                title: rawData.videoDetails.title,
-                formats: youtubeData.toSorted((a, b) => b.resolution - a.resolution),
-                type: "live",
-                thumbnailUrl,
-                channelUrl,
-            };
-            await saveMediaCache("youtube", videoTag, data);
-
-            return {
-                success: true,
-                data,
-            };
-        }
-        const rawFormats = parseDataFromYtInitial(rawData);
-        const videoFormats = parseVideoFormats(rawFormats);
-        const youtubeData: YoutubeVideoData = {
-            formats: videoFormats.toSorted((a, b) => b.height - a.height),
-            type: "video" as const,
-            durationSeconds: Number(rawData.videoDetails.lengthSeconds),
-            title: rawData.videoDetails.title,
-            id: rawData.videoDetails.videoId,
-            thumbnailUrl: getThumbnailUrl(rawData),
-            channelName: rawData.videoDetails.author,
+        const baseData = {
+            title,
+            channelName,
+            thumbnailUrl: getThumbnailUrl(ytInitialPlayerResponse),
             channelUrl,
         };
-        await saveMediaCache("youtube", videoTag, youtubeData);
+
+        let data: YoutubeData;
+        if (isLive) {
+            data = {
+                ...baseData,
+                type: "live",
+                formats: parseLiveFormats(ytInitialPlayerResponse, message.av1Supported),
+            };
+        } else {
+            data = {
+                ...baseData,
+                type: "video" as const,
+                durationSeconds: Number(videoDetails.lengthSeconds),
+                formats: parseVideoFormats(ytInitialPlayerResponse, message.av1Supported),
+            };
+        }
+
+        await saveMediaCache("youtube", videoTag, data, isLive ? CONFIG.LIVE_CACHE_TTL : undefined);
+
         return {
             success: true,
-            data: youtubeData,
+            data,
         };
     } catch (err) {
         return {
