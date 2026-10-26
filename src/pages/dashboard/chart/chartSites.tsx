@@ -1,4 +1,4 @@
-import { getOriginWithoutSuffix, sumByDomain } from "@lib/domain";
+import { sumByDomain } from "@lib/domain";
 import { formatBytes } from "@lib/format";
 import { useNavigate } from "react-router";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
@@ -114,9 +114,7 @@ export default function ChartSites({ usage }: { usage: SiteUsage[] }) {
                             maxBarSize={28}
                             cursor="pointer"
                             onClick={(data) => {
-                                const site = getOriginWithoutSuffix(
-                                    (data.payload as ChartSiteItem).site,
-                                );
+                                const site = (data.payload as ChartSiteItem).site;
                                 void navigate(`/site/${site}`);
                             }}
                         >
