@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { getSiteName, sumByDomain } from "@lib/domain";
+import { getSiteLabel, getSiteName, sumByDomain } from "@lib/domain";
 
 describe("getSiteName", () => {
     test("drops the suffix and capitalizes for regular sites", () => {
@@ -27,6 +27,27 @@ describe("getSiteName", () => {
 
     test("keeps non-Google domains that contain google in the name", () => {
         expect(getSiteName("https://notgoogle.com")).toBe("Notgoogle");
+    });
+});
+
+describe("getSiteLabel", () => {
+    test("names Google products", () => {
+        expect(getSiteLabel("https://drive.google.com")).toBe("Google Drive");
+        expect(getSiteLabel("https://maps.google.com")).toBe("Google Maps");
+        expect(getSiteLabel("https://gemini.google.com")).toBe("Google Gemini");
+        expect(getSiteLabel("https://mail.google.com")).toBe("Gmail");
+        expect(getSiteLabel("https://console.cloud.google.com")).toBe("Google Cloud");
+    });
+
+    test("falls back to Google for unmapped subdomains and the search domain", () => {
+        expect(getSiteLabel("https://www.google.com")).toBe("Google");
+        expect(getSiteLabel("https://google.co.uk")).toBe("Google");
+        expect(getSiteLabel("https://unknown-product.google.com")).toBe("Google");
+    });
+
+    test("matches getSiteName for regular sites", () => {
+        expect(getSiteLabel("https://www.example.com")).toBe("Example");
+        expect(getSiteLabel("https://notgoogle.com")).toBe("Notgoogle");
     });
 });
 
