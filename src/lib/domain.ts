@@ -106,14 +106,6 @@ export function getSiteLabel(url: string) {
     return GOOGLE_PRODUCT_NAMES[getGoogleProduct(host)] ?? "Google";
 }
 
-/**
- * Display name for dashboard rows: Google subdomains keep their hostname
- * (`maps.google.com`), everything else drops the suffix (`Example`).
- */
-export function getSiteDisplayName(url: string) {
-    return getGoogleSubdomainHost(url) ?? getOriginWithoutSuffix(url);
-}
-
 export interface SiteUsageTotal {
     site: string;
     bytes: number;

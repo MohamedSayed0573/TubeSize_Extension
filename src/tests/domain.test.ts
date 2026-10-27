@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { getSiteDisplayName, getSiteKey, getSiteLabel, sumBySite } from "@lib/domain";
+import { getSiteKey, getSiteLabel, sumBySite } from "@lib/domain";
 
 describe("getSiteKey", () => {
     test("should keep the full domain for regular sites", () => {
@@ -61,35 +61,6 @@ describe("getSiteLabel", () => {
         expect(getSiteLabel("https://example.org")).toBe("Example");
         expect(getSiteLabel("https://notgoogle.com")).toBe("Notgoogle");
         expect(getSiteLabel("http://127.0.0.1:8080")).toBe("http://127.0.0.1:8080");
-    });
-});
-
-describe("getSiteDisplayName", () => {
-    test("should drop the suffix for regular sites", () => {
-        expect(getSiteDisplayName("https://www.example.com")).toBe("Example");
-        expect(getSiteDisplayName("https://example.org")).toBe("Example");
-        expect(getSiteDisplayName("https://notgoogle.com")).toBe("Notgoogle");
-        expect(getSiteDisplayName("http://127.0.0.1:8080")).toBe("http://127.0.0.1:8080");
-    });
-
-    test("should accept the bare site keys the dashboard passes", () => {
-        expect(getSiteDisplayName("example.com")).toBe("Example");
-        expect(getSiteDisplayName("example.org")).toBe("Example");
-        expect(getSiteDisplayName("notgoogle.com")).toBe("Notgoogle");
-    });
-
-    test("should keep Google subdomain hostnames", () => {
-        expect(getSiteDisplayName("https://maps.google.com")).toBe("maps.google.com");
-        expect(getSiteDisplayName("https://console.cloud.google.com")).toBe(
-            "console.cloud.google.com",
-        );
-        expect(getSiteDisplayName("https://www.google.com")).toBe("Google");
-    });
-
-    test("should keep Google subdomain hostnames from bare site keys", () => {
-        expect(getSiteDisplayName("maps.google.com")).toBe("maps.google.com");
-        expect(getSiteDisplayName("console.cloud.google.com")).toBe("console.cloud.google.com");
-        expect(getSiteDisplayName("google.com")).toBe("Google");
     });
 });
 

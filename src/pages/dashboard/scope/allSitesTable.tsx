@@ -8,7 +8,7 @@ import {
     TableHeader,
     TableRow,
 } from "@components/ui/table";
-import { getSiteDisplayName, sumBySite, type SiteUsageTotal } from "@lib/domain";
+import { sumBySite, type SiteUsageTotal } from "@lib/domain";
 import { formatBytes } from "@lib/format";
 import { isFirefox } from "@lib/utils";
 import { Globe } from "lucide-react";
@@ -86,9 +86,7 @@ function SiteRow({ index, row, share }: { index: number; row: SiteUsageTotal; sh
                             />
                         )}
                     </span>
-                    <span className="block truncate text-stone-200">
-                        {getSiteDisplayName(row.site)}
-                    </span>
+                    <span className="block truncate text-stone-200">{row.site}</span>
                 </div>
             </TableCell>
             <TableCell className="">{share.toFixed(1)}%</TableCell>

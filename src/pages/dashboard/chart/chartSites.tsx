@@ -1,4 +1,4 @@
-import { getSiteDisplayName, sumBySite } from "@lib/domain";
+import { sumBySite } from "@lib/domain";
 import { formatBytes } from "@lib/format";
 import { useNavigate } from "react-router";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
@@ -38,7 +38,7 @@ function buildSiteData(usage: SiteUsage[]): ChartSiteItem[] {
         .slice(0, MAX_SITES)
         .map((item, index) => ({
             site: item.site,
-            label: getSiteDisplayName(item.site),
+            label: item.site,
             bytes: item.bytes,
             fill: getSiteColor(index),
         }));
