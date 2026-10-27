@@ -1,5 +1,5 @@
 import { useSiteUsage } from "@hooks/useSiteUsage";
-import { getOriginWithoutSuffix } from "@lib/domain";
+import { getSiteKey } from "@lib/domain";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useParams } from "react-router";
@@ -17,7 +17,7 @@ export default function SiteDetailPage() {
     const dayToBytes: Map<string, number> = new Map();
     data.forEach(({ day, usage }) => {
         const bytes = Object.entries(usage)
-            .filter(([origin]) => getOriginWithoutSuffix(origin) === siteName)
+            .filter(([origin]) => getSiteKey(origin) === siteName)
             .map(([, byteCount]) => byteCount)
             .reduce((sum, current) => sum + current, 0);
 

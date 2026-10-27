@@ -8,7 +8,7 @@ import {
     TableHeader,
     TableRow,
 } from "@components/ui/table";
-import { sumByDomain, type DomainUsage } from "@lib/domain";
+import { sumBySite, type SiteUsageTotal } from "@lib/domain";
 import { formatBytes } from "@lib/format";
 import { isFirefox } from "@lib/utils";
 import { Globe } from "lucide-react";
@@ -25,7 +25,7 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
         }
     }
 
-    const rows = Array.from(sumByDomain(usageByOrigin).values()).toSorted(
+    const rows = Array.from(sumBySite(usageByOrigin).values()).toSorted(
         (a, b) => b.bytes - a.bytes,
     );
     const totalUsage = rows.reduce((total, { bytes }) => total + bytes, 0);
@@ -45,9 +45,7 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
                     <TableBody>
                         {rows.map((row, index) => {
                             const share = totalUsage ? (row.bytes / totalUsage) * 100 : 0;
-                            return (
-                                <SiteRow key={row.domain} index={index} row={row} share={share} />
-                            );
+                            return <SiteRow key={row.site} index={index} row={row} share={share} />;
                         })}
                     </TableBody>
                     <TableFooter className="border-neutral-800 bg-neutral-800/40">
@@ -66,7 +64,7 @@ export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
     );
 }
 
-function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share: number }) {
+function SiteRow({ index, row, share }: { index: number; row: SiteUsageTotal; share: number }) {
     return (
         <TableRow
             key={index}
@@ -88,7 +86,7 @@ function SiteRow({ index, row, share }: { index: number; row: DomainUsage; share
                             />
                         )}
                     </span>
-                    <span className="block truncate text-stone-200">{row.domain}</span>
+                    <span className="block truncate text-stone-200">{row.site}</span>
                 </div>
             </TableCell>
             <TableCell className="">{share.toFixed(1)}%</TableCell>

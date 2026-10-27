@@ -1,7 +1,7 @@
-import { useOriginUsage } from "@hooks/useOriginUsage";
+import { useSiteUsageToday } from "@hooks/useSiteUsageToday";
 import useTab from "@hooks/useTab";
 import { useTotalUsage } from "@hooks/useTotalUsage";
-import { getOriginWithoutSuffix } from "@lib/domain";
+import { getSiteKey, getSiteLabel } from "@lib/domain";
 
 import { t } from "@/i18n/t";
 
@@ -24,7 +24,7 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
     const origin = getTabOrigin(tab?.tabUrl);
 
     const totalUsage = useTotalUsage();
-    const originUsage = useOriginUsage(origin);
+    const siteUsage = useSiteUsageToday(origin ? getSiteKey(origin) : undefined);
 
     return (
         <div className="flex flex-col gap-2 px-3 py-2 text-xs text-zinc-400">
@@ -38,9 +38,9 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
 
                 {origin && (
                     <PopupUsage
-                        text={t("popup_siteUsage", [getOriginWithoutSuffix(origin)])}
-                        usage={originUsage}
-                        navigateTo={`dashboard/site/${getOriginWithoutSuffix(origin)}`}
+                        text={t("popup_siteUsage", [getSiteLabel(origin)])}
+                        usage={siteUsage}
+                        navigateTo={`dashboard/site/${encodeURIComponent(getSiteKey(origin))}`}
                         variant="siteUsage"
                         origin={origin}
                     />
