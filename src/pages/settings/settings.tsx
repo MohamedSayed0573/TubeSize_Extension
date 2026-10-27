@@ -4,6 +4,7 @@ import useSettings from "@hooks/useSettings";
 import { SettingsFooter } from "@pages/settings/settingsFooter";
 import ToasterSettings from "@pages/settings/toasterSettings";
 
+import AdvancedViewSettings from "./advancedViewSettings";
 import { LanguageSettings } from "./langSettings";
 
 export default function Settings() {
@@ -19,6 +20,8 @@ export default function Settings() {
                 <LanguageSettings />
                 <FieldSeparator />
                 <ToasterSettings settingsState={settingsState} />
+                <FieldSeparator />
+                <AdvancedViewSettings settingsState={settingsState} />
             </div>
 
             <FieldSeparator />

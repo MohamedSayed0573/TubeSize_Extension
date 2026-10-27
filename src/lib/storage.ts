@@ -41,6 +41,16 @@ export const toasterEnabled = storage.defineItem<boolean>("sync:toasterEnabled",
     fallback: CONFIG.DEFAULT_TOASTER_ENABLED,
 });
 
+/** Whether the popup shows developer details (itags, codecs, frame rates). */
+export const advancedView = storage.defineItem<boolean>("sync:advancedView", {
+    fallback: CONFIG.DEFAULT_ADVANCED_VIEW,
+});
+
+/** Whether the popup size estimates include the audio stream. */
+export const includeAudio = storage.defineItem<boolean>("sync:includeAudio", {
+    fallback: CONFIG.DEFAULT_INCLUDE_AUDIO,
+});
+
 /** Toaster usage limit in MB per hour. */
 export const toasterThreshold = storage.defineItem<number>("sync:toasterThreshold", {
     fallback: CONFIG.DEFAULT_TOASTER_THRESHOLD,

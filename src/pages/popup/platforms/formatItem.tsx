@@ -1,16 +1,20 @@
-import { formatBytes, formatRate } from "@lib/format";
+import { formatDisplaySizes } from "@lib/format";
 import { cn } from "@lib/utils";
 
-import type { DisplayFormat } from "@/adapters/types";
+import type { AudioStreamInfo, DisplayFormat } from "@/adapters/types";
 import { t } from "@/i18n/t";
+
+import SizeColumn from "./sizeColumn";
 
 interface Props {
     format: DisplayFormat;
     currentQuality: number | undefined;
+    audio: AudioStreamInfo | undefined;
+    includeAudio: boolean;
 }
 
-export default function FormatItem({ format, currentQuality }: Props) {
-    const { resolution, sizePerSecondBytes, hideRate } = format;
+export default function FormatItem({ format, currentQuality, audio, includeAudio }: Props) {
+    const { resolution } = format;
 
     return (
         <div
@@ -28,16 +32,7 @@ export default function FormatItem({ format, currentQuality }: Props) {
                     </span>
                 )}
             </div>
-            <div className="flex flex-col items-end text-right text-sm font-semibold text-teal-200">
-                <span>
-                    {format.kind === "vod"
-                        ? formatBytes(format.sizeBytes)
-                        : formatRate(sizePerSecondBytes, "hour")}
-                </span>
-                <span className="mt-0.5 text-xs font-normal text-cyan-500">
-                    {!hideRate && formatRate(sizePerSecondBytes, "minute")}
-                </span>
-            </div>
+            <SizeColumn {...formatDisplaySizes(format, audio, includeAudio)} />
         </div>
     );
 }
