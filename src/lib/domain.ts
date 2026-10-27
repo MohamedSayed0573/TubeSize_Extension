@@ -2,11 +2,8 @@ import { getDomain, getDomainWithoutSuffix, getSubdomain } from "tldts-icann";
 
 import { capitalize } from "./utils";
 
-/*
- * Google serves its products from subdomains of one registrable domain and
- * they share its favicon. The dashboard keeps the hostname (`drive.google.com`)
- * as the site name, but the popup shows the product name instead.
- */
+// Google products share one registrable domain and favicon; keys keep the
+// hostname, but labels show the product name.
 const GOOGLE_PRODUCT_NAMES: Record<string, string> = {
     accounts: "Google Account",
     ads: "Google Ads",
@@ -83,17 +80,8 @@ function getGoogleProduct(host: string) {
     return getSubdomain(host)?.split(".").filter(Boolean).at(-1) ?? "";
 }
 
-/**
- * Stable key for the site a URL belongs to: the registrable domain
- * (`https://www.example.com` -> `example.com`), or the origin itself when it
- * has no domain name (`http://127.0.0.1:8080`). Domains that share a name but
- * not a suffix (`example.com` and `example.org`) stay separate.
- *
- * Google is the exception. It serves many products from subdomains of one
- * registrable domain and they share its favicon, so `maps.google.com` and
- * `gemini.google.com` would both become `google.com`. Google subdomains keep
- * their full hostname as the site key instead.
- */
+// Site key: the registrable domain (`https://www.example.com` -> `example.com`),
+// or the origin itself without one. Google subdomains keep their full hostname.
 export function getSiteKey(url: string) {
     return getGoogleSubdomainHost(url) ?? getOriginDomain(url);
 }
@@ -112,11 +100,8 @@ export interface SiteUsageTotal {
     origin: string;
 }
 
-/*
- * Merges origin-keyed bytes (e.g. https://accounts.google.com and
- * https://www.google.com) into totals keyed by getSiteKey(), so Google
- * subdomains stay separate while everything else merges by registrable domain.
- */
+// Merges origin-keyed bytes into totals keyed by getSiteKey(), so Google
+// subdomains stay separate while everything else merges by registrable domain.
 export function sumBySite(origins: Record<string, number>): Map<string, SiteUsageTotal> {
     const totals = new Map<string, SiteUsageTotal>();
 
