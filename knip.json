@@ -11,7 +11,7 @@
         "src/entrypoints/dashboard/main.tsx"
     ],
     "tags": ["-lintignore"],
-    "ignore": ["src/components/ui/**"],
+    "ignore": ["src/components/ui/**", ".agents/**"],
     "ignoreBinaries": ["check", "fmt"],
     "ignoreDependencies": ["oxfmt", "oxlint", "oxlint-tsgolint"],
     "vite": true

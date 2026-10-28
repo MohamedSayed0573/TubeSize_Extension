@@ -1,2 +1,5 @@
 [test]
 preload = ["./src/tests/setup.ts"]
+
+[lint]
+ignorePatterns = ["dist/", "build/", ".zcode/", ".agents/", ".output/"]
