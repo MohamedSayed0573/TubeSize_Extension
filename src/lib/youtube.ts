@@ -184,7 +184,12 @@ function parseAudioFormats(data: ytInitialPlayerResponse): AudioItag[] {
     const entriesById = new Map<number, AudioItagEntry>();
 
     for (const format of data.streamingData.adaptiveFormats) {
-        if (!format.mimeType?.startsWith("audio/")) continue;
+        // mimeType is optional in the schema; fall back to the known audio itags
+        // so a preferred format is not dropped when YouTube omits it.
+        const isKnownAudioItag =
+            format.itag === CONFIG.AUDIO_ITAG || format.itag === CONFIG.LIVE_AUDIO_ITAG;
+        const isAudio = format.mimeType?.startsWith("audio/") ?? isKnownAudioItag;
+        if (!isAudio) continue;
 
         const entry = entriesById.get(format.itag) ?? {
             codec: getAudioCodec(format.mimeType),
@@ -285,8 +290,11 @@ function chooseVideoFormats(
         if (!height) continue;
 
         const formats = formatsByHeight.get(height);
-        if (formats) formats.push(format);
-        else formatsByHeight.set(height, [format]);
+        if (formats) {
+            // Keep one entry per itag so the tooltip never lists a format twice.
+            if (formats.some((existing) => existing.itag === format.itag)) continue;
+            formats.push(format);
+        } else formatsByHeight.set(height, [format]);
     }
 
     const chosenFormats: ChosenVideoFormat[] = [];

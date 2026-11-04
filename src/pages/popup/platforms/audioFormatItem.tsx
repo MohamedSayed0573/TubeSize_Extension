@@ -29,8 +29,8 @@ export default function AudioFormatItem({ audio, kind, hideRate }: Props) {
             <TooltipTrigger
                 delay={200}
                 closeDelay={50}
-                render={<div />}
-                className="flex cursor-pointer items-center justify-between rounded-lg border border-teal-950 bg-slate-800 px-3 py-2.5 hover:border-teal-800"
+                render={<div tabIndex={0} />}
+                className="flex cursor-pointer items-center justify-between rounded-lg border border-teal-950 bg-slate-800 px-3 py-2.5 hover:border-teal-800 focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:outline-none"
                 dir="ltr"
             >
                 <div className="flex flex-col">

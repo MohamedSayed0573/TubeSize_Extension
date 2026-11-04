@@ -1,3 +1,4 @@
+import Spinner from "@components/spinner";
 import useSettings from "@hooks/useSettings";
 import CONFIG from "@lib/constants";
 
@@ -23,10 +24,13 @@ export default function FormatView({
     const { data: tabData } = useTab();
     const { currentQuality } = useCurrentQuality(tabData?.tabId);
     const { query, updateSettingsMutation } = useSettings();
-    const { data: settingsState } = query;
-    const { mutate: updateSettings } = updateSettingsMutation;
-    const advancedView = settingsState?.advancedView ?? CONFIG.DEFAULT_ADVANCED_VIEW;
-    const includeAudio = settingsState?.includeAudio ?? CONFIG.DEFAULT_INCLUDE_AUDIO;
+    const { mutate: updateSettings, isPending } = updateSettingsMutation;
+
+    if (query.isPending) return <Spinner />;
+    if (query.isError) throw query.error;
+
+    const advancedView = query.data.advancedView ?? CONFIG.DEFAULT_ADVANCED_VIEW;
+    const includeAudio = query.data.includeAudio ?? CONFIG.DEFAULT_INCLUDE_AUDIO;
 
     const formats = adapter.formats(data);
     const audio = adapter.audio?.(data);
@@ -49,6 +53,7 @@ export default function FormatView({
                             size="sm"
                             className="cursor-pointer"
                             checked={includeAudio}
+                            disabled={isPending}
                             onClick={() => updateSettings({ includeAudio: !includeAudio })}
                         />
                     </Field>

@@ -24,9 +24,9 @@ export default function AdvancedFormatItem({ format, currentQuality, audio, incl
             <TooltipTrigger
                 delay={200}
                 closeDelay={50}
-                render={<div />}
+                render={<div tabIndex={0} />}
                 className={cn(
-                    "flex cursor-pointer items-center justify-between rounded-lg border border-teal-950 bg-stone-800 px-3 py-2.5 hover:border-teal-800",
+                    "flex cursor-pointer items-center justify-between rounded-lg border border-teal-950 bg-stone-800 px-3 py-2.5 hover:border-teal-800 focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:outline-none",
                     { "bg-red-800/80 hover:border-red-600": isCurrent },
                 )}
                 dir="ltr"

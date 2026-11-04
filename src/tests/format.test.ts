@@ -202,9 +202,15 @@ describe("formatDisplaySizes", () => {
             bytesPerSecond: 8_000,
             itags: [],
         };
-        expect(formatDisplaySizes(vodFormat, mismatchedAudio, false)).toEqual({
+        expect(
+            formatDisplaySizes(
+                { ...vodFormat, sizePerSecondBytes: 20_000 },
+                mismatchedAudio,
+                false,
+            ),
+        ).toEqual({
             primary: "1 MB", // 2 000 000 − 1 000 000
-            secondary: "0 B/min", // 2 000 − 8 000 clamps at 0
+            secondary: "720 KB/min", // 20 000 − 8 000; a bitrate-derived 10 000 would give 600
         });
     });
 

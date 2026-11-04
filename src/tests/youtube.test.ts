@@ -247,6 +247,32 @@ describe("parseVideoFormats", () => {
             313, 271, 399, 398, 397, 396, 395, 394,
         ]);
     });
+
+    test("keeps the preferred audio itag when mimeType is missing", () => {
+        const dataWithoutAudioMime = structuredClone(data);
+        for (const format of dataWithoutAudioMime.streamingData.adaptiveFormats) {
+            if (format.itag === 251) format.mimeType = undefined;
+        }
+
+        const { audio: parsedAudio } = parseVideoFormats(dataWithoutAudioMime);
+
+        expect(parsedAudio?.formatId).toBe(251);
+        expect(parsedAudio?.codec).toBeUndefined();
+    });
+
+    test("lists each video itag once when the response repeats a format", () => {
+        const duplicated = structuredClone(data);
+        const video = duplicated.streamingData.adaptiveFormats.find(
+            (format) => format.itag === 137,
+        )!;
+        duplicated.streamingData.adaptiveFormats.push({ ...video });
+
+        const format1080 = parseVideoFormats(duplicated).formats.find(
+            (format) => format.height === 1080,
+        );
+
+        expect(format1080?.itags?.filter((itag) => itag.formatId === 137)).toHaveLength(1);
+    });
 });
 
 describe("parseLiveFormats", () => {

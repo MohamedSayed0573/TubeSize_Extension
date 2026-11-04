@@ -17,7 +17,7 @@ export default function AdvancedViewSettings({ settingsState }: { settingsState:
     const isAdvancedView = settingsState.advancedView ?? CONFIG.DEFAULT_ADVANCED_VIEW;
 
     const { updateSettingsMutation } = useSettings();
-    const { mutate: updateSettings } = updateSettingsMutation;
+    const { mutate: updateSettings, isPending } = updateSettingsMutation;
 
     return (
         <FieldSet>
@@ -35,6 +35,7 @@ export default function AdvancedViewSettings({ settingsState }: { settingsState:
                         id="advancedViewToggle"
                         className="cursor-pointer"
                         checked={isAdvancedView}
+                        disabled={isPending}
                         onClick={() => {
                             updateSettings({ advancedView: !isAdvancedView });
                         }}
