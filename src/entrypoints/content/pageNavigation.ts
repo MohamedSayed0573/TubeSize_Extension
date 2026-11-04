@@ -1,10 +1,15 @@
 import { toasterEnabled } from "@lib/storage";
 
+import { clearQualityMenu } from "@/qualityMenuInjector";
 import { stopResolutionTracking } from "@/resolution";
 
 import { PLATFORMS } from "./platformPage";
 
+let latestNavigationId = 0;
+
 export async function handlePageNavigation() {
+    const navigationId = ++latestNavigationId;
+
     try {
         const url = getCurrentUrl();
 
@@ -16,10 +21,14 @@ export async function handlePageNavigation() {
         resetFeatureState();
 
         const data = await platform.init(url);
-        if (data === undefined) return;
+        if (data === undefined || navigationId !== latestNavigationId) return;
 
         platform.afterInit?.(data);
+
         if (await isToasterEnabled()) {
+            // Storage access can be slow, so make sure a newer navigation
+            // hasn't started while we waited.
+            if (navigationId !== latestNavigationId) return;
             await platform.startToaster(data);
         }
     } catch (err) {
@@ -29,6 +38,7 @@ export async function handlePageNavigation() {
 
 function resetFeatureState() {
     stopResolutionTracking();
+    clearQualityMenu();
 }
 
 async function isToasterEnabled() {

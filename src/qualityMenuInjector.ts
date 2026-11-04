@@ -10,9 +10,32 @@ const MENU_ITEM_LABEL_SELECTOR = ".ytp-menuitem-label";
 const TUBESIZE_QUALITY_MENU_CLASS = "tubesize-quality-menu-panel";
 const SETTINGS_WAIT_TIMEOUT = 5_000;
 
+let activeObserver: MutationObserver | undefined;
+let menuRequestId = 0;
+
+/**
+ * Removes the current video's observer and badges. Called when navigation
+ * starts so a failed load can't leave the previous video's sizes on screen.
+ */
+export function clearQualityMenu() {
+    menuRequestId++;
+    activeObserver?.disconnect();
+    activeObserver = undefined;
+
+    for (const badge of document.querySelectorAll(`.${TUBESIZE_QUALITY_MENU_CLASS}`)) {
+        badge.remove();
+    }
+}
+
 export async function injectMenu(adapter: ToastAdapter, data: PlatformData) {
+    clearQualityMenu();
+    const requestId = menuRequestId;
+
     const settingsMenu = await waitForElement(SETTINGS_MENU_SELECTOR, SETTINGS_WAIT_TIMEOUT);
-    if (!settingsMenu) return;
+    if (!settingsMenu || requestId !== menuRequestId) return;
+
+    // A newer request may have attached an observer while we waited.
+    activeObserver?.disconnect();
 
     const lookup = createQualitySizeLookup(adapter.formats(data));
 
@@ -23,7 +46,12 @@ export async function injectMenu(adapter: ToastAdapter, data: PlatformData) {
         injectBadges(qualityMenu, lookup);
     });
 
+    activeObserver = observer;
     observer.observe(settingsMenu, { childList: true, subtree: true });
+
+    // The quality panel may already be open when the new video's data arrives.
+    const qualityMenu = settingsMenu.querySelector<HTMLElement>(QUALITY_MENU_BTN_SELECTOR);
+    if (qualityMenu) injectBadges(qualityMenu, lookup);
 }
 
 function injectBadges(qualityMenu: HTMLElement, lookup: Map<number, string>) {
@@ -33,7 +61,6 @@ function injectBadges(qualityMenu: HTMLElement, lookup: Map<number, string>) {
     for (const label of ytpPanelMenu.querySelectorAll(MENU_ITEM_LABEL_SELECTOR)) {
         const innerDiv = label?.querySelector<HTMLElement>("div");
         if (!innerDiv) continue;
-        if (innerDiv.querySelector(`.${TUBESIZE_QUALITY_MENU_CLASS}`)) continue;
 
         const innerSpan = innerDiv.querySelector("span");
         if (!innerSpan) continue;
@@ -50,6 +77,18 @@ function injectBadges(qualityMenu: HTMLElement, lookup: Map<number, string>) {
         // This also skips any non-numeric quality labels ("Auto")
         const size = lookup.get(parseInt(qualityText));
         if (!size) continue;
+
+        // Update an existing badge in place so a reused menu never shows the
+        // previous video's sizes.
+        const existingBadge = innerDiv.querySelector<HTMLElement>(
+            `.${TUBESIZE_QUALITY_MENU_CLASS}`,
+        );
+        if (existingBadge) {
+            // Writing the same text still counts as a DOM mutation and would
+            // retrigger this observer forever, so only write when it changes.
+            if (existingBadge.textContent !== size) existingBadge.textContent = size;
+            continue;
+        }
 
         const badge = document.createElement("div");
         badge.textContent = size;
