@@ -9,7 +9,15 @@ import { injectMenu } from "@/qualityMenuInjector";
 
 import type { PlatformPage } from "./platformPage";
 
+// YouTube only writes the ytInitialPlayerResponse script on a full page load.
+// After an SPA navigation it still describes the previous video, so it can only
+// be trusted for the first video we initialize.
+let canUseInitialPlayerResponse = true;
+
 async function initYoutube(url: string): Promise<YoutubeData | undefined> {
+    const useInitialPlayerResponse = canUseInitialPlayerResponse;
+    canUseInitialPlayerResponse = false;
+
     const videoTag = extractVideoTag(url);
     if (!videoTag) return undefined;
 
@@ -18,7 +26,9 @@ async function initYoutube(url: string): Promise<YoutubeData | undefined> {
         return script.textContent.includes("ytInitialPlayerResponse");
     });
 
-    const scriptContent = ytInitialPlayerResponse?.textContent;
+    const scriptContent = useInitialPlayerResponse
+        ? ytInitialPlayerResponse?.textContent
+        : undefined;
 
     let av1Supported: boolean | undefined;
     try {
