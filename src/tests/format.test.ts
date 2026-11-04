@@ -125,6 +125,7 @@ const vodAudio: AudioStreamInfo = {
     codec: "opus",
     bitrate: 8000,
     sizeBytes: 500_000,
+    bytesPerSecond: 8000 / 8,
     itags: [],
 };
 const liveAudio: AudioStreamInfo = {
@@ -132,6 +133,7 @@ const liveAudio: AudioStreamInfo = {
     codec: "aac",
     bitrate: 8000,
     sizeBytes: 3_600_000,
+    bytesPerSecond: 3_600_000 / 3600,
     itags: [],
 };
 
@@ -189,8 +191,30 @@ describe("formatDisplaySizes", () => {
         });
     });
 
+    test("video-only rate uses size/duration share, not reported bitrate", () => {
+        // Bitrate implies 10_000 bytes/s, but the actual size implies
+        // 8_000 bytes/s. Excluding audio must drop the size-derived share.
+        const mismatchedAudio: AudioStreamInfo = {
+            formatId: 251,
+            codec: "opus",
+            bitrate: 80_000,
+            sizeBytes: 1_000_000,
+            bytesPerSecond: 8_000,
+            itags: [],
+        };
+        expect(formatDisplaySizes(vodFormat, mismatchedAudio, false)).toEqual({
+            primary: "1 MB", // 2 000 000 − 1 000 000
+            secondary: "0 B/min", // 2 000 − 8 000 clamps at 0
+        });
+    });
+
     test("never shows a negative size when audio exceeds the total", () => {
-        const hugeAudio: AudioStreamInfo = { formatId: 251, sizeBytes: 5_000_000, itags: [] };
+        const hugeAudio: AudioStreamInfo = {
+            formatId: 251,
+            sizeBytes: 5_000_000,
+            bytesPerSecond: 5_000_000 / 3600,
+            itags: [],
+        };
         expect(formatDisplaySizes(vodFormat, hugeAudio, false).primary).toBe("0 B");
     });
 });

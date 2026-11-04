@@ -207,15 +207,24 @@ function parseAudioFormats(data: ytInitialPlayerResponse): AudioItag[] {
 
 function parseAudio(data: ytInitialPlayerResponse): AudioStreamInfo | undefined {
     const itags = parseAudioFormats(data);
-    const preferredItag = data.videoDetails.isLive ? CONFIG.LIVE_AUDIO_ITAG : CONFIG.AUDIO_ITAG;
+    const isLive = data.videoDetails.isLive || false;
+    const preferredItag = isLive ? CONFIG.LIVE_AUDIO_ITAG : CONFIG.AUDIO_ITAG;
     const chosen = itags.find((itag) => itag.formatId === preferredItag);
     if (!chosen) return undefined;
+
+    // Audio sizes were merged into video formats using size / duration, so the
+    // display layer must subtract the same share. This stays correct even when
+    // the reported bitrate differs from the actual size.
+    const durationSeconds = Number(data.videoDetails.lengthSeconds || "0");
+    const bytesPerSecond =
+        chosen.sizeBytes / (isLive ? 3600 : durationSeconds > 0 ? durationSeconds : 3600);
 
     return {
         formatId: chosen.formatId,
         codec: chosen.codec,
         bitrate: chosen.bitrate,
         sizeBytes: chosen.sizeBytes,
+        bytesPerSecond,
         itags,
     };
 }

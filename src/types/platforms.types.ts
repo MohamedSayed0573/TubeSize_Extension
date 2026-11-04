@@ -29,6 +29,8 @@ export type AudioStreamInfo = {
     bitrate?: number;
     /** Stream size; this is how much audio is merged into every video size. */
     sizeBytes: number;
+    /** Audio share of each video format as a rate, derived from `sizeBytes / duration`. */
+    bytesPerSecond: number;
     /** Every distinct audio itag YouTube offered, for the advanced view tooltip. */
     itags: AudioItag[];
 };

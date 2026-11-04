@@ -113,15 +113,7 @@ export function formatBadge(bytes: number) {
     return `${(bytes / 1_000_000_000).toFixed(1)}G`;
 }
 
-/**
- * The audio stream's bitrate as bytes per second, or 0 when unknown.
- * @example audioBytesPerSecond({ bitrate: 146_084 }) returns 18_260.5
- */
-export function audioBytesPerSecond(audio: AudioStreamInfo | undefined): number {
-    return audio?.bitrate !== undefined ? audio.bitrate / 8 : 0;
-}
-
-/** Drops the audio stream's share of a merged size unless it is wanted. */
+/** Drops the audio stream's byte rate, or 0 when unknown. */
 function withoutAudio(value: number, audioShare: number, includeAudio: boolean): number {
     return includeAudio ? value : Math.max(value - audioShare, 0);
 }
@@ -138,20 +130,14 @@ export function audioDisplaySizes(
     kind: "vod" | "live",
     hideRate: boolean,
 ): { primary: string; secondary?: string } {
-    const perSecond = audioBytesPerSecond(audio);
-
     if (kind === "vod") {
         return { primary: formatBytes(audio.sizeBytes) };
     }
 
-    if (audio.bitrate !== undefined) {
-        return {
-            primary: formatRate(perSecond, "hour"),
-            secondary: hideRate ? undefined : formatRate(perSecond, "minute"),
-        };
-    }
-
-    return { primary: formatBytes(audio.sizeBytes) };
+    return {
+        primary: formatRate(audio.bytesPerSecond, "hour"),
+        secondary: hideRate ? undefined : formatRate(audio.bytesPerSecond, "minute"),
+    };
 }
 
 export function formatDisplaySizes(
@@ -161,7 +147,7 @@ export function formatDisplaySizes(
 ) {
     const perSecond = withoutAudio(
         format.sizePerSecondBytes,
-        audioBytesPerSecond(audio),
+        audio?.bytesPerSecond ?? 0,
         includeAudio,
     );
 

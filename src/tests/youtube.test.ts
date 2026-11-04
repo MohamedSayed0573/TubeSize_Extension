@@ -30,6 +30,7 @@ const audio: AudioStreamInfo = {
     codec: "opus",
     bitrate: 146_084,
     sizeBytes: 39_809_506,
+    bytesPerSecond: 39_809_506 / 2363,
     itags: [
         { formatId: 140, codec: "aac", bitrate: 132_615, sizeBytes: 38_241_475 },
         { formatId: 249, codec: "opus", bitrate: 54_527, sizeBytes: 14_787_615 },
@@ -43,6 +44,7 @@ const liveAudio: AudioStreamInfo = {
     codec: "aac",
     bitrate: 144_000,
     sizeBytes: 64_800_000,
+    bytesPerSecond: 18_000,
     itags: [{ formatId: 140, codec: "aac", bitrate: 144_000, sizeBytes: 64_800_000 }],
 };
 
