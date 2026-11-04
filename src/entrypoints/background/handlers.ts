@@ -28,17 +28,11 @@ import {
     parseVideoFormats,
 } from "@lib/youtube";
 
-import { setUsageBadge } from "@/badge";
+import { refreshUsageBadge } from "@/badge";
 import { addSiteUsage, addWatchHistory, getSiteUsage, getWatchHistory } from "@/db";
-import { getUsageNumber } from "@/lib/usage";
 
 function isValidUsageBytes(usage: unknown): usage is number {
     return typeof usage === "number" && Number.isFinite(usage) && usage >= 0;
-}
-
-async function refreshBadge() {
-    const siteUsage = await getSiteUsage();
-    await setUsageBadge(getUsageNumber(siteUsage ? [siteUsage] : []));
 }
 
 export async function handleAddUsage(
@@ -56,7 +50,7 @@ export async function handleAddUsage(
 
         await addSiteUsage({ [origin]: bytes });
 
-        await refreshBadge();
+        await refreshUsageBadge();
 
         return { success: true, data: null };
     } catch (err) {

@@ -146,8 +146,3 @@ export async function saveSettings(settings: SettingsMap): Promise<void> {
 
     await Promise.all(updates);
 }
-
-/** Clear all local storage, including cached media and the toaster suppression date. */
-export async function clearLocalStorage(): Promise<void> {
-    await storage.clear("local");
-}

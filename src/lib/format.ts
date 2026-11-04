@@ -126,6 +126,34 @@ function withoutAudio(value: number, audioShare: number, includeAudio: boolean):
     return includeAudio ? value : Math.max(value - audioShare, 0);
 }
 
+/**
+ * Formats an audio stream's size the same way video is formatted: total bytes
+ * for VODs, per-hour / per-minute rates for live.
+ * @param audio the chosen audio stream (its averaged size is what is shown)
+ * @param kind "vod" or "live"
+ * @param hideRate when true, drop the per-minute secondary rate (shorts)
+ */
+export function audioDisplaySizes(
+    audio: AudioStreamInfo,
+    kind: "vod" | "live",
+    hideRate: boolean,
+): { primary: string; secondary?: string } {
+    const perSecond = audioBytesPerSecond(audio);
+
+    if (kind === "vod") {
+        return { primary: formatBytes(audio.sizeBytes) };
+    }
+
+    if (audio.bitrate !== undefined) {
+        return {
+            primary: formatRate(perSecond, "hour"),
+            secondary: hideRate ? undefined : formatRate(perSecond, "minute"),
+        };
+    }
+
+    return { primary: formatBytes(audio.sizeBytes) };
+}
+
 export function formatDisplaySizes(
     format: DisplayFormat,
     audio: AudioStreamInfo | undefined,

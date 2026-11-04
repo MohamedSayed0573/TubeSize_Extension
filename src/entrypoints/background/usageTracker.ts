@@ -1,4 +1,3 @@
-import { getUsageNumber } from "@lib/usage";
 import { getWatchHistoryTarget, isFirefox, toVideoKey } from "@lib/utils";
 import {
     recordKickMetadata,
@@ -6,8 +5,8 @@ import {
     recordYoutubeMetadata,
 } from "@lib/videoMetadata";
 
-import { setUsageBadge } from "@/badge";
-import { addSiteUsage, addWatchHistory, getSiteUsage } from "@/db";
+import { refreshUsageBadge } from "@/badge";
+import { addSiteUsage, addWatchHistory } from "@/db";
 
 import { UsageBuffer } from "./usageBuffer";
 
@@ -81,7 +80,7 @@ function startFlushTimer(buffer: UsageBuffer) {
                 throw err;
             }
 
-            await refreshBadge();
+            await refreshUsageBadge();
         } catch (err) {
             console.error("Failed to flush usage:", err);
         }
@@ -90,11 +89,6 @@ function startFlushTimer(buffer: UsageBuffer) {
     setInterval(() => {
         void flushBuffer();
     }, FLUSH_INTERVAL_MS);
-}
-
-async function refreshBadge() {
-    const siteUsage = await getSiteUsage();
-    await setUsageBadge(getUsageNumber(siteUsage ? [siteUsage] : []));
 }
 
 function isCountableRequest(details: CompletedRequestDetails) {

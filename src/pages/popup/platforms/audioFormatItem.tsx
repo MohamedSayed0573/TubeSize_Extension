@@ -1,5 +1,5 @@
 import {
-    audioBytesPerSecond,
+    audioDisplaySizes,
     formatAudioCodec,
     formatBitrate,
     formatBytes,
@@ -21,15 +21,8 @@ interface Props {
 }
 
 export default function AudioFormatItem({ audio, kind, hideRate }: Props) {
-    const { formatId, codec, bitrate, sizeBytes, itags } = audio;
-    const bytesPerSecond = audioBytesPerSecond(audio);
-
-    let primary: string | undefined;
-    if (kind === "vod") primary = formatBytes(sizeBytes);
-    else if (bitrate !== undefined) primary = formatRate(bytesPerSecond, "hour");
-
-    const secondary =
-        !hideRate && bitrate !== undefined ? formatRate(bytesPerSecond, "minute") : undefined;
+    const { formatId, codec, itags } = audio;
+    const { primary, secondary } = audioDisplaySizes(audio, kind, hideRate ?? false);
 
     return (
         <Tooltip>
@@ -75,6 +68,11 @@ export default function AudioFormatItem({ audio, kind, hideRate }: Props) {
                                     {itag.bitrate !== undefined && (
                                         <span>{formatBitrate(itag.bitrate)}</span>
                                     )}
+                                    <span className="text-zinc-500">
+                                        {kind === "vod"
+                                            ? formatBytes(itag.sizeBytes)
+                                            : formatRate(itag.sizeBytes / 3600, "hour")}
+                                    </span>
                                 </span>
                             </li>
                         ))}

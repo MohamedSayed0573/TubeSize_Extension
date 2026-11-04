@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 
 import type {
-    AudioFormat,
     AudioStreamInfo,
     ChosenVideoFormat,
     ytInitialPlayerResponse,
@@ -11,7 +10,6 @@ import type {
 import { ytInitialSchema } from "@lib/schema";
 import {
     extractYtInitialResponse,
-    getAverageAudioSize,
     mergeAudioWithVideo,
     parseLiveFormats,
     parseVideoFormats,
@@ -33,10 +31,10 @@ const audio: AudioStreamInfo = {
     bitrate: 146_084,
     sizeBytes: 39_809_506,
     itags: [
-        { formatId: 140, codec: "aac", bitrate: 132_580 },
-        { formatId: 249, codec: "opus", bitrate: 54_256 },
-        { formatId: 250, codec: "opus", bitrate: 82_494 },
-        { formatId: 251, codec: "opus", bitrate: 146_312 },
+        { formatId: 140, codec: "aac", bitrate: 132_615, sizeBytes: 38_241_475 },
+        { formatId: 249, codec: "opus", bitrate: 54_527, sizeBytes: 14_787_615 },
+        { formatId: 250, codec: "opus", bitrate: 80_166, sizeBytes: 21_589_377 },
+        { formatId: 251, codec: "opus", bitrate: 146_084, sizeBytes: 39_809_506 },
     ],
 };
 
@@ -45,7 +43,7 @@ const liveAudio: AudioStreamInfo = {
     codec: "aac",
     bitrate: 144_000,
     sizeBytes: 64_800_000,
-    itags: [{ formatId: 140, codec: "aac", bitrate: 144_000 }],
+    itags: [{ formatId: 140, codec: "aac", bitrate: 144_000, sizeBytes: 64_800_000 }],
 };
 
 describe("extractYtInitialResponse", () => {
@@ -86,26 +84,6 @@ describe("handleYoutube", () => {
         expect(response.data.title).toBe("🔴LIVE Manchester Airport Plane Spotting 🛫");
         expect(response.data.channelName).toBe("Think Planes");
         expect(response.data.audio).toEqual(liveAudio);
-    });
-});
-
-describe("getAverageAudioSize", () => {
-    const audioFormats: AudioFormat[] = [
-        { formatId: 251, sizeBytes: 2_467_654 },
-        { formatId: 252, sizeBytes: 2_434_644 },
-        { formatId: 253, sizeBytes: 2_489_600 },
-    ];
-    test("returns the average size for multiple audio formats", () => {
-        expect(getAverageAudioSize(audioFormats)).toBe(2_463_966);
-    });
-    test("returns the exact size when there is one audio format", () => {
-        expect(getAverageAudioSize([audioFormats[0]!])).toBe(2_467_654);
-    });
-    test("returns 0 when there are no audio formats", () => {
-        expect(getAverageAudioSize([])).toBe(0);
-    });
-    test("rounds a single floating-point size", () => {
-        expect(getAverageAudioSize([{ formatId: 254, sizeBytes: 1_489_640.4 }])).toBe(1_489_640);
     });
 });
 

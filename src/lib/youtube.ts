@@ -1,6 +1,5 @@
 import type {
     AudioCodec,
-    AudioFormat,
     AudioItag,
     AudioStreamInfo,
     ChosenVideoFormat,
@@ -34,17 +33,6 @@ export function parseVideoFormats(
         .toSorted((a, b) => b.height - a.height);
 
     return { formats, audio };
-}
-
-export function getAverageAudioSize(audioFormatArray: AudioFormat[]) {
-    // Note: ytInitialPlayerResponse usually returns three formats with itag 251, so we take the average of the content size of all three.
-    if (audioFormatArray.length === 0) return 0;
-    if (audioFormatArray.length === 1) return Math.round(audioFormatArray[0]!.sizeBytes);
-    return Math.round(
-        audioFormatArray.reduce((acc, format) => {
-            return acc + format.sizeBytes;
-        }, 0) / audioFormatArray.length,
-    );
 }
 
 export function mergeAudioWithVideo(videoFormats: ChosenVideoFormat[], audioSize: number) {
@@ -178,43 +166,57 @@ function getAudioCodec(mimeType: string | undefined): AudioCodec | undefined {
     return undefined;
 }
 
-// Every distinct audio itag the player could pick, for the advanced view's
-// tooltip. Duplicate itags appear with drifting bitrates; the first wins.
-function getAudioItags(data: ytInitialPlayerResponse): AudioItag[] {
-    const itagById = new Map<number, AudioItag>();
+function average(values: number[]): number | undefined {
+    if (values.length === 0) return undefined;
+    return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+type AudioItagEntry = {
+    codec?: AudioCodec;
+    bitrates: number[];
+    sizes: number[];
+};
+
+// Collapses duplicate entries for the same itag into one averaged format.
+// YouTube can return the same itag several times with different bitrates/sizes.
+function parseAudioFormats(data: ytInitialPlayerResponse): AudioItag[] {
+    const isLive = data.videoDetails.isLive || false;
+    const entriesById = new Map<number, AudioItagEntry>();
 
     for (const format of data.streamingData.adaptiveFormats) {
         if (!format.mimeType?.startsWith("audio/")) continue;
-        if (itagById.has(format.itag)) continue;
 
-        itagById.set(format.itag, {
-            formatId: format.itag,
+        const entry = entriesById.get(format.itag) ?? {
             codec: getAudioCodec(format.mimeType),
-            bitrate: format.bitrate,
-        });
+            bitrates: [],
+            sizes: [],
+        };
+
+        if (format.bitrate !== undefined) entry.bitrates.push(format.bitrate);
+        entry.sizes.push(getFormatSizeBytes(format, isLive));
+        entriesById.set(format.itag, entry);
     }
 
-    return [...itagById.values()];
+    return [...entriesById].map(([formatId, entry]) => ({
+        formatId,
+        codec: entry.codec,
+        bitrate: average(entry.bitrates),
+        sizeBytes: average(entry.sizes) ?? 0,
+    }));
 }
 
 function parseAudio(data: ytInitialPlayerResponse): AudioStreamInfo | undefined {
-    const audioFormats = chooseAudioFormats(data);
-    const [first] = audioFormats;
-    if (!first) return undefined;
-
-    const bitrates = audioFormats
-        .map((format) => format.bitrate)
-        .filter((bitrate) => bitrate !== undefined);
-    const averageBitrate = bitrates.length
-        ? Math.round(bitrates.reduce((acc, bitrate) => acc + bitrate, 0) / bitrates.length)
-        : undefined;
+    const itags = parseAudioFormats(data);
+    const preferredItag = data.videoDetails.isLive ? CONFIG.LIVE_AUDIO_ITAG : CONFIG.AUDIO_ITAG;
+    const chosen = itags.find((itag) => itag.formatId === preferredItag);
+    if (!chosen) return undefined;
 
     return {
-        formatId: first.formatId,
-        codec: first.codec,
-        bitrate: averageBitrate,
-        sizeBytes: getAverageAudioSize(audioFormats),
-        itags: getAudioItags(data),
+        formatId: chosen.formatId,
+        codec: chosen.codec,
+        bitrate: chosen.bitrate,
+        sizeBytes: chosen.sizeBytes,
+        itags,
     };
 }
 
@@ -296,36 +298,6 @@ function chooseVideoFormats(
     }
 
     return chosenFormats;
-}
-
-function chooseAudioFormats(data: ytInitialPlayerResponse): AudioFormat[] {
-    if (data.videoDetails.isLive) {
-        const audioFormat = data.streamingData.adaptiveFormats.find(
-            (format) => format.itag === CONFIG.LIVE_AUDIO_ITAG,
-        );
-        if (!audioFormat) return [];
-        return [
-            {
-                formatId: audioFormat.itag,
-                sizeBytes: audioFormat.bitrate ? (audioFormat.bitrate * 3600) / 8 : 0,
-                codec: getAudioCodec(audioFormat.mimeType),
-                bitrate: audioFormat.bitrate,
-            },
-        ];
-    }
-
-    return data.streamingData.adaptiveFormats
-        .filter((format) => {
-            return format.itag === CONFIG.AUDIO_ITAG;
-        })
-        .map((format) => {
-            return {
-                formatId: format.itag,
-                sizeBytes: Number(format.contentLength || "0"),
-                codec: getAudioCodec(format.mimeType),
-                bitrate: format.bitrate,
-            };
-        });
 }
 
 export function getThumbnailUrl(data: ytInitialPlayerResponse): string | undefined {

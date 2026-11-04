@@ -3,13 +3,6 @@ import { z } from "zod";
 
 export type ytInitialPlayerResponse = z.infer<typeof ytInitialSchema>;
 
-export type AudioFormat = {
-    formatId: number;
-    sizeBytes: number;
-    codec?: AudioCodec;
-    bitrate?: number;
-};
-
 export type VideoCodec = "av01" | "vp9" | "avc";
 
 export type VideoItag = {
@@ -23,7 +16,10 @@ export type AudioCodec = "opus" | "aac" | "vorbis";
 export type AudioItag = {
     formatId: number;
     codec?: AudioCodec;
+    /** Average bitrate across duplicate entries for this itag. */
     bitrate?: number;
+    /** Average size across duplicate entries; per-hour size for live. */
+    sizeBytes: number;
 };
 
 export type AudioStreamInfo = {

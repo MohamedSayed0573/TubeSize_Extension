@@ -14,5 +14,6 @@
     "ignore": ["src/components/ui/**"],
     "ignoreBinaries": ["check", "fmt"],
     "ignoreDependencies": ["oxfmt", "oxlint", "oxlint-tsgolint"],
+    "ignoreExportsUsedInFile": true,
     "vite": true
 }

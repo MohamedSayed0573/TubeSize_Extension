@@ -1,7 +1,5 @@
-import { clearLocalStorage, getSettings, saveSettings } from "@lib/storageService";
+import { getSettings, saveSettings } from "@lib/storageService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
-import CONFIG from "@/lib/constants";
 
 export default function useSettings() {
     const queryClient = useQueryClient();
@@ -18,19 +16,5 @@ export default function useSettings() {
         },
     });
 
-    const clearCacheMutation = useMutation({
-        mutationFn: clearLocalStorage,
-
-        onSuccess: async () => {
-            for (const key of Object.keys(CONFIG.PLATFORMS)) {
-                await queryClient.invalidateQueries({ queryKey: [key] });
-            }
-        },
-    });
-
-    return {
-        query,
-        updateSettingsMutation,
-        clearCacheMutation,
-    };
+    return { query, updateSettingsMutation };
 }
