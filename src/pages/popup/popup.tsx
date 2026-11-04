@@ -1,4 +1,5 @@
 import Spinner from "@components/spinner";
+import useSettings from "@hooks/useSettings";
 import useTab from "@hooks/useTab";
 import Header from "@pages/popup/header";
 import UnsupportedPage from "@pages/popup/unsupportedPage";
@@ -8,6 +9,7 @@ import { findPlatformAdapter } from "@/adapters/registry";
 import { PlatformView } from "./platforms/platformView";
 
 export default function Popup() {
+    useSettings();
     const { data: tab, error, isPending, isError } = useTab();
     if (isError) throw error;
     if (isPending) {

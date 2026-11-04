@@ -3,14 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 
 import type {
-    AudioFormat,
+    AudioStreamInfo,
     ChosenVideoFormat,
     ytInitialPlayerResponse,
 } from "@app-types/platforms.types";
 import { ytInitialSchema } from "@lib/schema";
 import {
     extractYtInitialResponse,
-    getAverageAudioSize,
     mergeAudioWithVideo,
     parseLiveFormats,
     parseVideoFormats,
@@ -25,6 +24,29 @@ function readAsset(name: string): string {
 function readJsonAsset(name: string): ytInitialPlayerResponse {
     return JSON.parse(readAsset(name)) as ytInitialPlayerResponse;
 }
+
+const audio: AudioStreamInfo = {
+    formatId: 251,
+    codec: "opus",
+    bitrate: 146_084,
+    sizeBytes: 39_809_506,
+    bytesPerSecond: 39_809_506 / 2363,
+    itags: [
+        { formatId: 140, codec: "aac", bitrate: 132_615, sizeBytes: 38_241_475 },
+        { formatId: 249, codec: "opus", bitrate: 54_527, sizeBytes: 14_787_615 },
+        { formatId: 250, codec: "opus", bitrate: 80_166, sizeBytes: 21_589_377 },
+        { formatId: 251, codec: "opus", bitrate: 146_084, sizeBytes: 39_809_506 },
+    ],
+};
+
+const liveAudio: AudioStreamInfo = {
+    formatId: 140,
+    codec: "aac",
+    bitrate: 144_000,
+    sizeBytes: 64_800_000,
+    bytesPerSecond: 18_000,
+    itags: [{ formatId: 140, codec: "aac", bitrate: 144_000, sizeBytes: 64_800_000 }],
+};
 
 describe("extractYtInitialResponse", () => {
     test("should extract YtInitialPlayerResponse from html page", async () => {
@@ -47,6 +69,7 @@ describe("handleYoutube", () => {
         expect(response.data.type).toBe("video");
         expect(response.data.title).toBe("How does Claude Code *actually* work?");
         expect(response.data.channelName).toBe("Theo - t3․gg");
+        expect(response.data.audio).toEqual(audio);
     });
 
     // A live stream has no length, so its payload carries the stream title
@@ -62,48 +85,29 @@ describe("handleYoutube", () => {
         expect(response.data.type).toBe("live");
         expect(response.data.title).toBe("🔴LIVE Manchester Airport Plane Spotting 🛫");
         expect(response.data.channelName).toBe("Think Planes");
-    });
-});
-
-describe("getAverageAudioSize", () => {
-    const audioFormats: AudioFormat[] = [
-        { formatId: 251, sizeBytes: 2_467_654 },
-        { formatId: 252, sizeBytes: 2_434_644 },
-        { formatId: 253, sizeBytes: 2_489_600 },
-    ];
-    test("returns the average size for multiple audio formats", () => {
-        expect(getAverageAudioSize(audioFormats)).toBe(2_463_966);
-    });
-    test("returns the exact size when there is one audio format", () => {
-        expect(getAverageAudioSize([audioFormats[0]!])).toBe(2_467_654);
-    });
-    test("returns 0 when there are no audio formats", () => {
-        expect(getAverageAudioSize([])).toBe(0);
-    });
-    test("rounds a single floating-point size", () => {
-        expect(getAverageAudioSize([{ formatId: 254, sizeBytes: 1_489_640.4 }])).toBe(1_489_640);
+        expect(response.data.audio).toEqual(liveAudio);
     });
 });
 
 describe("mergeAudioWithVideo", () => {
     const audioSize = 2_463_966;
     const videoFormats: ChosenVideoFormat[] = [
-        { formatId: 18, height: 360, sizeBytes: 60_000_000 },
-        { formatId: 137, height: 1080, sizeBytes: 120_000_000 },
-        { formatId: 22, height: 720, sizeBytes: 90_000_000 },
+        { formatId: 18, height: 360, sizeBytes: 60_000_000, itags: [] },
+        { formatId: 137, height: 1080, sizeBytes: 120_000_000, itags: [] },
+        { formatId: 22, height: 720, sizeBytes: 90_000_000, itags: [] },
     ];
 
     test("merges audio size with a video format", () => {
         expect(mergeAudioWithVideo([videoFormats[0]!], audioSize)).toEqual([
-            { formatId: 18, height: 360, sizeBytes: 62_463_966 },
+            { formatId: 18, height: 360, sizeBytes: 62_463_966, itags: [] },
         ]);
     });
 
     test("merges audio size with every video format", () => {
         expect(mergeAudioWithVideo(videoFormats, audioSize)).toEqual([
-            { formatId: 18, height: 360, sizeBytes: 62_463_966 },
-            { formatId: 137, height: 1080, sizeBytes: 122_463_966 },
-            { formatId: 22, height: 720, sizeBytes: 92_463_966 },
+            { formatId: 18, height: 360, sizeBytes: 62_463_966, itags: [] },
+            { formatId: 137, height: 1080, sizeBytes: 122_463_966, itags: [] },
+            { formatId: 22, height: 720, sizeBytes: 92_463_966, itags: [] },
         ]);
     });
 });
@@ -112,7 +116,7 @@ describe("parseVideoFormats", () => {
     const data = readJsonAsset("ytInitialPlayerResponse.json");
 
     test("keeps AV1 up to 1080p and VP9 above when support is unknown", () => {
-        const formats = parseVideoFormats(data);
+        const { formats } = parseVideoFormats(data);
 
         expect(formats).toEqual([
             {
@@ -121,6 +125,12 @@ describe("parseVideoFormats", () => {
                 height: 2160,
                 sizeBytes: 862_674_604,
                 sizePerSecondBytes: 365_076.006_771_053_77,
+                codec: "vp9",
+                fps: 30,
+                itags: [
+                    { formatId: 313, codec: "vp9", fps: 30 },
+                    { formatId: 401, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -128,6 +138,12 @@ describe("parseVideoFormats", () => {
                 height: 1440,
                 sizeBytes: 267_247_155,
                 sizePerSecondBytes: 113_096.553_110_452_82,
+                codec: "vp9",
+                fps: 30,
+                itags: [
+                    { formatId: 271, codec: "vp9", fps: 30 },
+                    { formatId: 400, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -135,6 +151,13 @@ describe("parseVideoFormats", () => {
                 height: 1080,
                 sizeBytes: 100_920_234,
                 sizePerSecondBytes: 42_708.520_524_756_66,
+                codec: "av01",
+                fps: 30,
+                itags: [
+                    { formatId: 137, codec: "avc", fps: 30 },
+                    { formatId: 248, codec: "vp9", fps: 30 },
+                    { formatId: 399, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -142,6 +165,13 @@ describe("parseVideoFormats", () => {
                 height: 720,
                 sizeBytes: 77_520_968,
                 sizePerSecondBytes: 32_806.165_044_435_04,
+                codec: "av01",
+                fps: 30,
+                itags: [
+                    { formatId: 136, codec: "avc", fps: 30 },
+                    { formatId: 247, codec: "vp9", fps: 30 },
+                    { formatId: 398, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -149,6 +179,13 @@ describe("parseVideoFormats", () => {
                 height: 480,
                 sizeBytes: 63_428_969,
                 sizePerSecondBytes: 26_842.559_881_506_56,
+                codec: "av01",
+                fps: 30,
+                itags: [
+                    { formatId: 135, codec: "avc", fps: 30 },
+                    { formatId: 244, codec: "vp9", fps: 30 },
+                    { formatId: 397, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -156,6 +193,13 @@ describe("parseVideoFormats", () => {
                 height: 360,
                 sizeBytes: 54_780_899,
                 sizePerSecondBytes: 23_182.775_708_844_69,
+                codec: "av01",
+                fps: 30,
+                itags: [
+                    { formatId: 134, codec: "avc", fps: 30 },
+                    { formatId: 243, codec: "vp9", fps: 30 },
+                    { formatId: 396, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -163,6 +207,13 @@ describe("parseVideoFormats", () => {
                 height: 240,
                 sizeBytes: 48_685_818,
                 sizePerSecondBytes: 20_603.393_144_308_084,
+                codec: "av01",
+                fps: 30,
+                itags: [
+                    { formatId: 133, codec: "avc", fps: 30 },
+                    { formatId: 242, codec: "vp9", fps: 30 },
+                    { formatId: 395, codec: "av01", fps: 30 },
+                ],
             },
             {
                 type: "video",
@@ -170,12 +221,19 @@ describe("parseVideoFormats", () => {
                 height: 144,
                 sizeBytes: 47_628_254,
                 sizePerSecondBytes: 20_155.841_726_618_706,
+                codec: "av01",
+                fps: 30,
+                itags: [
+                    { formatId: 160, codec: "avc", fps: 30 },
+                    { formatId: 278, codec: "vp9", fps: 30 },
+                    { formatId: 394, codec: "av01", fps: 30 },
+                ],
             },
         ]);
     });
 
     test("uses AV1 at every resolution when support is true", () => {
-        const formats = parseVideoFormats(data, true);
+        const { formats } = parseVideoFormats(data, true);
 
         expect(formats.map((format) => format.formatId)).toEqual([
             401, 400, 399, 398, 397, 396, 395, 394,
@@ -183,11 +241,37 @@ describe("parseVideoFormats", () => {
     });
 
     test("keeps AV1 up to 1080p and VP9 above when AV1 support is false", () => {
-        const formats = parseVideoFormats(data, false);
+        const { formats } = parseVideoFormats(data, false);
 
         expect(formats.map((format) => format.formatId)).toEqual([
             313, 271, 399, 398, 397, 396, 395, 394,
         ]);
+    });
+
+    test("keeps the preferred audio itag when mimeType is missing", () => {
+        const dataWithoutAudioMime = structuredClone(data);
+        for (const format of dataWithoutAudioMime.streamingData.adaptiveFormats) {
+            if (format.itag === 251) format.mimeType = undefined;
+        }
+
+        const { audio: parsedAudio } = parseVideoFormats(dataWithoutAudioMime);
+
+        expect(parsedAudio?.formatId).toBe(251);
+        expect(parsedAudio?.codec).toBeUndefined();
+    });
+
+    test("lists each video itag once when the response repeats a format", () => {
+        const duplicated = structuredClone(data);
+        const video = duplicated.streamingData.adaptiveFormats.find(
+            (format) => format.itag === 137,
+        )!;
+        duplicated.streamingData.adaptiveFormats.push({ ...video });
+
+        const format1080 = parseVideoFormats(duplicated).formats.find(
+            (format) => format.height === 1080,
+        );
+
+        expect(format1080?.itags?.filter((itag) => itag.formatId === 137)).toHaveLength(1);
     });
 });
 
@@ -195,11 +279,22 @@ describe("parseLiveFormats", () => {
     const data = readJsonAsset("ytInitialPlayerResponseLive.json");
 
     test("returns every live resolution with a per-second size", () => {
-        const formats = parseLiveFormats(data);
+        const { formats } = parseLiveFormats(data);
 
         expect(formats.map((format) => format.resolution)).toEqual([
             2160, 1440, 1080, 720, 480, 360, 240, 144,
         ]);
         expect(formats[0]?.sizePerSecondBytes).toBe(2_270_000);
+        expect(formats[0]).toMatchObject({
+            formatId: 315,
+            codec: "vp9",
+            fps: 60,
+            itags: [{ formatId: 315, codec: "vp9", fps: 60 }],
+        });
+        expect(formats.find((format) => format.resolution === 1080)?.itags).toEqual([
+            { formatId: 299, codec: "avc", fps: 60 },
+            { formatId: 303, codec: "vp9", fps: 60 },
+        ]);
+        expect(formats.find((format) => format.resolution === 144)?.fps).toBe(30);
     });
 });

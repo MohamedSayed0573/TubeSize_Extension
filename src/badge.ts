@@ -1,5 +1,14 @@
 import { formatBadge } from "@lib/format";
 
+import { getSiteUsage } from "./db";
+import { getUsageNumber } from "./lib/usage";
+
+/** Refreshes the extension badge with the current total usage. */
+export async function refreshUsageBadge() {
+    const siteUsage = await getSiteUsage();
+    await setUsageBadge(getUsageNumber(siteUsage ? [siteUsage] : []));
+}
+
 export async function setUsageBadge(bytes: number, tabId?: number) {
     await chrome.action.setBadgeText({
         tabId,

@@ -3,15 +3,45 @@ import { z } from "zod";
 
 export type ytInitialPlayerResponse = z.infer<typeof ytInitialSchema>;
 
-export type AudioFormat = {
+export type VideoCodec = "av01" | "vp9" | "avc";
+
+export type VideoItag = {
     formatId: number;
+    codec?: VideoCodec;
+    fps?: number;
+};
+
+export type AudioCodec = "opus" | "aac" | "vorbis";
+
+export type AudioItag = {
+    formatId: number;
+    codec?: AudioCodec;
+    /** Average bitrate across duplicate entries for this itag. */
+    bitrate?: number;
+    /** Average size across duplicate entries; per-hour size for live. */
     sizeBytes: number;
+};
+
+export type AudioStreamInfo = {
+    formatId: number;
+    codec?: AudioCodec;
+    /** Average bitrate in bits per second, when YouTube reports one. */
+    bitrate?: number;
+    /** Stream size; this is how much audio is merged into every video size. */
+    sizeBytes: number;
+    /** Audio share of each video format as a rate, derived from `sizeBytes / duration`. */
+    bytesPerSecond: number;
+    /** Every distinct audio itag YouTube offered, for the advanced view tooltip. */
+    itags: AudioItag[];
 };
 
 export type ChosenVideoFormat = {
     formatId: number;
     height: number;
     sizeBytes: number;
+    codec?: VideoCodec;
+    fps?: number;
+    itags: VideoItag[];
 };
 
 type SuccessResponse<T> = {
@@ -32,6 +62,9 @@ export type YoutubeVideoFormat = {
     height: number;
     sizeBytes: number;
     sizePerSecondBytes: number;
+    codec?: VideoCodec;
+    fps?: number;
+    itags?: VideoItag[];
 };
 
 type YoutubeVideoData = {
@@ -43,6 +76,9 @@ type YoutubeVideoData = {
     thumbnailUrl: string | undefined;
     channelName: string | undefined;
     channelUrl: string | undefined;
+    // One audio stream shared by every video format; sizes below are merged
+    // with it, and only the popup's display layer subtracts it.
+    audio?: AudioStreamInfo;
 };
 
 type YoutubeLiveData = {
@@ -52,6 +88,7 @@ type YoutubeLiveData = {
     channelName: string;
     thumbnailUrl: string | undefined;
     channelUrl: string | undefined;
+    audio?: AudioStreamInfo;
 };
 
 export type YoutubeData = YoutubeVideoData | YoutubeLiveData;
@@ -61,6 +98,10 @@ export type StreamInfo = {
     type: "live";
     sizePerSecondBytes: number;
     resolution: number;
+    formatId?: number;
+    codec?: VideoCodec;
+    fps?: number;
+    itags?: VideoItag[];
 };
 
 export type TwitchLiveData = {

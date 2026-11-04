@@ -16,6 +16,8 @@ export type SettingsMap = {
     toasterEnabled?: boolean;
     toasterThreshold?: number;
     cacheTTL?: number;
+    advancedView?: boolean;
+    includeAudio?: boolean;
 };
 
 export type AddUsageMessage = {

@@ -1,7 +1,11 @@
 import type {
-    AudioFormat,
+    AudioCodec,
+    AudioItag,
+    AudioStreamInfo,
     ChosenVideoFormat,
     StreamInfo,
+    VideoCodec,
+    VideoItag,
     YoutubeVideoFormat,
     ytInitialPlayerResponse,
 } from "@app-types/platforms.types";
@@ -12,29 +16,23 @@ import { fetchAndRetry } from "@lib/utils";
 export function parseVideoFormats(
     data: ytInitialPlayerResponse,
     av1Supported?: boolean,
-): YoutubeVideoFormat[] {
-    const audioSize = getAverageAudioSize(chooseAudioFormats(data));
-    const mergedFormats = mergeAudioWithVideo(chooseVideoFormats(data, av1Supported), audioSize);
+): { formats: YoutubeVideoFormat[]; audio?: AudioStreamInfo } {
+    const audio = parseAudio(data);
+    const mergedFormats = mergeAudioWithVideo(
+        chooseVideoFormats(data, av1Supported),
+        audio?.sizeBytes ?? 0,
+    );
     const durationSeconds = Number(data.videoDetails.lengthSeconds || "0");
 
-    return mergedFormats
+    const formats = mergedFormats
         .map((format) => ({
             type: "video" as const,
             ...format,
             sizePerSecondBytes: format.sizeBytes / durationSeconds,
         }))
         .toSorted((a, b) => b.height - a.height);
-}
 
-export function getAverageAudioSize(audioFormatArray: AudioFormat[]) {
-    // Note: ytInitialPlayerResponse usually returns three formats with itag 251, so we take the average of the content size of all three.
-    if (audioFormatArray.length === 0) return 0;
-    if (audioFormatArray.length === 1) return Math.round(audioFormatArray[0]!.sizeBytes);
-    return Math.round(
-        audioFormatArray.reduce((acc, format) => {
-            return acc + format.sizeBytes;
-        }, 0) / audioFormatArray.length,
-    );
+    return { formats, audio };
 }
 
 export function mergeAudioWithVideo(videoFormats: ChosenVideoFormat[], audioSize: number) {
@@ -47,16 +45,25 @@ export function mergeAudioWithVideo(videoFormats: ChosenVideoFormat[], audioSize
 export function parseLiveFormats(
     data: ytInitialPlayerResponse,
     av1Supported?: boolean,
-): StreamInfo[] {
-    const audioSizeBytes = getAverageAudioSize(chooseAudioFormats(data));
+): { formats: StreamInfo[]; audio?: AudioStreamInfo } {
+    const audio = parseAudio(data);
 
-    return chooseVideoFormats(data, av1Supported)
+    const formats = mergeAudioWithVideo(
+        chooseVideoFormats(data, av1Supported),
+        audio?.sizeBytes ?? 0,
+    )
         .map((format) => ({
             type: "live" as const,
             resolution: format.height,
-            sizePerSecondBytes: (format.sizeBytes + audioSizeBytes) / 3600,
+            sizePerSecondBytes: format.sizeBytes / 3600,
+            formatId: format.formatId,
+            codec: format.codec,
+            fps: format.fps,
+            itags: format.itags,
         }))
         .toSorted((a, b) => b.resolution - a.resolution);
+
+    return { formats, audio };
 }
 
 async function fetchYoutubeHtml(videoTag: string) {
@@ -101,8 +108,6 @@ function getFormatHeight(format: AdaptiveFormat): number {
     const labelHeight = Number.parseInt(format.qualityLabel ?? "", 10);
     return Number.isNaN(labelHeight) ? (format.height ?? 0) : labelHeight;
 }
-
-type VideoCodec = "av01" | "vp9" | "avc";
 
 // Known SDR itags, ordered from most to least preferred within each codec.
 // The first entries are 30fps; later entries cover 60fps/streaming variants.
@@ -150,6 +155,91 @@ function getVideoCodec(format: AdaptiveFormat): VideoCodec | undefined {
     if (mimeType.includes("vp9") || mimeType.includes("vp09")) return "vp9";
     if (mimeType.includes("avc1") || mimeType.includes("avc3")) return "avc";
     return undefined;
+}
+
+function getAudioCodec(mimeType: string | undefined): AudioCodec | undefined {
+    const normalized = mimeType?.toLowerCase();
+    if (!normalized) return undefined;
+    if (normalized.includes("opus")) return "opus";
+    if (normalized.includes("mp4a")) return "aac";
+    if (normalized.includes("vorbis")) return "vorbis";
+    return undefined;
+}
+
+function average(values: number[]): number | undefined {
+    if (values.length === 0) return undefined;
+    return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+type AudioItagEntry = {
+    codec?: AudioCodec;
+    bitrates: number[];
+    sizes: number[];
+};
+
+// Collapses duplicate entries for the same itag into one averaged format.
+// YouTube can return the same itag several times with different bitrates/sizes.
+function parseAudioFormats(data: ytInitialPlayerResponse): AudioItag[] {
+    const isLive = data.videoDetails.isLive || false;
+    const entriesById = new Map<number, AudioItagEntry>();
+
+    for (const format of data.streamingData.adaptiveFormats) {
+        // mimeType is optional in the schema; fall back to the known audio itags
+        // so a preferred format is not dropped when YouTube omits it.
+        const isKnownAudioItag =
+            format.itag === CONFIG.AUDIO_ITAG || format.itag === CONFIG.LIVE_AUDIO_ITAG;
+        const isAudio = format.mimeType?.startsWith("audio/") ?? isKnownAudioItag;
+        if (!isAudio) continue;
+
+        const entry = entriesById.get(format.itag) ?? {
+            codec: getAudioCodec(format.mimeType),
+            bitrates: [],
+            sizes: [],
+        };
+
+        if (format.bitrate !== undefined) entry.bitrates.push(format.bitrate);
+        entry.sizes.push(getFormatSizeBytes(format, isLive));
+        entriesById.set(format.itag, entry);
+    }
+
+    return [...entriesById].map(([formatId, entry]) => ({
+        formatId,
+        codec: entry.codec,
+        bitrate: average(entry.bitrates),
+        sizeBytes: average(entry.sizes) ?? 0,
+    }));
+}
+
+function parseAudio(data: ytInitialPlayerResponse): AudioStreamInfo | undefined {
+    const itags = parseAudioFormats(data);
+    const isLive = data.videoDetails.isLive || false;
+    const preferredItag = isLive ? CONFIG.LIVE_AUDIO_ITAG : CONFIG.AUDIO_ITAG;
+    const chosen = itags.find((itag) => itag.formatId === preferredItag);
+    if (!chosen) return undefined;
+
+    // Audio sizes were merged into video formats using size / duration, so the
+    // display layer must subtract the same share. This stays correct even when
+    // the reported bitrate differs from the actual size.
+    const durationSeconds = Number(data.videoDetails.lengthSeconds || "0");
+    const bytesPerSecond =
+        chosen.sizeBytes / (isLive ? 3600 : durationSeconds > 0 ? durationSeconds : 3600);
+
+    return {
+        formatId: chosen.formatId,
+        codec: chosen.codec,
+        bitrate: chosen.bitrate,
+        sizeBytes: chosen.sizeBytes,
+        bytesPerSecond,
+        itags,
+    };
+}
+
+function toVideoItag(format: AdaptiveFormat): VideoItag {
+    return {
+        formatId: format.itag,
+        codec: getVideoCodec(format),
+        fps: format.fps,
+    };
 }
 
 // AV1 support only matters above 1080p. Below that, AV1 is always preferred;
@@ -200,8 +290,11 @@ function chooseVideoFormats(
         if (!height) continue;
 
         const formats = formatsByHeight.get(height);
-        if (formats) formats.push(format);
-        else formatsByHeight.set(height, [format]);
+        if (formats) {
+            // Keep one entry per itag so the tooltip never lists a format twice.
+            if (formats.some((existing) => existing.itag === format.itag)) continue;
+            formats.push(format);
+        } else formatsByHeight.set(height, [format]);
     }
 
     const chosenFormats: ChosenVideoFormat[] = [];
@@ -215,36 +308,13 @@ function chooseVideoFormats(
             formatId: format.itag,
             height,
             sizeBytes: getFormatSizeBytes(format, isLive),
+            codec: getVideoCodec(format),
+            fps: format.fps,
+            itags: formats.map(toVideoItag),
         });
     }
 
     return chosenFormats;
-}
-
-function chooseAudioFormats(data: ytInitialPlayerResponse): AudioFormat[] {
-    if (data.videoDetails.isLive) {
-        const audioFormat = data.streamingData.adaptiveFormats.find(
-            (format) => format.itag === CONFIG.LIVE_AUDIO_ITAG,
-        );
-        if (!audioFormat) return [];
-        return [
-            {
-                formatId: audioFormat.itag,
-                sizeBytes: audioFormat.bitrate ? (audioFormat.bitrate * 3600) / 8 : 0,
-            },
-        ];
-    }
-
-    return data.streamingData.adaptiveFormats
-        .filter((format) => {
-            return format.itag === CONFIG.AUDIO_ITAG;
-        })
-        .map((format) => {
-            return {
-                formatId: format.itag,
-                sizeBytes: Number(format.contentLength || "0"),
-            };
-        });
 }
 
 export function getThumbnailUrl(data: ytInitialPlayerResponse): string | undefined {

@@ -1,7 +1,7 @@
 import type { DisplayFormat, PlatformData, ToastAdapter } from "@/adapters/types";
 
 import { waitForElement } from "./lib/dom";
-import { formatBytes, formatRate } from "./lib/format";
+import { formatDisplaySizes } from "./lib/format";
 
 const SETTINGS_MENU_SELECTOR = ".ytp-settings-menu";
 const PANEL_MENU_SELECTOR = ".ytp-panel-menu";
@@ -63,12 +63,8 @@ function injectBadges(qualityMenu: HTMLElement, lookup: Map<number, string>) {
 function createQualitySizeLookup(formats: DisplayFormat[]) {
     const lookup = new Map<number, string>();
     for (const format of formats) {
-        lookup.set(
-            format.resolution,
-            format.kind === "vod"
-                ? formatBytes(format.sizeBytes)
-                : formatRate(format.sizePerSecondBytes, "hour"),
-        );
+        const size = formatDisplaySizes(format, undefined, true).primary;
+        lookup.set(format.resolution, size);
     }
     return lookup;
 }
