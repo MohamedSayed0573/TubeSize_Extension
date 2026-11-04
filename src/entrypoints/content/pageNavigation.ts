@@ -1,5 +1,6 @@
 import { toasterEnabled } from "@lib/storage";
 
+import { clearQualityMenu } from "@/qualityMenuInjector";
 import { stopResolutionTracking } from "@/resolution";
 
 import { PLATFORMS } from "./platformPage";
@@ -29,6 +30,7 @@ export async function handlePageNavigation() {
 
 function resetFeatureState() {
     stopResolutionTracking();
+    clearQualityMenu();
 }
 
 async function isToasterEnabled() {

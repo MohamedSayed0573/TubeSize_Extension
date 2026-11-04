@@ -12,14 +12,24 @@ const SETTINGS_WAIT_TIMEOUT = 5_000;
 
 let activeObserver: MutationObserver | undefined;
 
+/**
+ * Removes the current video's observer and badges. Called when navigation
+ * starts so a failed load can't leave the previous video's sizes on screen.
+ */
+export function clearQualityMenu() {
+    activeObserver?.disconnect();
+    activeObserver = undefined;
+
+    for (const badge of document.querySelectorAll(`.${TUBESIZE_QUALITY_MENU_CLASS}`)) {
+        badge.remove();
+    }
+}
+
 export async function injectMenu(adapter: ToastAdapter, data: PlatformData) {
+    clearQualityMenu();
+
     const settingsMenu = await waitForElement(SETTINGS_MENU_SELECTOR, SETTINGS_WAIT_TIMEOUT);
     if (!settingsMenu) return;
-
-    // Navigation reuses the player, so drop the previous video's observer and
-    // badges before injecting sizes for the new one.
-    activeObserver?.disconnect();
-    clearBadges(settingsMenu);
 
     const lookup = createQualitySizeLookup(adapter.formats(data));
 
@@ -36,12 +46,6 @@ export async function injectMenu(adapter: ToastAdapter, data: PlatformData) {
     // The quality panel may already be open when the new video's data arrives.
     const qualityMenu = settingsMenu.querySelector<HTMLElement>(QUALITY_MENU_BTN_SELECTOR);
     if (qualityMenu) injectBadges(qualityMenu, lookup);
-}
-
-function clearBadges(settingsMenu: HTMLElement) {
-    for (const badge of settingsMenu.querySelectorAll(`.${TUBESIZE_QUALITY_MENU_CLASS}`)) {
-        badge.remove();
-    }
 }
 
 function injectBadges(qualityMenu: HTMLElement, lookup: Map<number, string>) {
