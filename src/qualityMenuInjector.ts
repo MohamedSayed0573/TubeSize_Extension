@@ -11,12 +11,14 @@ const TUBESIZE_QUALITY_MENU_CLASS = "tubesize-quality-menu-panel";
 const SETTINGS_WAIT_TIMEOUT = 5_000;
 
 let activeObserver: MutationObserver | undefined;
+let menuRequestId = 0;
 
 /**
  * Removes the current video's observer and badges. Called when navigation
  * starts so a failed load can't leave the previous video's sizes on screen.
  */
 export function clearQualityMenu() {
+    menuRequestId++;
     activeObserver?.disconnect();
     activeObserver = undefined;
 
@@ -27,9 +29,13 @@ export function clearQualityMenu() {
 
 export async function injectMenu(adapter: ToastAdapter, data: PlatformData) {
     clearQualityMenu();
+    const requestId = menuRequestId;
 
     const settingsMenu = await waitForElement(SETTINGS_MENU_SELECTOR, SETTINGS_WAIT_TIMEOUT);
-    if (!settingsMenu) return;
+    if (!settingsMenu || requestId !== menuRequestId) return;
+
+    // A newer request may have attached an observer while we waited.
+    activeObserver?.disconnect();
 
     const lookup = createQualitySizeLookup(adapter.formats(data));
 
