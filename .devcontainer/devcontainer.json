@@ -9,7 +9,11 @@
         "ghcr.io/devcontainers/features/node:1": {
             "version": "lts"
         },
-        "ghcr.io/devcontainers/features/github-cli:1": {}
+        "ghcr.io/devcontainers/features/github-cli:1": {},
+        // Required so `gh codespace ssh` / `gh cs cp` can reach the container.
+        "ghcr.io/devcontainers/features/sshd:1": {
+            "version": "latest"
+        }
     },
     "postCreateCommand": "npm install -g bun && bun install --frozen-lockfile && bunx playwright-core install --with-deps chromium && bun run build",
     "customizations": {
