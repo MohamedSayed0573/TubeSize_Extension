@@ -112,6 +112,7 @@ export default defineConfig({
             "devTest/**",
             "release/**",
             "coverage/**",
+            ".verify-evidence/**",
             "Notes.md",
             "stats/**",
         ],

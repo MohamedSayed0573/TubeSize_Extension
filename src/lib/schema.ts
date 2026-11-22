@@ -17,12 +17,14 @@ export const ytInitialSchema = z.object({
             ),
         }),
     }),
-    microformat: z.object({
-        playerMicroformatRenderer: z.object({
-            // The Channel URL. e.g., http://www.youtube.com/@SherGhani1
-            ownerProfileUrl: z.string().optional(),
-        }),
-    }),
+    microformat: z
+        .object({
+            playerMicroformatRenderer: z.object({
+                // The Channel URL. e.g., http://www.youtube.com/@SherGhani1
+                ownerProfileUrl: z.string().optional(),
+            }),
+        })
+        .optional(),
     streamingData: z.object({
         adaptiveFormats: z.array(
             z.object({
