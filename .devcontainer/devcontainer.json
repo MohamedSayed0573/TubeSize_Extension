@@ -11,8 +11,9 @@
         },
         "ghcr.io/devcontainers/features/github-cli:1": {},
         // Required so `gh codespace ssh` / `gh cs cp` can reach the container.
+        // Pinned: resolving "latest" hits api.github.com at build time and gets rate limited.
         "ghcr.io/devcontainers/features/sshd:1": {
-            "version": "latest"
+            "version": "1.1.0"
         }
     },
     "postCreateCommand": "npm install -g bun && bun install --frozen-lockfile && bunx playwright-core install --with-deps chromium && bun run build",
