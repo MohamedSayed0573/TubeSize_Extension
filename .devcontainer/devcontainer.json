@@ -2,16 +2,16 @@
     "name": "TubeSize Extension",
     "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
     "remoteUser": "vscode",
+    // Bun comes from npm in postCreateCommand: the devcontainer feature resolves
+    // "latest" via api.github.com at build time and regularly hits unauthenticated
+    // rate limits, which fails the image build and drops codespaces into recovery.
     "features": {
-        "ghcr.io/devcontainers-extra/features/bun:1": {
-            "version": "latest"
-        },
         "ghcr.io/devcontainers/features/node:1": {
             "version": "lts"
         },
         "ghcr.io/devcontainers/features/github-cli:1": {}
     },
-    "postCreateCommand": "bun install --frozen-lockfile && bunx playwright-core install --with-deps chromium && bun run build",
+    "postCreateCommand": "npm install -g bun && bun install --frozen-lockfile && bunx playwright-core install --with-deps chromium && bun run build",
     "customizations": {
         "vscode": {
             "extensions": ["oven.bun-vscode", "bradlc.vscode-tailwindcss"]
