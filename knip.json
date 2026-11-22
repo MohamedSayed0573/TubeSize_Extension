@@ -8,11 +8,11 @@
         "src/entrypoints/popup/index.html",
         "src/entrypoints/popup/main.tsx",
         "src/entrypoints/dashboard/index.html",
-        "src/entrypoints/dashboard/main.tsx"
+        "src/entrypoints/dashboard/main.tsx",
+        "scripts/verify/server.ts"
     ],
     "tags": ["-lintignore"],
     "ignore": ["src/components/ui/**"],
-    "ignoreBinaries": ["check", "fmt"],
     "ignoreDependencies": ["oxfmt", "oxlint", "oxlint-tsgolint"],
     "ignoreExportsUsedInFile": true,
     "vite": true

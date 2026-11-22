@@ -158,7 +158,7 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
         const ytInitialPlayerResponse = await extractYtInitialResponse(videoTag, html);
         const { videoDetails, microformat } = ytInitialPlayerResponse;
         const { author: channelName, title, isLive } = videoDetails;
-        const { ownerProfileUrl: channelUrl } = microformat.playerMicroformatRenderer;
+        const channelUrl = microformat?.playerMicroformatRenderer.ownerProfileUrl;
 
         const baseData = {
             title,

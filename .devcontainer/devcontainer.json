@@ -1,0 +1,20 @@
+{
+    "name": "TubeSize Extension",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+    "remoteUser": "vscode",
+    "features": {
+        "ghcr.io/devcontainers-extra/features/bun:1": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "lts"
+        },
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    },
+    "postCreateCommand": "bun install --frozen-lockfile && bunx playwright-core install --with-deps chromium && bun run build",
+    "customizations": {
+        "vscode": {
+            "extensions": ["oven.bun-vscode", "bradlc.vscode-tailwindcss"]
+        }
+    }
+}

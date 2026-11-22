@@ -9,6 +9,7 @@ devTest/
 *.zip
 stats/
 coverage/
+.verify-evidence/
 code_review/
 .release/
 *.tsbuildinfo
