@@ -7,13 +7,14 @@ import { join, resolve } from "node:path";
 import {
     type Browser,
     type BrowserContext,
+    type CDPSession,
     chromium,
     type Page,
     type Worker,
 } from "playwright-core";
 
 export interface RuntimeIssue {
-    source: "page" | "network";
+    source: "page" | "network" | "service-worker";
     level: "error" | "exception";
     message: string;
 }
@@ -222,6 +223,241 @@ export function attachPageListeners(p: Page, extId: string, issues: RuntimeIssue
     });
 }
 
+interface CdpRemoteObject {
+    type?: string;
+    subtype?: string;
+    value?: unknown;
+    unserializableValue?: string;
+    description?: string;
+    preview?: {
+        description?: string;
+        properties?: Array<{ name: string; value?: string; type?: string }>;
+        overflow?: boolean;
+    };
+}
+
+interface CdpExceptionDetails {
+    text?: string;
+    url?: string;
+    lineNumber?: number;
+    columnNumber?: number;
+    exception?: CdpRemoteObject;
+}
+
+interface CdpTargetMessage {
+    id?: number;
+    method?: string;
+    params?: {
+        type?: string;
+        args?: CdpRemoteObject[];
+        exceptionDetails?: CdpExceptionDetails;
+    };
+}
+
+function formatCdpRemoteObject(obj: CdpRemoteObject): string {
+    if (typeof obj.description === "string" && obj.description.length > 0) {
+        if (
+            obj.type === "object" &&
+            obj.subtype !== "error" &&
+            obj.preview?.properties &&
+            obj.preview.properties.length > 0
+        ) {
+            const props = obj.preview.properties
+                .map((p) => `${p.name}: ${p.value ?? p.type ?? ""}`)
+                .join(", ");
+            return `{${props}${obj.preview.overflow ? ", …" : ""}}`;
+        }
+        return obj.description;
+    }
+    if (typeof obj.unserializableValue === "string") return obj.unserializableValue;
+    if ("value" in obj) return String(obj.value);
+    return obj.type ?? "unknown";
+}
+
+function formatCdpException(details: CdpExceptionDetails | undefined): string {
+    if (!details) return "Uncaught service worker exception";
+    const prefix = details.text?.trim() || "Uncaught";
+    if (details.exception) {
+        const detail = formatCdpRemoteObject(details.exception);
+        if (detail && detail !== prefix) {
+            return `${prefix}: ${detail}`;
+        }
+    }
+    const loc =
+        details.url !== undefined
+            ? ` (${details.url}:${(details.lineNumber ?? 0) + 1}:${(details.columnNumber ?? 0) + 1})`
+            : "";
+    return `${prefix}${loc}`;
+}
+
+function formatCdpConsoleArgs(args: CdpRemoteObject[] | undefined): string {
+    if (!args || args.length === 0) return "console.error()";
+    return args.map(formatCdpRemoteObject).join(" ");
+}
+
+interface ServiceWorkerMonitor {
+    attachExisting: () => Promise<void>;
+    detach: () => Promise<void>;
+}
+
+/**
+ * Captures MV3 service-worker uncaught exceptions, unhandled promise rejections, and
+ * `console.error` calls via a browser-level CDP session (since Playwright's `Worker` and
+ * `BrowserContext` `weberror` events do not surface MV3 service-worker exceptions).
+ */
+async function createServiceWorkerMonitor(
+    context: BrowserContext,
+    workerUrl: string,
+    issues: RuntimeIssue[],
+): Promise<ServiceWorkerMonitor> {
+    const browser = context.browser();
+    if (!browser) {
+        const attachedWorkers = new WeakSet<Worker>();
+        const attachFallback = (w: Worker) => {
+            if (w.url() !== workerUrl || attachedWorkers.has(w)) return;
+            attachedWorkers.add(w);
+            w.on("console", (m) => {
+                if (m.type() === "error") {
+                    issues.push({
+                        source: "service-worker",
+                        level: "error",
+                        message: m.text(),
+                    });
+                }
+            });
+        };
+        for (const w of context.serviceWorkers()) attachFallback(w);
+        context.on("serviceworker", attachFallback);
+        return {
+            attachExisting: async () => {
+                for (const w of context.serviceWorkers()) attachFallback(w);
+            },
+            detach: async () => {},
+        };
+    }
+
+    const cdp: CDPSession = await browser.newBrowserCDPSession();
+    let detached = false;
+    let nextMessageId = 1;
+    const attachedTargetIds = new Set<string>();
+    const activeSessions = new Map<string, string>();
+    const inflight = new Map<string, Promise<void>>();
+    const pendingEnable = new Map<string, () => void>();
+
+    const attachTarget = (targetId: string): Promise<void> => {
+        if (detached) return Promise.resolve();
+        const existing = inflight.get(targetId);
+        if (existing) return existing;
+        if (attachedTargetIds.has(targetId)) return Promise.resolve();
+
+        const promise = (async () => {
+            attachedTargetIds.add(targetId);
+            try {
+                const { sessionId } = await cdp.send("Target.attachToTarget", {
+                    targetId,
+                    flatten: false,
+                });
+                if (detached) return;
+                activeSessions.set(sessionId, targetId);
+                const enableId = nextMessageId++;
+                const pendingKey = `${sessionId}:${enableId}`;
+                const enabled = new Promise<void>((res) => {
+                    const timer = setTimeout(() => {
+                        pendingEnable.delete(pendingKey);
+                        res();
+                    }, 2000);
+                    pendingEnable.set(pendingKey, () => {
+                        clearTimeout(timer);
+                        pendingEnable.delete(pendingKey);
+                        res();
+                    });
+                });
+                await cdp.send("Target.sendMessageToTarget", {
+                    sessionId,
+                    message: JSON.stringify({
+                        id: enableId,
+                        method: "Runtime.enable",
+                    }),
+                });
+                await enabled;
+            } catch {
+                attachedTargetIds.delete(targetId);
+            } finally {
+                inflight.delete(targetId);
+            }
+        })();
+
+        inflight.set(targetId, promise);
+        return promise;
+    };
+
+    cdp.on("Target.receivedMessageFromTarget", (ev) => {
+        if (!activeSessions.has(ev.sessionId)) return;
+        let msg: CdpTargetMessage;
+        try {
+            msg = JSON.parse(ev.message) as CdpTargetMessage;
+        } catch {
+            return;
+        }
+        if (typeof msg.id === "number") {
+            pendingEnable.get(`${ev.sessionId}:${msg.id}`)?.();
+        }
+        if (msg.method === "Runtime.exceptionThrown") {
+            issues.push({
+                source: "service-worker",
+                level: "exception",
+                message: formatCdpException(msg.params?.exceptionDetails),
+            });
+        } else if (msg.method === "Runtime.consoleAPICalled" && msg.params?.type === "error") {
+            issues.push({
+                source: "service-worker",
+                level: "error",
+                message: formatCdpConsoleArgs(msg.params.args),
+            });
+        }
+    });
+
+    cdp.on("Target.detachedFromTarget", (ev) => {
+        const targetId = activeSessions.get(ev.sessionId);
+        activeSessions.delete(ev.sessionId);
+        if (targetId) attachedTargetIds.delete(targetId);
+        for (const [key, resolvePending] of pendingEnable) {
+            if (key.startsWith(`${ev.sessionId}:`)) resolvePending();
+        }
+    });
+
+    const onTargetEvent = (ev: { targetInfo: { type: string; url: string; targetId: string } }) => {
+        if (ev.targetInfo.type === "service_worker" && ev.targetInfo.url === workerUrl) {
+            void attachTarget(ev.targetInfo.targetId);
+        }
+    };
+    cdp.on("Target.targetCreated", onTargetEvent);
+    cdp.on("Target.targetInfoChanged", onTargetEvent);
+
+    await cdp.send("Target.setDiscoverTargets", { discover: true });
+
+    const attachExisting = async () => {
+        if (detached) return;
+        const { targetInfos } = await cdp.send("Target.getTargets");
+        const matches = targetInfos.filter(
+            (t) => t.type === "service_worker" && t.url === workerUrl,
+        );
+        await Promise.all(matches.map((t) => attachTarget(t.targetId)));
+    };
+
+    const detach = async () => {
+        if (detached) return;
+        detached = true;
+        for (const resolvePending of pendingEnable.values()) resolvePending();
+        pendingEnable.clear();
+        activeSessions.clear();
+        attachedTargetIds.clear();
+        await cdp.detach().catch(() => {});
+    };
+
+    return { attachExisting, detach };
+}
+
 /**
  * Opens the toolbar popup via chrome.action.openPopup() and returns the page it created.
  * The popup lives in a browser window Playwright's persistent context does not attach to, so it
@@ -337,9 +573,13 @@ export async function launchExtension(
     });
 
     let closed = false;
+    let serviceWorkerMonitor: ServiceWorkerMonitor | null = null;
     const close = async () => {
         if (closed) return;
         closed = true;
+        if (serviceWorkerMonitor) {
+            await serviceWorkerMonitor.detach().catch(() => {});
+        }
         try {
             await context.close();
         } catch {
@@ -354,14 +594,17 @@ export async function launchExtension(
 
     try {
         const workerUrl = `chrome-extension://${extId}/background.js`;
+        const issues: RuntimeIssue[] = [];
+        serviceWorkerMonitor = await createServiceWorkerMonitor(context, workerUrl, issues);
+
         const serviceWorker =
             context.serviceWorkers().find((w) => w.url() === workerUrl) ??
             (await context.waitForEvent("serviceworker", {
                 predicate: (w) => w.url() === workerUrl,
                 timeout: timeoutMs,
             }));
+        await serviceWorkerMonitor.attachExisting();
 
-        const issues: RuntimeIssue[] = [];
         // Track every tab (e.g. dashboard opened via chrome.tabs.create from the popup).
         for (const p of context.pages()) attachPageListeners(p, extId, issues);
         context.on("page", (p) => attachPageListeners(p, extId, issues));
