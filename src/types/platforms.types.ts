@@ -1,6 +1,8 @@
 import type { ytInitialSchema } from "@lib/schema";
 import { z } from "zod";
 
+import type { Origin, PlatformId, VideoKey } from "./types";
+
 export type ytInitialPlayerResponse = z.infer<typeof ytInitialSchema>;
 
 export type VideoCodec = "av01" | "vp9" | "avc";
@@ -57,7 +59,7 @@ type ErrorResponse = {
 type BackgroundResponse<T> = SuccessResponse<T> | ErrorResponse;
 
 export type YoutubeVideoFormat = {
-    type: "video";
+    type: "vod";
     formatId: number;
     height: number;
     sizeBytes: number;
@@ -67,8 +69,9 @@ export type YoutubeVideoFormat = {
     itags?: VideoItag[];
 };
 
-type YoutubeVideoData = {
-    type: "video";
+type YoutubeVodData = {
+    platform: "youtube";
+    type: "vod";
     formats: YoutubeVideoFormat[];
     title: string;
     durationSeconds: number;
@@ -82,6 +85,7 @@ type YoutubeVideoData = {
 };
 
 type YoutubeLiveData = {
+    platform: "youtube";
     type: "live";
     formats: StreamInfo[];
     title: string;
@@ -91,7 +95,7 @@ type YoutubeLiveData = {
     audio?: AudioStreamInfo;
 };
 
-export type YoutubeData = YoutubeVideoData | YoutubeLiveData;
+export type YoutubeData = YoutubeVodData | YoutubeLiveData;
 export type YoutubeBackgroundResponse = BackgroundResponse<YoutubeData>;
 
 export type StreamInfo = {
@@ -105,12 +109,14 @@ export type StreamInfo = {
 };
 
 export type TwitchLiveData = {
+    platform: "twitch";
     type: "live";
     data: StreamInfo[];
     channelName: string;
     channelUrl: string;
 };
 export type TwitchVodData = {
+    platform: "twitch";
     type: "vod";
     data: StreamInfo[];
     vodId: string;
@@ -129,6 +135,7 @@ export type TwitchTokenData = {
 };
 
 export type KickLiveData = {
+    platform: "kick";
     type: "live";
     data: StreamInfo[];
     channelName: string;
@@ -136,6 +143,7 @@ export type KickLiveData = {
 };
 
 export type KickVodData = {
+    platform: "kick";
     type: "vod";
     data: StreamInfo[];
     vodId: string;
@@ -148,9 +156,9 @@ export type KickData = KickLiveData | KickVodData;
 export type KickBackgroundResponse = BackgroundResponse<KickData>;
 
 export type AddUsageResponse = BackgroundResponse<null>;
-export type GetUsageResponse = BackgroundResponse<Record<string, number> | undefined>;
+export type GetUsageResponse = BackgroundResponse<Record<Origin, number> | undefined>;
 export type AddWatchHistoryResponse = BackgroundResponse<null>;
-export type GetWatchHistoryResponse = BackgroundResponse<Record<string, number> | undefined>;
+export type GetWatchHistoryResponse = BackgroundResponse<Record<VideoKey, number> | undefined>;
 
 /**
  * Platform id -> the data shape that platform produces. `mediaCacheItem` keys
@@ -164,4 +172,4 @@ export type PlatformDataMap = {
 };
 
 /** The data shape any platform produces. */
-export type PlatformData = YoutubeData | TwitchData | KickData;
+export type PlatformData = PlatformDataMap[PlatformId];

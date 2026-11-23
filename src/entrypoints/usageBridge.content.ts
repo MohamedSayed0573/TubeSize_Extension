@@ -9,6 +9,72 @@ import { defineContentScript } from "wxt/utils/define-content-script";
 import { isPlatformId } from "@/lib/utils";
 import { sendMessage } from "@/messaging";
 
+function isValidBytes(bytes: unknown): bytes is number {
+    return typeof bytes === "number" && Number.isFinite(bytes) && bytes > 0;
+}
+
+export function parseWindowMessage(data: unknown): WindowMessage | undefined {
+    if (typeof data !== "object" || data === null || !("type" in data)) return undefined;
+
+    if (data.type === "TUBESIZE_SITE_USAGE") {
+        if (!("bytes" in data) || !isValidBytes(data.bytes)) return undefined;
+        return { type: "TUBESIZE_SITE_USAGE", bytes: data.bytes };
+    }
+
+    if (data.type === "TUBESIZE_WATCH_HISTORY") {
+        if (
+            !("videoId" in data) ||
+            !("bytes" in data) ||
+            !("platform" in data) ||
+            typeof data.videoId !== "string" ||
+            data.videoId.length === 0 ||
+            !isValidBytes(data.bytes) ||
+            !isPlatformId(data.platform)
+        ) {
+            return undefined;
+        }
+
+        return {
+            type: "TUBESIZE_WATCH_HISTORY",
+            videoId: data.videoId,
+            platform: data.platform,
+            bytes: data.bytes,
+        };
+    }
+
+    return undefined;
+}
+
+export function relayWindowMessage(data: unknown): void {
+    const message = parseWindowMessage(data);
+    if (!message) return;
+
+    switch (message.type) {
+        case "TUBESIZE_SITE_USAGE": {
+            void sendMessage("addUsage", {
+                bytes: message.bytes,
+            }).catch((err: unknown) => {
+                console.error("[usageBridge] Failed to record site usage", err);
+            });
+            break;
+        }
+        case "TUBESIZE_WATCH_HISTORY": {
+            void sendMessage("addWatchHistory", {
+                videoId: message.videoId,
+                platform: message.platform,
+                bytes: message.bytes,
+            }).catch((err: unknown) => {
+                console.error("[usageBridge] Failed to record watch history", err);
+            });
+            break;
+        }
+        default: {
+            const exhaustive: never = message;
+            return exhaustive;
+        }
+    }
+}
+
 export default defineContentScript({
     matches: ["<all_urls>"],
     runAt: "document_start",
@@ -19,36 +85,7 @@ export default defineContentScript({
             // eslint-disable-next-line unicorn/prefer-global-this
             if (event.source !== window) return;
 
-            const message = event.data as WindowMessage;
-
-            if (message.type === "TUBESIZE_SITE_USAGE") {
-                const { bytes } = message;
-                if (!isValidBytes(bytes)) return;
-
-                void sendMessage("addUsage", {
-                    bytes,
-                }).catch((err: unknown) => {
-                    console.error("[usageBridge] Failed to record site usage", err);
-                });
-                //eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            } else if (message.type === "TUBESIZE_WATCH_HISTORY") {
-                const { bytes, platform, videoId } = message;
-
-                if (typeof videoId !== "string" || !isValidBytes(bytes) || !isPlatformId(platform))
-                    return;
-
-                void sendMessage("addWatchHistory", {
-                    videoId,
-                    platform,
-                    bytes,
-                }).catch((err: unknown) => {
-                    console.error("[usageBridge] Failed to record watch history", err);
-                });
-            }
+            relayWindowMessage(event.data);
         });
     },
 });
-
-function isValidBytes(bytes: number) {
-    return typeof bytes === "number" && Number.isFinite(bytes) && bytes > 0;
-}

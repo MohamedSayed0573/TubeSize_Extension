@@ -59,7 +59,9 @@ export function ExportToJsonBtn({
             variant="outline"
             className="w-full"
             onClick={() => {
-                getData().catch((err) => setError(err as Error));
+                getData().catch((err: unknown) =>
+                    setError(err instanceof Error ? err : new Error(String(err))),
+                );
             }}
         >
             {t("dashboard_exportJson")}

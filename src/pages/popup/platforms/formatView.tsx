@@ -1,8 +1,9 @@
+import type { PlatformId } from "@app-types/types";
 import Spinner from "@components/spinner";
 import useSettings from "@hooks/useSettings";
 import CONFIG from "@lib/constants";
 
-import type { PlatformAdapter, PlatformData } from "@/adapters/types";
+import type { PlatformAdapter, PlatformDataMap } from "@/adapters/types";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,12 +15,12 @@ import AdvancedFormatItem from "./advancedFormatItem";
 import AudioFormatItem from "./audioFormatItem";
 import FormatItem from "./formatItem";
 
-export default function FormatView({
+export default function FormatView<P extends PlatformId>({
     adapter,
     data,
 }: {
-    adapter: PlatformAdapter;
-    data: PlatformData;
+    adapter: PlatformAdapter<P>;
+    data: PlatformDataMap[P];
 }) {
     const { data: tabData } = useTab();
     const { currentQuality } = useCurrentQuality(tabData?.tabId);

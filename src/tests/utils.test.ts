@@ -1,5 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 
+import { isValidDateKey, toDateKey } from "@lib/dateUtils";
 import {
     extractChannelName,
     extractTwitchVodId,
@@ -10,8 +11,13 @@ import {
     isTwitchLive,
     isTwitchPage,
     isTwitchVod,
+    isVideoKey,
     isYoutubePage,
+    parseVideoKey,
+    toVideoKey,
 } from "@lib/utils";
+
+import { kickAdapter } from "@/adapters/kickAdapter";
 
 describe("isYoutubePage", () => {
     test("should return true for a valid YouTube URL", () => {
@@ -310,5 +316,34 @@ describe("fetchAndRetry", () => {
                 ok: true,
             } as unknown as Response,
         });
+    });
+});
+
+describe("domain key helpers", () => {
+    test("validates DateKey strings and rejects rolled-over calendar dates", () => {
+        expect(isValidDateKey("2026-02-28")).toBe(true);
+        expect(isValidDateKey("2026-02-30")).toBe(false);
+        expect(isValidDateKey("not-a-date")).toBe(false);
+        expect(toDateKey("2026-02-28")).toBe(toDateKey("2026-02-28"));
+        expect(toDateKey("2026-13-01")).toBeUndefined();
+    });
+
+    test("builds, validates, and parses VideoKey values", () => {
+        const key = toVideoKey("youtube", "dQw4w9WgXcQ");
+        expect(isVideoKey(key)).toBe(true);
+        expect(parseVideoKey(key)).toEqual({ platform: "youtube", videoTag: "dQw4w9WgXcQ" });
+        expect(isVideoKey("unknown:abc")).toBe(false);
+        expect(isVideoKey("youtube:")).toBe(false);
+        expect(isVideoKey("no-colon")).toBe(false);
+    });
+
+    test("kickAdapter.videoUrl respects live vs vod contentType", () => {
+        expect(kickAdapter.videoUrl("xqc", "live")).toBe("https://kick.com/xqc");
+        expect(kickAdapter.videoUrl("kick-vod-98231", "vod")).toBe(
+            "https://kick.com/video/kick-vod-98231",
+        );
+        expect(kickAdapter.videoUrl("kick-vod-98231")).toBe(
+            "https://kick.com/video/kick-vod-98231",
+        );
     });
 });

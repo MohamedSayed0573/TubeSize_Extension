@@ -1,14 +1,14 @@
 import { AlertDialogBasic } from "@components/alertDialogBasic";
 import { Button } from "@components/ui/button";
 import { useSiteUsage } from "@hooks/useSiteUsage";
-import type { InvalidImportJson } from "@lib/errors";
+import { InvalidImportJson } from "@lib/errors";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { setAllSiteUsage, type SiteUsage } from "@/db";
+import { setAllSiteUsage } from "@/db";
 import { t } from "@/i18n/t";
 
 async function importJson() {
-    const { ImportSchema } = await import("@lib/zodSchema");
+    const { ImportSchema } = await import("@lib/schema");
     return new Promise((resolve, reject) => {
         const input = document.createElement("input");
         input.type = "file";
@@ -21,16 +21,22 @@ async function importJson() {
             if (!file) return;
             file.text()
                 .then((textFile) => {
-                    const siteUsage = JSON.parse(textFile) as SiteUsage[];
+                    const siteUsage: unknown = JSON.parse(textFile);
                     const result = ImportSchema.safeParse(siteUsage);
-                    if (!result.success) throw new Error(result.error.message);
+                    if (!result.success) throw new InvalidImportJson(result.error.message);
                     return result.data;
                 })
                 .then((data) => {
                     return resolve(setAllSiteUsage(data));
                 })
-                .catch((err) => {
-                    return reject(err as InvalidImportJson);
+                .catch((err: unknown) => {
+                    return reject(
+                        err instanceof InvalidImportJson
+                            ? err
+                            : new InvalidImportJson(
+                                  err instanceof Error ? err.message : String(err),
+                              ),
+                    );
                 });
         });
     });
@@ -47,9 +53,13 @@ export function ImportJson({
         setError(undefined);
         importJson()
             .then(() => void queryClient.invalidateQueries({ queryKey: ["siteUsage"] }))
-            .catch((err) => {
+            .catch((err: unknown) => {
                 console.error(err);
-                setError(err as Error);
+                setError(
+                    err instanceof InvalidImportJson
+                        ? err
+                        : new InvalidImportJson(err instanceof Error ? err.message : String(err)),
+                );
             });
     };
 

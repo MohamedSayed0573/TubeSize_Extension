@@ -11,7 +11,7 @@ import {
 import { sendMessage } from "@/messaging";
 import type { TwitchData } from "@/types/platforms.types";
 
-import type { DisplayFormat, HeaderViewData, PlatformData, VideoContentType } from "./types";
+import type { DisplayFormat, HeaderViewData, PlatformAdapter, VideoContentType } from "./types";
 
 async function loadTwitchData(tabUrl: string): Promise<TwitchData> {
     // The page is a Twitch Video (Not a live stream)
@@ -53,9 +53,7 @@ function isRunningVideo(tabUrl: string): boolean {
     return isTwitchPage(tabUrl) && (isTwitchLive(tabUrl) || isTwitchVod(tabUrl));
 }
 
-function twitchFormats(data: PlatformData): DisplayFormat[] {
-    const twitch = data as TwitchData;
-
+function twitchFormats(twitch: TwitchData): DisplayFormat[] {
     if (twitch.type === "vod") {
         return twitch.data.map((stream) => ({
             kind: "vod",
@@ -74,8 +72,7 @@ function twitchFormats(data: PlatformData): DisplayFormat[] {
     }));
 }
 
-function twitchHeader(data: PlatformData): HeaderViewData {
-    const twitch = data as TwitchData;
+function twitchHeader(twitch: TwitchData): HeaderViewData {
     const language = getLanguage();
 
     if (twitch.type === "live") {
@@ -97,11 +94,11 @@ function twitchVideoUrl(videoTag: string, contentType?: VideoContentType): strin
 }
 
 export const twitchAdapter = {
-    platform: "twitch" as const,
+    platform: "twitch",
     load: loadTwitchData,
     match: matchTwitchUrl,
     isRunningVideo,
     formats: twitchFormats,
     header: twitchHeader,
     videoUrl: twitchVideoUrl,
-};
+} satisfies PlatformAdapter<"twitch">;

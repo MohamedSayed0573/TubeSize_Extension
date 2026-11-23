@@ -1,21 +1,20 @@
-import type { DateKey } from "@app-types/types";
+import type { DateKey, Origin, VideoKey } from "@app-types/types";
 import { getDateKey } from "@lib/dateUtils";
+import type { SiteUsage } from "@lib/schema";
+import { toVideoKey, typedEntries } from "@lib/utils";
 import { Dexie, type Table } from "dexie";
 
 import type { VideoContentType } from "./adapters/types";
 
-export interface SiteUsage {
-    day: DateKey;
-    usage: Record<string, number>; // Site Origin -> Bytes
-}
+export type { SiteUsage };
 
 export interface WatchHistory {
     day: DateKey;
-    videos: Record<string, number>; // videoKey -> Bytes
+    videos: Record<VideoKey, number>; // videoKey -> Bytes
 }
 
 interface BaseVideoMetadata {
-    videoKey: string;
+    videoKey: VideoKey;
     videoTag: string;
     title: string;
     channelName: string;
@@ -46,27 +45,33 @@ export type VideoMetadataInput =
     | Omit<TwitchMetadata, "videoKey">
     | Omit<KickMetadata, "videoKey">;
 
-const database = new Dexie("TubeSize") as Dexie & {
-    siteUsage: Table<SiteUsage, string>;
-    watchHistory: Table<WatchHistory, string>;
-    videoMetaData: Table<VideoMetadata, string>;
-};
+class TubeSizeDatabase extends Dexie {
+    siteUsage!: Table<SiteUsage, DateKey>;
+    watchHistory!: Table<WatchHistory, DateKey>;
+    videoMetaData!: Table<VideoMetadata, VideoKey>;
 
-database.version(1).stores({
-    siteUsage: "day",
-    watchHistory: "day",
-    videoMetaData: "videoKey",
-});
+    constructor() {
+        super("TubeSize");
+        this.version(1).stores({
+            siteUsage: "day",
+            watchHistory: "day",
+            videoMetaData: "videoKey",
+        });
+    }
+}
 
-export async function addSiteUsage(siteUsage: Record<string, number>) {
-    if (Object.entries(siteUsage).length === 0) return;
+const database = new TubeSizeDatabase();
+
+export async function addSiteUsage(siteUsage: Record<Origin, number>) {
+    const entries = typedEntries(siteUsage);
+    if (entries.length === 0) return;
     const day = getDateKey();
 
     await database.transaction("readwrite", database.siteUsage, async () => {
         const existing = await database.siteUsage.get(day);
 
         if (existing) {
-            for (const [origin, bytes] of Object.entries(siteUsage)) {
+            for (const [origin, bytes] of entries) {
                 existing.usage[origin] = (existing.usage[origin] ?? 0) + bytes;
             }
 
@@ -101,16 +106,17 @@ export async function getSiteUsageByDate(day: DateKey | DateKey[]) {
         : database.siteUsage.get(day);
 }
 
-export async function addWatchHistory(watchHistory: Record<string, number>) {
-    if (Object.entries(watchHistory).length === 0) return;
+export async function addWatchHistory(watchHistory: Record<VideoKey, number>) {
+    const entries = typedEntries(watchHistory);
+    if (entries.length === 0) return;
     const day = getDateKey();
 
     await database.transaction("readwrite", database.watchHistory, async () => {
         const existing = await database.watchHistory.get(day);
 
         if (existing) {
-            for (const [videoTag, bytes] of Object.entries(watchHistory)) {
-                existing.videos[videoTag] = (existing.videos[videoTag] ?? 0) + bytes;
+            for (const [videoKey, bytes] of entries) {
+                existing.videos[videoKey] = (existing.videos[videoKey] ?? 0) + bytes;
             }
 
             await database.watchHistory.put(existing);
@@ -139,12 +145,12 @@ export async function getWatchHistoryByDate(day: DateKey | DateKey[]) {
 }
 
 export async function addVideoMetadata(metadata: VideoMetadataInput) {
-    const videoKey = `${metadata.type}:${metadata.videoTag}`;
+    const videoKey = toVideoKey(metadata.type, metadata.videoTag);
     await database.videoMetaData.put({ ...metadata, videoKey });
 }
 
 export async function getVideoMetadata(videoTag: string, type: VideoMetadata["type"]) {
-    return await database.videoMetaData.get(`${type}:${videoTag}`);
+    return await database.videoMetaData.get(toVideoKey(type, videoTag));
 }
 
 export async function getAllVideoMetadata() {
@@ -153,10 +159,10 @@ export async function getAllVideoMetadata() {
 }
 
 export async function getVideoMetadataByVideoKey(
-    videoKey: string,
+    videoKey: VideoKey,
 ): Promise<VideoMetadata | undefined>;
-export async function getVideoMetadataByVideoKey(videoKey: string[]): Promise<VideoMetadata[]>;
-export async function getVideoMetadataByVideoKey(videoKey: string | string[]) {
+export async function getVideoMetadataByVideoKey(videoKey: VideoKey[]): Promise<VideoMetadata[]>;
+export async function getVideoMetadataByVideoKey(videoKey: VideoKey | VideoKey[]) {
     return Array.isArray(videoKey)
         ? database.videoMetaData.where("videoKey").anyOf(videoKey).toArray()
         : database.videoMetaData.get(videoKey);

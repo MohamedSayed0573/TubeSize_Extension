@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { toDateKey } from "@lib/dateUtils";
 import {
     audioDisplaySizes,
     formatAudioCodec,
@@ -86,16 +87,19 @@ describe("formatBitrate", () => {
 });
 
 describe("formatDate", () => {
+    const may15 = toDateKey("2023-05-15")!;
+    const may16 = toDateKey("2023-05-16")!;
+
     test("Should return formatted date if the input is not array", () => {
-        expect(formatDate("2023-05-15")).toBe("May 15, 2023");
+        expect(formatDate(may15)).toBe("May 15, 2023");
     });
 
     test("Should return formatted date range if the input is array", () => {
-        expect(normalizeRange(formatDate(["2023-05-15", "2023-05-16"]))).toBe("May 15 – 16, 2023");
+        expect(normalizeRange(formatDate([may15, may16]))).toBe("May 15 – 16, 2023");
     });
 
     test("Should return single date if the input array has the same start and end date", () => {
-        expect(formatDate(["2023-05-15", "2023-05-15"])).toBe("May 15, 2023");
+        expect(formatDate([may15, may15])).toBe("May 15, 2023");
     });
 
     test("Should throw if the input array is empty", () => {

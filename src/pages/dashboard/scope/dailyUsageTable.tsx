@@ -1,3 +1,4 @@
+import type { DateKey } from "@app-types/types";
 import {
     Table,
     TableBody,
@@ -13,7 +14,7 @@ import { Link } from "react-router";
 import { t } from "@/i18n/t";
 
 export interface DailyUsage {
-    day: string;
+    day: DateKey;
     bytes: number;
 }
 

@@ -1,3 +1,4 @@
+import type { Origin } from "@app-types/types";
 import SiteIcon from "@components/siteIcon";
 import {
     Table,
@@ -10,17 +11,17 @@ import {
 } from "@components/ui/table";
 import { sumBySite, type SiteUsageTotal } from "@lib/domain";
 import { formatBytes } from "@lib/format";
-import { isFirefox } from "@lib/utils";
+import { isFirefox, typedEntries } from "@lib/utils";
 import { Globe } from "lucide-react";
 
 import type { SiteUsage } from "@/db";
 import { t } from "@/i18n/t";
 
 export default function AllSitesTable({ usage }: { usage: SiteUsage[] }) {
-    const usageByOrigin: Record<string, number> = {};
+    const usageByOrigin: Record<Origin, number> = {};
 
     for (const { usage: originUsage } of usage) {
-        for (const [origin, bytes] of Object.entries(originUsage)) {
+        for (const [origin, bytes] of typedEntries(originUsage)) {
             usageByOrigin[origin] = (usageByOrigin[origin] ?? 0) + bytes;
         }
     }

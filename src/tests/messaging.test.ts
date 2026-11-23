@@ -76,6 +76,13 @@ describe("sendMessage", () => {
     });
 });
 
+function checkCompileTimeSplit() {
+    // @ts-expect-error tab-bound message requires a tab target
+    void sendMessage("getCurrentResolution", undefined);
+    // @ts-expect-error background-bound message does not accept a tab target
+    void sendMessage("addUsage", { bytes: 1 }, { tabId: 7 });
+}
+
 describe("sendMessage to a tab", () => {
     test("returns the response of the content script", async () => {
         fakeChrome.tabs.sendMessage = ((
@@ -107,5 +114,9 @@ describe("sendMessage to a tab", () => {
         await expect(sendMessage("getCurrentResolution", undefined, { tabId: 7 })).rejects.toThrow(
             "No response",
         );
+    });
+
+    test("enforces tab target at compile time for tab-bound messages", () => {
+        expect(typeof checkCompileTimeSplit).toBe("function");
     });
 });

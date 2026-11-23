@@ -1,3 +1,5 @@
+import type { PlatformId } from "@app-types/types";
+
 import type { PlatformAdapter } from "@/adapters/types";
 import InfoCard from "@/components/infoCard";
 import Spinner from "@/components/spinner";
@@ -8,13 +10,13 @@ import Header from "../header";
 import { PopupViewContainer } from "../popupViewContainer";
 import FormatView from "./formatView";
 
-type Props = {
-    adapter: PlatformAdapter;
+type Props<P extends PlatformId> = {
+    adapter: PlatformAdapter<P>;
     tabUrl: string;
     tabId: number;
 };
 
-export function PlatformView({ adapter, tabUrl, tabId }: Props) {
+export function PlatformView<P extends PlatformId>({ adapter, tabUrl, tabId }: Props<P>) {
     const { query, isRunningVideo } = usePlatformData(adapter, tabUrl, tabId);
     const { isPending, isError, data: platformData, error } = query;
 

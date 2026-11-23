@@ -1,12 +1,22 @@
 import CONFIG from "@lib/constants";
 
-import type { KickData, TwitchData, YoutubeData } from "./platforms.types";
+import type { PlatformData } from "./platforms.types";
 
 type Prettify<T> = {
     [K in keyof T]: T[K];
 } & {};
 
-export type StorageData<T extends YoutubeData | TwitchData | KickData> = {
+type Brand<T, Name extends string> = T & { readonly __brand: Name };
+
+export type Origin = Brand<string, "Origin">;
+export type SiteKey = Brand<string, "SiteKey">;
+export type VideoKey = Brand<`${PlatformId}:${string}`, "VideoKey">;
+export type DateKey = Brand<
+    `${number}${number}${number}${number}-${number}${number}-${number}${number}`,
+    "DateKey"
+>;
+
+export type StorageData<T extends PlatformData> = {
     data: T;
     expiry?: number;
     createdAt?: string;
@@ -32,7 +42,6 @@ export type AddWatchHistoryMessage = {
 
 export type YoutubeMessage = {
     videoTag: string;
-    tabId?: number;
     html?: string;
     /** `undefined` means the device capability has not been detected yet. */
     av1Supported?: boolean;
@@ -73,5 +82,3 @@ export type PlatformId = (typeof CONFIG.PLATFORMS)[number];
 export type UsageRange = (typeof CONFIG.RANGES)[number];
 
 export type UsageScope = { type: "date"; date: DateKey } | { type: "range"; range: UsageRange };
-
-export type DateKey = `${number}${number}${number}${number}-${number}${number}-${number}${number}`;

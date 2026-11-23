@@ -1,19 +1,22 @@
+import type { Origin } from "@app-types/types";
 import { useSiteUsageToday } from "@hooks/useSiteUsageToday";
 import useTab from "@hooks/useTab";
 import { useTotalUsage } from "@hooks/useTotalUsage";
-import { getSiteKey, getSiteLabel } from "@lib/domain";
+import { getSiteKey, getSiteLabel, toOrigin } from "@lib/domain";
 
 import { t } from "@/i18n/t";
 
 import { PopupFooter } from "./popupFooter";
 import PopupUsage from "./popupUsage";
 
-function getTabOrigin(tabUrl: string | undefined) {
+function getTabOrigin(tabUrl: string | undefined): Origin | undefined {
     if (!tabUrl) return;
 
     try {
         const url = new URL(tabUrl);
-        return url.protocol === "http:" || url.protocol === "https:" ? url.origin : undefined;
+        return url.protocol === "http:" || url.protocol === "https:"
+            ? toOrigin(url.origin)
+            : undefined;
     } catch {
         return;
     }

@@ -23,7 +23,7 @@ const chartConfig = {
     },
 } satisfies ChartConfig;
 
-type ChartUsageItem = { date: string; usage: number; sites: SiteUsageTotal[] };
+type ChartUsageItem = { date: DateKey; usage: number; sites: SiteUsageTotal[] };
 
 type TooltipPayloadEntry = { payload: ChartUsageItem };
 
@@ -46,7 +46,7 @@ function ChartTooltipContentCustom({
         <div className="min-w-52 rounded-xl border border-neutral-800 bg-[#0a0a0a] px-3 py-2 text-xs shadow-xl">
             {/* Date header */}
             <div className="mb-1.5 font-medium text-stone-200">
-                {parseDateKey(data.date as DateKey).toLocaleDateString(getLanguage(), {
+                {parseDateKey(data.date).toLocaleDateString(getLanguage(), {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
@@ -150,8 +150,15 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
                             radius={[5, 5, 0, 0]}
                             maxBarSize={38}
                             onClick={(data) => {
-                                const date = (data.payload as ChartUsageItem).date;
-                                void navigate(`/${date}`);
+                                const payload: unknown = data.payload;
+                                if (
+                                    typeof payload === "object" &&
+                                    payload !== null &&
+                                    "date" in payload &&
+                                    typeof payload.date === "string"
+                                ) {
+                                    void navigate(`/${payload.date}`);
+                                }
                             }}
                         />
                     </BarChart>

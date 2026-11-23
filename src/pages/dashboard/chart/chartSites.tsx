@@ -1,5 +1,7 @@
+import type { Origin, SiteKey } from "@app-types/types";
 import { sumBySite } from "@lib/domain";
 import { formatBytes } from "@lib/format";
+import { typedEntries } from "@lib/utils";
 import { useNavigate } from "react-router";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
 
@@ -19,15 +21,15 @@ const chartConfig = {
 const MIN_SITE_BYTES = 1_000_000; // 1 MB
 const MAX_SITES = 10;
 
-type ChartSiteItem = { site: string; label: string; bytes: number; fill: string };
+type ChartSiteItem = { site: SiteKey; label: string; bytes: number; fill: string };
 type TooltipPayloadEntry = { payload: ChartSiteItem };
 
 // Sum each site's usage across all days, dropping sites under 1 MB,
 // and keep the top MAX_SITES ranked by total bytes
 function buildSiteData(usage: SiteUsage[]): ChartSiteItem[] {
-    const usageByOrigin: Record<string, number> = {};
+    const usageByOrigin: Record<Origin, number> = {};
     for (const { usage: sites } of usage) {
-        for (const [origin, bytes] of Object.entries(sites)) {
+        for (const [origin, bytes] of typedEntries(sites)) {
             usageByOrigin[origin] = (usageByOrigin[origin] ?? 0) + bytes;
         }
     }
@@ -115,8 +117,15 @@ export default function ChartSites({ usage }: { usage: SiteUsage[] }) {
                             maxBarSize={28}
                             cursor="pointer"
                             onClick={(data) => {
-                                const site = (data.payload as ChartSiteItem).site;
-                                void navigate(`/site/${encodeURIComponent(site)}`);
+                                const payload: unknown = data.payload;
+                                if (
+                                    typeof payload === "object" &&
+                                    payload !== null &&
+                                    "site" in payload &&
+                                    typeof payload.site === "string"
+                                ) {
+                                    void navigate(`/site/${encodeURIComponent(payload.site)}`);
+                                }
                             }}
                         >
                             <LabelList

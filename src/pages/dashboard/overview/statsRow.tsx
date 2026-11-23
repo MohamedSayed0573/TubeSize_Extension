@@ -1,3 +1,4 @@
+import type { UsageRange } from "@app-types/types";
 import { getLastNDays } from "@lib/dateUtils";
 import { formatBytes } from "@lib/format";
 import { getUsageNumber } from "@lib/usage";
@@ -15,7 +16,7 @@ function StatsCard({
     icon: Icon,
     accentClass,
 }: {
-    title: string;
+    title: UsageRange;
     value: string;
     icon: LucideIcon;
     accentClass: string;
@@ -48,7 +49,13 @@ export function StatsRow({ usage }: { usage: SiteUsage[] }) {
     const last7DaysUsage = usage.filter((u) => getLastNDays(7).includes(u.day));
     const last30DaysUsage = usage.filter((u) => getLastNDays(30).includes(u.day));
 
-    const cards = [
+    const cards: Array<{
+        to: string;
+        title: UsageRange;
+        value: string;
+        icon: LucideIcon;
+        accentClass: string;
+    }> = [
         {
             to: `/today`,
             title: "today",

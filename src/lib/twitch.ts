@@ -172,6 +172,7 @@ export async function getTwitchLiveResponse(
         : filterM3u8(masterM3u8);
 
     const response: TwitchLiveData = {
+        platform: "twitch",
         type: "live",
         data: twitchData,
         channelName: message.channelName,
@@ -203,6 +204,7 @@ export async function getTwitchVodResponse(
     const filteredM3U8Data = filterM3u8(m3u8Data);
 
     const response: TwitchVodData = {
+        platform: "twitch",
         type: "vod",
         data: filteredM3U8Data,
         vodId: message.vodId,

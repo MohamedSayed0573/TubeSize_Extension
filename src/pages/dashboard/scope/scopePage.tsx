@@ -1,5 +1,6 @@
-import type { DateKey, UsageRange, UsageScope } from "@app-types/types";
+import type { UsageRange, UsageScope } from "@app-types/types";
 import { useSiteUsage } from "@hooks/useSiteUsage";
+import CONFIG from "@lib/constants";
 import { getLastNDays, isValidDateKey } from "@lib/dateUtils";
 import { formatDate } from "@lib/format";
 import { getUsageNumber } from "@lib/usage";
@@ -35,26 +36,31 @@ function getTitle(range: UsageScope): string {
     }
 }
 
-function getScope(date: DateKey | undefined): UsageScope | undefined {
-    if (!date) return;
+function isUsageRange(value: string): value is UsageRange {
+    // eslint-disable-next-line unicorn/prefer-includes
+    return CONFIG.RANGES.some((range) => range === value);
+}
 
-    if (["today", "week", "month", "lifetime"].includes(date)) {
+function getScope(param: string | undefined): UsageScope | undefined {
+    if (!param) return;
+
+    if (isUsageRange(param)) {
         return {
-            type: "range" as const,
-            range: date as UsageRange,
+            type: "range",
+            range: param,
         };
     }
-    if (isValidDateKey(date)) {
+    if (isValidDateKey(param)) {
         return {
             type: "date",
-            date,
+            date: param,
         };
     }
 }
 
 export default function ScopePage() {
     const { date } = useParams();
-    const scope = getScope(date as DateKey);
+    const scope = getScope(date);
 
     const { data: usage, isPending, isError, error } = useSiteUsage(scope);
 

@@ -1,3 +1,5 @@
+import type { Origin } from "@app-types/types";
+import { toOrigin } from "@lib/domain";
 import { getWatchHistoryTarget, isFirefox, toVideoKey } from "@lib/utils";
 import {
     recordKickMetadata,
@@ -100,13 +102,11 @@ function isCountableRequest(details: CompletedRequestDetails) {
     );
 }
 
-async function getRequestOrigin(details: CompletedRequestDetails): Promise<string | undefined> {
+async function getRequestOrigin(details: CompletedRequestDetails): Promise<Origin | undefined> {
     const tabId = details.tabId;
 
     const tab = await chrome.tabs.get(tabId);
-    const origin = tab.url ? new URL(tab.url).origin : undefined;
-
-    return origin;
+    return tab.url ? toOrigin(tab.url) : undefined;
 }
 
 function isExtensionUrl(url: string | undefined): boolean {

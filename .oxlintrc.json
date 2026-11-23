@@ -29,7 +29,7 @@
     ],
     "rules": {
         "typescript/consistent-return": "off",
-        "typescript/no-unsafe-type-assertion": "off",
+        "typescript/no-unsafe-type-assertion": "error",
         "no-console": [
             "warn",
             {
@@ -68,6 +68,15 @@
             "files": ["src/tests/**/*.{ts,tsx}"],
             "env": {
                 "jest": true
+            },
+            "rules": {
+                "typescript/no-unsafe-type-assertion": "off"
+            }
+        },
+        {
+            "files": ["scripts/**/*.{ts,tsx}"],
+            "rules": {
+                "typescript/no-unsafe-type-assertion": "off"
             }
         }
     ]

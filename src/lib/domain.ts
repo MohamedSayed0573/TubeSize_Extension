@@ -1,6 +1,10 @@
+import type { Origin, SiteKey } from "@app-types/types";
 import { getDomain, getDomainWithoutSuffix, getSubdomain } from "tldts-icann";
 
-import { capitalize } from "./utils";
+function capitalize(str: string): string {
+    if (str.length === 0) return str;
+    return `${str[0]?.toUpperCase() ?? ""}${str.slice(1)}`;
+}
 
 // Google products share one registrable domain and favicon; keys keep the
 // hostname, but labels show the product name.
@@ -80,14 +84,34 @@ function getGoogleProduct(host: string) {
     return getSubdomain(host)?.split(".").filter(Boolean).at(-1) ?? "";
 }
 
+export function isOrigin(value: unknown): value is Origin {
+    if (typeof value !== "string" || value.length === 0) return false;
+    if (value === "null") return true;
+    try {
+        return new URL(value).origin === value;
+    } catch {
+        return false;
+    }
+}
+
+export function toOrigin(url: string): Origin | undefined {
+    try {
+        const origin = new URL(url).origin;
+        return isOrigin(origin) ? origin : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 // Site key: the registrable domain (`https://www.example.com` -> `example.com`),
 // or the origin itself without one. Google subdomains keep their full hostname.
-export function getSiteKey(url: string) {
-    return getGoogleSubdomainHost(url) ?? getOriginDomain(url);
+export function getSiteKey(url: Origin | string): SiteKey {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- branded SiteKey constructor
+    return (getGoogleSubdomainHost(url) ?? getOriginDomain(url)) as SiteKey;
 }
 
 /** Display name for the popup: `Google Drive` instead of `drive.google.com`. */
-export function getSiteLabel(url: string) {
+export function getSiteLabel(url: Origin | SiteKey | string) {
     const host = getGoogleSubdomainHost(url);
     if (!host) return getOriginWithoutSuffix(url);
 
@@ -95,17 +119,18 @@ export function getSiteLabel(url: string) {
 }
 
 export interface SiteUsageTotal {
-    site: string;
+    site: SiteKey;
     bytes: number;
-    origin: string;
+    origin: Origin;
 }
 
 // Merges origin-keyed bytes into totals keyed by getSiteKey(), so Google
 // subdomains stay separate while everything else merges by registrable domain.
-export function sumBySite(origins: Record<string, number>): Map<string, SiteUsageTotal> {
-    const totals = new Map<string, SiteUsageTotal>();
+export function sumBySite(origins: Readonly<Record<Origin, number>>): Map<SiteKey, SiteUsageTotal> {
+    const totals = new Map<SiteKey, SiteUsageTotal>();
 
-    for (const [origin, bytes] of Object.entries(origins)) {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Record<Origin, number> keys are branded Origins
+    for (const [origin, bytes] of Object.entries(origins) as Array<[Origin, number]>) {
         const site = getSiteKey(origin);
         const existing = totals.get(site);
 

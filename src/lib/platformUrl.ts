@@ -1,4 +1,4 @@
-import type { PlatformId } from "@app-types/types";
+import type { PlatformId, VideoKey } from "@app-types/types";
 import CONFIG from "@lib/constants";
 
 export function isPlatformId(value: unknown): value is PlatformId {
@@ -232,6 +232,23 @@ export function getWatchHistoryTarget(
     return;
 }
 
-export function toVideoKey(platform: PlatformId, videoId: string) {
-    return `${platform}:${videoId}`;
+export function isVideoKey(value: string): value is VideoKey {
+    const sep = value.indexOf(":");
+    if (sep <= 0 || sep === value.length - 1) return false;
+    return isPlatformId(value.slice(0, sep));
+}
+
+export function toVideoKey(platform: PlatformId, videoId: string): VideoKey {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- branded VideoKey constructor
+    return `${platform}:${videoId}` as VideoKey;
+}
+
+export function parseVideoKey(videoKey: VideoKey): { platform: PlatformId; videoTag: string } {
+    const sep = videoKey.indexOf(":");
+    const platform = videoKey.slice(0, sep);
+    const videoTag = videoKey.slice(sep + 1);
+    if (!isPlatformId(platform) || videoTag.length === 0) {
+        throw new Error(`Invalid video key: ${videoKey}`);
+    }
+    return { platform, videoTag };
 }

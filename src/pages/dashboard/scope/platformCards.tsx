@@ -1,13 +1,13 @@
 import type { PlatformId, UsageScope } from "@app-types/types";
 import { useWatchHistory } from "@hooks/useWatchHistory";
 import { formatBytes } from "@lib/format";
-import { capitalize, cn } from "@lib/utils";
+import { capitalize, cn, parseVideoKey, typedEntries } from "@lib/utils";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 
 import { PlatformLogo } from "../platform/platformLogos";
 import { PLATFORM_THEME } from "../platform/platformTheme";
-import { buildPlatformSearch, parseVideoKey } from "../platform/platformUtils";
+import { buildPlatformSearch } from "../platform/platformUtils";
 
 export default function PlatformCards({ scope }: { scope: UsageScope }) {
     const { data, isError, error, isPending } = useWatchHistory(scope);
@@ -19,7 +19,7 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
 
     const platformToBytes: Map<PlatformId, number> = new Map();
     for (const dayOfWatchHistory of history) {
-        for (const [videoKey, bytes] of Object.entries(dayOfWatchHistory.videos)) {
+        for (const [videoKey, bytes] of typedEntries(dayOfWatchHistory.videos)) {
             const { platform } = parseVideoKey(videoKey);
             platformToBytes.set(platform, (platformToBytes.get(platform) ?? 0) + bytes);
         }
