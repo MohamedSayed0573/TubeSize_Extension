@@ -10,10 +10,9 @@ import DailyUsageTable from "./dailyUsageTable";
 
 export default function SiteDetailPage() {
     const { siteName } = useParams();
-    const { data, isPending, isError, error } = useSiteUsage();
+    const { data, isPending } = useSiteUsage();
 
     if (!siteName || isPending) return;
-    if (isError) throw error;
     if (!data) return <NoUsageData />;
 
     const targetSite = getSiteKey(siteName);

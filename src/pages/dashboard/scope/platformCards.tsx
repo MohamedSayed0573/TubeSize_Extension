@@ -10,11 +10,8 @@ import { PLATFORM_THEME } from "../platform/platformTheme";
 import { buildPlatformSearch } from "../platform/platformUtils";
 
 export default function PlatformCards({ scope }: { scope: UsageScope }) {
-    const { data, isError, error, isPending } = useWatchHistory(scope);
-    if (isError) throw error;
+    const { data: history, isPending } = useWatchHistory(scope);
     if (isPending) return;
-
-    const { history } = data;
     if (!history) return;
 
     const platformToBytes: Map<PlatformId, number> = new Map();

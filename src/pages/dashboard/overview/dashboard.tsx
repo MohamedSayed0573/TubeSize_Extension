@@ -10,11 +10,10 @@ import { FooterBtns } from "./footerBtns";
 import { StatsRow } from "./statsRow";
 
 export default function Dashboard({ chart }: { chart: "daily" | "sites" }) {
-    const { data: usage, isPending, isError, error } = useSiteUsage();
+    const { data: usage, isPending } = useSiteUsage();
     const [btnError, setError] = useState<InvalidImportJson>();
 
     if (isPending) return <DashboardSkeleton />;
-    if (isError) throw error;
 
     return (
         <>

@@ -62,11 +62,10 @@ export default function ScopePage() {
     const { date } = useParams();
     const scope = getScope(date);
 
-    const { data: usage, isPending, isError, error } = useSiteUsage(scope);
+    const { data: usage, isPending } = useSiteUsage(scope);
 
     if (!scope) return <DashboardNotFound />;
     if (isPending) return <VideosTableSkeleton />;
-    if (isError) throw error;
 
     if (!usage || usage.length === 0)
         return (

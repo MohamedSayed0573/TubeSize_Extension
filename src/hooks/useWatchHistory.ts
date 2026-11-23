@@ -1,19 +1,17 @@
 import type { UsageScope } from "@app-types/types";
 import { scopeToDateKey } from "@lib/usage";
-import { useQuery } from "@tanstack/react-query";
 
 import { getAllWatchHistory, getWatchHistoryByDate } from "@/db";
 
+import { scopeDepKey, useLiveDbQuery } from "./useLiveDbQuery";
+
 export function useWatchHistory(scope?: UsageScope) {
-    return useQuery({
-        queryKey: ["watchHistory", scope],
-        queryFn: async () => {
-            if (!scope) return { history: await getAllWatchHistory() };
+    return useLiveDbQuery(async () => {
+        if (!scope) return (await getAllWatchHistory()) ?? null;
 
-            const dateKey = scopeToDateKey(scope);
-            if (dateKey.kind === "all") return { history: await getAllWatchHistory() };
+        const dateKey = scopeToDateKey(scope);
+        if (dateKey.kind === "all") return (await getAllWatchHistory()) ?? null;
 
-            return { history: await getWatchHistoryByDate(dateKey.days) };
-        },
-    });
+        return (await getWatchHistoryByDate(dateKey.days)) ?? null;
+    }, [scopeDepKey(scope)]);
 }

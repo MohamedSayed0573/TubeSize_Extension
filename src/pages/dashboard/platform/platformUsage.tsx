@@ -22,19 +22,15 @@ export default function PlatformUsage() {
     const scope = parseUsageScope(searchParams);
 
     const historyQuery = useWatchHistory(scope);
-
-    const watchHistory = historyQuery.data?.history ?? [];
     const metadataQuery = useVideoMetadata();
 
     if (!platformId || !isPlatformId(platformId)) {
         return <DashboardNotFound />;
     }
 
-    if (historyQuery.isPending) return <VideosTableSkeleton />;
-    if (historyQuery.isError) throw historyQuery.error;
-    if (metadataQuery.isPending) return <VideosTableSkeleton />;
-    if (metadataQuery.isError) throw metadataQuery.error;
+    if (historyQuery.isPending || metadataQuery.isPending) return <VideosTableSkeleton />;
 
+    const watchHistory = historyQuery.data ?? [];
     const metadata = metadataQuery.data ?? [];
 
     // Merge Watch History and Video Metadata into one Array shape.
