@@ -1,6 +1,7 @@
 import type { UsageRange } from "@app-types/types";
 import { getLastNDays } from "@lib/dateUtils";
 import { formatBytes } from "@lib/format";
+import { buildRangePath } from "@lib/routes";
 import { getUsageNumber } from "@lib/usage";
 import { cn } from "@lib/utils";
 import { Activity, CalendarDays, CalendarRange, Database } from "lucide-react";
@@ -57,28 +58,28 @@ export function StatsRow({ usage }: { usage: SiteUsage[] }) {
         accentClass: string;
     }> = [
         {
-            to: `/today`,
+            to: buildRangePath("today"),
             title: "today",
             value: formatBytes(todayUsage ? getUsageNumber([todayUsage]) : 0),
             icon: CalendarDays,
             accentClass: "bg-sky-500/10 text-sky-400",
         },
         {
-            to: `/week`,
+            to: buildRangePath("week"),
             title: "week",
             value: formatBytes(getUsageNumber(last7DaysUsage)),
             icon: CalendarRange,
             accentClass: "bg-emerald-500/10 text-emerald-400",
         },
         {
-            to: `/month`,
+            to: buildRangePath("month"),
             title: "month",
             value: formatBytes(getUsageNumber(last30DaysUsage)),
             icon: Activity,
             accentClass: "bg-violet-500/10 text-violet-400",
         },
         {
-            to: `/lifetime`,
+            to: buildRangePath("lifetime"),
             title: "lifetime",
             value: formatBytes(getUsageNumber(usage)),
             icon: Database,

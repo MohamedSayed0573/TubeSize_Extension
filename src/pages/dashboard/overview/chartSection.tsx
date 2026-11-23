@@ -1,4 +1,5 @@
 import { Skeleton } from "@components/ui/skeleton";
+import { DASHBOARD_ROUTES } from "@lib/routes";
 import { cn } from "@lib/utils";
 import { CalendarDays, Database, Globe, type LucideIcon } from "lucide-react";
 import { lazy, Suspense } from "react";
@@ -76,10 +77,14 @@ export function UsageChartSection({
                     <div className="flex rounded-md border border-white/8 bg-black/20 p-0.5">
                         <ChartSwitchBtn
                             label={t("dashboard_byDay")}
-                            to="/daily"
+                            to={DASHBOARD_ROUTES.daily}
                             icon={CalendarDays}
                         />
-                        <ChartSwitchBtn label={t("dashboard_bySite")} to="/sites" icon={Globe} />
+                        <ChartSwitchBtn
+                            label={t("dashboard_bySite")}
+                            to={DASHBOARD_ROUTES.sites}
+                            icon={Globe}
+                        />
                     </div>
                     <div className="flex items-center gap-1.5 rounded-md border border-teal-400/20 bg-teal-400/10 px-2 py-1">
                         <CalendarDays className="size-3.5 text-teal-400" />

@@ -1,6 +1,8 @@
 import type { PlatformId, UsageScope } from "@app-types/types";
 import { useVideoMetadata } from "@hooks/useVideoMetadata";
 import { useWatchHistory } from "@hooks/useWatchHistory";
+import { formatDate } from "@lib/format";
+import { parseScopeSearch } from "@lib/routes";
 import { capitalize, isPlatformId, parseVideoKey, typedEntries } from "@lib/utils";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
@@ -11,22 +13,12 @@ import { t, tPlural } from "@/i18n/t";
 
 import DashboardNotFound from "../shared/notFound";
 import { PlatformLogo } from "./platformLogos";
-import { getScopeLabel, parseUsageScope } from "./platformUtils";
 import VideosTable, { type VideoRowDetails } from "./videosTable";
 import VideosTableSkeleton from "./videosTableSkeleton";
 
-export default function PlatformUsage() {
-    const { platformId } = useParams();
-
-    const [searchParams] = useSearchParams();
-    const scope = parseUsageScope(searchParams);
-
+function PlatformUsageContent({ platform, scope }: { platform: PlatformId; scope: UsageScope }) {
     const historyQuery = useWatchHistory(scope);
     const metadataQuery = useVideoMetadata();
-
-    if (!platformId || !isPlatformId(platformId)) {
-        return <DashboardNotFound />;
-    }
 
     if (historyQuery.isPending || metadataQuery.isPending) return <VideosTableSkeleton />;
 
@@ -35,12 +27,11 @@ export default function PlatformUsage() {
 
     // Merge Watch History and Video Metadata into one Array shape.
     // Filter based on the platform
-    const platform = platformId;
     const rows: VideoRowDetails[] = watchHistory.flatMap(({ day, videos }) => {
         return typedEntries(videos).flatMap(([videoKey, bytes]) => {
             const { platform: videoPlatform, videoTag } = parseVideoKey(videoKey);
 
-            if (videoPlatform !== platformId) return [];
+            if (videoPlatform !== platform) return [];
 
             const videoMetadata = metadata.find((m) => m.videoKey === videoKey);
 
@@ -89,6 +80,37 @@ export default function PlatformUsage() {
             </div>
         </>
     );
+}
+
+export default function PlatformUsage() {
+    const { platformId } = useParams();
+    const [searchParams] = useSearchParams();
+
+    if (!platformId || !isPlatformId(platformId)) {
+        return <DashboardNotFound />;
+    }
+
+    const scope = parseScopeSearch(searchParams);
+    return <PlatformUsageContent platform={platformId} scope={scope} />;
+}
+
+function getScopeLabel(scope: UsageScope): string {
+    if (scope.type === "date") return formatDate(scope.date);
+
+    switch (scope.range) {
+        case "today": {
+            return t("dashboard_today");
+        }
+        case "week": {
+            return t("dashboard_week");
+        }
+        case "month": {
+            return t("dashboard_month");
+        }
+        case "lifetime": {
+            return t("dashboard_lifetime");
+        }
+    }
 }
 
 function getTitle(scope: UsageScope, platform: PlatformId) {

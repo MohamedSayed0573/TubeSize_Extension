@@ -1,4 +1,4 @@
-import { faviconURL, isFirefox, originFaviconURL } from "@lib/utils";
+import { faviconURL, isFirefox, originFaviconURL } from "@lib/browser";
 import { Globe } from "lucide-react";
 import { useState } from "react";
 

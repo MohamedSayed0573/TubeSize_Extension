@@ -1,13 +1,13 @@
 import type { PlatformId, UsageScope } from "@app-types/types";
 import { useWatchHistory } from "@hooks/useWatchHistory";
 import { formatBytes } from "@lib/format";
+import { buildPlatformPath } from "@lib/routes";
 import { capitalize, cn, parseVideoKey, typedEntries } from "@lib/utils";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 
 import { PlatformLogo } from "../platform/platformLogos";
 import { PLATFORM_THEME } from "../platform/platformTheme";
-import { buildPlatformSearch } from "../platform/platformUtils";
 
 export default function PlatformCards({ scope }: { scope: UsageScope }) {
     const { data: history, isPending } = useWatchHistory(scope);
@@ -24,7 +24,6 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
 
     if (platformToBytes.size === 0) return null;
 
-    const search = buildPlatformSearch(scope);
     const entries = [...platformToBytes].toSorted(([, a], [, b]) => b - a);
 
     return (
@@ -35,7 +34,7 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
                 return (
                     <Link
                         key={platform}
-                        to={`/platform/${platform}${search}`}
+                        to={buildPlatformPath(platform, scope)}
                         className={cn(
                             "group flex w-full items-center gap-3 rounded-xl border border-l-6 border-neutral-800 bg-neutral-900 py-3 pr-3 pl-2 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-neutral-800/80 sm:w-[340px] sm:flex-none",
                             PLATFORM_THEME[platform].card,

@@ -1,10 +1,11 @@
 import type { DateKey } from "@app-types/types";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@components/ui/chart";
-import { parseDateKey } from "@lib/dateUtils";
+import { parseDateKey, toDateKey } from "@lib/dateUtils";
 import { sumBySite, type SiteUsageTotal } from "@lib/domain";
 
 import "@styles/chart.css";
 import { formatBytes } from "@lib/format";
+import { buildDatePath } from "@lib/routes";
 import { getUsageNumber } from "@lib/usage";
 import { useNavigate } from "react-router";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
@@ -157,7 +158,8 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
                                     "date" in payload &&
                                     typeof payload.date === "string"
                                 ) {
-                                    void navigate(`/${payload.date}`);
+                                    const date = toDateKey(payload.date);
+                                    if (date) void navigate(buildDatePath(date));
                                 }
                             }}
                         />

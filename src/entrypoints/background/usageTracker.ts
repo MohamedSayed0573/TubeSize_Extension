@@ -1,6 +1,7 @@
 import type { Origin } from "@app-types/types";
+import { isFirefox } from "@lib/browser";
 import { toOrigin } from "@lib/domain";
-import { getWatchHistoryTarget, isFirefox, toVideoKey } from "@lib/utils";
+import { getWatchHistoryTarget, toVideoKey } from "@lib/utils";
 import {
     recordKickMetadata,
     recordTwitchMetadata,

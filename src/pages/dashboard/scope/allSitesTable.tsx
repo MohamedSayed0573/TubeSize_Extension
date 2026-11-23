@@ -9,9 +9,10 @@ import {
     TableHeader,
     TableRow,
 } from "@components/ui/table";
+import { isFirefox } from "@lib/browser";
 import { sumBySite, type SiteUsageTotal } from "@lib/domain";
 import { formatBytes } from "@lib/format";
-import { isFirefox, typedEntries } from "@lib/utils";
+import { typedEntries } from "@lib/utils";
 import { Globe } from "lucide-react";
 
 import type { SiteUsage } from "@/db";
