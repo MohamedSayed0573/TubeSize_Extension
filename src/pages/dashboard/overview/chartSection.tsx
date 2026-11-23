@@ -5,8 +5,7 @@ import { lazy, Suspense } from "react";
 import { NavLink } from "react-router";
 
 import type { SiteUsage } from "@/db";
-import { getLanguage } from "@/i18n/language";
-import { t } from "@/i18n/t";
+import { t, tPlural } from "@/i18n/t";
 
 import { Chart as ChartDaily } from "../chart/chart";
 import NoUsageData from "../shared/noUsageData";
@@ -88,9 +87,7 @@ export function UsageChartSection({
                             {dayCount}
                         </span>
                         <span className="text-sm text-teal-400/70">
-                            {t(
-                                `dashboard_days_${new Intl.PluralRules(getLanguage()).select(dayCount)}`,
-                            ) || t("dashboard_days_other")}
+                            {tPlural("dashboard_days", dayCount)}
                         </span>
                     </div>
                 </div>

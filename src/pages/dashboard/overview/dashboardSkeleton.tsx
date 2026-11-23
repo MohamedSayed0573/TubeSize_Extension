@@ -1,8 +1,7 @@
 import { Skeleton } from "@components/ui/skeleton";
 import { Link } from "react-router";
 
-import { getLanguage } from "@/i18n/language";
-import { t } from "@/i18n/t";
+import { t, tPlural } from "@/i18n/t";
 
 import ClearUsageButton from "./clearUsageButton";
 import DashboardBanner from "./dashboardBanner";
@@ -49,8 +48,7 @@ function ChartSkeleton() {
                 </span>
                 <span className="flex items-center gap-2 rounded-xl border border-teal-400 px-2 py-1 font-mono text-sm text-teal-400">
                     <Skeleton className="h-4 w-6" />
-                    {t(`dashboard_days_${new Intl.PluralRules(getLanguage()).select(30)}`) ||
-                        t("dashboard_days_other")}
+                    {tPlural("dashboard_days", 30)}
                 </span>
             </div>
 

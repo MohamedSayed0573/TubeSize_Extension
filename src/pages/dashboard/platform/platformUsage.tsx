@@ -7,8 +7,7 @@ import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useParams, useSearchParams } from "react-router";
 
 import { getVideoContentType } from "@/db";
-import { getLanguage } from "@/i18n/language";
-import { t } from "@/i18n/t";
+import { t, tPlural } from "@/i18n/t";
 
 import DashboardNotFound from "../shared/notFound";
 import { PlatformLogo } from "./platformLogos";
@@ -79,10 +78,7 @@ export default function PlatformUsage() {
                         <span className="rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 font-mono text-xs text-stone-400">
                             {rows.length === 0
                                 ? t("dashboard_noVideos")
-                                : t(
-                                      `dashboard_videosCount_${new Intl.PluralRules(getLanguage()).select(rows.length)}`,
-                                      [rows.length],
-                                  ) || t("dashboard_videosCount_other", [rows.length])}
+                                : tPlural("dashboard_videosCount", rows.length, [rows.length])}
                         </span>
                     </div>
                 </div>
