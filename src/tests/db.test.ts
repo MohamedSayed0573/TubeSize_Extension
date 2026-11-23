@@ -17,6 +17,7 @@ import {
     getVideoContentType,
     getVideoMetadata,
     getVideoMetadataByVideoKey,
+    getVideoUrl,
     getWatchHistory,
     getWatchHistoryByDate,
     setAllSiteUsage,
@@ -288,5 +289,51 @@ describe("getVideoContentType", () => {
         expect(getVideoContentType(ytMeta)).toBeUndefined();
         expect(getVideoContentType(twitchLive)).toBe("live");
         expect(getVideoContentType(kickVod)).toBe("vod");
+    });
+});
+
+describe("getVideoUrl", () => {
+    test("returns canonical URL when stored and non-empty, undefined otherwise", () => {
+        const ytMeta: VideoMetadata = {
+            type: "youtube",
+            videoKey: toVideoKey("youtube", "dQw4w9WgXcQ"),
+            videoTag: "dQw4w9WgXcQ",
+            title: "YT",
+            channelName: "Ch",
+            channelUrl: "https://youtube.com/@ch",
+            thumbnailUrl: "",
+        };
+        const twitchLive: VideoMetadata = {
+            type: "twitch",
+            videoKey: toVideoKey("twitch", "shroud"),
+            videoTag: "shroud",
+            contentType: "live",
+            title: "Live",
+            channelName: "shroud",
+            channelUrl: "https://twitch.tv/shroud",
+            thumbnailUrl: "",
+            url: "https://twitch.tv/shroud",
+        };
+        const kickVod: VideoMetadata = {
+            type: "kick",
+            videoKey: toVideoKey("kick", "vod-1"),
+            videoTag: "vod-1",
+            contentType: "vod",
+            title: "VOD",
+            channelName: "xqc",
+            channelUrl: "https://kick.com/xqc",
+            thumbnailUrl: "",
+            url: "https://kick.com/xqc/videos/vod-1",
+        };
+        const kickEmptyUrl: VideoMetadata = {
+            ...kickVod,
+            url: "",
+        };
+
+        expect(getVideoUrl(undefined)).toBeUndefined();
+        expect(getVideoUrl(ytMeta)).toBeUndefined();
+        expect(getVideoUrl(twitchLive)).toBe("https://twitch.tv/shroud");
+        expect(getVideoUrl(kickVod)).toBe("https://kick.com/xqc/videos/vod-1");
+        expect(getVideoUrl(kickEmptyUrl)).toBeUndefined();
     });
 });

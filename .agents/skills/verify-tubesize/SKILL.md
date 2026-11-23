@@ -97,7 +97,7 @@ bun run verify screenshot .verify-evidence/<name>.png         # Capture 2x PNG p
 - Popup Advanced View audio switch: `switch "Include audio in sizes"`
 - Popup Changelog Notice dismiss button: `button "Dismiss"` (Arabic: `button "إغلاق"`, inside `<output>`)
 - Settings language combobox: `combobox "Language"` (`#language-select`, options `English` / `العربية`)
-- Settings usage alert: `switch "Enable video usage limit exceeded alert"`, `#toasterThreshold` slider (200–1000; target thumb with `--selector '[data-slot="slider-thumb"]' --nth 1`)
+- Settings usage alert: `switch "Enable video usage limit exceeded alert"`, `#toasterThreshold` slider (200–1000; target thumb with `--selector '[data-slot="slider-thumb"]'`)
 - Settings advanced view: `switch "Enable advanced view"` (CSS fallback: `label[for="advancedViewToggle"] ~ [role="switch"]`)
 - Dashboard chart tabs: `link "By Day"` (`a[href="#/daily"]`), `link "By Site"` (`a[href="#/sites"]`)
 - Dashboard footer actions: `button "Clear All Usage Data"`, `button "Export To JSON"`, `button "Import JSON"`, dialog confirm `button "Continue"`, `button "Cancel"`

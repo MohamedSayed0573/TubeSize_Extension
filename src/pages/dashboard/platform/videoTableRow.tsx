@@ -19,6 +19,7 @@ export interface VideoRowDetails {
     channelName: string | undefined;
     channelUrl: string | undefined;
     contentType?: VideoContentType;
+    url?: string;
     date: DateKey;
 }
 
@@ -31,8 +32,17 @@ export default function VideoTableRow({
     index: number;
     platform: PlatformId;
 }) {
-    const { date, usage, channelUrl, videoTag, contentType } = videoDetails;
-    const url = getPlatformAdapter(platform).videoUrl(videoTag, contentType);
+    const {
+        date,
+        usage,
+        channelName,
+        channelUrl,
+        videoTag,
+        contentType,
+        url: storedUrl,
+    } = videoDetails;
+    const url =
+        storedUrl || getPlatformAdapter(platform).videoUrl(videoTag, contentType, channelName);
 
     const imageUrl = videoDetails.thumbnailUrl || PLATFORM_THEME[platform].placeholderImage;
     const videoTitle = videoDetails.title || platform;

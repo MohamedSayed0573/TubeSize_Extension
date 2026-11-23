@@ -143,6 +143,12 @@ export function isKickVod(url: string): boolean {
     }
 }
 
+const KICK_VIDEO_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isKickVideoUuid(value: string): boolean {
+    return KICK_VIDEO_UUID_REGEX.test(value);
+}
+
 export function extractKickVodId(url: string): string | undefined {
     if (!isKickVod(url)) return;
     try {

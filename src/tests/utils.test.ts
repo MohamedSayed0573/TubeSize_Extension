@@ -379,13 +379,23 @@ describe("domain key helpers", () => {
         expect(isVideoKey("no-colon")).toBe(false);
     });
 
-    test("kickAdapter.videoUrl respects live vs vod contentType", () => {
+    test("kickAdapter.videoUrl builds live and vod URLs cleanly", () => {
         expect(kickAdapter.videoUrl("xqc", "live")).toBe("https://kick.com/xqc");
-        expect(kickAdapter.videoUrl("kick-vod-98231", "vod")).toBe(
-            "https://kick.com/video/kick-vod-98231",
+        expect(kickAdapter.videoUrl("kick-vod-98231", "vod", "xqc")).toBe(
+            "https://kick.com/xqc/videos/kick-vod-98231",
         );
-        expect(kickAdapter.videoUrl("kick-vod-98231")).toBe(
-            "https://kick.com/video/kick-vod-98231",
+        expect(kickAdapter.videoUrl("11111111-2222-3333-4444-555555555555", "vod", "xqc")).toBe(
+            "https://kick.com/xqc/videos/11111111-2222-3333-4444-555555555555",
+        );
+        expect(kickAdapter.videoUrl("11111111-2222-3333-4444-555555555555", "vod")).toBe(
+            "https://kick.com/video/11111111-2222-3333-4444-555555555555",
+        );
+        expect(kickAdapter.videoUrl("xqc")).toBe("https://kick.com/xqc");
+        expect(kickAdapter.videoUrl("11111111-2222-3333-4444-555555555555")).toBe(
+            "https://kick.com/video/11111111-2222-3333-4444-555555555555",
+        );
+        expect(kickAdapter.videoUrl("c7093a5c-demo-vod", undefined, "xqc")).toBe(
+            "https://kick.com/xqc/videos/c7093a5c-demo-vod",
         );
     });
 });

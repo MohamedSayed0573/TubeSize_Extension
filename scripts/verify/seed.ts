@@ -147,7 +147,7 @@ export async function applySeed(target: Worker, mode: SeedMode): Promise<DbSnaps
                     channelUrl: "https://kick.com/xqc",
                     thumbnailUrl: "",
                     contentType: "vod",
-                    url: "https://kick.com/video/kick-vod-98231",
+                    url: "https://kick.com/xqc/videos/kick-vod-98231",
                 },
             ];
 
