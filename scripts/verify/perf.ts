@@ -15,12 +15,12 @@ export interface MetricSummary {
     mean: number;
 }
 
-export interface BundleFileEntry {
+interface BundleFileEntry {
     path: string;
     bytes: number;
 }
 
-export interface BundleBuildReport {
+interface BundleBuildReport {
     dir: string;
     totalBytes: number;
     fileCount: number;
@@ -33,7 +33,7 @@ export interface BundlePerfReport {
     firefox: BundleBuildReport | null;
 }
 
-export interface PopupPerfSample {
+interface PopupPerfSample {
     run: number;
     openToTargetMs: number;
     openToSettledMs: number;
@@ -60,7 +60,7 @@ export interface PopupPerfReport {
     mediaCacheKeysAfter: string[];
 }
 
-export interface DashboardPerfSample {
+interface DashboardPerfSample {
     run: number;
     wallToDataReadyMs: number;
     navToDataReadyMs: number;
@@ -120,7 +120,7 @@ export interface MemoryPerfReport {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-export function summarizeNumbers(raw: number[]): MetricSummary {
+function summarizeNumbers(raw: number[]): MetricSummary {
     const sorted = [...raw].toSorted((a, b) => a - b);
     const n = sorted.length;
     if (n === 0) return { runs: 0, min: 0, median: 0, p95: 0, max: 0, mean: 0 };
