@@ -1,9 +1,16 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
+import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { type BrowserContext, chromium, type Page } from "playwright-core";
+import {
+    type Browser,
+    type BrowserContext,
+    chromium,
+    type Page,
+    type Worker,
+} from "playwright-core";
 
 export interface RuntimeIssue {
     source: "page" | "network";
@@ -98,9 +105,9 @@ export function resolveTargetUrl(
             url: `chrome-extension://${extId}/dashboard.html#/daily`,
             viewport: { width: 1280, height: 800 },
         };
-    if (raw === "sites")
+    if (raw === "sites" || raw === "week" || raw === "month" || raw === "lifetime")
         return {
-            url: `chrome-extension://${extId}/dashboard.html#/sites`,
+            url: `chrome-extension://${extId}/dashboard.html#/${raw}`,
             viewport: { width: 1280, height: 800 },
         };
     if (raw === "today")
@@ -174,14 +181,126 @@ export async function readPageSummary(page: Page): Promise<PageSummary> {
     });
 }
 
+async function getFreePort(): Promise<number> {
+    return await new Promise((res, rej) => {
+        const srv = createServer();
+        srv.once("error", rej);
+        srv.listen(0, "127.0.0.1", () => {
+            const addr = srv.address();
+            const port = typeof addr === "object" && addr ? addr.port : 0;
+            srv.close((err) => (err ? rej(err) : res(port)));
+        });
+    });
+}
+
+const attachedPages = new WeakSet<Page>();
+
+export function attachPageListeners(p: Page, extId: string, issues: RuntimeIssue[]): void {
+    if (attachedPages.has(p)) return;
+    attachedPages.add(p);
+
+    p.on("pageerror", (err) =>
+        issues.push({
+            source: "page",
+            level: "exception",
+            message: err.stack ?? err.message,
+        }),
+    );
+    p.on("console", (m) => {
+        if (m.type() === "error")
+            issues.push({ source: "page", level: "error", message: m.text() });
+    });
+    p.on("requestfailed", (req) => {
+        const err = req.failure()?.errorText ?? "unknown";
+        if (req.url().startsWith(`chrome-extension://${extId}/`) && err !== "net::ERR_ABORTED") {
+            issues.push({
+                source: "network",
+                level: "error",
+                message: `${req.url()}: ${err}`,
+            });
+        }
+    });
+}
+
+/**
+ * Opens the toolbar popup via chrome.action.openPopup() and returns the page it created.
+ * The popup lives in a browser window Playwright's persistent context does not attach to, so it
+ * is discovered over a second CDP connection. Matching is by CDP target id: a regular popup.html
+ * tab (e.g. `start --target popup`) shares the URL and must not be mistaken for the toolbar popup.
+ */
+export async function openToolbarPopup(opts: {
+    mainPage: Page;
+    serviceWorker: Worker;
+    cdpPort: number;
+    extId: string;
+    issues: RuntimeIssue[];
+    timeoutMs?: number;
+}): Promise<{ popupPage: Page; cdpBrowser: Browser; openToTargetMs: number; startedAt: number }> {
+    const cdpUrl = `http://127.0.0.1:${opts.cdpPort}`;
+    const existingTargetIds = await collectPageTargetIds(cdpUrl);
+
+    await opts.mainPage.bringToFront();
+    const startedAt = performance.now();
+    await opts.serviceWorker.evaluate(async () => await chrome.action.openPopup());
+
+    const popupUrlPrefix = `chrome-extension://${opts.extId}/popup.html`;
+    const deadline = Date.now() + (opts.timeoutMs ?? 5000);
+    while (Date.now() < deadline) {
+        await Bun.sleep(50);
+        const candidate = await chromium.connectOverCDP(cdpUrl);
+        for (const page of candidate.contexts().flatMap((c) => c.pages())) {
+            if (!page.url().startsWith(popupUrlPrefix)) continue;
+            if (existingTargetIds.has(await readPageTargetId(page))) continue;
+            attachPageListeners(page, opts.extId, opts.issues);
+            return {
+                popupPage: page,
+                cdpBrowser: candidate,
+                openToTargetMs: performance.now() - startedAt,
+                startedAt,
+            };
+        }
+        await candidate.close().catch(() => {});
+    }
+    throw new Error("Timed out waiting for extension popup target.");
+}
+
+/** Target ids of every open page, so a popup opened later can be told apart from them. */
+async function collectPageTargetIds(cdpUrl: string): Promise<Set<string>> {
+    const browser = await chromium.connectOverCDP(cdpUrl);
+    try {
+        const ids = await Promise.all(
+            browser
+                .contexts()
+                .flatMap((c) => c.pages())
+                .map(readPageTargetId),
+        );
+        return new Set(ids);
+    } finally {
+        await browser.close().catch(() => {});
+    }
+}
+
+async function readPageTargetId(page: Page): Promise<string> {
+    const session = await page.context().newCDPSession(page);
+    try {
+        const { targetInfo } = await session.send("Target.getTargetInfo");
+        return targetInfo.targetId;
+    } finally {
+        await session.detach().catch(() => {});
+    }
+}
+
 export async function launchExtension(
     extDir: string,
     timeoutMs = 30_000,
+    options?: { enableCdp?: boolean },
 ): Promise<{
     extId: string;
     profileDir: string;
     context: BrowserContext;
     page: Page;
+    serviceWorker: Worker;
+    cdpPort?: number;
     issues: RuntimeIssue[];
     close: () => Promise<void>;
 }> {
@@ -197,12 +316,14 @@ export async function launchExtension(
             ? "/tmp"
             : tmpdir();
     const profileDir = mkdtempSync(join(safeTmp, "ts-verify-"));
+    const cdpPort = options?.enableCdp ? await getFreePort() : undefined;
 
     const context = await chromium.launchPersistentContext(profileDir, {
         executablePath: chromePath,
         headless: false,
         args: [
             "--headless=new",
+            ...(cdpPort ? [`--remote-debugging-port=${cdpPort}`] : []),
             `--disable-extensions-except=${absExt}`,
             `--load-extension=${absExt}`,
             "--no-first-run",
@@ -229,46 +350,20 @@ export async function launchExtension(
 
     try {
         const workerUrl = `chrome-extension://${extId}/background.js`;
-        if (!context.serviceWorkers().some((w) => w.url() === workerUrl)) {
-            await context.waitForEvent("serviceworker", {
+        const serviceWorker =
+            context.serviceWorkers().find((w) => w.url() === workerUrl) ??
+            (await context.waitForEvent("serviceworker", {
                 predicate: (w) => w.url() === workerUrl,
                 timeout: timeoutMs,
-            });
-        }
+            }));
 
         const issues: RuntimeIssue[] = [];
-        const attach = (p: Page) => {
-            p.on("pageerror", (err) =>
-                issues.push({
-                    source: "page",
-                    level: "exception",
-                    message: err.stack ?? err.message,
-                }),
-            );
-            p.on("console", (m) => {
-                if (m.type() === "error")
-                    issues.push({ source: "page", level: "error", message: m.text() });
-            });
-            p.on("requestfailed", (req) => {
-                const err = req.failure()?.errorText ?? "unknown";
-                if (
-                    req.url().startsWith(`chrome-extension://${extId}/`) &&
-                    err !== "net::ERR_ABORTED"
-                ) {
-                    issues.push({
-                        source: "network",
-                        level: "error",
-                        message: `${req.url()}: ${err}`,
-                    });
-                }
-            });
-        };
         // Track every tab (e.g. dashboard opened via chrome.tabs.create from the popup).
-        for (const p of context.pages()) attach(p);
-        context.on("page", attach);
+        for (const p of context.pages()) attachPageListeners(p, extId, issues);
+        context.on("page", (p) => attachPageListeners(p, extId, issues));
         const page = context.pages()[0] ?? (await context.newPage());
 
-        return { extId, profileDir, context, page, issues, close };
+        return { extId, profileDir, context, page, serviceWorker, cdpPort, issues, close };
     } catch (err) {
         await close();
         throw err;

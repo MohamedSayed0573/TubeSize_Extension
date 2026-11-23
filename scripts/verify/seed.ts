@@ -1,7 +1,7 @@
-/* oxlint-disable unicorn/consistent-function-scoping -- serialized into Playwright page.evaluate */
-import type { Page } from "playwright-core";
+/* oxlint-disable unicorn/consistent-function-scoping -- serialized into Playwright Worker.evaluate */
+import type { Worker } from "playwright-core";
 
-export type SeedMode = "full" | "empty";
+export type SeedMode = "full" | "heavy" | "empty";
 
 export interface DbSnapshot {
     siteUsageDays: number;
@@ -9,12 +9,17 @@ export interface DbSnapshot {
     videoMetaCount: number;
     latestDay: string | null;
     totalBytes: number;
+    /** All-time bytes per site, used to predict whether the Sites chart has visible bars. */
+    siteTotals: Record<string, number>;
+    todayUsage: Record<string, number>;
+    todayWatchHistory: Record<string, number>;
+    videoMetaKeys: string[];
 }
 
-export async function applySeed(page: Page, mode: SeedMode): Promise<DbSnapshot> {
-    return await page.evaluate(async (seedMode: SeedMode): Promise<DbSnapshot> => {
+export async function applySeed(target: Worker, mode: SeedMode): Promise<DbSnapshot> {
+    return await target.evaluate(async (seedMode: SeedMode): Promise<DbSnapshot> => {
         const DB_NAME = "TubeSize";
-        const MB = 1024 * 1024;
+        const MB = 1_000_000;
         let s = 0x54756265;
         const rand = (min: number, max: number) => {
             s = (s + 0x6d2b79f5) | 0;
@@ -74,6 +79,10 @@ export async function applySeed(page: Page, mode: SeedMode): Promise<DbSnapshot>
                     videoMetaCount: 0,
                     latestDay: null,
                     totalBytes: 0,
+                    siteTotals: {},
+                    todayUsage: {},
+                    todayWatchHistory: {},
+                    videoMetaKeys: [],
                 };
             }
 
@@ -142,11 +151,27 @@ export async function applySeed(page: Page, mode: SeedMode): Promise<DbSnapshot>
                 },
             ];
 
+            const totalDays = seedMode === "heavy" ? 90 : 14;
+            if (seedMode === "heavy") {
+                for (let idx = 4; idx <= 27; idx++) {
+                    const tag = `heavyVid${String(idx).padStart(3, "0")}`;
+                    meta.push({
+                        videoKey: `youtube:${tag}`,
+                        type: "youtube",
+                        videoTag: tag,
+                        title: `Heavy Benchmark Video #${idx}`,
+                        channelName: `Channel ${idx % 6}`,
+                        channelUrl: `https://www.youtube.com/@channel${idx % 6}`,
+                        thumbnailUrl: "",
+                    });
+                }
+            }
+
             const siteRows: Array<{ day: string; usage: Record<string, number> }> = [];
             const historyRows: Array<{ day: string; videos: Record<string, number> }> = [];
             let totalBytes = 0;
 
-            for (let ago = 13; ago >= 0; ago--) {
+            for (let ago = totalDays - 1; ago >= 0; ago--) {
                 const d = new Date();
                 d.setDate(d.getDate() - ago);
                 const day = dayStr(d);
@@ -154,12 +179,16 @@ export async function applySeed(page: Page, mode: SeedMode): Promise<DbSnapshot>
                 const twB = rand(120 * MB, 650 * MB);
                 const kkB = rand(60 * MB, 300 * MB);
                 const ghB = rand(15 * MB, 90 * MB);
+                const driveB = rand(10 * MB, 45 * MB);
+                const mailB = rand(5 * MB, 20 * MB);
                 const usage = {
                     "https://www.youtube.com": ytB,
                     "https://m.youtube.com": Math.round(ytB * 0.08),
                     "https://www.twitch.tv": twB,
                     "https://www.kick.com": kkB,
                     "https://github.com": ghB,
+                    "https://drive.google.com": driveB,
+                    "https://mail.google.com": mailB,
                 };
                 totalBytes += Object.values(usage).reduce((a, b) => a + b, 0);
                 const v = yt[ago % yt.length]!;
@@ -185,12 +214,27 @@ export async function applySeed(page: Page, mode: SeedMode): Promise<DbSnapshot>
             await putAll("watchHistory", historyRows);
             await putAll("videoMetaData", meta);
 
+            const todayKey = dayStr(new Date());
+            const todaySite = siteRows.find((r) => r.day === todayKey);
+            const todayHist = historyRows.find((r) => r.day === todayKey);
+
+            const siteTotals: Record<string, number> = {};
+            for (const { usage } of siteRows) {
+                for (const [site, bytes] of Object.entries(usage)) {
+                    siteTotals[site] = (siteTotals[site] ?? 0) + bytes;
+                }
+            }
+
             return {
                 siteUsageDays: siteRows.length,
                 watchHistoryDays: historyRows.length,
                 videoMetaCount: meta.length,
                 latestDay: siteRows.at(-1)?.day ?? null,
                 totalBytes,
+                siteTotals,
+                todayUsage: todaySite?.usage ?? {},
+                todayWatchHistory: todayHist?.videos ?? {},
+                videoMetaKeys: meta.map((m) => m.videoKey),
             };
         } finally {
             db.close();
@@ -198,8 +242,9 @@ export async function applySeed(page: Page, mode: SeedMode): Promise<DbSnapshot>
     }, mode);
 }
 
-export async function inspectDb(page: Page): Promise<DbSnapshot> {
-    return await page.evaluate(async (): Promise<DbSnapshot> => {
+export async function inspectDb(target: Worker): Promise<DbSnapshot> {
+    return await target.evaluate(async (): Promise<DbSnapshot> => {
+        const dayStr = (d: Date) => new Intl.DateTimeFormat("en-CA").format(d);
         const reqDone = <T>(r: IDBRequest<T>) =>
             new Promise<T>((res, rej) => {
                 r.addEventListener("success", () => res(r.result), { once: true });
@@ -214,6 +259,10 @@ export async function inspectDb(page: Page): Promise<DbSnapshot> {
                     videoMetaCount: 0,
                     latestDay: null,
                     totalBytes: 0,
+                    siteTotals: {},
+                    todayUsage: {},
+                    todayWatchHistory: {},
+                    videoMetaKeys: [],
                 };
             }
             const tx = db.transaction(["siteUsage", "watchHistory", "videoMetaData"], "readonly");
@@ -221,20 +270,32 @@ export async function inspectDb(page: Page): Promise<DbSnapshot> {
                 reqDone<Array<{ day: string; usage: Record<string, number> }>>(
                     tx.objectStore("siteUsage").getAll(),
                 ),
-                reqDone<unknown[]>(tx.objectStore("watchHistory").getAll()),
-                reqDone<unknown[]>(tx.objectStore("videoMetaData").getAll()),
+                reqDone<Array<{ day: string; videos: Record<string, number> }>>(
+                    tx.objectStore("watchHistory").getAll(),
+                ),
+                reqDone<Array<{ videoKey: string }>>(tx.objectStore("videoMetaData").getAll()),
             ]);
             const days = sites.map((r) => r.day).sort();
-            const totalBytes = sites.reduce(
-                (s, r) => s + Object.values(r.usage ?? {}).reduce((a, b) => a + b, 0),
-                0,
-            );
+            const siteTotals: Record<string, number> = {};
+            for (const { usage } of sites) {
+                for (const [site, bytes] of Object.entries(usage ?? {})) {
+                    siteTotals[site] = (siteTotals[site] ?? 0) + bytes;
+                }
+            }
+            const totalBytes = Object.values(siteTotals).reduce((a, b) => a + b, 0);
+            const todayKey = dayStr(new Date());
+            const todaySite = sites.find((r) => r.day === todayKey);
+            const todayHist = hist.find((r) => r.day === todayKey);
             return {
                 siteUsageDays: sites.length,
                 watchHistoryDays: hist.length,
                 videoMetaCount: meta.length,
                 latestDay: days.at(-1) ?? null,
                 totalBytes,
+                siteTotals,
+                todayUsage: todaySite?.usage ?? {},
+                todayWatchHistory: todayHist?.videos ?? {},
+                videoMetaKeys: meta.map((m) => m.videoKey),
             };
         } finally {
             db.close();
