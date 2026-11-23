@@ -6,7 +6,7 @@ import { storage } from "@wxt-dev/storage";
 
 const validYoutubeData: YoutubeData = {
     platform: "youtube",
-    type: "video",
+    type: "vod",
     title: "Test video",
     durationSeconds: 100,
     thumbnailUrl: undefined,
@@ -14,7 +14,7 @@ const validYoutubeData: YoutubeData = {
     channelUrl: undefined,
     formats: [
         {
-            type: "video",
+            type: "vod",
             formatId: 399,
             height: 1080,
             sizeBytes: 1_000_000,
@@ -61,5 +61,16 @@ describe("storageService media cache", () => {
 
         expect(await getMediaCache("youtube", "legacy12345")).toBeNull();
         expect(await storage.getItem("local:youtube:legacy12345")).toBeNull();
+    });
+
+    test("drops legacy YouTube cache entries using type 'video'", async () => {
+        await storage.setItem("local:youtube:legacyVid01", {
+            data: { ...validYoutubeData, type: "video" },
+            expiry: Date.now() + 60_000,
+            createdAt: "2026-01-01",
+        });
+
+        expect(await getMediaCache("youtube", "legacyVid01")).toBeNull();
+        expect(await storage.getItem("local:youtube:legacyVid01")).toBeNull();
     });
 });

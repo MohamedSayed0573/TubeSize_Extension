@@ -18,9 +18,16 @@ export {
     isTwitchLive,
     isTwitchPage,
     isTwitchVod,
+    isVideoKey,
     isYoutubePage,
+    parseVideoKey,
     toVideoKey,
 } from "./platformUrl";
+
+/** Typed wrapper around `Object.entries` that preserves branded record keys. */
+export function typedEntries<K extends string, V>(record: Readonly<Record<K, V>>): Array<[K, V]> {
+    return Object.entries(record) as Array<[K, V]>;
+}
 
 type FetchResponse = { success: true; response: Response } | { success: false; error: Error };
 export async function fetchAndRetry(

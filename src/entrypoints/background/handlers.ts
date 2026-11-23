@@ -13,14 +13,18 @@ import type {
     AddWatchHistoryMessage,
     KickLiveMessage,
     KickVodMessage,
+    Origin,
     TwitchLiveMessage,
     TwitchVodMessage,
+    VideoKey,
     YoutubeMessage,
 } from "@app-types/types";
 import CONFIG from "@lib/constants";
+import { toOrigin } from "@lib/domain";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
 import { getMediaCache, saveMediaCache } from "@lib/storageService";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
+import { toVideoKey } from "@lib/utils";
 import {
     extractYtInitialResponse,
     getThumbnailUrl,
@@ -43,12 +47,15 @@ export async function handleAddUsage(
         const tabUrl = sender.tab?.url;
         if (!tabUrl) throw new Error("No origin in handleAddUsage");
 
-        const origin = new URL(tabUrl).origin;
+        const origin = toOrigin(tabUrl);
+        if (!origin) throw new Error("Invalid origin in handleAddUsage");
 
         const { bytes } = message;
         if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
 
-        await addSiteUsage({ [origin]: bytes });
+        const siteUsage: Record<Origin, number> = {};
+        siteUsage[origin] = bytes;
+        await addSiteUsage(siteUsage);
 
         await refreshUsageBadge();
 
@@ -66,9 +73,11 @@ export async function handleAddWatchHistory(
         const { bytes, platform, videoId } = message;
         if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
 
-        const videoKey = `${platform}:${videoId}`;
+        const videoKey = toVideoKey(platform, videoId);
+        const watchHistory: Record<VideoKey, number> = {};
+        watchHistory[videoKey] = bytes;
 
-        await addWatchHistory({ [videoKey]: bytes });
+        await addWatchHistory(watchHistory);
         return { success: true, data: null };
     } catch (err) {
         console.error(err);
@@ -182,7 +191,7 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
             );
             data = {
                 ...baseData,
-                type: "video" as const,
+                type: "vod" as const,
                 durationSeconds: Number(videoDetails.lengthSeconds),
                 formats,
                 audio,

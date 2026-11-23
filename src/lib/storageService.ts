@@ -32,7 +32,7 @@ function isPositiveFinite(value: number): boolean {
 function isCacheable(data: PlatformData): boolean {
     switch (data.platform) {
         case "youtube": {
-            if (data.type === "video") {
+            if (data.type === "vod") {
                 return (
                     data.formats.length > 0 &&
                     data.formats.every(
@@ -60,10 +60,19 @@ function isCacheable(data: PlatformData): boolean {
     }
 }
 
+function isValidCachedPlatformData<T extends PlatformId>(
+    target: T,
+    data: unknown,
+): data is PlatformDataMap[T] {
+    if (typeof data !== "object" || data === null) return false;
+    const candidate = data as { platform?: unknown; type?: unknown };
+    return candidate.platform === target && (candidate.type === "vod" || candidate.type === "live");
+}
+
 /**
  * Read a cached media response for `target` from local storage, deleting it when
- * expired or missing the platform discriminant (legacy cache entries). The
- * returned data type is inferred from the target platform.
+ * expired or matching a legacy cache shape (missing `platform` or legacy YouTube
+ * `type: "video"`). The returned data type is inferred from the target platform.
  *
  * @returns `null` when the entry is missing, expired, or invalid.
  */
@@ -76,12 +85,7 @@ export async function getMediaCache<T extends PlatformId>(
 
     if (!cached) return null;
 
-    if (
-        !isFresh(cached) ||
-        typeof cached.data !== "object" ||
-        cached.data === null ||
-        cached.data.platform !== target
-    ) {
+    if (!isFresh(cached) || !isValidCachedPlatformData(target, cached.data)) {
         await item.removeValue();
         return null;
     }

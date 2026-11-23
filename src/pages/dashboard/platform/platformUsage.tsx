@@ -1,7 +1,7 @@
 import type { PlatformId, UsageScope } from "@app-types/types";
 import { useVideoMetadata } from "@hooks/useVideoMetadata";
 import { useWatchHistory } from "@hooks/useWatchHistory";
-import { capitalize, isPlatformId } from "@lib/utils";
+import { capitalize, isPlatformId, parseVideoKey, typedEntries } from "@lib/utils";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useParams, useSearchParams } from "react-router";
@@ -11,7 +11,7 @@ import { t, tPlural } from "@/i18n/t";
 
 import DashboardNotFound from "../shared/notFound";
 import { PlatformLogo } from "./platformLogos";
-import { getScopeLabel, parseUsageScope, parseVideoKey } from "./platformUtils";
+import { getScopeLabel, parseUsageScope } from "./platformUtils";
 import VideosTable, { type VideoRowDetails } from "./videosTable";
 import VideosTableSkeleton from "./videosTableSkeleton";
 
@@ -41,7 +41,7 @@ export default function PlatformUsage() {
     // Filter based on the platform
     const platform = platformId;
     const rows: VideoRowDetails[] = watchHistory.flatMap(({ day, videos }) => {
-        return Object.entries(videos).flatMap(([videoKey, bytes]) => {
+        return typedEntries(videos).flatMap(([videoKey, bytes]) => {
             const { platform: videoPlatform, videoTag } = parseVideoKey(videoKey);
 
             if (videoPlatform !== platformId) return [];

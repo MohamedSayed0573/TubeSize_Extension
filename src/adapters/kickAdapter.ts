@@ -10,7 +10,7 @@ import {
 import { sendMessage } from "@/messaging";
 import type { KickData } from "@/types/platforms.types";
 
-import type { DisplayFormat, HeaderViewData, PlatformAdapter } from "./types";
+import type { DisplayFormat, HeaderViewData, PlatformAdapter, VideoContentType } from "./types";
 
 async function loadKickData(tabUrl: string): Promise<KickData> {
     // The page is a Kick Video (Not a live stream)
@@ -84,8 +84,10 @@ function kickHeader(kick: KickData): HeaderViewData {
     };
 }
 
-function kickVideoUrl(videoTag: string): string {
-    return `https://kick.com/video/${videoTag}`;
+function kickVideoUrl(videoTag: string, contentType?: VideoContentType): string {
+    return contentType === "live"
+        ? `https://kick.com/${videoTag}`
+        : `https://kick.com/video/${videoTag}`;
 }
 
 export const kickAdapter = {

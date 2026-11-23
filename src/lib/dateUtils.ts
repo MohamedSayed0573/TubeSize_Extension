@@ -16,7 +16,11 @@ export function getLastNDays(n: number): DateKey[] {
  */
 export function getDateKey(date?: Date): DateKey {
     // en-CA formats as YYYY-MM-DD
-    return new Intl.DateTimeFormat("en-CA").format(date ?? new Date()) as DateKey;
+    const formatted = new Intl.DateTimeFormat("en-CA").format(date ?? new Date());
+    if (!isValidDateKey(formatted)) {
+        throw new Error(`Invalid formatted date key: ${formatted}`);
+    }
+    return formatted;
 }
 
 export function parseDateKey(dateKey: DateKey): Date {
@@ -24,7 +28,7 @@ export function parseDateKey(dateKey: DateKey): Date {
     return Number.isNaN(d.getTime()) ? new Date(dateKey) : d;
 }
 
-export function isValidDateKey(value: string): boolean {
+export function isValidDateKey(value: string): value is DateKey {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
         return false;
     }
@@ -38,4 +42,8 @@ export function isValidDateKey(value: string): boolean {
 
     // If value is 2022-02-34, new Date() will normalize them instead of rejecting them. So we need to check manually
     return date.getFullYear() === year && date.getMonth() + 1 === month && date.getDate() === day;
+}
+
+export function toDateKey(value: string): DateKey | undefined {
+    return isValidDateKey(value) ? value : undefined;
 }

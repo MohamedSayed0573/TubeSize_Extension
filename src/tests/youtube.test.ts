@@ -62,7 +62,7 @@ describe("handleYoutube", () => {
 
         expect(response.success).toBe(true);
         if (!response.success) return;
-        expect(response.data.type).toBe("video");
+        expect(response.data.type).toBe("vod");
         expect(response.data.title).toBe("How does Claude Code *actually* work?");
         expect(response.data.channelName).toBe("Theo - t3․gg");
         expect(response.data.audio).toEqual(audio);
@@ -93,7 +93,7 @@ describe("parseVideoFormats", () => {
 
         expect(formats).toEqual([
             {
-                type: "video",
+                type: "vod",
                 formatId: 313,
                 height: 2160,
                 sizeBytes: 822_865_098,
@@ -106,7 +106,7 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "video",
+                type: "vod",
                 formatId: 271,
                 height: 1440,
                 sizeBytes: 227_437_649,
@@ -119,7 +119,7 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "video",
+                type: "vod",
                 formatId: 399,
                 height: 1080,
                 sizeBytes: 61_110_728,
@@ -133,7 +133,7 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "video",
+                type: "vod",
                 formatId: 398,
                 height: 720,
                 sizeBytes: 37_711_462,
@@ -147,7 +147,7 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "video",
+                type: "vod",
                 formatId: 397,
                 height: 480,
                 sizeBytes: 23_619_463,
@@ -161,7 +161,7 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "video",
+                type: "vod",
                 formatId: 396,
                 height: 360,
                 sizeBytes: 14_971_393,
@@ -175,7 +175,7 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "video",
+                type: "vod",
                 formatId: 395,
                 height: 240,
                 sizeBytes: 8_876_312,
@@ -189,7 +189,7 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "video",
+                type: "vod",
                 formatId: 394,
                 height: 144,
                 sizeBytes: 7_818_748,
@@ -287,7 +287,7 @@ describe("parseLiveFormats", () => {
 describe("youtubeAdapter.formats", () => {
     const vodData: YoutubeData = {
         platform: "youtube",
-        type: "video",
+        type: "vod",
         title: "Test video",
         durationSeconds: 1000,
         thumbnailUrl: undefined,
@@ -295,7 +295,7 @@ describe("youtubeAdapter.formats", () => {
         channelUrl: undefined,
         formats: [
             {
-                type: "video",
+                type: "vod",
                 formatId: 399,
                 height: 1080,
                 sizeBytes: 1_500_000,

@@ -1,31 +1,32 @@
+import type { Origin, VideoKey } from "@app-types/types";
+import { typedEntries } from "@lib/utils";
+
 /**
  * Byte accumulators for the current flush window.
  *
  * `chrome.webRequest.onCompleted` fires for every request, so counts are kept in
  * memory and written to IndexedDB in batches by usageTracker.ts.
  */
-type BytesByKey = Record<string, number>;
-
 export interface UsageSnapshot {
-    origins: BytesByKey;
-    videos: BytesByKey;
+    origins: Record<Origin, number>;
+    videos: Record<VideoKey, number>;
 }
 
 export class UsageBuffer {
-    private origins: BytesByKey = {};
-    private videos: BytesByKey = {};
+    private origins: Record<Origin, number> = {};
+    private videos: Record<VideoKey, number> = {};
 
     /**
      * Adds `bytes` to the running total for a page origin.
      */
-    addOrigin(origin: string, bytes: number) {
+    addOrigin(origin: Origin, bytes: number) {
         this.origins[origin] = (this.origins[origin] ?? 0) + bytes;
     }
 
     /**
      * Adds `bytes` to the running total for a `<platform>:<id>` video key.
      */
-    addVideo(videoKey: string, bytes: number) {
+    addVideo(videoKey: VideoKey, bytes: number) {
         this.videos[videoKey] = (this.videos[videoKey] ?? 0) + bytes;
     }
 
@@ -50,11 +51,11 @@ export class UsageBuffer {
      * the failed flush was in flight.
      */
     restore(snapshot: UsageSnapshot) {
-        for (const [origin, bytes] of Object.entries(snapshot.origins)) {
+        for (const [origin, bytes] of typedEntries(snapshot.origins)) {
             this.origins[origin] = (this.origins[origin] ?? 0) + bytes;
         }
 
-        for (const [videoKey, bytes] of Object.entries(snapshot.videos)) {
+        for (const [videoKey, bytes] of typedEntries(snapshot.videos)) {
             this.videos[videoKey] = (this.videos[videoKey] ?? 0) + bytes;
         }
     }

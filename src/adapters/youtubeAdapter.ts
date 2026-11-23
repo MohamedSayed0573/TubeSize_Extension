@@ -27,7 +27,7 @@ async function loadYoutubeData(tabUrl: string, tabId: number) {
         throw new Error("No video formats found for this video");
     }
 
-    if (response.data.type === "video" && isShortsVideo(tabUrl)) {
+    if (response.data.type === "vod" && isShortsVideo(tabUrl)) {
         response.data.isShorts = true;
     }
 
@@ -48,7 +48,7 @@ function youtubeFormats(youtube: YoutubeData, options?: FormatOptions): DisplayF
     const audioSizeBytes = audio?.sizeBytes ?? 0;
     const audioBytesPerSecond = audio?.bytesPerSecond ?? 0;
 
-    if (youtube.type === "video") {
+    if (youtube.type === "vod") {
         return youtube.formats.map((format) => ({
             kind: "vod",
             key: format.formatId,
@@ -85,11 +85,11 @@ function youtubeHeader(youtube: YoutubeData): HeaderViewData {
 
     return {
         title:
-            youtube.type === "video"
+            youtube.type === "vod"
                 ? youtube.title || t("popup_youtubeVideo")
                 : youtube.channelName || t("popup_youtubeLive"),
         duration:
-            youtube.type === "video"
+            youtube.type === "vod"
                 ? humanizeDuration(youtube.durationSeconds * 1000, language)
                 : undefined,
     };

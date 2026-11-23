@@ -1,5 +1,6 @@
-import type { DateKey, PlatformId, UsageScope } from "@app-types/types";
+import type { UsageScope } from "@app-types/types";
 import CONFIG from "@lib/constants";
+import { isValidDateKey } from "@lib/dateUtils";
 import { formatDate } from "@lib/format";
 
 import { t } from "@/i18n/t";
@@ -10,7 +11,7 @@ export function buildPlatformSearch(scope: UsageScope): string {
 
 export function parseUsageScope(searchParams: URLSearchParams): UsageScope {
     const date = searchParams.get("date");
-    if (date) return { type: "date", date: date as DateKey };
+    if (date && isValidDateKey(date)) return { type: "date", date };
 
     const rangeParam = searchParams.get("range");
     const range = CONFIG.RANGES.find((r) => r === rangeParam) ?? "lifetime";
@@ -34,10 +35,4 @@ export function getScopeLabel(scope: UsageScope): string {
             return t("dashboard_lifetime");
         }
     }
-}
-
-export function parseVideoKey(videoKey: string) {
-    const platform = videoKey.split(":").at(0)! as PlatformId;
-    const videoTag = videoKey.split(":").at(1)!;
-    return { platform, videoTag };
 }

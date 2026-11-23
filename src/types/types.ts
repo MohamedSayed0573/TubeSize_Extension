@@ -6,6 +6,16 @@ type Prettify<T> = {
     [K in keyof T]: T[K];
 } & {};
 
+type Brand<T, Name extends string> = T & { readonly __brand: Name };
+
+export type Origin = Brand<string, "Origin">;
+export type SiteKey = Brand<string, "SiteKey">;
+export type VideoKey = Brand<`${PlatformId}:${string}`, "VideoKey">;
+export type DateKey = Brand<
+    `${number}${number}${number}${number}-${number}${number}-${number}${number}`,
+    "DateKey"
+>;
+
 export type StorageData<T extends PlatformData> = {
     data: T;
     expiry?: number;
@@ -73,5 +83,3 @@ export type PlatformId = (typeof CONFIG.PLATFORMS)[number];
 export type UsageRange = (typeof CONFIG.RANGES)[number];
 
 export type UsageScope = { type: "date"; date: DateKey } | { type: "range"; range: UsageRange };
-
-export type DateKey = `${number}${number}${number}${number}-${number}${number}-${number}${number}`;

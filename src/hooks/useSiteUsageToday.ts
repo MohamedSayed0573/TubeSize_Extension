@@ -1,9 +1,10 @@
+import type { SiteKey } from "@app-types/types";
 import { sumBySite } from "@lib/domain";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { getSiteUsage } from "@/db";
 
-export function useSiteUsageToday(siteKey: string | undefined) {
+export function useSiteUsageToday(siteKey: SiteKey | undefined) {
     return useLiveQuery(async () => {
         if (!siteKey) return;
 
