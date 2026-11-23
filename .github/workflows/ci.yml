@@ -47,3 +47,27 @@ jobs:
 
             - name: Build Firefox
               run: bun run build:firefox
+
+            - name: Get Playwright version
+              id: playwright-version
+              run: echo "version=$(node -p "require('./node_modules/playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+
+            - name: Cache Playwright Chromium
+              id: playwright-cache
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/ms-playwright
+                  key: playwright-chromium-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+            - name: Install Playwright Chromium
+              if: steps.playwright-cache.outputs.cache-hit != 'true'
+              run: bunx playwright-core install chromium --no-shell --with-deps
+
+            - name: Install Playwright Chromium system deps
+              if: steps.playwright-cache.outputs.cache-hit == 'true'
+              run: bunx playwright-core install-deps chromium
+
+            - name: Verify MV3 Boot (Doctor)
+              env:
+                  TMPDIR: /tmp
+              run: bun run verify doctor

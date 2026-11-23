@@ -7,13 +7,14 @@ import { join, resolve } from "node:path";
 import {
     type Browser,
     type BrowserContext,
+    type CDPSession,
     chromium,
     type Page,
     type Worker,
 } from "playwright-core";
 
 export interface RuntimeIssue {
-    source: "page" | "network";
+    source: "page" | "network" | "service-worker";
     level: "error" | "exception";
     message: string;
 }
@@ -222,6 +223,318 @@ export function attachPageListeners(p: Page, extId: string, issues: RuntimeIssue
     });
 }
 
+interface CdpRemoteObject {
+    type?: string;
+    subtype?: string;
+    value?: unknown;
+    unserializableValue?: string;
+    description?: string;
+    preview?: {
+        description?: string;
+        properties?: Array<{ name: string; value?: string; type?: string }>;
+        overflow?: boolean;
+    };
+}
+
+interface CdpExceptionDetails {
+    text?: string;
+    url?: string;
+    lineNumber?: number;
+    columnNumber?: number;
+    exception?: CdpRemoteObject;
+}
+
+interface CdpTargetMessage {
+    id?: number;
+    method?: string;
+    error?: {
+        code?: number;
+        message?: string;
+    };
+    params?: {
+        type?: string;
+        args?: CdpRemoteObject[];
+        exceptionDetails?: CdpExceptionDetails;
+    };
+}
+
+function formatCdpRemoteObject(obj: CdpRemoteObject): string {
+    if (typeof obj.description === "string" && obj.description.length > 0) {
+        if (
+            obj.type === "object" &&
+            obj.subtype !== "error" &&
+            obj.preview?.properties &&
+            obj.preview.properties.length > 0
+        ) {
+            const props = obj.preview.properties
+                .map((p) => `${p.name}: ${p.value ?? p.type ?? ""}`)
+                .join(", ");
+            return `{${props}${obj.preview.overflow ? ", …" : ""}}`;
+        }
+        return obj.description;
+    }
+    if (typeof obj.unserializableValue === "string") return obj.unserializableValue;
+    if ("value" in obj) return String(obj.value);
+    return obj.type ?? "unknown";
+}
+
+function formatCdpException(details: CdpExceptionDetails | undefined): string {
+    if (!details) return "Uncaught service worker exception";
+    const prefix = details.text?.trim() || "Uncaught";
+    if (details.exception) {
+        const detail = formatCdpRemoteObject(details.exception);
+        if (detail && detail !== prefix) {
+            return `${prefix}: ${detail}`;
+        }
+    }
+    const loc =
+        details.url !== undefined
+            ? ` (${details.url}:${(details.lineNumber ?? 0) + 1}:${(details.columnNumber ?? 0) + 1})`
+            : "";
+    return `${prefix}${loc}`;
+}
+
+function formatCdpConsoleArgs(args: CdpRemoteObject[] | undefined): string {
+    if (!args || args.length === 0) return "console.error()";
+    return args.map(formatCdpRemoteObject).join(" ");
+}
+
+interface ServiceWorkerMonitor {
+    attachExisting: () => Promise<void>;
+    detach: () => Promise<void>;
+}
+
+/**
+ * Captures MV3 service-worker uncaught exceptions, unhandled promise rejections, and
+ * `console.error` calls via a browser-level CDP session (since Playwright's `Worker` and
+ * `BrowserContext` `weberror` events do not surface MV3 service-worker exceptions).
+ */
+async function createServiceWorkerMonitor(
+    context: BrowserContext,
+    workerUrl: string,
+    issues: RuntimeIssue[],
+): Promise<ServiceWorkerMonitor> {
+    const browser = context.browser();
+    if (!browser) {
+        const attachedWorkers = new WeakSet<Worker>();
+        const attachFallback = (w: Worker) => {
+            if (w.url() !== workerUrl || attachedWorkers.has(w)) return;
+            attachedWorkers.add(w);
+            w.on("console", (m) => {
+                if (m.type() === "error") {
+                    issues.push({
+                        source: "service-worker",
+                        level: "error",
+                        message: m.text(),
+                    });
+                }
+            });
+        };
+        for (const w of context.serviceWorkers()) attachFallback(w);
+        context.on("serviceworker", attachFallback);
+        return {
+            attachExisting: async () => {
+                for (const w of context.serviceWorkers()) attachFallback(w);
+            },
+            detach: async () => {},
+        };
+    }
+
+    const cdp: CDPSession = await browser.newBrowserCDPSession();
+    let detached = false;
+    let nextMessageId = 1;
+    const attachedTargetIds = new Set<string>();
+    const activeSessions = new Map<string, string>();
+    const inflight = new Map<string, Promise<void>>();
+    const pendingEnable = new Map<
+        string,
+        (outcome: { ok: boolean; reason?: string; cancelled?: boolean }) => void
+    >();
+
+    const isTargetStillAlive = async (targetId: string): Promise<boolean> => {
+        if (detached) return false;
+        try {
+            const { targetInfos } = await cdp.send("Target.getTargets");
+            return targetInfos.some(
+                (t) =>
+                    t.targetId === targetId && t.type === "service_worker" && t.url === workerUrl,
+            );
+        } catch {
+            return !detached;
+        }
+    };
+
+    const attachTarget = (targetId: string): Promise<void> => {
+        if (detached) return Promise.resolve();
+        const existing = inflight.get(targetId);
+        if (existing) return existing;
+        if (attachedTargetIds.has(targetId)) return Promise.resolve();
+
+        const promise = (async () => {
+            attachedTargetIds.add(targetId);
+            let sessionId: string | undefined;
+            let pendingKey: string | undefined;
+            try {
+                const attached = await cdp.send("Target.attachToTarget", {
+                    targetId,
+                    flatten: false,
+                });
+                sessionId = attached.sessionId;
+                if (detached) return;
+                activeSessions.set(sessionId, targetId);
+                const enableId = nextMessageId++;
+                pendingKey = `${sessionId}:${enableId}`;
+                const key = pendingKey;
+                const enabled = new Promise<{
+                    ok: boolean;
+                    reason?: string;
+                    cancelled?: boolean;
+                }>((res) => {
+                    const timer = setTimeout(() => {
+                        pendingEnable.delete(key);
+                        res({
+                            ok: false,
+                            reason: "Timed out waiting for Runtime.enable reply",
+                        });
+                    }, 5000);
+                    pendingEnable.set(key, (outcome) => {
+                        clearTimeout(timer);
+                        pendingEnable.delete(key);
+                        res(outcome);
+                    });
+                });
+                await cdp.send("Target.sendMessageToTarget", {
+                    sessionId,
+                    message: JSON.stringify({
+                        id: enableId,
+                        method: "Runtime.enable",
+                    }),
+                });
+                const outcome = await enabled;
+                if (!outcome.ok) {
+                    if (outcome.cancelled || detached) {
+                        attachedTargetIds.delete(targetId);
+                        activeSessions.delete(sessionId);
+                        return;
+                    }
+                    throw new Error(outcome.reason ?? "Runtime.enable failed");
+                }
+            } catch (err) {
+                if (pendingKey) {
+                    pendingEnable.get(pendingKey)?.({ ok: false, cancelled: true });
+                }
+                if (sessionId) activeSessions.delete(sessionId);
+                attachedTargetIds.delete(targetId);
+                if (detached || !(await isTargetStillAlive(targetId))) {
+                    return;
+                }
+                const message = err instanceof Error ? err.message : String(err);
+                throw new Error(
+                    `Failed to attach service-worker monitor to ${workerUrl}: ${message}`,
+                    { cause: err },
+                );
+            } finally {
+                inflight.delete(targetId);
+            }
+        })();
+
+        inflight.set(targetId, promise);
+        return promise;
+    };
+
+    cdp.on("Target.receivedMessageFromTarget", (ev) => {
+        if (!activeSessions.has(ev.sessionId)) return;
+        let msg: CdpTargetMessage;
+        try {
+            msg = JSON.parse(ev.message) as CdpTargetMessage;
+        } catch {
+            return;
+        }
+        if (typeof msg.id === "number") {
+            const settle = pendingEnable.get(`${ev.sessionId}:${msg.id}`);
+            if (settle) {
+                if (msg.error) {
+                    settle({
+                        ok: false,
+                        reason:
+                            msg.error.message ??
+                            `Runtime.enable CDP error ${msg.error.code ?? "unknown"}`,
+                    });
+                } else {
+                    settle({ ok: true });
+                }
+            }
+        }
+        if (msg.method === "Runtime.exceptionThrown") {
+            issues.push({
+                source: "service-worker",
+                level: "exception",
+                message: formatCdpException(msg.params?.exceptionDetails),
+            });
+        } else if (msg.method === "Runtime.consoleAPICalled" && msg.params?.type === "error") {
+            issues.push({
+                source: "service-worker",
+                level: "error",
+                message: formatCdpConsoleArgs(msg.params.args),
+            });
+        }
+    });
+
+    cdp.on("Target.detachedFromTarget", (ev) => {
+        const targetId = activeSessions.get(ev.sessionId);
+        activeSessions.delete(ev.sessionId);
+        if (targetId) attachedTargetIds.delete(targetId);
+        for (const [key, resolvePending] of pendingEnable) {
+            if (key.startsWith(`${ev.sessionId}:`)) {
+                resolvePending({ ok: false, cancelled: true });
+            }
+        }
+    });
+
+    const onTargetEvent = (ev: { targetInfo: { type: string; url: string; targetId: string } }) => {
+        if (ev.targetInfo.type === "service_worker" && ev.targetInfo.url === workerUrl) {
+            void attachTarget(ev.targetInfo.targetId).catch((err) => {
+                if (detached) return;
+                issues.push({
+                    source: "service-worker",
+                    level: "error",
+                    message: err instanceof Error ? err.message : String(err),
+                });
+            });
+        }
+    };
+    cdp.on("Target.targetCreated", onTargetEvent);
+    cdp.on("Target.targetInfoChanged", onTargetEvent);
+
+    await cdp.send("Target.setDiscoverTargets", { discover: true });
+
+    const attachExisting = async () => {
+        if (detached) return;
+        const { targetInfos } = await cdp.send("Target.getTargets");
+        const matches = targetInfos.filter(
+            (t) => t.type === "service_worker" && t.url === workerUrl,
+        );
+        if (matches.length === 0) {
+            throw new Error(`Service worker CDP target not found for ${workerUrl}`);
+        }
+        await Promise.all(matches.map((t) => attachTarget(t.targetId)));
+    };
+
+    const detach = async () => {
+        if (detached) return;
+        detached = true;
+        for (const resolvePending of pendingEnable.values()) {
+            resolvePending({ ok: false, cancelled: true });
+        }
+        pendingEnable.clear();
+        activeSessions.clear();
+        attachedTargetIds.clear();
+        await cdp.detach().catch(() => {});
+    };
+
+    return { attachExisting, detach };
+}
+
 /**
  * Opens the toolbar popup via chrome.action.openPopup() and returns the page it created.
  * The popup lives in a browser window Playwright's persistent context does not attach to, so it
@@ -337,9 +650,13 @@ export async function launchExtension(
     });
 
     let closed = false;
+    let serviceWorkerMonitor: ServiceWorkerMonitor | null = null;
     const close = async () => {
         if (closed) return;
         closed = true;
+        if (serviceWorkerMonitor) {
+            await serviceWorkerMonitor.detach().catch(() => {});
+        }
         try {
             await context.close();
         } catch {
@@ -354,14 +671,17 @@ export async function launchExtension(
 
     try {
         const workerUrl = `chrome-extension://${extId}/background.js`;
+        const issues: RuntimeIssue[] = [];
+        serviceWorkerMonitor = await createServiceWorkerMonitor(context, workerUrl, issues);
+
         const serviceWorker =
             context.serviceWorkers().find((w) => w.url() === workerUrl) ??
             (await context.waitForEvent("serviceworker", {
                 predicate: (w) => w.url() === workerUrl,
                 timeout: timeoutMs,
             }));
+        await serviceWorkerMonitor.attachExisting();
 
-        const issues: RuntimeIssue[] = [];
         // Track every tab (e.g. dashboard opened via chrome.tabs.create from the popup).
         for (const p of context.pages()) attachPageListeners(p, extId, issues);
         context.on("page", (p) => attachPageListeners(p, extId, issues));

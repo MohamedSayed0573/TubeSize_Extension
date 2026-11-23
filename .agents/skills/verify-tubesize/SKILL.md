@@ -44,7 +44,7 @@ bun run verify doctor
 1. `bun` runtime version.
 2. `chromium` executable path.
 3. `.output/chrome-mv3/manifest.json` presence and freshness (warns if `src/` is newer than the build).
-4. Fresh MV3 boot: launches isolated Chromium, confirms `background.js` comes online, opens `popup.html#/`, asserts zero `pageerror`, `console.error`, extension `requestfailed`, or React error boundary, then tears down cleanly.
+4. Fresh MV3 boot: launches isolated Chromium, confirms `background.js` comes online, opens `popup.html#/`, asserts zero `pageerror`, `console.error`, service-worker uncaught exceptions / `console.error`, extension `requestfailed`, or React error boundary, then tears down cleanly.
 
 Exit codes across all `verify` commands:
 
