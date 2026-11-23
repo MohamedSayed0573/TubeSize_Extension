@@ -1,7 +1,10 @@
 import type { Origin, SiteKey } from "@app-types/types";
 import { getDomain, getDomainWithoutSuffix, getSubdomain } from "tldts-icann";
 
-import { capitalize, typedEntries } from "./utils";
+function capitalize(str: string): string {
+    if (str.length === 0) return str;
+    return `${str[0]?.toUpperCase() ?? ""}${str.slice(1)}`;
+}
 
 // Google products share one registrable domain and favicon; keys keep the
 // hostname, but labels show the product name.
@@ -125,7 +128,7 @@ export interface SiteUsageTotal {
 export function sumBySite(origins: Readonly<Record<Origin, number>>): Map<SiteKey, SiteUsageTotal> {
     const totals = new Map<SiteKey, SiteUsageTotal>();
 
-    for (const [origin, bytes] of typedEntries(origins)) {
+    for (const [origin, bytes] of Object.entries(origins) as Array<[Origin, number]>) {
         const site = getSiteKey(origin);
         const existing = totals.get(site);
 

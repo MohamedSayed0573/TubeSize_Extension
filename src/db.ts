@@ -1,14 +1,12 @@
 import type { DateKey, Origin, VideoKey } from "@app-types/types";
 import { getDateKey } from "@lib/dateUtils";
+import type { SiteUsage } from "@lib/schema";
 import { toVideoKey, typedEntries } from "@lib/utils";
 import { Dexie, type Table } from "dexie";
 
 import type { VideoContentType } from "./adapters/types";
 
-export interface SiteUsage {
-    day: DateKey;
-    usage: Record<Origin, number>; // Site Origin -> Bytes
-}
+export type { SiteUsage };
 
 export interface WatchHistory {
     day: DateKey;

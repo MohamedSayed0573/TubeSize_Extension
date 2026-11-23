@@ -16,14 +16,17 @@ import type {
     TwitchVodMessage,
     YoutubeMessage,
 } from "@app-types/types";
-import { defineExtensionMessaging } from "@webext-core/messaging";
+import {
+    defineExtensionMessaging,
+    type GetDataType,
+    type GetReturnType,
+    type SendMessageOptions,
+} from "@webext-core/messaging";
 
 /**
- * The protocol map for the extension's messaging system.
- * Each key represents a message type, and the value describes the payload the
- * message carries and the response it produces.
+ * Messages handled by the background service worker (never targeted to a tab).
  */
-interface ProtocolMap {
+interface BackgroundProtocolMap {
     /** Resolves the formats of a YouTube video. */
     youtubeVideo(data: YoutubeMessage): YoutubeBackgroundResponse;
     /** Resolves the formats of a Twitch VOD. */
@@ -42,8 +45,43 @@ interface ProtocolMap {
     addWatchHistory(data: AddWatchHistoryMessage): AddWatchHistoryResponse;
     /** Reads the recorded watch history. */
     getWatchHistory(data: undefined): GetWatchHistoryResponse;
+}
+
+/**
+ * Messages handled by a tab's content script (always require a tab target).
+ */
+interface TabProtocolMap {
     /** Reads the resolution of the video currently playing in a tab. */
     getCurrentResolution(data: undefined): number | undefined;
 }
 
-export const { sendMessage, onMessage } = defineExtensionMessaging<ProtocolMap>();
+type ProtocolMap = BackgroundProtocolMap & TabProtocolMap;
+type TabTarget = number | SendMessageOptions;
+
+const messenger = defineExtensionMessaging<ProtocolMap>();
+
+/**
+ * Sends a typed extension message.
+ * - Background-bound messages must be called without a tab target.
+ * - Tab-bound messages require a tab ID or `SendMessageOptions`.
+ */
+export function sendMessage<K extends keyof BackgroundProtocolMap>(
+    type: K,
+    data: GetDataType<BackgroundProtocolMap[K]>,
+): Promise<GetReturnType<BackgroundProtocolMap[K]>>;
+export function sendMessage<K extends keyof TabProtocolMap>(
+    type: K,
+    data: GetDataType<TabProtocolMap[K]>,
+    target: TabTarget,
+): Promise<GetReturnType<TabProtocolMap[K]>>;
+export function sendMessage<K extends keyof ProtocolMap>(
+    type: K,
+    data: GetDataType<ProtocolMap[K]>,
+    target?: TabTarget,
+): Promise<GetReturnType<ProtocolMap[K]>> {
+    return target === undefined
+        ? messenger.sendMessage(type, data)
+        : messenger.sendMessage(type, data, target);
+}
+
+export const { onMessage } = messenger;

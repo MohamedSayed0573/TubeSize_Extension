@@ -4,11 +4,11 @@ import { useSiteUsage } from "@hooks/useSiteUsage";
 import type { InvalidImportJson } from "@lib/errors";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { setAllSiteUsage, type SiteUsage } from "@/db";
+import { setAllSiteUsage } from "@/db";
 import { t } from "@/i18n/t";
 
 async function importJson() {
-    const { ImportSchema } = await import("@lib/zodSchema");
+    const { ImportSchema } = await import("@lib/schema");
     return new Promise((resolve, reject) => {
         const input = document.createElement("input");
         input.type = "file";
@@ -21,7 +21,7 @@ async function importJson() {
             if (!file) return;
             file.text()
                 .then((textFile) => {
-                    const siteUsage = JSON.parse(textFile) as SiteUsage[];
+                    const siteUsage: unknown = JSON.parse(textFile);
                     const result = ImportSchema.safeParse(siteUsage);
                     if (!result.success) throw new Error(result.error.message);
                     return result.data;

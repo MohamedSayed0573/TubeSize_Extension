@@ -9,13 +9,12 @@ import { sendMessage } from "@/messaging";
 
 import type { DisplayFormat, FormatOptions, HeaderViewData, PlatformAdapter } from "./types";
 
-async function loadYoutubeData(tabUrl: string, tabId: number) {
+async function loadYoutubeData(tabUrl: string) {
     const videoTag = extractVideoTag(tabUrl)!;
     const av1Supported = await getAv1Support();
 
     const response = await sendMessage("youtubeVideo", {
         videoTag,
-        tabId,
         av1Supported,
     });
 

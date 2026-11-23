@@ -1,6 +1,5 @@
 import type {
     AudioStreamInfo,
-    PlatformData,
     PlatformDataMap,
     VideoCodec,
     VideoItag,
@@ -8,7 +7,7 @@ import type {
 
 import type { PlatformId } from "@/types/types";
 
-export type { AudioStreamInfo, PlatformData, PlatformDataMap };
+export type { AudioStreamInfo, PlatformDataMap };
 
 type DisplayFormatBase = {
     key: string | number;

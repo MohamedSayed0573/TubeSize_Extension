@@ -42,7 +42,6 @@ export type AddWatchHistoryMessage = {
 
 export type YoutubeMessage = {
     videoTag: string;
-    tabId?: number;
     html?: string;
     /** `undefined` means the device capability has not been detected yet. */
     av1Supported?: boolean;
