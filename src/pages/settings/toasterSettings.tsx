@@ -61,10 +61,15 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
                     <Slider
                         id="toasterThreshold"
                         value={threshold}
-                        onValueChange={(value) => setThreshold(value as number)}
-                        onValueCommitted={(value) =>
-                            updateSettings({ toasterThreshold: value as number })
-                        }
+                        onValueChange={(value) => {
+                            const next = Array.isArray(value) ? value[0] : value;
+                            if (typeof next === "number") setThreshold(next);
+                        }}
+                        onValueCommitted={(value) => {
+                            const next = Array.isArray(value) ? value[0] : value;
+                            if (typeof next === "number")
+                                updateSettings({ toasterThreshold: next });
+                        }}
                         max={1000}
                         min={200}
                         step={10}

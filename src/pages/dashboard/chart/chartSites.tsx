@@ -117,8 +117,15 @@ export default function ChartSites({ usage }: { usage: SiteUsage[] }) {
                             maxBarSize={28}
                             cursor="pointer"
                             onClick={(data) => {
-                                const site = (data.payload as ChartSiteItem).site;
-                                void navigate(`/site/${encodeURIComponent(site)}`);
+                                const payload: unknown = data.payload;
+                                if (
+                                    typeof payload === "object" &&
+                                    payload !== null &&
+                                    "site" in payload &&
+                                    typeof payload.site === "string"
+                                ) {
+                                    void navigate(`/site/${encodeURIComponent(payload.site)}`);
+                                }
                             }}
                         >
                             <LabelList

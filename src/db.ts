@@ -45,17 +45,22 @@ export type VideoMetadataInput =
     | Omit<TwitchMetadata, "videoKey">
     | Omit<KickMetadata, "videoKey">;
 
-const database = new Dexie("TubeSize") as Dexie & {
-    siteUsage: Table<SiteUsage, DateKey>;
-    watchHistory: Table<WatchHistory, DateKey>;
-    videoMetaData: Table<VideoMetadata, VideoKey>;
-};
+class TubeSizeDatabase extends Dexie {
+    siteUsage!: Table<SiteUsage, DateKey>;
+    watchHistory!: Table<WatchHistory, DateKey>;
+    videoMetaData!: Table<VideoMetadata, VideoKey>;
 
-database.version(1).stores({
-    siteUsage: "day",
-    watchHistory: "day",
-    videoMetaData: "videoKey",
-});
+    constructor() {
+        super("TubeSize");
+        this.version(1).stores({
+            siteUsage: "day",
+            watchHistory: "day",
+            videoMetaData: "videoKey",
+        });
+    }
+}
+
+const database = new TubeSizeDatabase();
 
 export async function addSiteUsage(siteUsage: Record<Origin, number>) {
     const entries = typedEntries(siteUsage);

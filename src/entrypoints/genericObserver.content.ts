@@ -77,8 +77,9 @@ function readWorkerSource(url: string): string | undefined {
 
 function revokeWorkerUrlWhenLoaded(worker: Worker, url: string) {
     worker.addEventListener("message", (event) => {
-        const data = event.data as { type?: string } | null;
-        if (!data || data.type !== "WORKER_READY") return;
+        const data: unknown = event.data;
+        if (typeof data !== "object" || data === null || !("type" in data)) return;
+        if (data.type !== "WORKER_READY") return;
 
         event.stopImmediatePropagation();
         URL.revokeObjectURL(url);
@@ -98,7 +99,7 @@ export default defineContentScript({
         // Monkey patch fetch to count bytes
         const originalFetch = fetch;
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
+        globalThis.fetch = Object.assign(async (...args: Parameters<typeof fetch>) => {
             const response = await originalFetch(...args);
 
             const contentLength = response.headers.get("content-length");
@@ -126,7 +127,7 @@ export default defineContentScript({
             });
 
             return response;
-        }) as typeof fetch;
+        }, originalFetch);
 
         // Count XHR downloads incrementally, regardless of responseType.
         // Called below with the original XHR instance as its receiver.
@@ -192,11 +193,13 @@ export default defineContentScript({
         // TUBESIZE_SITE_USAGE flush forwards worker bytes to the extension like any other.
         function relayWorkerUsage(worker: Worker) {
             worker.addEventListener("message", (event) => {
-                const data = event.data as { type?: string; bytes?: unknown } | null;
-                if (!data || data.type !== "WORKER_USAGE") return;
+                const data: unknown = event.data;
+                if (typeof data !== "object" || data === null || !("type" in data)) return;
+                if (data.type !== "WORKER_USAGE") return;
 
                 event.stopImmediatePropagation();
                 if (
+                    "bytes" in data &&
                     typeof data.bytes === "number" &&
                     Number.isFinite(data.bytes) &&
                     data.bytes > 0

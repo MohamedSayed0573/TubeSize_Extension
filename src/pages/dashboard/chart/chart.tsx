@@ -150,8 +150,15 @@ export function Chart({ usage }: { usage: SiteUsage[] }) {
                             radius={[5, 5, 0, 0]}
                             maxBarSize={38}
                             onClick={(data) => {
-                                const date = (data.payload as ChartUsageItem).date;
-                                void navigate(`/${date}`);
+                                const payload: unknown = data.payload;
+                                if (
+                                    typeof payload === "object" &&
+                                    payload !== null &&
+                                    "date" in payload &&
+                                    typeof payload.date === "string"
+                                ) {
+                                    void navigate(`/${payload.date}`);
+                                }
                             }}
                         />
                     </BarChart>

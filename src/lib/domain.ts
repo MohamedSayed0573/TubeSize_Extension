@@ -106,6 +106,7 @@ export function toOrigin(url: string): Origin | undefined {
 // Site key: the registrable domain (`https://www.example.com` -> `example.com`),
 // or the origin itself without one. Google subdomains keep their full hostname.
 export function getSiteKey(url: Origin | string): SiteKey {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- branded SiteKey constructor
     return (getGoogleSubdomainHost(url) ?? getOriginDomain(url)) as SiteKey;
 }
 
@@ -128,6 +129,7 @@ export interface SiteUsageTotal {
 export function sumBySite(origins: Readonly<Record<Origin, number>>): Map<SiteKey, SiteUsageTotal> {
     const totals = new Map<SiteKey, SiteUsageTotal>();
 
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Record<Origin, number> keys are branded Origins
     for (const [origin, bytes] of Object.entries(origins) as Array<[Origin, number]>) {
         const site = getSiteKey(origin);
         const existing = totals.get(site);

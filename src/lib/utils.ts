@@ -26,6 +26,7 @@ export {
 
 /** Typed wrapper around `Object.entries` that preserves branded record keys. */
 export function typedEntries<K extends string, V>(record: Readonly<Record<K, V>>): Array<[K, V]> {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries widens branded string keys to string
     return Object.entries(record) as Array<[K, V]>;
 }
 

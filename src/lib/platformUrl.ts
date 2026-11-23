@@ -239,6 +239,7 @@ export function isVideoKey(value: string): value is VideoKey {
 }
 
 export function toVideoKey(platform: PlatformId, videoId: string): VideoKey {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- branded VideoKey constructor
     return `${platform}:${videoId}` as VideoKey;
 }
 
