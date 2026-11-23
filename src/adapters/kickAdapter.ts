@@ -10,9 +10,19 @@ import {
 import { sendMessage } from "@/messaging";
 import type { KickData } from "@/types/platforms.types";
 
-import type { DisplayFormat, HeaderViewData, PlatformAdapter, VideoContentType } from "./types";
+import type {
+    DisplayFormat,
+    HeaderViewData,
+    LoadPlatformOptions,
+    PlatformAdapter,
+    VideoContentType,
+} from "./types";
 
-async function loadKickData(tabUrl: string): Promise<KickData> {
+async function loadKickData(
+    tabUrl: string,
+    _tabId?: number,
+    options?: LoadPlatformOptions,
+): Promise<KickData> {
     // The page is a Kick Video (Not a live stream)
     if (isKickVod(tabUrl)) {
         const vodId = extractKickVodId(tabUrl);
@@ -38,7 +48,7 @@ async function loadKickData(tabUrl: string): Promise<KickData> {
 
     const response = await sendMessage("kickLive", {
         channelName: channelName,
-        isFromPopup: true,
+        isFromPopup: options?.isFromPopup ?? true,
     });
     if (!response.success) throw new Error(response.message);
 

@@ -11,9 +11,19 @@ import {
 import { sendMessage } from "@/messaging";
 import type { TwitchData } from "@/types/platforms.types";
 
-import type { DisplayFormat, HeaderViewData, PlatformAdapter, VideoContentType } from "./types";
+import type {
+    DisplayFormat,
+    HeaderViewData,
+    LoadPlatformOptions,
+    PlatformAdapter,
+    VideoContentType,
+} from "./types";
 
-async function loadTwitchData(tabUrl: string): Promise<TwitchData> {
+async function loadTwitchData(
+    tabUrl: string,
+    _tabId?: number,
+    options?: LoadPlatformOptions,
+): Promise<TwitchData> {
     // The page is a Twitch Video (Not a live stream)
     if (isTwitchVod(tabUrl)) {
         const vodId = extractTwitchVodId(tabUrl);
@@ -37,7 +47,7 @@ async function loadTwitchData(tabUrl: string): Promise<TwitchData> {
 
     const response = await sendMessage("twitchLive", {
         channelName,
-        isFromPopup: true,
+        isFromPopup: options?.isFromPopup ?? true,
     });
 
     if (!response.success) throw new Error(response.message);

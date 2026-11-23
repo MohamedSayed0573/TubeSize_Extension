@@ -11,7 +11,7 @@ const ADAPTERS_BY_PLATFORM: { [P in PlatformId]: PlatformAdapter<P> } = {
     kick: kickAdapter,
 };
 
-const ADAPTERS: AnyPlatformAdapter[] = [youtubeAdapter, twitchAdapter, kickAdapter];
+const ADAPTERS: AnyPlatformAdapter[] = Object.values(ADAPTERS_BY_PLATFORM);
 
 export function findPlatformAdapter(tabUrl: string): AnyPlatformAdapter | undefined {
     return ADAPTERS.find((adapter) => adapter.match(tabUrl));
