@@ -143,6 +143,10 @@
         "message": "See what's changed",
         "description": "Changelog banner link to the GitHub release page"
     },
+    "popup_dismissNotice": {
+        "message": "Dismiss",
+        "description": "Accessible label for dismissing the popup release notice"
+    },
     "popup_dashboard": {
         "message": "Dashboard",
         "description": "Popup dashboard button"

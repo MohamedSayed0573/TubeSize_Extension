@@ -342,10 +342,14 @@ export async function launchExtension(
         closed = true;
         try {
             await context.close();
-        } catch {}
+        } catch {
+            // Context already closed.
+        }
         try {
             rmSync(profileDir, { recursive: true, force: true });
-        } catch {}
+        } catch {
+            // Best-effort ephemeral profile cleanup.
+        }
     };
 
     try {

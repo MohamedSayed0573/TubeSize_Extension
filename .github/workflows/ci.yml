@@ -16,6 +16,7 @@ jobs:
             - name: Setup Bun
               uses: oven-sh/setup-bun@v2
               with:
+                  # TODO: Switch to stable (or drop this pin to use package.json) once Bun ships `lint` and `fmt` in stable.
                   bun-version: canary
 
             - name: Setup Node.js
@@ -32,6 +33,9 @@ jobs:
             - name: Lint
               run: bun run lint --max-warnings=0
 
+            - name: Format
+              run: bun run prettier:check
+
             - name: Knip
               run: bun run knip
 
@@ -40,3 +44,6 @@ jobs:
 
             - name: Build
               run: bun run build
+
+            - name: Build Firefox
+              run: bun run build:firefox

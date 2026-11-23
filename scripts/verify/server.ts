@@ -146,7 +146,7 @@ async function main() {
             const path = new URL(req.url).pathname;
             const body =
                 req.method === "POST"
-                    ? ((await req.json().catch(() => ({}))) as Record<string, any>)
+                    ? ((await req.json().catch(() => ({}))) as Record<string, unknown>)
                     : {};
 
             try {
@@ -274,9 +274,12 @@ async function main() {
                 if (path === "/fill") {
                     const before = issues.length;
                     const page = activePage();
-                    await locate(page, body).fill(String(body.value ?? ""), {
-                        timeout: 5000,
-                    });
+                    await locate(page, body).fill(
+                        typeof body.value === "string" ? body.value : "",
+                        {
+                            timeout: 5000,
+                        },
+                    );
                     const ready = await waitForSettle(page, 2000);
                     return Response.json({
                         ok: true,
@@ -337,7 +340,7 @@ async function main() {
                 if (path === "/upload") {
                     const before = issues.length;
                     const page = activePage();
-                    const filePath = resolve(String(body.file ?? ""));
+                    const filePath = resolve(typeof body.file === "string" ? body.file : "");
                     if (!existsSync(filePath)) throw new Error(`File not found: ${filePath}`);
                     const [chooser] = await Promise.all([
                         page.waitForEvent("filechooser", { timeout: 5000 }),
@@ -366,7 +369,10 @@ async function main() {
                     const dest =
                         typeof body.path === "string" && body.path
                             ? resolve(body.path)
-                            : join(resolve(String(body.outDir ?? ".")), suggestedFilename);
+                            : join(
+                                  resolve(typeof body.outDir === "string" ? body.outDir : "."),
+                                  suggestedFilename,
+                              );
                     mkdirSync(dirname(dest), { recursive: true });
                     await dl.saveAs(dest);
                     const bytes = statSync(dest).size;
@@ -567,7 +573,9 @@ async function main() {
         await closePopup();
         try {
             await server.stop(true);
-        } catch {}
+        } catch {
+            // Server already stopped.
+        }
         await browser.close();
         // Only remove the state file if it still belongs to this server (a newer one may own it).
         try {
@@ -577,7 +585,9 @@ async function main() {
                 };
                 if (owner.pid === process.pid) rmSync(stateFile, { force: true });
             }
-        } catch {}
+        } catch {
+            // Best-effort state file cleanup.
+        }
         process.exit(0);
     };
 

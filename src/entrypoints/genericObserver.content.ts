@@ -1,19 +1,17 @@
-// This script runs in the page's MAIN world (see manifest.config.ts), where the
-// `chrome` extension API is undefined. WXT inlines this entrypoint and its
-// imports into one self-contained classic script, so the shared helpers can be
-// imported directly — but the bundle must never touch `chrome.*` at runtime
-// (the old CRXJS build pulled in @lib/utils -> i18n -> chrome.storage and died
-// on load). Whenever the import graph changes.
+// Runs in the page's MAIN world, where `chrome`, Bun, and Node APIs are
+// undefined. `tsconfig.mainWorld.json` enforces this boundary across this
+// entrypoint and all transitive imports.
 //
-// Usage accounting installed here (all dedup against background.ts's webRequest
-// path, which counts every response with a known Content-Length):
+// Usage accounting installed here (deduplicated against background
+// usageTracker.ts's webRequest path, which counts responses with a positive
+// Content-Length):
 //   1. fetch() patch — streamed/chunked response bodies fetched by the page
 //   2. XMLHttpRequest patch — response progress for bodies without Content-Length
 //   3. Worker wrap — re-hosts classic web workers with a counting bootstrap,
 //      so fetch() inside workers (Twitch's video worker) is counted too
 
 import type { UsageMessage, WatchHistoryMessage } from "@app-types/types";
-import { getWatchHistoryTarget } from "@lib/utils";
+import { getWatchHistoryTarget } from "@lib/platformUrl";
 import { defineContentScript } from "wxt/utils/define-content-script";
 
 function workerBootstrap(originalUrl: string): string {

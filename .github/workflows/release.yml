@@ -30,6 +30,7 @@ jobs:
             - name: Setup Bun
               uses: oven-sh/setup-bun@v2
               with:
+                  # TODO: Switch to stable (or drop this pin to use package.json) once Bun ships `lint` and `fmt` in stable.
                   bun-version: canary
 
             - name: Set up Node.js
@@ -39,6 +40,9 @@ jobs:
 
             - name: Install dependencies
               run: bun install --frozen-lockfile
+
+            - name: Format
+              run: bun run prettier:check
 
             - name: Bump version
               id: bump
@@ -50,13 +54,18 @@ jobs:
               run: bun run tsc
 
             - name: Lint
-              run: bun run lint
+              run: bun run lint --max-warnings=0
 
             - name: Knip
               run: bun run knip
 
             - name: Run Tests
               run: bun run test
+
+            - name: Build release packages
+              run: |
+                  bun run zip
+                  bun run zip:firefox
 
             - name: Commit, tag, and push version bump
               if: inputs.dryRun != true
@@ -67,11 +76,6 @@ jobs:
                   git commit -am "chore(release): $VERSION"
                   git tag "extension-v$VERSION" -m "Release extension-v$VERSION"
                   git push origin "HEAD:${{ github.ref_name }}" --follow-tags
-
-            - name: Build release packages
-              run: |
-                  bun run zip
-                  bun run zip:firefox
 
             - name: Submit to stores
               env:

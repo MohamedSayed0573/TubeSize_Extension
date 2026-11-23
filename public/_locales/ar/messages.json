@@ -143,6 +143,10 @@
         "message": "اطلع على ما تغيّر",
         "description": "Changelog banner link to the GitHub release page"
     },
+    "popup_dismissNotice": {
+        "message": "إغلاق",
+        "description": "Accessible label for dismissing the popup release notice"
+    },
     "popup_dashboard": {
         "message": "لوحة الاستخدام",
         "description": "Popup dashboard button"

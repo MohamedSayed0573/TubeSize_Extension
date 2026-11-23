@@ -1,6 +1,5 @@
 {
-    "$schema": "./node_modules/oxlint/configuration_schema.json",
-    "plugins": ["typescript", "react", "unicorn", "promise", "oxc"],
+    "plugins": ["typescript", "react", "jsx-a11y", "unicorn", "promise", "oxc"],
     "categories": {
         "correctness": "error",
         "suspicious": "warn"
@@ -37,11 +36,11 @@
                 "allow": ["error"]
             }
         ],
-        "no-empty": "off",
+        "no-empty": "error",
         "no-unused-vars": "off",
         "typescript/no-empty-object-type": "off",
-        "typescript/no-explicit-any": "off",
-        "typescript/no-unnecessary-type-assertion": "off",
+        "typescript/no-explicit-any": "error",
+        "typescript/no-unnecessary-type-assertion": "error",
         "react/react-in-jsx-scope": "off",
         "react/only-export-components": [
             "error",

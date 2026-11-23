@@ -189,9 +189,45 @@ const readSession = (): {
     }
 };
 
+interface VerifyPageSummary {
+    url?: string;
+    dir?: string;
+    heading?: string | null;
+    hasErrorBoundary?: boolean;
+}
+
+interface VerifyDbSummary {
+    siteUsageDays?: number;
+    videoMetaCount?: number;
+    totalBytes?: number;
+    todayUsage?: Record<string, number>;
+    todayWatchHistory?: Record<string, number>;
+}
+
+interface VerifyResponse {
+    ok?: boolean;
+    error?: string;
+    pid?: number;
+    surface?: string;
+    ready?: boolean;
+    issueCount?: number;
+    issues?: RuntimeIssue[];
+    newIssues?: RuntimeIssue[];
+    page?: VerifyPageSummary;
+    aria?: string;
+    suggestedFilename?: string;
+    bytes?: number;
+    path?: string;
+    badge?: { text?: string; color?: unknown };
+    db?: VerifyDbSummary;
+    storageSync?: unknown;
+    storageLocal?: unknown;
+    report?: unknown;
+}
+
 /** Prints new runtime issues / readiness problems and returns the exit code (0 ok, 1 fail). */
-function report(data: Record<string, any>): number {
-    const errs = (data.newIssues as RuntimeIssue[] | undefined) ?? [];
+function report(data: VerifyResponse): number {
+    const errs = data.newIssues ?? [];
     for (const e of errs) out(`  [✗] ${e.source}/${e.level}: ${e.message}`);
     if (data.ready === false)
         out("  [✗] UI did not settle (blank page or persistent loading state)");
@@ -199,10 +235,7 @@ function report(data: Record<string, any>): number {
     return errs.length > 0 || data.ready === false || data.page?.hasErrorBoundary ? 1 : 0;
 }
 
-async function call(
-    endpoint: string,
-    payload?: Record<string, unknown>,
-): Promise<Record<string, any>> {
+async function call(endpoint: string, payload?: Record<string, unknown>): Promise<VerifyResponse> {
     const s = readSession();
     if (!s) {
         out('INCONCLUSIVE: No active session. Run "bun run verify start" first.');
@@ -214,9 +247,9 @@ async function call(
             headers: payload ? { "content-type": "application/json" } : undefined,
             body: payload ? JSON.stringify(payload) : undefined,
         });
-        const data = (await res.json()) as Record<string, any>;
+        const data = (await res.json()) as VerifyResponse;
         if (!res.ok || data.ok === false) {
-            out(`FAIL: ${String(data.error ?? `HTTP ${res.status}`)}`);
+            out(`FAIL: ${data.error ?? `HTTP ${res.status}`}`);
             process.exit(1);
         }
         return data;
@@ -325,7 +358,9 @@ async function runStop(quiet = false): Promise<number> {
     } catch {
         try {
             process.kill(s.pid, "SIGTERM");
-        } catch {}
+        } catch {
+            // Process already exited.
+        }
     }
     // Wait for the old server to fully exit so it cannot touch a replacement session's state.
     const isAlive = () => {
@@ -341,7 +376,9 @@ async function runStop(quiet = false): Promise<number> {
     if (isAlive()) {
         try {
             process.kill(s.pid, "SIGKILL");
-        } catch {}
+        } catch {
+            // Process exited before SIGKILL.
+        }
         await Bun.sleep(200);
     }
     if (readSession()?.pid === s.pid) rmSync(STATE_FILE, { force: true });
@@ -461,9 +498,9 @@ async function main(): Promise<number> {
                 if (s) {
                     const res = await fetch(`http://127.0.0.1:${s.port}/health`).catch(() => null);
                     if (res?.ok) {
-                        const data = (await res.json()) as Record<string, any>;
+                        const data = (await res.json()) as VerifyResponse;
                         const failed =
-                            data.issueCount > 0 ||
+                            (data.issueCount ?? 0) > 0 ||
                             data.ready === false ||
                             data.page?.hasErrorBoundary;
                         out(
@@ -520,7 +557,7 @@ async function main(): Promise<number> {
 
         case "snapshot": {
             const data = await call("/snapshot", { selector: values.selector });
-            const aria = String(data.aria ?? "");
+            const aria = data.aria ?? "";
             if (positionals[0]) {
                 const dest = resolve(positionals[0]);
                 mkdirSync(dirname(dest), { recursive: true });
@@ -619,7 +656,7 @@ async function main(): Promise<number> {
             });
             const errs = (data.newIssues as RuntimeIssue[]) ?? [];
             out(
-                `Downloaded ${String(data.suggestedFilename ?? "")} (${String(data.bytes ?? 0)} B) → ${relative(ROOT, String(data.path ?? ""))} (newErrors=${errs.length})`,
+                `Downloaded ${data.suggestedFilename ?? ""} (${String(data.bytes ?? 0)} B) → ${relative(ROOT, data.path ?? "")} (newErrors=${errs.length})`,
             );
             return report(data);
         }
@@ -766,7 +803,7 @@ async function main(): Promise<number> {
                 }
                 maybeSaveJson(values.save, combined);
                 const allIssues = [ytCold, ytWarm, twCold, dashDaily, dashSites, mem].flatMap(
-                    (r) => (r.newIssues as RuntimeIssue[] | undefined) ?? [],
+                    (r) => r.newIssues ?? [],
                 );
                 return report({ newIssues: allIssues });
             }
@@ -794,16 +831,16 @@ async function main(): Promise<number> {
             }
             if (data.db) {
                 out(
-                    `DB:      ${data.db.siteUsageDays} days, ${data.db.videoMetaCount} videos, ${formatSiBytes(Number(data.db.totalBytes ?? 0))}`,
+                    `DB:      ${data.db.siteUsageDays} days, ${data.db.videoMetaCount} videos, ${formatSiBytes(data.db.totalBytes ?? 0)}`,
                 );
-                const todayUsage = data.db.todayUsage as Record<string, number> | undefined;
+                const todayUsage = data.db.todayUsage;
                 if (todayUsage && Object.keys(todayUsage).length > 0) {
                     const summary = Object.entries(todayUsage)
                         .map(([k, v]) => `${k}=${v}`)
                         .join(", ");
                     out(`Today:   ${summary}`);
                 }
-                const todayWatch = data.db.todayWatchHistory as Record<string, number> | undefined;
+                const todayWatch = data.db.todayWatchHistory;
                 if (todayWatch && Object.keys(todayWatch).length > 0) {
                     const summary = Object.entries(todayWatch)
                         .map(([k, v]) => `${k}=${v}`)
