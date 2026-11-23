@@ -219,7 +219,9 @@ async function queryServiceWorkerHeap(
             const timer = setTimeout(() => {
                 try {
                     ws.close();
-                } catch {}
+                } catch {
+                    // Socket already closed.
+                }
                 resolvePromise(null);
             }, 3000);
             ws.addEventListener("open", () => {
@@ -312,7 +314,9 @@ function readProcessRss(profileDir: string, extId: string): MemoryPerfReport["ch
             byType[procType] = bucket;
             totalRssBytes += rssBytes;
             processCount += 1;
-        } catch {}
+        } catch {
+            // Process exited while scanning /proc.
+        }
     }
 
     return processCount > 0 ? { totalRssBytes, processCount, byType } : null;

@@ -642,7 +642,9 @@ export async function installPlatformRoutes(context: BrowserContext): Promise<vo
         let body: { variables?: { isLive?: boolean; isVod?: boolean; login?: string } } = {};
         try {
             body = JSON.parse(route.request().postData() ?? "{}") as typeof body;
-        } catch {}
+        } catch {
+            // Treat malformed fixture request bodies as empty.
+        }
 
         if (body.variables?.isVod) {
             return await route.fulfill({

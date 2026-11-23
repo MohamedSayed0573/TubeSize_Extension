@@ -140,7 +140,7 @@ export async function getWatchHistoryByDate(day: DateKey | DateKey[]) {
 
 export async function addVideoMetadata(metadata: VideoMetadataInput) {
     const videoKey = `${metadata.type}:${metadata.videoTag}`;
-    await database.videoMetaData.put({ ...metadata, videoKey } as VideoMetadata);
+    await database.videoMetaData.put({ ...metadata, videoKey });
 }
 
 export async function getVideoMetadata(videoTag: string, type: VideoMetadata["type"]) {

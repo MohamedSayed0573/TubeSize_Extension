@@ -53,10 +53,7 @@ export default function ChangelogNotice() {
     }
 
     return (
-        <div
-            role="status"
-            className="flex items-start gap-2 border-b-2 border-white/8 bg-blue-400/12 px-3 py-2 text-xs"
-        >
+        <output className="flex items-start gap-2 border-b-2 border-white/8 bg-blue-400/12 px-3 py-2 text-xs">
             <Sparkles className="mt-px size-3.5 shrink-0 text-sky-300" aria-hidden="true" />
             <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="font-medium text-sky-200">
@@ -75,10 +72,11 @@ export default function ChangelogNotice() {
             <button
                 type="button"
                 onClick={dismiss}
+                aria-label={t("popup_dismissNotice")}
                 className="ms-auto -me-0.5 shrink-0 rounded p-0.5 text-zinc-400 transition-colors hover:bg-white/8 hover:text-zinc-200"
             >
                 <X className="size-3.5" aria-hidden="true" />
             </button>
-        </div>
+        </output>
     );
 }
