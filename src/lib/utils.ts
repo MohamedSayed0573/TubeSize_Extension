@@ -36,6 +36,7 @@ export async function fetchAndRetry(
     url: string | URL,
     options: RequestInit = {},
     maxRetries = CONFIG.DEFAULT_MAX_RETRIES,
+    sleep: (ms: number) => Promise<void> = delay,
 ): Promise<FetchResponse> {
     let lastError: Error | undefined;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -62,7 +63,7 @@ export async function fetchAndRetry(
             // Skip the timeout if the last attempt
             if (maxRetries > attempt) {
                 // Exponential backoff before retry
-                await delay(Math.pow(2, attempt) * 1000);
+                await sleep(Math.pow(2, attempt) * 1000);
             }
         }
     }

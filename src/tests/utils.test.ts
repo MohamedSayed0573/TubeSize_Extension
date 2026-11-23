@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, describe, expect, jest, test } from "bun:test";
 
+import CONFIG from "@lib/constants";
 import { isValidDateKey, toDateKey } from "@lib/dateUtils";
 import {
     extractChannelName,
@@ -256,35 +257,32 @@ describe("getWatchHistoryTarget", () => {
 
 describe("fetchAndRetry", () => {
     const originalFetch = globalThis.fetch;
-    const originalSetTimeout = globalThis.setTimeout;
-
-    beforeEach(() => {
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.setTimeout = ((
-            callback: (...args: unknown[]) => void,
-            _ms?: number,
-            ...args: unknown[]
-        ) => originalSetTimeout(callback, 0, ...args)) as unknown as typeof setTimeout;
-    });
 
     afterEach(() => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = originalFetch;
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.setTimeout = originalSetTimeout;
     });
 
     test("should fail after exhausting all retries", async () => {
         const fetchMock = jest.fn().mockRejectedValue(new Error("failed"));
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const delays: number[] = [];
 
-        const result = await fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE");
+        const result = await fetchAndRetry(
+            "https://www.youtube.com/watch?v=yaodD79Q4iE",
+            {},
+            CONFIG.DEFAULT_MAX_RETRIES,
+            async (ms) => {
+                delays.push(ms);
+            },
+        );
         expect(result).toEqual({
             success: false,
             error: new Error("failed"),
         });
         expect(fetchMock).toHaveBeenCalledTimes(4);
+        expect(delays).toEqual([1000, 2000, 4000]);
     });
 
     test("should succeed after 3 failed attempts", async () => {
@@ -297,13 +295,22 @@ describe("fetchAndRetry", () => {
             .mockResolvedValueOnce(response);
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const delays: number[] = [];
 
-        const result = await fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE");
+        const result = await fetchAndRetry(
+            "https://www.youtube.com/watch?v=yaodD79Q4iE",
+            {},
+            CONFIG.DEFAULT_MAX_RETRIES,
+            async (ms) => {
+                delays.push(ms);
+            },
+        );
         expect(result).toEqual({
             success: true,
             response,
         });
         expect(fetchMock).toHaveBeenCalledTimes(4);
+        expect(delays).toEqual([1000, 2000, 4000]);
     });
 
     test("should not retry on client errors 4xx", async () => {
@@ -313,14 +320,23 @@ describe("fetchAndRetry", () => {
         });
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const delays: number[] = [];
 
-        const result = await fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE");
+        const result = await fetchAndRetry(
+            "https://www.youtube.com/watch?v=yaodD79Q4iE",
+            {},
+            CONFIG.DEFAULT_MAX_RETRIES,
+            async (ms) => {
+                delays.push(ms);
+            },
+        );
         expect(result).toEqual({
             success: false,
             error: new Error("Client Error: 400, won't retry"),
         });
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(delays).toEqual([]);
     });
 
     test("should retry on server errors 5xx", async () => {
@@ -335,8 +351,16 @@ describe("fetchAndRetry", () => {
                 status: 200,
                 ok: true,
             }) as unknown as typeof fetch;
+        const delays: number[] = [];
 
-        const result = await fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE");
+        const result = await fetchAndRetry(
+            "https://www.youtube.com/watch?v=yaodD79Q4iE",
+            {},
+            CONFIG.DEFAULT_MAX_RETRIES,
+            async (ms) => {
+                delays.push(ms);
+            },
+        );
         expect(result).toEqual({
             success: true,
             response: {
@@ -344,6 +368,7 @@ describe("fetchAndRetry", () => {
                 ok: true,
             } as unknown as Response,
         });
+        expect(delays).toEqual([1000]);
     });
 
     test("should not retry when the request is aborted", async () => {
@@ -351,13 +376,22 @@ describe("fetchAndRetry", () => {
         const fetchMock = jest.fn().mockRejectedValue(abortError);
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const delays: number[] = [];
 
-        const result = await fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE");
+        const result = await fetchAndRetry(
+            "https://www.youtube.com/watch?v=yaodD79Q4iE",
+            {},
+            CONFIG.DEFAULT_MAX_RETRIES,
+            async (ms) => {
+                delays.push(ms);
+            },
+        );
         expect(result).toEqual({
             success: false,
             error: new Error("Request aborted"),
         });
         expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(delays).toEqual([]);
     });
 });
 
