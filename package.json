@@ -63,6 +63,7 @@
         "@webext-core/fake-browser": "^2.0.1",
         "@wxt-dev/module-react": "^1.2.2",
         "fake-indexeddb": "^6.2.8",
+        "happy-dom": "^21.0.4",
         "husky": "^9.1.7",
         "knip": "^6.46.1",
         "playwright-core": "^1.65.1",
