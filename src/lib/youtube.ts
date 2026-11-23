@@ -6,11 +6,15 @@ import type {
     StreamInfo,
     VideoCodec,
     VideoItag,
+    YoutubeBackgroundResponse,
+    YoutubeData,
     YoutubeVideoFormat,
     ytInitialPlayerResponse,
 } from "@app-types/platforms.types";
+import type { YoutubeMessage } from "@app-types/types";
 import CONFIG from "@lib/constants";
 import { ytInitialSchema } from "@lib/schema";
+import { getMediaCache, saveMediaCache } from "@lib/storageService";
 import { fetchAndRetry } from "@lib/utils";
 
 export function parseVideoFormats(
@@ -302,6 +306,71 @@ function chooseVideoFormats(
     return chosenFormats;
 }
 
-export function getThumbnailUrl(data: ytInitialPlayerResponse): string | undefined {
+function getThumbnailUrl(data: ytInitialPlayerResponse): string | undefined {
     return data.videoDetails.thumbnail.thumbnails.toSorted((a, b) => b.width - a.width)[0]?.url;
+}
+
+export async function getYoutubeResponse(
+    message: YoutubeMessage,
+): Promise<YoutubeBackgroundResponse> {
+    try {
+        const { videoTag, html } = message;
+        if (!videoTag) {
+            throw new Error("No video tag provided");
+        }
+
+        const cached = await getMediaCache("youtube", videoTag);
+        if (cached) {
+            return {
+                success: true,
+                ...cached,
+            };
+        }
+
+        const ytInitialPlayerResponse = await extractYtInitialResponse(videoTag, html);
+        const { videoDetails, microformat } = ytInitialPlayerResponse;
+        const { author: channelName, title, isLive } = videoDetails;
+        const channelUrl = microformat?.playerMicroformatRenderer.ownerProfileUrl;
+
+        const baseData = {
+            platform: "youtube" as const,
+            title,
+            channelName,
+            thumbnailUrl: getThumbnailUrl(ytInitialPlayerResponse),
+            channelUrl,
+        };
+
+        let data: YoutubeData;
+        if (isLive) {
+            const { formats, audio } = parseLiveFormats(
+                ytInitialPlayerResponse,
+                message.av1Supported,
+            );
+            data = { ...baseData, type: "live", formats, audio };
+        } else {
+            const { formats, audio } = parseVideoFormats(
+                ytInitialPlayerResponse,
+                message.av1Supported,
+            );
+            data = {
+                ...baseData,
+                type: "vod" as const,
+                durationSeconds: Number(videoDetails.lengthSeconds),
+                formats,
+                audio,
+            };
+        }
+
+        await saveMediaCache("youtube", videoTag, data, isLive ? CONFIG.LIVE_CACHE_TTL : undefined);
+
+        return {
+            success: true,
+            data,
+        };
+    } catch (err) {
+        return {
+            success: false,
+            message: err instanceof Error ? err.message : "Unknown error",
+        };
+    }
 }

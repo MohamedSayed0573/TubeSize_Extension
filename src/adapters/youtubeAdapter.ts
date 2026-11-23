@@ -7,14 +7,30 @@ import { humanizeDuration } from "@/lib/humanize";
 import { extractVideoTag, isShortsVideo, isYoutubePage } from "@/lib/utils";
 import { sendMessage } from "@/messaging";
 
-import type { DisplayFormat, FormatOptions, HeaderViewData, PlatformAdapter } from "./types";
+import type {
+    DisplayFormat,
+    FormatOptions,
+    HeaderViewData,
+    LoadPlatformOptions,
+    PlatformAdapter,
+} from "./types";
 
-async function loadYoutubeData(tabUrl: string) {
-    const videoTag = extractVideoTag(tabUrl)!;
-    const av1Supported = await getAv1Support();
+async function loadYoutubeData(tabUrl: string, _tabId?: number, options?: LoadPlatformOptions) {
+    const videoTag = extractVideoTag(tabUrl);
+    if (!videoTag) {
+        throw new Error("Open a YouTube video or stream");
+    }
+
+    let av1Supported: boolean | undefined;
+    try {
+        av1Supported = await getAv1Support();
+    } catch (err) {
+        console.error("Failed to detect AV1 support", err);
+    }
 
     const response = await sendMessage("youtubeVideo", {
         videoTag,
+        html: options?.html,
         av1Supported,
     });
 

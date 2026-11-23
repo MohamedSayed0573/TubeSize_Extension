@@ -41,6 +41,13 @@ export type FormatOptions = {
     includeAudio?: boolean;
 };
 
+export type LoadPlatformOptions = {
+    /** Optional raw page HTML/script text scraped on initial page load (YouTube). */
+    html?: string;
+    /** Whether the load originates from the popup (enables live HLS segment probing; defaults to true). */
+    isFromPopup?: boolean;
+};
+
 /**
  * The subset of a platform adapter the toaster needs: it only maps platform
  * data to the format list (resolution, total size, bitrate). Keeping this
@@ -57,7 +64,11 @@ export interface PlatformAdapter<P extends PlatformId = PlatformId> extends Toas
     platform: P;
 
     // The function to load the platform's data.
-    load: (tabUrl: string, tabId: number) => Promise<PlatformDataMap[P]>;
+    load: (
+        tabUrl: string,
+        tabId?: number,
+        options?: LoadPlatformOptions,
+    ) => Promise<PlatformDataMap[P]>;
 
     // The function to check if the URL belongs to this platform.
     match: (tabUrl: string) => boolean;

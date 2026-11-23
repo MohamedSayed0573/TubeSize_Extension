@@ -1,14 +1,16 @@
 import type { DateKey, PlatformId } from "@app-types/types";
-import { createToast } from "@components/toast";
 import { getDateKey } from "@lib/dateUtils";
 import { megabytesPerHour } from "@lib/format";
 import { toasterSuppressedDate } from "@lib/storage";
 
 import type { DisplayFormat, PlatformDataMap, ToastAdapter } from "@/adapters/types";
 
+import { createToast } from "./toast";
+
 const HOST_ID = "TubeSize-Toast-Host";
 
 let suppressedDateCache: DateKey | undefined;
+let toastGeneration = 0;
 
 async function isSuppressedForToday(): Promise<boolean> {
     const today = getDateKey();
@@ -53,7 +55,9 @@ export async function showPlatformToast<P extends PlatformId>(
     currentQuality: number,
     toasterThresholdMbph: number,
 ) {
+    const generation = toastGeneration;
     if (await isSuppressedForToday()) return;
+    if (generation !== toastGeneration) return;
 
     const format = adapter
         .formats(data)
@@ -69,6 +73,7 @@ export async function showPlatformToast<P extends PlatformId>(
     });
 }
 
-function unmountToast() {
+export function unmountToast() {
+    toastGeneration++;
     document.querySelector(`#${HOST_ID}`)?.remove();
 }

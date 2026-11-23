@@ -1,5 +1,5 @@
 /**
- * Get the current resolution of the video being played on thepage by observing the DOM for video element.
+ * Get the current resolution of the video being played on the page by observing the DOM for a video element.
  * @returns The current resolution as a number or undefined
  */
 export async function getCurrentResolution() {
@@ -34,6 +34,7 @@ export async function getCurrentResolution() {
 }
 
 let currentQuality: number | undefined;
+let trackingGeneration = 0;
 
 let videoResizeListener: (() => void) | undefined;
 let currentVideoElement: HTMLVideoElement | undefined;
@@ -44,7 +45,10 @@ let currentVideoElement: HTMLVideoElement | undefined;
  * time; starting a new one replaces the previous listener.
  */
 export async function trackResolutionChanges(onResolutionChange: (resolution: number) => void) {
+    const generation = ++trackingGeneration;
     await getCurrentResolution();
+    if (generation !== trackingGeneration) return;
+
     const video = document.querySelector("video");
 
     if (videoResizeListener) {
@@ -64,6 +68,7 @@ export async function trackResolutionChanges(onResolutionChange: (resolution: nu
 }
 
 export function stopResolutionTracking() {
+    trackingGeneration++;
     if (videoResizeListener) {
         currentVideoElement?.removeEventListener("resize", videoResizeListener);
     }

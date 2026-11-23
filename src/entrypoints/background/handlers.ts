@@ -6,7 +6,6 @@ import type {
     KickBackgroundResponse,
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
-    YoutubeData,
 } from "@app-types/platforms.types";
 import type {
     AddUsageMessage,
@@ -19,18 +18,11 @@ import type {
     VideoKey,
     YoutubeMessage,
 } from "@app-types/types";
-import CONFIG from "@lib/constants";
 import { toOrigin } from "@lib/domain";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
-import { getMediaCache, saveMediaCache } from "@lib/storageService";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { toVideoKey } from "@lib/utils";
-import {
-    extractYtInitialResponse,
-    getThumbnailUrl,
-    parseLiveFormats,
-    parseVideoFormats,
-} from "@lib/youtube";
+import { getYoutubeResponse } from "@lib/youtube";
 
 import { refreshUsageBadge } from "@/badge";
 import { addSiteUsage, addWatchHistory, getSiteUsage, getWatchHistory } from "@/db";
@@ -151,59 +143,7 @@ export async function handleGetUsage(): Promise<GetUsageResponse> {
 
 export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBackgroundResponse> {
     try {
-        const { videoTag, html } = message;
-        if (!videoTag) {
-            throw new Error("No video tag provided");
-        }
-
-        const cached = await getMediaCache("youtube", videoTag);
-        if (cached) {
-            return {
-                success: true,
-                ...cached,
-            };
-        }
-
-        const ytInitialPlayerResponse = await extractYtInitialResponse(videoTag, html);
-        const { videoDetails, microformat } = ytInitialPlayerResponse;
-        const { author: channelName, title, isLive } = videoDetails;
-        const channelUrl = microformat?.playerMicroformatRenderer.ownerProfileUrl;
-
-        const baseData = {
-            platform: "youtube" as const,
-            title,
-            channelName,
-            thumbnailUrl: getThumbnailUrl(ytInitialPlayerResponse),
-            channelUrl,
-        };
-
-        let data: YoutubeData;
-        if (isLive) {
-            const { formats, audio } = parseLiveFormats(
-                ytInitialPlayerResponse,
-                message.av1Supported,
-            );
-            data = { ...baseData, type: "live", formats, audio };
-        } else {
-            const { formats, audio } = parseVideoFormats(
-                ytInitialPlayerResponse,
-                message.av1Supported,
-            );
-            data = {
-                ...baseData,
-                type: "vod" as const,
-                durationSeconds: Number(videoDetails.lengthSeconds),
-                formats,
-                audio,
-            };
-        }
-
-        await saveMediaCache("youtube", videoTag, data, isLive ? CONFIG.LIVE_CACHE_TTL : undefined);
-
-        return {
-            success: true,
-            data,
-        };
+        return await getYoutubeResponse(message);
     } catch (err) {
         return {
             success: false,
