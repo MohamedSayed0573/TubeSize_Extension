@@ -10,7 +10,6 @@
     "env": {
         "builtin": true,
         "browser": true,
-        "node": true,
         "es2026": true
     },
     "globals": {
@@ -65,16 +64,61 @@
     },
     "overrides": [
         {
-            "files": ["src/tests/**/*.{ts,tsx}"],
-            "env": {
-                "jest": true
-            },
+            "files": ["src/**/*.{ts,tsx}"],
             "rules": {
-                "typescript/no-unsafe-type-assertion": "off"
+                "no-restricted-globals": [
+                    "error",
+                    {
+                        "name": "process",
+                        "message": "Node globals are not available in browser extension code."
+                    },
+                    {
+                        "name": "Buffer",
+                        "message": "Node globals are not available in browser extension code."
+                    },
+                    {
+                        "name": "__dirname",
+                        "message": "Node globals are not available in browser extension code."
+                    },
+                    {
+                        "name": "__filename",
+                        "message": "Node globals are not available in browser extension code."
+                    },
+                    {
+                        "name": "global",
+                        "message": "Use globalThis in browser extension code."
+                    }
+                ],
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "group": ["node:*", "bun", "bun:*"],
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            }
+                        ]
+                    }
+                ]
             }
         },
         {
-            "files": ["scripts/**/*.{ts,tsx}"],
+            "files": ["src/tests/**/*.{ts,tsx}"],
+            "env": {
+                "jest": true,
+                "node": true
+            },
+            "rules": {
+                "typescript/no-unsafe-type-assertion": "off",
+                "no-restricted-globals": "off",
+                "no-restricted-imports": "off"
+            }
+        },
+        {
+            "files": ["scripts/**/*.{ts,tsx}", "wxt.config.ts"],
+            "env": {
+                "node": true
+            },
             "rules": {
                 "typescript/no-unsafe-type-assertion": "off"
             }

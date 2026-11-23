@@ -19,7 +19,7 @@
         "prettier:check": "bun fmt --check",
         "prelint": "bun scripts/checkBun.ts",
         "lint": "bun lint .",
-        "tsc": "bun check && bun check -p tsconfig.mainWorld.json",
+        "tsc": "bun check -p tsconfig.app.json && bun check -p tsconfig.mainWorld.json && bun check -p tsconfig.scripts.json",
         "knip": "KNIP_DISABLE_RAW_TRANSFER=1 knip",
         "verify": "bun scripts/verify.ts",
         "prepare": "husky"
