@@ -28,7 +28,7 @@ export interface PageSummary {
     hasErrorBoundary: boolean;
 }
 
-export function computeExtensionId(extDir: string): string {
+function computeExtensionId(extDir: string): string {
     return createHash("sha256")
         .update(resolve(extDir))
         .digest("hex")
@@ -196,7 +196,7 @@ async function getFreePort(): Promise<number> {
 
 const attachedPages = new WeakSet<Page>();
 
-export function attachPageListeners(p: Page, extId: string, issues: RuntimeIssue[]): void {
+function attachPageListeners(p: Page, extId: string, issues: RuntimeIssue[]): void {
     if (attachedPages.has(p)) return;
     attachedPages.add(p);
 

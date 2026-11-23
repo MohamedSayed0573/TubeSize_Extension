@@ -9,7 +9,7 @@ export async function refreshUsageBadge() {
     await setUsageBadge(getUsageNumber(siteUsage ? [siteUsage] : []));
 }
 
-export async function setUsageBadge(bytes: number, tabId?: number) {
+async function setUsageBadge(bytes: number, tabId?: number) {
     await chrome.action.setBadgeText({
         tabId,
         // Clear the badge entirely when there is no usage instead of showing "0B".
