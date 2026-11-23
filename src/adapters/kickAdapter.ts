@@ -5,6 +5,7 @@ import {
     extractKickVodId,
     isKickPage,
     isKickStream,
+    isKickVideoUuid,
     isKickVod,
 } from "@/lib/utils";
 import { sendMessage } from "@/messaging";
@@ -94,10 +95,28 @@ function kickHeader(kick: KickData): HeaderViewData {
     };
 }
 
-function kickVideoUrl(videoTag: string, contentType?: VideoContentType): string {
-    return contentType === "live"
-        ? `https://kick.com/${videoTag}`
-        : `https://kick.com/video/${videoTag}`;
+function kickVideoUrl(
+    videoTag: string,
+    contentType?: VideoContentType,
+    channelName?: string,
+): string {
+    if (contentType === "live") {
+        return `https://kick.com/${videoTag}`;
+    }
+
+    if (contentType === "vod") {
+        return channelName
+            ? `https://kick.com/${channelName}/videos/${videoTag}`
+            : `https://kick.com/video/${videoTag}`;
+    }
+
+    if (channelName && channelName !== videoTag) {
+        return `https://kick.com/${channelName}/videos/${videoTag}`;
+    }
+
+    return isKickVideoUuid(videoTag)
+        ? `https://kick.com/video/${videoTag}`
+        : `https://kick.com/${videoTag}`;
 }
 
 export const kickAdapter = {

@@ -12,6 +12,7 @@ export {
     getWatchHistoryTarget,
     isKickPage,
     isKickStream,
+    isKickVideoUuid,
     isKickVod,
     isPlatformId,
     isShortsVideo,

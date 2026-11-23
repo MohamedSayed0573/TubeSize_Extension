@@ -8,7 +8,7 @@ import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useParams, useSearchParams } from "react-router";
 
-import { getVideoContentType } from "@/db";
+import { getVideoContentType, getVideoUrl } from "@/db";
 import { t, tPlural } from "@/i18n/t";
 
 import DashboardNotFound from "../shared/notFound";
@@ -44,6 +44,7 @@ function PlatformUsageContent({ platform, scope }: { platform: PlatformId; scope
                 channelUrl: videoMetadata?.channelUrl,
                 thumbnailUrl: videoMetadata?.thumbnailUrl,
                 contentType: getVideoContentType(videoMetadata),
+                url: getVideoUrl(videoMetadata),
             };
         });
     });

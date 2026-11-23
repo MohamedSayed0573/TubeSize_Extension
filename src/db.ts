@@ -185,3 +185,7 @@ export function getVideoContentType(
 ): VideoContentType | undefined {
     return metadata && "contentType" in metadata ? metadata.contentType : undefined;
 }
+
+export function getVideoUrl(metadata: VideoMetadata | undefined): string | undefined {
+    return metadata && "url" in metadata && metadata.url ? metadata.url : undefined;
+}

@@ -8,7 +8,7 @@ import {
     kickVideoResponseSchema,
 } from "@lib/schema";
 import { getMediaCache, saveMediaCache } from "@lib/storageService";
-import { fetchAndRetry } from "@lib/utils";
+import { fetchAndRetry, isKickVideoUuid } from "@lib/utils";
 import type { PlaylistItem } from "m3u8-parser";
 
 async function getKickHtml(url: string): Promise<string> {
@@ -129,7 +129,6 @@ export async function getKickLiveResponse(
 // Kick VOD URLs use one of two ID formats: newer ones use a title slug
 // (c7093a5c-some-title) while older ones use the video UUID. UUID videos can
 // be fetched directly from the video API, which works for VODs of any age.
-const KICK_VIDEO_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function getKickVodByUuid(videoId: string): Promise<{ source: string; durationMs: number }> {
     const res = await fetchAndRetry(`https://kick.com/api/v1/video/${videoId}`, {
@@ -180,7 +179,7 @@ export async function getKickVodResponse(message: KickVodMessage): Promise<KickB
             };
         }
 
-        const { source, durationMs } = KICK_VIDEO_UUID_REGEX.test(message.vodId)
+        const { source, durationMs } = isKickVideoUuid(message.vodId)
             ? await getKickVodByUuid(message.vodId)
             : await findKickVodInChannelVideos(message.channelName, message.vodId);
 
