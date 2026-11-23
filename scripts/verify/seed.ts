@@ -9,6 +9,8 @@ export interface DbSnapshot {
     videoMetaCount: number;
     latestDay: string | null;
     totalBytes: number;
+    /** All-time bytes per site, used to predict whether the Sites chart has visible bars. */
+    siteTotals: Record<string, number>;
     todayUsage: Record<string, number>;
     todayWatchHistory: Record<string, number>;
     videoMetaKeys: string[];
@@ -77,6 +79,7 @@ export async function applySeed(target: Worker, mode: SeedMode): Promise<DbSnaps
                     videoMetaCount: 0,
                     latestDay: null,
                     totalBytes: 0,
+                    siteTotals: {},
                     todayUsage: {},
                     todayWatchHistory: {},
                     videoMetaKeys: [],
@@ -215,12 +218,20 @@ export async function applySeed(target: Worker, mode: SeedMode): Promise<DbSnaps
             const todaySite = siteRows.find((r) => r.day === todayKey);
             const todayHist = historyRows.find((r) => r.day === todayKey);
 
+            const siteTotals: Record<string, number> = {};
+            for (const { usage } of siteRows) {
+                for (const [site, bytes] of Object.entries(usage)) {
+                    siteTotals[site] = (siteTotals[site] ?? 0) + bytes;
+                }
+            }
+
             return {
                 siteUsageDays: siteRows.length,
                 watchHistoryDays: historyRows.length,
                 videoMetaCount: meta.length,
                 latestDay: siteRows.at(-1)?.day ?? null,
                 totalBytes,
+                siteTotals,
                 todayUsage: todaySite?.usage ?? {},
                 todayWatchHistory: todayHist?.videos ?? {},
                 videoMetaKeys: meta.map((m) => m.videoKey),
@@ -248,6 +259,7 @@ export async function inspectDb(target: Worker): Promise<DbSnapshot> {
                     videoMetaCount: 0,
                     latestDay: null,
                     totalBytes: 0,
+                    siteTotals: {},
                     todayUsage: {},
                     todayWatchHistory: {},
                     videoMetaKeys: [],
@@ -264,10 +276,13 @@ export async function inspectDb(target: Worker): Promise<DbSnapshot> {
                 reqDone<Array<{ videoKey: string }>>(tx.objectStore("videoMetaData").getAll()),
             ]);
             const days = sites.map((r) => r.day).sort();
-            const totalBytes = sites.reduce(
-                (s, r) => s + Object.values(r.usage ?? {}).reduce((a, b) => a + b, 0),
-                0,
-            );
+            const siteTotals: Record<string, number> = {};
+            for (const { usage } of sites) {
+                for (const [site, bytes] of Object.entries(usage ?? {})) {
+                    siteTotals[site] = (siteTotals[site] ?? 0) + bytes;
+                }
+            }
+            const totalBytes = Object.values(siteTotals).reduce((a, b) => a + b, 0);
             const todayKey = dayStr(new Date());
             const todaySite = sites.find((r) => r.day === todayKey);
             const todayHist = hist.find((r) => r.day === todayKey);
@@ -277,6 +292,7 @@ export async function inspectDb(target: Worker): Promise<DbSnapshot> {
                 videoMetaCount: meta.length,
                 latestDay: days.at(-1) ?? null,
                 totalBytes,
+                siteTotals,
                 todayUsage: todaySite?.usage ?? {},
                 todayWatchHistory: todayHist?.videos ?? {},
                 videoMetaKeys: meta.map((m) => m.videoKey),

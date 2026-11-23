@@ -1,9 +1,9 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
-import { type Browser, chromium, type Page, type Worker } from "playwright-core";
+import { type Browser, type Page, type Worker } from "playwright-core";
 
-import { attachPageListeners, type RuntimeIssue, waitForSettle } from "./browser";
+import { openToolbarPopup, type RuntimeIssue, waitForSettle } from "./browser";
 import { inspectDb } from "./seed";
 
 export interface MetricSummary {
@@ -382,26 +382,8 @@ async function openAndAttachPopup(opts: {
     extId: string;
     issues: RuntimeIssue[];
 }): Promise<{ popupPage: Page; cdpBrowser: Browser; openToTargetMs: number; t0: number }> {
-    await opts.mainPage.bringToFront();
-    const t0 = performance.now();
-    await opts.serviceWorker.evaluate(async () => await chrome.action.openPopup());
-
-    const deadline = Date.now() + 5000;
-    while (Date.now() < deadline) {
-        await Bun.sleep(50);
-        const candidate = await chromium.connectOverCDP(`http://127.0.0.1:${opts.cdpPort}`);
-        const found = candidate
-            .contexts()
-            .flatMap((c) => c.pages())
-            .find((p) => p.url().startsWith(`chrome-extension://${opts.extId}/popup.html`));
-        if (found) {
-            const openToTargetMs = performance.now() - t0;
-            attachPageListeners(found, opts.extId, opts.issues);
-            return { popupPage: found, cdpBrowser: candidate, openToTargetMs, t0 };
-        }
-        await candidate.close().catch(() => {});
-    }
-    throw new Error("Timed out waiting for extension popup target during perf run.");
+    const opened = await openToolbarPopup({ ...opts, timeoutMs: 5000 });
+    return { ...opened, t0: opened.startedAt };
 }
 
 async function readPageTimings(page: Page): Promise<{
@@ -534,6 +516,9 @@ export async function measurePopupPerf(opts: {
     };
 }
 
+/** Mirrors ChartSites' MIN_SITE_BYTES: sites below it are hidden from the dashboard chart. */
+const MIN_CHARTED_SITE_BYTES = 1_000_000;
+
 export async function measureDashboardPerf(opts: {
     target: string;
     url: string;
@@ -545,8 +530,13 @@ export async function measureDashboardPerf(opts: {
 }): Promise<DashboardPerfReport> {
     if (opts.viewport) await opts.mainPage.setViewportSize(opts.viewport);
     const db = await inspectDb(opts.serviceWorker);
-    const expectsChart =
-        db.siteUsageDays > 0 && (opts.url.includes("#/daily") || opts.url.includes("#/sites"));
+    // ChartDaily draws a bar for every stored day, but ChartSites drops sites under 1 MB, so a
+    // sites view full of sub-1 MB traffic legitimately renders an empty chart.
+    const expectsChart = opts.url.includes("#/daily")
+        ? db.siteUsageDays > 0
+        : opts.url.includes("#/sites")
+          ? Object.values(db.siteTotals).some((bytes) => bytes >= MIN_CHARTED_SITE_BYTES)
+          : false;
 
     const samples: DashboardPerfSample[] = [];
     let pageHeapUsedBytes: number | null = null;

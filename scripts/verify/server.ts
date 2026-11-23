@@ -2,11 +2,11 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
-import { type Browser, chromium, type Locator, type Page } from "playwright-core";
+import { type Browser, type Locator, type Page } from "playwright-core";
 
 import {
-    attachPageListeners,
     launchExtension,
+    openToolbarPopup,
     readPageSummary,
     resolveTargetUrl,
     waitForSettle,
@@ -16,6 +16,7 @@ import {
     installPlatformRoutes,
     isFixtureTarget,
     resolveFixtureTarget,
+    uninstallPlatformRoutes,
 } from "./fixtures";
 import { measureDashboardPerf, measureMemoryPerf, measurePopupPerf } from "./perf";
 import { applySeed, inspectDb, type SeedMode } from "./seed";
@@ -98,11 +99,20 @@ async function main() {
         await installPlatformRoutes(context);
     };
 
+    // Live navigations must reach the real site: fixture routes would otherwise keep serving
+    // synthetic HTML from an earlier fixture visit for the rest of the session.
+    const disablePlatformRoutes = async () => {
+        if (!platformRoutesInstalled) return;
+        platformRoutesInstalled = false;
+        await uninstallPlatformRoutes(context);
+    };
+
     const resolveTarget = async (raw: string, serverPort: number) => {
         if (isFixtureTarget(raw)) {
             if (raw !== "fixture:usage-site") await ensurePlatformRoutes();
             return resolveFixtureTarget(raw, serverPort);
         }
+        await disablePlatformRoutes();
         return resolveTargetUrl(extId, raw);
     };
 
@@ -186,42 +196,22 @@ async function main() {
 
                     const before = issues.length;
                     await closePopup();
-                    await mainPage.bringToFront();
-                    await serviceWorker.evaluate(async () => await chrome.action.openPopup());
-
-                    const deadline = Date.now() + 4000;
-                    let popupPage: Page | undefined;
-                    let cdpBrowser: Browser | undefined;
-                    while (Date.now() < deadline) {
-                        await Bun.sleep(150);
-                        if (!cdpPort) break;
-                        const candidate = await chromium.connectOverCDP(
-                            `http://127.0.0.1:${cdpPort}`,
-                        );
-                        const found = candidate
-                            .contexts()
-                            .flatMap((c) => c.pages())
-                            .find((p) =>
-                                p.url().startsWith(`chrome-extension://${extId}/popup.html`),
-                            );
-                        if (found) {
-                            cdpBrowser = candidate;
-                            popupPage = found;
-                            break;
-                        }
-                        await candidate.close().catch(() => {});
-                    }
-                    if (!popupPage || !cdpBrowser) {
-                        throw new Error("Timed out waiting for extension popup target.");
-                    }
-                    attachPageListeners(popupPage, extId, issues);
-                    const ready = await waitForSettle(popupPage, 6000);
-                    popupState = { page: popupPage, cdpBrowser };
+                    if (!cdpPort) throw new Error("CDP is required to open the extension popup.");
+                    const opened = await openToolbarPopup({
+                        mainPage,
+                        serviceWorker,
+                        cdpPort,
+                        extId,
+                        issues,
+                        timeoutMs: 4000,
+                    });
+                    popupState = { page: opened.popupPage, cdpBrowser: opened.cdpBrowser };
+                    const ready = await waitForSettle(opened.popupPage, 6000);
                     return Response.json({
                         ok: true,
                         ready,
                         surface: "popup",
-                        page: await readPageSummary(popupPage),
+                        page: await readPageSummary(opened.popupPage),
                         newIssues: issues.slice(before),
                     });
                 }

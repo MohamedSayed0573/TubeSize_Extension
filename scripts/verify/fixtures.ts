@@ -469,6 +469,24 @@ function buildKickHtml(opts: { title: string; streamId?: string; isVideoPage: bo
 }
 
 /**
+ * Every pattern `installPlatformRoutes` registers. `uninstallPlatformRoutes` removes exactly these,
+ * so a live navigation after a fixture visit reaches the real network.
+ */
+const PLATFORM_ROUTE_PATTERNS = [
+    "**/favicon.ico",
+    "https://i.ytimg.com/**",
+    "https://www.youtube.com/**",
+    "https://www.twitch.tv/**",
+    "https://gql.twitch.tv/**",
+    "https://usher.ttvnw.net/**",
+    "https://video-weaver.mock.ttvnw.net/**",
+    "https://kick.com/**",
+    "https://web.kick.com/**",
+    "https://kick-hls.mock.invalid/**",
+    "https://drive.google.com/**",
+] as const;
+
+/**
  * Installs deterministic network-boundary fixtures for YouTube, Twitch, Kick, and Google Drive
  * so all real extension content scripts, background parsers, and UI surfaces run offline.
  */
@@ -863,4 +881,11 @@ export async function installPlatformRoutes(context: BrowserContext): Promise<vo
 </html>`,
         });
     });
+}
+
+/** Removes the platform fixtures so later live navigations are not answered with synthetic HTML. */
+export async function uninstallPlatformRoutes(context: BrowserContext): Promise<void> {
+    for (const pattern of PLATFORM_ROUTE_PATTERNS) {
+        await context.unroute(pattern).catch(() => {});
+    }
 }
