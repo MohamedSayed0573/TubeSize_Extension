@@ -26,7 +26,7 @@ Never judge a trigger from memory. Check the authoritative source:
 
 - **Tool or runtime releases (e.g. Bun):** check the latest stable release notes on GitHub (`oven-sh/bun` releases) and confirm the exact capability (`bun lint` and `bun fmt` shipping in stable, not only a new version number).
 - **Browser or WebExtension APIs:** check MDN / Chrome / Firefox release notes for the minimum versions supported in [wxt.config.ts](../../../wxt.config.ts).
-- If the trigger is **not met** or cannot be confirmed, make zero file edits and record the evidence.
+- If a group's trigger is **not met** or cannot be confirmed, leave that group's files untouched and record the evidence.
 
 ## 3. Resolve ready trigger groups
 
@@ -44,7 +44,7 @@ For each trigger confirmed met:
 Skip this step if no files changed. Otherwise run:
 
 ```bash
-bun run tsc && bun run lint --max-warnings=0 && bun run knip && bun run test && bun run build && bun run build:firefox
+bun run all
 ```
 
 If a resolved TODO changes UI, storage, routing, or IndexedDB behavior, also run [.agents/skills/verify-tubesize/SKILL.md](../verify-tubesize/SKILL.md).
