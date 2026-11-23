@@ -1,4 +1,6 @@
-import type { DisplayFormat, PlatformData, ToastAdapter } from "@/adapters/types";
+import type { PlatformId } from "@app-types/types";
+
+import type { DisplayFormat, PlatformDataMap, ToastAdapter } from "@/adapters/types";
 
 import { waitForElement } from "./lib/dom";
 import { formatDisplaySizes } from "./lib/format";
@@ -27,7 +29,10 @@ export function clearQualityMenu() {
     }
 }
 
-export async function injectMenu(adapter: ToastAdapter, data: PlatformData) {
+export async function injectMenu<P extends PlatformId>(
+    adapter: ToastAdapter<P>,
+    data: PlatformDataMap[P],
+) {
     clearQualityMenu();
     const requestId = menuRequestId;
 

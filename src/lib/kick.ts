@@ -108,6 +108,7 @@ export async function getKickLiveResponse(
             : filterM3u8(masterM3U8Data);
 
         const response: KickLiveData = {
+            platform: "kick",
             type: "live",
             data: kickData,
             channelName: message.channelName,
@@ -198,6 +199,7 @@ export async function getKickVodResponse(message: KickVodMessage): Promise<KickB
         }
 
         const response: KickVodData = {
+            platform: "kick",
             type: "vod",
             data: filterM3u8(playlists),
             vodId: message.vodId,

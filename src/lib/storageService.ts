@@ -1,10 +1,4 @@
-import type {
-    KickData,
-    PlatformData,
-    PlatformDataMap,
-    TwitchData,
-    YoutubeData,
-} from "@app-types/platforms.types";
+import type { PlatformData, PlatformDataMap } from "@app-types/platforms.types";
 import type { PlatformId, SettingsMap, StorageData } from "@app-types/types";
 import CONFIG from "@lib/constants";
 import { getDateKey } from "@lib/dateUtils";
@@ -31,29 +25,47 @@ export function isFresh(entry: { expiry?: number } | null): boolean {
     return entry !== null && entry.expiry !== undefined && entry.expiry > Date.now();
 }
 
-function isCacheable(target: PlatformId, data: PlatformData): boolean {
-    if (data.type === "video") {
-        return data.formats.length > 0 && data.formats.every((format) => format.sizeBytes !== 0);
+function isPositiveFinite(value: number): boolean {
+    return Number.isFinite(value) && value > 0;
+}
+
+function isCacheable(data: PlatformData): boolean {
+    switch (data.platform) {
+        case "youtube": {
+            if (data.type === "video") {
+                return (
+                    data.formats.length > 0 &&
+                    data.formats.every(
+                        (format) =>
+                            isPositiveFinite(format.sizeBytes) &&
+                            isPositiveFinite(format.sizePerSecondBytes),
+                    )
+                );
+            }
+            return (
+                data.formats.length > 0 &&
+                data.formats.every((format) => isPositiveFinite(format.sizePerSecondBytes))
+            );
+        }
+        case "twitch":
+        case "kick":
+            return (
+                data.data.length > 0 &&
+                data.data.every((stream) => isPositiveFinite(stream.sizePerSecondBytes))
+            );
+        default: {
+            const exhaustive: never = data;
+            return exhaustive;
+        }
     }
-    if (target === "youtube") {
-        const youtubeData = data as YoutubeData;
-        return (
-            youtubeData.formats.length > 0 &&
-            youtubeData.formats.every((format) => format.sizePerSecondBytes !== 0)
-        );
-    }
-    const streamData = data as TwitchData | KickData;
-    return (
-        streamData.data.length > 0 &&
-        streamData.data.every((stream) => stream.sizePerSecondBytes !== 0)
-    );
 }
 
 /**
  * Read a cached media response for `target` from local storage, deleting it when
- * expired. The returned data type is inferred from the target platform.
+ * expired or missing the platform discriminant (legacy cache entries). The
+ * returned data type is inferred from the target platform.
  *
- * @returns `null` when the entry is missing or expired.
+ * @returns `null` when the entry is missing, expired, or invalid.
  */
 export async function getMediaCache<T extends PlatformId>(
     target: T,
@@ -64,7 +76,12 @@ export async function getMediaCache<T extends PlatformId>(
 
     if (!cached) return null;
 
-    if (!isFresh(cached)) {
+    if (
+        !isFresh(cached) ||
+        typeof cached.data !== "object" ||
+        cached.data === null ||
+        cached.data.platform !== target
+    ) {
         await item.removeValue();
         return null;
     }
@@ -83,9 +100,10 @@ export async function saveMediaCache<T extends PlatformId>(
     data: PlatformDataMap[T],
     ttlSeconds?: number,
 ): Promise<void> {
-    if (!isCacheable(target, data)) return;
+    if (!isCacheable(data)) return;
 
     const ttl = ttlSeconds ?? (await cacheTTL.getValue());
+    if (!isPositiveFinite(ttl)) return;
 
     await mediaCacheItem(target, id).setValue({
         data,

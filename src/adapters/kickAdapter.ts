@@ -10,7 +10,7 @@ import {
 import { sendMessage } from "@/messaging";
 import type { KickData } from "@/types/platforms.types";
 
-import type { DisplayFormat, HeaderViewData, PlatformData } from "./types";
+import type { DisplayFormat, HeaderViewData, PlatformAdapter } from "./types";
 
 async function loadKickData(tabUrl: string): Promise<KickData> {
     // The page is a Kick Video (Not a live stream)
@@ -53,9 +53,7 @@ function isRunningVideo(tabUrl: string): boolean {
     return isKickPage(tabUrl) && (isKickStream(tabUrl) || isKickVod(tabUrl));
 }
 
-function kickFormats(data: PlatformData): DisplayFormat[] {
-    const kick = data as KickData;
-
+function kickFormats(kick: KickData): DisplayFormat[] {
     if (kick.type === "vod") {
         return kick.data.map((stream) => ({
             kind: "vod",
@@ -74,8 +72,7 @@ function kickFormats(data: PlatformData): DisplayFormat[] {
     }));
 }
 
-function kickHeader(data: PlatformData): HeaderViewData {
-    const kick = data as KickData;
+function kickHeader(kick: KickData): HeaderViewData {
     const language = getLanguage();
 
     return {
@@ -92,11 +89,11 @@ function kickVideoUrl(videoTag: string): string {
 }
 
 export const kickAdapter = {
-    platform: "kick" as const,
+    platform: "kick",
     load: loadKickData,
     match: matchKickUrl,
     isRunningVideo,
     formats: kickFormats,
     header: kickHeader,
     videoUrl: kickVideoUrl,
-};
+} satisfies PlatformAdapter<"kick">;

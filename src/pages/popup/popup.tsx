@@ -28,5 +28,16 @@ export default function Popup() {
         return <UnsupportedPage />;
     }
 
-    return <PlatformView adapter={adapter} tabUrl={tabUrl} tabId={tabId} />;
+    switch (adapter.platform) {
+        case "youtube":
+            return <PlatformView adapter={adapter} tabUrl={tabUrl} tabId={tabId} />;
+        case "twitch":
+            return <PlatformView adapter={adapter} tabUrl={tabUrl} tabId={tabId} />;
+        case "kick":
+            return <PlatformView adapter={adapter} tabUrl={tabUrl} tabId={tabId} />;
+        default: {
+            const exhaustive: never = adapter;
+            return exhaustive;
+        }
+    }
 }

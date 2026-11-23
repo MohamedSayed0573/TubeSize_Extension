@@ -24,7 +24,7 @@ export function parseVideoFormats(
         .map((format) => ({
             type: "video" as const,
             ...format,
-            sizePerSecondBytes: format.sizeBytes / durationSeconds,
+            sizePerSecondBytes: durationSeconds > 0 ? format.sizeBytes / durationSeconds : 0,
         }))
         .toSorted((a, b) => b.height - a.height);
 

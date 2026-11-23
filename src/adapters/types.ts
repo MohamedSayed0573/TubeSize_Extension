@@ -1,13 +1,14 @@
 import type {
     AudioStreamInfo,
     PlatformData,
+    PlatformDataMap,
     VideoCodec,
     VideoItag,
 } from "@app-types/platforms.types";
 
 import type { PlatformId } from "@/types/types";
 
-export type { AudioStreamInfo, PlatformData };
+export type { AudioStreamInfo, PlatformData, PlatformDataMap };
 
 type DisplayFormatBase = {
     key: string | number;
@@ -47,16 +48,17 @@ export type FormatOptions = {
  * narrow lets the content script reuse adapters without depending on popup
  * loading/header behaviour.
  */
-export interface ToastAdapter {
-    formats: (data: PlatformData, options?: FormatOptions) => DisplayFormat[];
+export interface ToastAdapter<P extends PlatformId = PlatformId> {
+    platform: P;
+    formats: (data: PlatformDataMap[P], options?: FormatOptions) => DisplayFormat[];
 }
 
-export interface PlatformAdapter extends ToastAdapter {
+export interface PlatformAdapter<P extends PlatformId = PlatformId> extends ToastAdapter<P> {
     // The unique identifier for the platform (e.g., "youtube", "twitch", "kick")
-    platform: PlatformId;
+    platform: P;
 
     // The function to load the platform's data.
-    load: (tabUrl: string, tabId: number) => Promise<PlatformData>;
+    load: (tabUrl: string, tabId: number) => Promise<PlatformDataMap[P]>;
 
     // The function to check if the URL belongs to this platform.
     match: (tabUrl: string) => boolean;
@@ -65,15 +67,19 @@ export interface PlatformAdapter extends ToastAdapter {
     isRunningVideo: (tabUrl: string) => boolean;
 
     // The function to map the platform's data to the popup's format list.
-    formats: (data: PlatformData, options?: FormatOptions) => DisplayFormat[];
+    formats: (data: PlatformDataMap[P], options?: FormatOptions) => DisplayFormat[];
 
     // The function to map the platform's data to the popup header's title and duration.
-    header: (data: PlatformData) => HeaderViewData;
+    header: (data: PlatformDataMap[P]) => HeaderViewData;
 
     // The function to map the platform's data to the popup's audio stream facts
     // (YouTube only; other platforms have no audio data and return undefined).
-    audio?: (data: PlatformData) => AudioStreamInfo | undefined;
+    audio?: (data: PlatformDataMap[P]) => AudioStreamInfo | undefined;
 
     // The function to build the canonical watch URL for a video tag.
     videoUrl: (videoTag: string, contentType?: VideoContentType) => string;
 }
+
+export type AnyPlatformAdapter = {
+    [P in PlatformId]: PlatformAdapter<P>;
+}[PlatformId];

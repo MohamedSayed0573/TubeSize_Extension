@@ -246,6 +246,18 @@ describe("parseVideoFormats", () => {
 
         expect(format1080?.itags?.filter((itag) => itag.formatId === 137)).toHaveLength(1);
     });
+
+    test("guards against zero or negative duration when computing sizePerSecondBytes", () => {
+        const zeroDuration = structuredClone(data);
+        zeroDuration.videoDetails.lengthSeconds = "0";
+        const { formats } = parseVideoFormats(zeroDuration);
+
+        expect(formats.length).toBeGreaterThan(0);
+        for (const format of formats) {
+            expect(format.sizePerSecondBytes).toBe(0);
+            expect(Number.isFinite(format.sizePerSecondBytes)).toBe(true);
+        }
+    });
 });
 
 describe("parseLiveFormats", () => {
@@ -274,6 +286,7 @@ describe("parseLiveFormats", () => {
 
 describe("youtubeAdapter.formats", () => {
     const vodData: YoutubeData = {
+        platform: "youtube",
         type: "video",
         title: "Test video",
         durationSeconds: 1000,
@@ -302,6 +315,7 @@ describe("youtubeAdapter.formats", () => {
     };
 
     const liveData: YoutubeData = {
+        platform: "youtube",
         type: "live",
         title: "Test live",
         channelName: "Channel",

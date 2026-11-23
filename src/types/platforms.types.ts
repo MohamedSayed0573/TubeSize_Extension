@@ -1,6 +1,8 @@
 import type { ytInitialSchema } from "@lib/schema";
 import { z } from "zod";
 
+import type { PlatformId } from "./types";
+
 export type ytInitialPlayerResponse = z.infer<typeof ytInitialSchema>;
 
 export type VideoCodec = "av01" | "vp9" | "avc";
@@ -68,6 +70,7 @@ export type YoutubeVideoFormat = {
 };
 
 type YoutubeVideoData = {
+    platform: "youtube";
     type: "video";
     formats: YoutubeVideoFormat[];
     title: string;
@@ -82,6 +85,7 @@ type YoutubeVideoData = {
 };
 
 type YoutubeLiveData = {
+    platform: "youtube";
     type: "live";
     formats: StreamInfo[];
     title: string;
@@ -105,12 +109,14 @@ export type StreamInfo = {
 };
 
 export type TwitchLiveData = {
+    platform: "twitch";
     type: "live";
     data: StreamInfo[];
     channelName: string;
     channelUrl: string;
 };
 export type TwitchVodData = {
+    platform: "twitch";
     type: "vod";
     data: StreamInfo[];
     vodId: string;
@@ -129,6 +135,7 @@ export type TwitchTokenData = {
 };
 
 export type KickLiveData = {
+    platform: "kick";
     type: "live";
     data: StreamInfo[];
     channelName: string;
@@ -136,6 +143,7 @@ export type KickLiveData = {
 };
 
 export type KickVodData = {
+    platform: "kick";
     type: "vod";
     data: StreamInfo[];
     vodId: string;
@@ -164,4 +172,4 @@ export type PlatformDataMap = {
 };
 
 /** The data shape any platform produces. */
-export type PlatformData = YoutubeData | TwitchData | KickData;
+export type PlatformData = PlatformDataMap[PlatformId];

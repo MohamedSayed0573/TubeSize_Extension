@@ -7,7 +7,7 @@ import { humanizeDuration } from "@/lib/humanize";
 import { extractVideoTag, isShortsVideo, isYoutubePage } from "@/lib/utils";
 import { sendMessage } from "@/messaging";
 
-import type { DisplayFormat, FormatOptions, HeaderViewData, PlatformData } from "./types";
+import type { DisplayFormat, FormatOptions, HeaderViewData, PlatformAdapter } from "./types";
 
 async function loadYoutubeData(tabUrl: string, tabId: number) {
     const videoTag = extractVideoTag(tabUrl)!;
@@ -42,8 +42,7 @@ function isRunningVideo(tabUrl: string): boolean {
     return isYoutubePage(tabUrl) && !!extractVideoTag(tabUrl);
 }
 
-function youtubeFormats(data: PlatformData, options?: FormatOptions): DisplayFormat[] {
-    const youtube = data as YoutubeData;
+function youtubeFormats(youtube: YoutubeData, options?: FormatOptions): DisplayFormat[] {
     const includeAudio = options?.includeAudio ?? true;
     const audio = includeAudio ? youtube.audio : undefined;
     const audioSizeBytes = audio?.sizeBytes ?? 0;
@@ -77,12 +76,11 @@ function youtubeFormats(data: PlatformData, options?: FormatOptions): DisplayFor
 }
 
 // One audio stream for the whole video, shown as a separate row in advanced view.
-function youtubeAudio(data: PlatformData) {
-    return (data as YoutubeData).audio;
+function youtubeAudio(youtube: YoutubeData) {
+    return youtube.audio;
 }
 
-function youtubeHeader(data: PlatformData): HeaderViewData {
-    const youtube = data as YoutubeData;
+function youtubeHeader(youtube: YoutubeData): HeaderViewData {
     const language = getLanguage();
 
     return {
@@ -102,7 +100,7 @@ function youtubeVideoUrl(videoTag: string): string {
 }
 
 export const youtubeAdapter = {
-    platform: "youtube" as const,
+    platform: "youtube",
     load: loadYoutubeData,
     match: matchYoutubeUrl,
     isRunningVideo,
@@ -110,4 +108,4 @@ export const youtubeAdapter = {
     header: youtubeHeader,
     audio: youtubeAudio,
     videoUrl: youtubeVideoUrl,
-};
+} satisfies PlatformAdapter<"youtube">;

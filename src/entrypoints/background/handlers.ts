@@ -161,6 +161,7 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
         const channelUrl = microformat?.playerMicroformatRenderer.ownerProfileUrl;
 
         const baseData = {
+            platform: "youtube" as const,
             title,
             channelName,
             thumbnailUrl: getThumbnailUrl(ytInitialPlayerResponse),

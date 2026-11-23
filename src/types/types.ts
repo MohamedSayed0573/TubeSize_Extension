@@ -1,12 +1,12 @@
 import CONFIG from "@lib/constants";
 
-import type { KickData, TwitchData, YoutubeData } from "./platforms.types";
+import type { PlatformData } from "./platforms.types";
 
 type Prettify<T> = {
     [K in keyof T]: T[K];
 } & {};
 
-export type StorageData<T extends YoutubeData | TwitchData | KickData> = {
+export type StorageData<T extends PlatformData> = {
     data: T;
     expiry?: number;
     createdAt?: string;

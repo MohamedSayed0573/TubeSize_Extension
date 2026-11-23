@@ -1,16 +1,22 @@
+import type { PlatformId } from "@app-types/types";
 import { chromeNavigate } from "@lib/utils";
 import { ExternalLink, Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 
-import type { HeaderViewData, PlatformAdapter, PlatformData } from "@/adapters/types";
+import type { HeaderViewData, PlatformAdapter, PlatformDataMap } from "@/adapters/types";
 import { t } from "@/i18n/t";
 
-type Props = {
-    adapter?: PlatformAdapter;
-    data?: PlatformData;
-};
+type Props<P extends PlatformId> =
+    | {
+          adapter: PlatformAdapter<P>;
+          data: PlatformDataMap[P];
+      }
+    | {
+          adapter?: undefined;
+          data?: undefined;
+      };
 
-export default function Header({ adapter, data }: Props) {
+export default function Header<P extends PlatformId>({ adapter, data }: Props<P>) {
     const navigate = useNavigate();
     const isLive = data?.type === "live";
     const { title, duration }: HeaderViewData =
