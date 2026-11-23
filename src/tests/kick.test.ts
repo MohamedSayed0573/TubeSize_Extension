@@ -167,13 +167,26 @@ describe("getKickLiveResponse", () => {
         const missingUrl = await getKickLiveResponse({ channelName: "broken", isFromPopup: false });
         expect(missingUrl.success).toBe(false);
 
+        const requestedUrls: string[] = [];
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = jest.fn(async () => {
-            return new Response("Forbidden", { status: 403 });
+        globalThis.fetch = jest.fn(async (input: string | URL) => {
+            const url = input.toString();
+            requestedUrls.push(url);
+            if (url === "https://kick.com/broken") {
+                return new Response(`{"vod_id":"stream-1"}`, { status: 200 });
+            }
+            if (url === "https://web.kick.com/api/v1/stream/stream-1/playback") {
+                return new Response("Forbidden", { status: 403 });
+            }
+            return new Response("Not found", { status: 404 });
         }) as unknown as typeof fetch;
 
         const httpError = await getKickLiveResponse({ channelName: "broken", isFromPopup: false });
         expect(httpError.success).toBe(false);
+        expect(requestedUrls).toEqual([
+            "https://kick.com/broken",
+            "https://web.kick.com/api/v1/stream/stream-1/playback",
+        ]);
     });
 });
 
