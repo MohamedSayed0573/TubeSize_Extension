@@ -247,6 +247,10 @@ interface CdpExceptionDetails {
 interface CdpTargetMessage {
     id?: number;
     method?: string;
+    error?: {
+        code?: number;
+        message?: string;
+    };
     params?: {
         type?: string;
         args?: CdpRemoteObject[];
@@ -342,7 +346,23 @@ async function createServiceWorkerMonitor(
     const attachedTargetIds = new Set<string>();
     const activeSessions = new Map<string, string>();
     const inflight = new Map<string, Promise<void>>();
-    const pendingEnable = new Map<string, () => void>();
+    const pendingEnable = new Map<
+        string,
+        (outcome: { ok: boolean; reason?: string; cancelled?: boolean }) => void
+    >();
+
+    const isTargetStillAlive = async (targetId: string): Promise<boolean> => {
+        if (detached) return false;
+        try {
+            const { targetInfos } = await cdp.send("Target.getTargets");
+            return targetInfos.some(
+                (t) =>
+                    t.targetId === targetId && t.type === "service_worker" && t.url === workerUrl,
+            );
+        } catch {
+            return !detached;
+        }
+    };
 
     const attachTarget = (targetId: string): Promise<void> => {
         if (detached) return Promise.resolve();
@@ -352,24 +372,35 @@ async function createServiceWorkerMonitor(
 
         const promise = (async () => {
             attachedTargetIds.add(targetId);
+            let sessionId: string | undefined;
+            let pendingKey: string | undefined;
             try {
-                const { sessionId } = await cdp.send("Target.attachToTarget", {
+                const attached = await cdp.send("Target.attachToTarget", {
                     targetId,
                     flatten: false,
                 });
+                sessionId = attached.sessionId;
                 if (detached) return;
                 activeSessions.set(sessionId, targetId);
                 const enableId = nextMessageId++;
-                const pendingKey = `${sessionId}:${enableId}`;
-                const enabled = new Promise<void>((res) => {
+                pendingKey = `${sessionId}:${enableId}`;
+                const key = pendingKey;
+                const enabled = new Promise<{
+                    ok: boolean;
+                    reason?: string;
+                    cancelled?: boolean;
+                }>((res) => {
                     const timer = setTimeout(() => {
-                        pendingEnable.delete(pendingKey);
-                        res();
-                    }, 2000);
-                    pendingEnable.set(pendingKey, () => {
+                        pendingEnable.delete(key);
+                        res({
+                            ok: false,
+                            reason: "Timed out waiting for Runtime.enable reply",
+                        });
+                    }, 5000);
+                    pendingEnable.set(key, (outcome) => {
                         clearTimeout(timer);
-                        pendingEnable.delete(pendingKey);
-                        res();
+                        pendingEnable.delete(key);
+                        res(outcome);
                     });
                 });
                 await cdp.send("Target.sendMessageToTarget", {
@@ -379,9 +410,29 @@ async function createServiceWorkerMonitor(
                         method: "Runtime.enable",
                     }),
                 });
-                await enabled;
-            } catch {
+                const outcome = await enabled;
+                if (!outcome.ok) {
+                    if (outcome.cancelled || detached) {
+                        attachedTargetIds.delete(targetId);
+                        activeSessions.delete(sessionId);
+                        return;
+                    }
+                    throw new Error(outcome.reason ?? "Runtime.enable failed");
+                }
+            } catch (err) {
+                if (pendingKey) {
+                    pendingEnable.get(pendingKey)?.({ ok: false, cancelled: true });
+                }
+                if (sessionId) activeSessions.delete(sessionId);
                 attachedTargetIds.delete(targetId);
+                if (detached || !(await isTargetStillAlive(targetId))) {
+                    return;
+                }
+                const message = err instanceof Error ? err.message : String(err);
+                throw new Error(
+                    `Failed to attach service-worker monitor to ${workerUrl}: ${message}`,
+                    { cause: err },
+                );
             } finally {
                 inflight.delete(targetId);
             }
@@ -400,7 +451,19 @@ async function createServiceWorkerMonitor(
             return;
         }
         if (typeof msg.id === "number") {
-            pendingEnable.get(`${ev.sessionId}:${msg.id}`)?.();
+            const settle = pendingEnable.get(`${ev.sessionId}:${msg.id}`);
+            if (settle) {
+                if (msg.error) {
+                    settle({
+                        ok: false,
+                        reason:
+                            msg.error.message ??
+                            `Runtime.enable CDP error ${msg.error.code ?? "unknown"}`,
+                    });
+                } else {
+                    settle({ ok: true });
+                }
+            }
         }
         if (msg.method === "Runtime.exceptionThrown") {
             issues.push({
@@ -422,13 +485,22 @@ async function createServiceWorkerMonitor(
         activeSessions.delete(ev.sessionId);
         if (targetId) attachedTargetIds.delete(targetId);
         for (const [key, resolvePending] of pendingEnable) {
-            if (key.startsWith(`${ev.sessionId}:`)) resolvePending();
+            if (key.startsWith(`${ev.sessionId}:`)) {
+                resolvePending({ ok: false, cancelled: true });
+            }
         }
     });
 
     const onTargetEvent = (ev: { targetInfo: { type: string; url: string; targetId: string } }) => {
         if (ev.targetInfo.type === "service_worker" && ev.targetInfo.url === workerUrl) {
-            void attachTarget(ev.targetInfo.targetId);
+            void attachTarget(ev.targetInfo.targetId).catch((err) => {
+                if (detached) return;
+                issues.push({
+                    source: "service-worker",
+                    level: "error",
+                    message: err instanceof Error ? err.message : String(err),
+                });
+            });
         }
     };
     cdp.on("Target.targetCreated", onTargetEvent);
@@ -442,13 +514,18 @@ async function createServiceWorkerMonitor(
         const matches = targetInfos.filter(
             (t) => t.type === "service_worker" && t.url === workerUrl,
         );
+        if (matches.length === 0) {
+            throw new Error(`Service worker CDP target not found for ${workerUrl}`);
+        }
         await Promise.all(matches.map((t) => attachTarget(t.targetId)));
     };
 
     const detach = async () => {
         if (detached) return;
         detached = true;
-        for (const resolvePending of pendingEnable.values()) resolvePending();
+        for (const resolvePending of pendingEnable.values()) {
+            resolvePending({ ok: false, cancelled: true });
+        }
         pendingEnable.clear();
         activeSessions.clear();
         attachedTargetIds.clear();
