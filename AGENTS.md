@@ -20,7 +20,7 @@ When a change introduces, renames, or retires a domain concept, update `GLOSSARY
 ## Non-Obvious Invariants
 
 - **Single check command:** Run `bun run all` (`tsc`, `lint --max-warnings=0`, `prettier:check`, `knip`, `test`, `build`, `build:firefox`) before opening or updating a PR.
-- **`MAIN` vs `ISOLATED` content worlds:** `src/entrypoints/genericObserver.content.ts` runs in the page `MAIN` world (no `chrome.*`, checked by `tsconfig.mainWorld.json`) and posts `SITE_USAGE` / `WATCH_HISTORY` messages to `src/entrypoints/usageBridge.content.ts` in the `ISOLATED` world, which validates and forwards them to the background.
+- **`MAIN` vs `ISOLATED` content worlds:** `src/entrypoints/genericObserver.content.ts` runs in the page `MAIN` world (no `chrome.*`, checked by `tsconfig.mainWorld.json`) and posts `TUBESIZE_SITE_USAGE` / `TUBESIZE_WATCH_HISTORY` messages to `src/entrypoints/usageBridge.content.ts` in the `ISOLATED` world, which validates and forwards them to the background.
 - **`Content-Length` deduplication:** `src/entrypoints/background/usageTracker.ts` (`webRequest.onCompleted`) counts only responses with a positive `Content-Length` header; `genericObserver.content.ts` counts only responses missing a usable `Content-Length` header so neither double-counts bytes.
 - **Firefox MV3 differences:** `wxt.config.ts` omits the Chromium-only `favicon` permission and sets `browser_specific_settings.gecko` (`strict_min_version: "121.0"`). Runtime code branches on `isFirefox()` (`src/lib/browser.ts`) to omit `extraHeaders` in `webRequest`, fall back from `/_favicon/` to `originFaviconURL`, and read `originUrl`/`documentUrl` where `initiator` is absent.
 
