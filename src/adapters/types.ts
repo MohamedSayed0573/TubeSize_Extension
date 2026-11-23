@@ -86,8 +86,8 @@ export interface PlatformAdapter<P extends PlatformId = PlatformId> extends Toas
     // (YouTube only; other platforms have no audio data and return undefined).
     audio?: (data: PlatformDataMap[P]) => AudioStreamInfo | undefined;
 
-    // The function to build the canonical watch URL for a video tag.
-    videoUrl: (videoTag: string, contentType?: VideoContentType, channelName?: string) => string;
+    // The function to build the canonical watch URL for a media ID.
+    videoUrl: (mediaId: string, contentType?: VideoContentType, channelName?: string) => string;
 }
 
 export type AnyPlatformAdapter = {

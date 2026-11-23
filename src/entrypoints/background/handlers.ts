@@ -62,10 +62,10 @@ export async function handleAddWatchHistory(
     message: AddWatchHistoryMessage,
 ): Promise<AddWatchHistoryResponse> {
     try {
-        const { bytes, platform, videoId } = message;
+        const { bytes, platform, mediaId } = message;
         if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
 
-        const videoKey = toVideoKey(platform, videoId);
+        const videoKey = toVideoKey(platform, mediaId);
         const watchHistory: Record<VideoKey, number> = {};
         watchHistory[videoKey] = bytes;
 

@@ -130,8 +130,8 @@ export async function getKickLiveResponse(
 // (c7093a5c-some-title) while older ones use the video UUID. UUID videos can
 // be fetched directly from the video API, which works for VODs of any age.
 
-async function getKickVodByUuid(videoId: string): Promise<{ source: string; durationMs: number }> {
-    const res = await fetchAndRetry(`https://kick.com/api/v1/video/${videoId}`, {
+async function getKickVodByUuid(mediaId: string): Promise<{ source: string; durationMs: number }> {
+    const res = await fetchAndRetry(`https://kick.com/api/v1/video/${mediaId}`, {
         credentials: "include",
     });
     if (!res.success) {
@@ -152,7 +152,7 @@ async function getKickVodByUuid(videoId: string): Promise<{ source: string; dura
 // so slug-based VODs don't need the HTML page. Note: this endpoint ignores
 // pagination parameters (offset/limit/cursor) and returns the channel's full
 // public VOD list, so only VODs present in that list can be resolved this way.
-async function findKickVodInChannelVideos(channelName: string, videoId: string) {
+async function findKickVodInChannelVideos(channelName: string, mediaId: string) {
     const res = await fetchAndRetry(`https://kick.com/api/v2/channels/${channelName}/videos`, {
         credentials: "include",
     });
@@ -161,7 +161,7 @@ async function findKickVodInChannelVideos(channelName: string, videoId: string) 
     }
 
     const videos = kickChannelVideosResponseSchema.parse(await res.response.json());
-    const video = videos.find((entry) => entry.slug === videoId);
+    const video = videos.find((entry) => entry.slug === mediaId);
     if (!video?.source) {
         throw new Error("Kick VOD not found in channel videos");
     }
@@ -170,7 +170,7 @@ async function findKickVodInChannelVideos(channelName: string, videoId: string) 
 
 export async function getKickVodResponse(message: KickVodMessage): Promise<KickBackgroundResponse> {
     try {
-        const cached = await getMediaCache("kick", message.vodId);
+        const cached = await getMediaCache("kick", message.mediaId);
         if (cached) {
             return {
                 success: true,
@@ -179,9 +179,9 @@ export async function getKickVodResponse(message: KickVodMessage): Promise<KickB
             };
         }
 
-        const { source, durationMs } = isKickVideoUuid(message.vodId)
-            ? await getKickVodByUuid(message.vodId)
-            : await findKickVodInChannelVideos(message.channelName, message.vodId);
+        const { source, durationMs } = isKickVideoUuid(message.mediaId)
+            ? await getKickVodByUuid(message.mediaId)
+            : await findKickVodInChannelVideos(message.channelName, message.mediaId);
 
         const masterRes = await fetchAndRetry(source);
         if (!masterRes.success) {
@@ -201,12 +201,12 @@ export async function getKickVodResponse(message: KickVodMessage): Promise<KickB
             platform: "kick",
             type: "vod",
             data: filterM3u8(playlists),
-            vodId: message.vodId,
+            mediaId: message.mediaId,
             channelName: message.channelName,
             channelUrl: `https://kick.com/${message.channelName}`,
             durationSeconds: Math.round(durationMs / 1000),
         };
-        await saveMediaCache("kick", message.vodId, response);
+        await saveMediaCache("kick", message.mediaId, response);
 
         return {
             success: true,

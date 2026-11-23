@@ -46,8 +46,8 @@ export async function getTwitchLiveClientId(channelName: string): Promise<string
     return await getTwitchClientId(`https://www.twitch.tv/${channelName}`);
 }
 
-export async function getTwitchVodClientId(vodId: string): Promise<string> {
-    return await getTwitchClientId(`https://www.twitch.tv/videos/${vodId}`);
+export async function getTwitchVodClientId(mediaId: string): Promise<string> {
+    return await getTwitchClientId(`https://www.twitch.tv/videos/${mediaId}`);
 }
 
 async function getTwitchToken(
@@ -111,11 +111,11 @@ export async function getTwitchLiveToken(channelName: string): Promise<TwitchTok
     });
 }
 
-export async function getTwitchVodToken(vodId: string): Promise<TwitchTokenData> {
-    return await getTwitchToken(await getTwitchVodClientId(vodId), {
+export async function getTwitchVodToken(mediaId: string): Promise<TwitchTokenData> {
+    return await getTwitchToken(await getTwitchVodClientId(mediaId), {
         login: "",
         isLive: false,
-        vodID: vodId,
+        vodID: mediaId,
         isVod: true,
         playerType: "site",
         platform: "web",
@@ -157,9 +157,9 @@ export async function getTwitchLiveMasterM3u8(
 
 export async function getTwitchVodMasterM3u8(
     tokenData: TwitchTokenData,
-    vodId: string,
+    mediaId: string,
 ): Promise<PlaylistItem[]> {
-    return await getTwitchMasterM3u8(tokenData, `https://usher.ttvnw.net/vod/v2/${vodId}.m3u8`);
+    return await getTwitchMasterM3u8(tokenData, `https://usher.ttvnw.net/vod/v2/${mediaId}.m3u8`);
 }
 
 export async function getTwitchLiveResponse(
@@ -187,7 +187,7 @@ export async function getTwitchLiveResponse(
 export async function getTwitchVodResponse(
     message: TwitchVodMessage,
 ): Promise<TwitchBackgroundResponse> {
-    const cached = await getMediaCache("twitch", message.vodId);
+    const cached = await getMediaCache("twitch", message.mediaId);
     if (cached) {
         return {
             success: true,
@@ -196,23 +196,23 @@ export async function getTwitchVodResponse(
         };
     }
 
-    const twitchToken = await getTwitchVodToken(message.vodId);
+    const twitchToken = await getTwitchVodToken(message.mediaId);
     if (!twitchToken.durationSeconds) {
         throw new Error("Failed to get Twitch VOD duration");
     }
-    const m3u8Data = await getTwitchVodMasterM3u8(twitchToken, message.vodId);
+    const m3u8Data = await getTwitchVodMasterM3u8(twitchToken, message.mediaId);
     const filteredM3U8Data = filterM3u8(m3u8Data);
 
     const response: TwitchVodData = {
         platform: "twitch",
         type: "vod",
         data: filteredM3U8Data,
-        vodId: message.vodId,
+        mediaId: message.mediaId,
         durationSeconds: twitchToken.durationSeconds,
         channelName: undefined,
         channelUrl: undefined,
     };
-    await saveMediaCache("twitch", message.vodId, response);
+    await saveMediaCache("twitch", message.mediaId, response);
 
     return {
         success: true,

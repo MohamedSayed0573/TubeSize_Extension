@@ -6,7 +6,7 @@ export {
     extractChannelName,
     extractKickVodId,
     extractTwitchVodId,
-    extractVideoTag,
+    extractYoutubeMediaId,
     getKickContentType,
     getTwitchContentType,
     getWatchHistoryTarget,

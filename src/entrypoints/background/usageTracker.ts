@@ -135,7 +135,7 @@ function trackWatchHistory(buffer: UsageBuffer, url: string, bytes: number) {
         const target = getWatchHistoryTarget(url);
         if (!target) return;
 
-        buffer.addVideo(toVideoKey(target.platform, target.videoId), bytes);
+        buffer.addVideo(toVideoKey(target.platform, target.mediaId), bytes);
 
         if (target.platform === "youtube") void recordYoutubeMetadata(url);
         else if (target.platform === "twitch") void recordTwitchMetadata(url);

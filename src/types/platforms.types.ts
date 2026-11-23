@@ -119,7 +119,7 @@ export type TwitchVodData = {
     platform: "twitch";
     type: "vod";
     data: StreamInfo[];
-    vodId: string;
+    mediaId: string;
     durationSeconds: number;
     channelName: string | undefined;
     channelUrl: string | undefined;
@@ -146,7 +146,7 @@ export type KickVodData = {
     platform: "kick";
     type: "vod";
     data: StreamInfo[];
-    vodId: string;
+    mediaId: string;
     channelName: string | undefined;
     durationSeconds: number;
     channelUrl: string | undefined;

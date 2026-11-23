@@ -187,20 +187,20 @@ export function extractChannelName(url: string): string | undefined {
     }
 }
 
-export function extractVideoTag(ytUrl: string): string | undefined {
+export function extractYoutubeMediaId(ytUrl: string): string | undefined {
     try {
         const parsedUrl = new URL(ytUrl);
 
-        const videoTag =
+        const mediaId =
             parsedUrl.pathname === "/watch"
                 ? parsedUrl.searchParams.get("v")
                 : parsedUrl.pathname.split("/", 3)[2];
 
-        if (!videoTag || !CONFIG.VIDEO_ID_REGEX.test(videoTag)) {
+        if (!mediaId || !CONFIG.VIDEO_ID_REGEX.test(mediaId)) {
             return;
         }
 
-        return videoTag;
+        return mediaId;
     } catch (err) {
         console.error(err);
         return;
@@ -209,31 +209,31 @@ export function extractVideoTag(ytUrl: string): string | undefined {
 
 export function getWatchHistoryTarget(
     url: string,
-): { videoId: string; platform: PlatformId } | undefined {
+): { mediaId: string; platform: PlatformId } | undefined {
     if (isYoutubeVideo(url)) {
-        const videoId = extractVideoTag(url);
-        if (!videoId) return;
-        return { videoId, platform: "youtube" };
+        const mediaId = extractYoutubeMediaId(url);
+        if (!mediaId) return;
+        return { mediaId, platform: "youtube" };
     }
     if (isTwitchVod(url)) {
-        const videoId = extractTwitchVodId(url);
-        if (!videoId) return;
-        return { videoId, platform: "twitch" };
+        const mediaId = extractTwitchVodId(url);
+        if (!mediaId) return;
+        return { mediaId, platform: "twitch" };
     }
     if (isTwitchLive(url)) {
-        const videoId = extractChannelName(url);
-        if (!videoId) return;
-        return { videoId, platform: "twitch" };
+        const mediaId = extractChannelName(url);
+        if (!mediaId) return;
+        return { mediaId, platform: "twitch" };
     }
     if (isKickVod(url)) {
-        const videoId = extractKickVodId(url);
-        if (!videoId) return;
-        return { videoId, platform: "kick" };
+        const mediaId = extractKickVodId(url);
+        if (!mediaId) return;
+        return { mediaId, platform: "kick" };
     }
     if (isKickStream(url)) {
-        const videoId = extractChannelName(url);
-        if (!videoId) return;
-        return { videoId, platform: "kick" };
+        const mediaId = extractChannelName(url);
+        if (!mediaId) return;
+        return { mediaId, platform: "kick" };
     }
     return;
 }
@@ -244,17 +244,17 @@ export function isVideoKey(value: string): value is VideoKey {
     return isPlatformId(value.slice(0, sep));
 }
 
-export function toVideoKey(platform: PlatformId, videoId: string): VideoKey {
+export function toVideoKey(platform: PlatformId, mediaId: string): VideoKey {
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- branded VideoKey constructor
-    return `${platform}:${videoId}` as VideoKey;
+    return `${platform}:${mediaId}` as VideoKey;
 }
 
-export function parseVideoKey(videoKey: VideoKey): { platform: PlatformId; videoTag: string } {
+export function parseVideoKey(videoKey: VideoKey): { platform: PlatformId; mediaId: string } {
     const sep = videoKey.indexOf(":");
     const platform = videoKey.slice(0, sep);
-    const videoTag = videoKey.slice(sep + 1);
-    if (!isPlatformId(platform) || videoTag.length === 0) {
+    const mediaId = videoKey.slice(sep + 1);
+    if (!isPlatformId(platform) || mediaId.length === 0) {
         throw new Error(`Invalid video key: ${videoKey}`);
     }
-    return { platform, videoTag };
+    return { platform, mediaId };
 }

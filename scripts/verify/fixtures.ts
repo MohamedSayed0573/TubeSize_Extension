@@ -538,14 +538,14 @@ export async function installPlatformRoutes(context: BrowserContext): Promise<vo
             });
         }
 
-        const videoTag =
+        const mediaId =
             url.pathname === "/watch"
                 ? url.searchParams.get("v")
                 : url.pathname.startsWith("/shorts/") || url.pathname.startsWith("/live/")
                   ? url.pathname.split("/")[2]
                   : null;
 
-        if (!videoTag) {
+        if (!mediaId) {
             return await route.fulfill({
                 status: 200,
                 contentType: "text/html; charset=utf-8",
@@ -554,7 +554,7 @@ export async function installPlatformRoutes(context: BrowserContext): Promise<vo
             });
         }
 
-        const isLive = videoTag === "feSFplc7tMY" || url.pathname.startsWith("/live/");
+        const isLive = mediaId === "feSFplc7tMY" || url.pathname.startsWith("/live/");
         const playerJson = isLive ? ytLiveJson : ytVodJson;
         const initialWidth = isLive ? 640 : 1920;
         const initialHeight = isLive ? 360 : 1080;

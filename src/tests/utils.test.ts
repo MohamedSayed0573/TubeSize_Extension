@@ -5,7 +5,7 @@ import { isValidDateKey, toDateKey } from "@lib/dateUtils";
 import {
     extractChannelName,
     extractTwitchVodId,
-    extractVideoTag,
+    extractYoutubeMediaId,
     fetchAndRetry,
     getWatchHistoryTarget,
     isShortsVideo,
@@ -152,66 +152,78 @@ describe("extractTwitchVodId", () => {
     });
 });
 
-describe("extractVideoTag", () => {
+describe("extractYoutubeMediaId", () => {
     test("should return the video id", () => {
-        expect(extractVideoTag("https://www.youtube.com/watch?v=yaodD79Q4iE")).toBe("yaodD79Q4iE");
+        expect(extractYoutubeMediaId("https://www.youtube.com/watch?v=yaodD79Q4iE")).toBe(
+            "yaodD79Q4iE",
+        );
     });
 
     test("should return undefined if the video id is shorter than 11", () => {
-        expect(extractVideoTag("https://www.youtube.com/watch?v=yaodD79Q")).toBeUndefined();
+        expect(extractYoutubeMediaId("https://www.youtube.com/watch?v=yaodD79Q")).toBeUndefined();
     });
 
     test("should return undefined if the video id is missing", () => {
-        expect(extractVideoTag("https://www.youtube.com/")).toBeUndefined();
+        expect(extractYoutubeMediaId("https://www.youtube.com/")).toBeUndefined();
     });
 
     test("should return undefined if the video id has wrong characters", () => {
-        expect(extractVideoTag("https://www.youtube.com/watch?v=123456789.;")).toBeUndefined();
+        expect(
+            extractYoutubeMediaId("https://www.youtube.com/watch?v=123456789.;"),
+        ).toBeUndefined();
     });
 
     test("should return undefined if the params is wrong", () => {
-        expect(extractVideoTag("https://www.youtube.com/watch?s=yaodD79Q4iE")).toBeUndefined();
+        expect(
+            extractYoutubeMediaId("https://www.youtube.com/watch?s=yaodD79Q4iE"),
+        ).toBeUndefined();
     });
 
     test("should return undefined if the url is wrong", () => {
-        expect(extractVideoTag("https://www.youtube.com/example?v=yaodD79Q4iE")).toBeUndefined();
+        expect(
+            extractYoutubeMediaId("https://www.youtube.com/example?v=yaodD79Q4iE"),
+        ).toBeUndefined();
     });
 
     test("should return the video id if there are multiple params", () => {
         expect(
-            extractVideoTag(
+            extractYoutubeMediaId(
                 "https://www.youtube.com/watch?v=FHhZPp08s74&list=RDFHhZPp08s74&start_radio=1",
             ),
         ).toBe("FHhZPp08s74");
     });
 
     test("should return the video id for youtube shorts", () => {
-        expect(extractVideoTag("https://www.youtube.com/shorts/muzkvikbNA0")).toBe("muzkvikbNA0");
+        expect(extractYoutubeMediaId("https://www.youtube.com/shorts/muzkvikbNA0")).toBe(
+            "muzkvikbNA0",
+        );
     });
 
     test("should return undefined for invalid youtube short video", () => {
         expect(
-            extractVideoTag("https://www.youtube.com/shorts/example/muzkvikbNA0"),
+            extractYoutubeMediaId("https://www.youtube.com/shorts/example/muzkvikbNA0"),
         ).toBeUndefined();
     });
 
     test("should return undefined for youtube short video with invalid itag", () => {
-        expect(extractVideoTag("https://www.youtube.com/shorts/muzkbNA0")).toBeUndefined();
+        expect(extractYoutubeMediaId("https://www.youtube.com/shorts/muzkbNA0")).toBeUndefined();
     });
 
     test("should return the video id for a youtube live stream", () => {
-        expect(extractVideoTag("https://www.youtube.com/live/yaodD79Q4iE")).toBe("yaodD79Q4iE");
+        expect(extractYoutubeMediaId("https://www.youtube.com/live/yaodD79Q4iE")).toBe(
+            "yaodD79Q4iE",
+        );
     });
 
     test("should return undefined for a youtube live stream without an id", () => {
-        expect(extractVideoTag("https://www.youtube.com/live/")).toBeUndefined();
+        expect(extractYoutubeMediaId("https://www.youtube.com/live/")).toBeUndefined();
     });
 });
 
 describe("getWatchHistoryTarget", () => {
     test("should return the youtube target for a watch URL", () => {
         expect(getWatchHistoryTarget("https://www.youtube.com/watch?v=yaodD79Q4iE")).toEqual({
-            videoId: "yaodD79Q4iE",
+            mediaId: "yaodD79Q4iE",
             platform: "youtube",
         });
     });
@@ -220,14 +232,14 @@ describe("getWatchHistoryTarget", () => {
     // be tracked like any other watch URL.
     test("should return the youtube target for a live stream URL", () => {
         expect(getWatchHistoryTarget("https://www.youtube.com/live/yaodD79Q4iE")).toEqual({
-            videoId: "yaodD79Q4iE",
+            mediaId: "yaodD79Q4iE",
             platform: "youtube",
         });
     });
 
     test("should return the youtube target for a shorts URL", () => {
         expect(getWatchHistoryTarget("https://www.youtube.com/shorts/muzkvikbNA0")).toEqual({
-            videoId: "muzkvikbNA0",
+            mediaId: "muzkvikbNA0",
             platform: "youtube",
         });
     });
@@ -242,14 +254,14 @@ describe("getWatchHistoryTarget", () => {
 
     test("should return the twitch target for a live channel URL", () => {
         expect(getWatchHistoryTarget("https://www.twitch.tv/somechannel")).toEqual({
-            videoId: "somechannel",
+            mediaId: "somechannel",
             platform: "twitch",
         });
     });
 
     test("should return the kick target for a live channel URL", () => {
         expect(getWatchHistoryTarget("https://www.kick.com/somechannel")).toEqual({
-            videoId: "somechannel",
+            mediaId: "somechannel",
             platform: "kick",
         });
     });
@@ -407,7 +419,7 @@ describe("domain key helpers", () => {
     test("builds, validates, and parses VideoKey values", () => {
         const key = toVideoKey("youtube", "dQw4w9WgXcQ");
         expect(isVideoKey(key)).toBe(true);
-        expect(parseVideoKey(key)).toEqual({ platform: "youtube", videoTag: "dQw4w9WgXcQ" });
+        expect(parseVideoKey(key)).toEqual({ platform: "youtube", mediaId: "dQw4w9WgXcQ" });
         expect(isVideoKey("unknown:abc")).toBe(false);
         expect(isVideoKey("youtube:")).toBe(false);
         expect(isVideoKey("no-colon")).toBe(false);

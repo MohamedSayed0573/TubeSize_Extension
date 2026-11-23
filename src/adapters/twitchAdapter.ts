@@ -26,13 +26,13 @@ async function loadTwitchData(
 ): Promise<TwitchData> {
     // The page is a Twitch Video (Not a live stream)
     if (isTwitchVod(tabUrl)) {
-        const vodId = extractTwitchVodId(tabUrl);
-        if (!vodId) {
+        const mediaId = extractTwitchVodId(tabUrl);
+        if (!mediaId) {
             throw new Error("Open a Twitch stream or video");
         }
 
         const response = await sendMessage("twitchVod", {
-            vodId,
+            mediaId,
         });
         if (!response.success) throw new Error(response.message);
 
@@ -97,10 +97,10 @@ function twitchHeader(twitch: TwitchData): HeaderViewData {
     };
 }
 
-function twitchVideoUrl(videoTag: string, contentType?: VideoContentType): string {
-    const isVod = contentType === undefined ? /^\d+$/.test(videoTag) : contentType === "vod";
+function twitchVideoUrl(mediaId: string, contentType?: VideoContentType): string {
+    const isVod = contentType === undefined ? /^\d+$/.test(mediaId) : contentType === "vod";
 
-    return isVod ? `https://www.twitch.tv/videos/${videoTag}` : `https://www.twitch.tv/${videoTag}`;
+    return isVod ? `https://www.twitch.tv/videos/${mediaId}` : `https://www.twitch.tv/${mediaId}`;
 }
 
 export const twitchAdapter = {

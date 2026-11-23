@@ -38,7 +38,7 @@ describe("parseWindowMessage", () => {
         expect(
             parseWindowMessage({
                 type: "TUBESIZE_WATCH_HISTORY",
-                videoId: "",
+                mediaId: "",
                 platform: "youtube",
                 bytes: 100,
             }),
@@ -46,7 +46,7 @@ describe("parseWindowMessage", () => {
         expect(
             parseWindowMessage({
                 type: "TUBESIZE_WATCH_HISTORY",
-                videoId: "abc12345678",
+                mediaId: "abc12345678",
                 platform: "vimeo",
                 bytes: 100,
             }),
@@ -54,7 +54,7 @@ describe("parseWindowMessage", () => {
         expect(
             parseWindowMessage({
                 type: "TUBESIZE_WATCH_HISTORY",
-                videoId: "abc12345678",
+                mediaId: "abc12345678",
                 platform: "youtube",
                 bytes: 0,
             }),
@@ -69,13 +69,13 @@ describe("parseWindowMessage", () => {
         expect(
             parseWindowMessage({
                 type: "TUBESIZE_WATCH_HISTORY",
-                videoId: "dQw4w9WgXcQ",
+                mediaId: "dQw4w9WgXcQ",
                 platform: "youtube",
                 bytes: 4096,
             }),
         ).toEqual({
             type: "TUBESIZE_WATCH_HISTORY",
-            videoId: "dQw4w9WgXcQ",
+            mediaId: "dQw4w9WgXcQ",
             platform: "youtube",
             bytes: 4096,
         });
@@ -120,7 +120,7 @@ describe("relayWindowMessage", () => {
         relayWindowMessage({ type: "TUBESIZE_SITE_USAGE", bytes: 512 });
         relayWindowMessage({
             type: "TUBESIZE_WATCH_HISTORY",
-            videoId: "shroud",
+            mediaId: "shroud",
             platform: "twitch",
             bytes: 1024,
         });
@@ -128,6 +128,6 @@ describe("relayWindowMessage", () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
 
         expect(usageReceived).toEqual([{ bytes: 512 }]);
-        expect(historyReceived).toEqual([{ videoId: "shroud", platform: "twitch", bytes: 1024 }]);
+        expect(historyReceived).toEqual([{ mediaId: "shroud", platform: "twitch", bytes: 1024 }]);
     });
 });

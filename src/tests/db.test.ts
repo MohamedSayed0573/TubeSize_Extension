@@ -157,18 +157,20 @@ describe("watchHistory table", () => {
 });
 
 describe("videoMetaData table", () => {
-    const ytInput = {
+    const ytStored = {
         type: "youtube" as const,
-        videoTag: "dQw4w9WgXcQ",
         title: "Rick Astley",
         channelName: "RickAstleyVEVO",
         channelUrl: "https://www.youtube.com/@RickAstleyYT",
         thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
     };
+    const ytInput = {
+        ...ytStored,
+        mediaId: "dQw4w9WgXcQ",
+    };
 
-    const twitchInput = {
+    const twitchStored = {
         type: "twitch" as const,
-        videoTag: "shroud",
         contentType: "live" as const,
         title: "FPS Stream",
         channelName: "shroud",
@@ -176,10 +178,14 @@ describe("videoMetaData table", () => {
         thumbnailUrl: "https://static-cdn.jtvnw.net/shroud.jpg",
         url: "https://www.twitch.tv/shroud",
     };
+    const twitchInput = {
+        ...twitchStored,
+        mediaId: "shroud",
+    };
 
     const kickInput = {
         type: "kick" as const,
-        videoTag: "kick-vod-42",
+        mediaId: "kick-vod-42",
         contentType: "vod" as const,
         title: "Kick VOD",
         channelName: "xqc",
@@ -188,29 +194,29 @@ describe("videoMetaData table", () => {
         url: "https://kick.com/xqc/videos/kick-vod-42",
     };
 
-    test("stores, overwrites, and retrieves video metadata by tag/type and by VideoKey", async () => {
+    test("stores, overwrites, and retrieves video metadata by media ID and type and by VideoKey", async () => {
         expect(await getAllVideoMetadata()).toBeUndefined();
 
         await addVideoMetadata(ytInput);
         await addVideoMetadata(twitchInput);
         await addVideoMetadata(kickInput);
 
-        const ytKey = toVideoKey("youtube", ytInput.videoTag);
-        const twitchKey = toVideoKey("twitch", twitchInput.videoTag);
-        const kickKey = toVideoKey("kick", kickInput.videoTag);
+        const ytKey = toVideoKey("youtube", ytInput.mediaId);
+        const twitchKey = toVideoKey("twitch", twitchInput.mediaId);
+        const kickKey = toVideoKey("kick", kickInput.mediaId);
 
-        expect(await getVideoMetadata(ytInput.videoTag, "youtube")).toEqual({
-            ...ytInput,
+        expect(await getVideoMetadata(ytInput.mediaId, "youtube")).toEqual({
+            ...ytStored,
             videoKey: ytKey,
         });
         expect(await getVideoMetadataByVideoKey(twitchKey)).toEqual({
-            ...twitchInput,
+            ...twitchStored,
             videoKey: twitchKey,
         });
 
         // Updating an existing video replaces the stored metadata record.
         await addVideoMetadata({ ...ytInput, title: "Updated Title" });
-        expect((await getVideoMetadata(ytInput.videoTag, "youtube"))?.title).toBe("Updated Title");
+        expect((await getVideoMetadata(ytInput.mediaId, "youtube"))?.title).toBe("Updated Title");
 
         const batch = await getVideoMetadataByVideoKey([ytKey, kickKey]);
         expect(batch).toHaveLength(2);
@@ -236,7 +242,7 @@ describe("clearDatabaseData", () => {
         await addWatchHistory({ [ytKey]: 8_000 });
         await addVideoMetadata({
             type: "youtube",
-            videoTag: "dQw4w9WgXcQ",
+            mediaId: "dQw4w9WgXcQ",
             title: "Test",
             channelName: "Channel",
             channelUrl: "https://www.youtube.com/@channel",
@@ -256,7 +262,6 @@ describe("getVideoContentType", () => {
         const ytMeta: VideoMetadata = {
             type: "youtube",
             videoKey: toVideoKey("youtube", "dQw4w9WgXcQ"),
-            videoTag: "dQw4w9WgXcQ",
             title: "YT",
             channelName: "Ch",
             channelUrl: "https://youtube.com/@ch",
@@ -265,7 +270,6 @@ describe("getVideoContentType", () => {
         const twitchLive: VideoMetadata = {
             type: "twitch",
             videoKey: toVideoKey("twitch", "shroud"),
-            videoTag: "shroud",
             contentType: "live",
             title: "Live",
             channelName: "shroud",
@@ -276,7 +280,6 @@ describe("getVideoContentType", () => {
         const kickVod: VideoMetadata = {
             type: "kick",
             videoKey: toVideoKey("kick", "vod-1"),
-            videoTag: "vod-1",
             contentType: "vod",
             title: "VOD",
             channelName: "xqc",
@@ -297,7 +300,6 @@ describe("getVideoUrl", () => {
         const ytMeta: VideoMetadata = {
             type: "youtube",
             videoKey: toVideoKey("youtube", "dQw4w9WgXcQ"),
-            videoTag: "dQw4w9WgXcQ",
             title: "YT",
             channelName: "Ch",
             channelUrl: "https://youtube.com/@ch",
@@ -306,7 +308,6 @@ describe("getVideoUrl", () => {
         const twitchLive: VideoMetadata = {
             type: "twitch",
             videoKey: toVideoKey("twitch", "shroud"),
-            videoTag: "shroud",
             contentType: "live",
             title: "Live",
             channelName: "shroud",
@@ -317,7 +318,6 @@ describe("getVideoUrl", () => {
         const kickVod: VideoMetadata = {
             type: "kick",
             videoKey: toVideoKey("kick", "vod-1"),
-            videoTag: "vod-1",
             contentType: "vod",
             title: "VOD",
             channelName: "xqc",

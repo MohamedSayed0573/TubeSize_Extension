@@ -26,15 +26,15 @@ async function loadKickData(
 ): Promise<KickData> {
     // The page is a Kick Video (Not a live stream)
     if (isKickVod(tabUrl)) {
-        const vodId = extractKickVodId(tabUrl);
+        const mediaId = extractKickVodId(tabUrl);
         const channelName = extractChannelName(tabUrl);
-        if (!vodId || !channelName) {
+        if (!mediaId || !channelName) {
             throw new Error("Open a Kick stream or video");
         }
 
         const response = await sendMessage("kickVod", {
-            vodId: vodId,
-            channelName: channelName,
+            mediaId,
+            channelName,
         });
         if (!response.success) throw new Error(response.message);
 
@@ -96,27 +96,27 @@ function kickHeader(kick: KickData): HeaderViewData {
 }
 
 function kickVideoUrl(
-    videoTag: string,
+    mediaId: string,
     contentType?: VideoContentType,
     channelName?: string,
 ): string {
     if (contentType === "live") {
-        return `https://kick.com/${videoTag}`;
+        return `https://kick.com/${mediaId}`;
     }
 
     if (contentType === "vod") {
         return channelName
-            ? `https://kick.com/${channelName}/videos/${videoTag}`
-            : `https://kick.com/video/${videoTag}`;
+            ? `https://kick.com/${channelName}/videos/${mediaId}`
+            : `https://kick.com/video/${mediaId}`;
     }
 
-    if (channelName && channelName !== videoTag) {
-        return `https://kick.com/${channelName}/videos/${videoTag}`;
+    if (channelName && channelName !== mediaId) {
+        return `https://kick.com/${channelName}/videos/${mediaId}`;
     }
 
-    return isKickVideoUuid(videoTag)
-        ? `https://kick.com/video/${videoTag}`
-        : `https://kick.com/${videoTag}`;
+    return isKickVideoUuid(mediaId)
+        ? `https://kick.com/video/${mediaId}`
+        : `https://kick.com/${mediaId}`;
 }
 
 export const kickAdapter = {
