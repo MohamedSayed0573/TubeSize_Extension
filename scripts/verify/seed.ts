@@ -110,7 +110,6 @@ export async function applySeed(target: Worker, mode: SeedMode): Promise<DbSnaps
                 ...yt.map((v) => ({
                     videoKey: `youtube:${v.tag}`,
                     type: "youtube",
-                    videoTag: v.tag,
                     title: v.title,
                     channelName: v.ch,
                     channelUrl: v.url,
@@ -119,7 +118,6 @@ export async function applySeed(target: Worker, mode: SeedMode): Promise<DbSnaps
                 {
                     videoKey: "twitch:1234567890",
                     type: "twitch",
-                    videoTag: "1234567890",
                     title: "Ranked grind to Radiant — full VOD",
                     channelName: "shroud",
                     channelUrl: "https://www.twitch.tv/shroud",
@@ -130,7 +128,6 @@ export async function applySeed(target: Worker, mode: SeedMode): Promise<DbSnaps
                 {
                     videoKey: "twitch:shroud",
                     type: "twitch",
-                    videoTag: "shroud",
                     title: "shroud — Live",
                     channelName: "shroud",
                     channelUrl: "https://www.twitch.tv/shroud",
@@ -141,7 +138,6 @@ export async function applySeed(target: Worker, mode: SeedMode): Promise<DbSnaps
                 {
                     videoKey: "kick:kick-vod-98231",
                     type: "kick",
-                    videoTag: "kick-vod-98231",
                     title: "GTA RP — full session",
                     channelName: "xqc",
                     channelUrl: "https://kick.com/xqc",
@@ -158,7 +154,6 @@ export async function applySeed(target: Worker, mode: SeedMode): Promise<DbSnaps
                     meta.push({
                         videoKey: `youtube:${tag}`,
                         type: "youtube",
-                        videoTag: tag,
                         title: `Heavy Benchmark Video #${idx}`,
                         channelName: `Channel ${idx % 6}`,
                         channelUrl: `https://www.youtube.com/@channel${idx % 6}`,

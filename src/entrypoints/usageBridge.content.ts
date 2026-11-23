@@ -24,11 +24,11 @@ export function parseWindowMessage(data: unknown): WindowMessage | undefined {
 
     if (data.type === "TUBESIZE_WATCH_HISTORY") {
         if (
-            !("videoId" in data) ||
+            !("mediaId" in data) ||
             !("bytes" in data) ||
             !("platform" in data) ||
-            typeof data.videoId !== "string" ||
-            data.videoId.length === 0 ||
+            typeof data.mediaId !== "string" ||
+            data.mediaId.length === 0 ||
             !isValidBytes(data.bytes) ||
             !isPlatformId(data.platform)
         ) {
@@ -37,7 +37,7 @@ export function parseWindowMessage(data: unknown): WindowMessage | undefined {
 
         return {
             type: "TUBESIZE_WATCH_HISTORY",
-            videoId: data.videoId,
+            mediaId: data.mediaId,
             platform: data.platform,
             bytes: data.bytes,
         };
@@ -61,7 +61,7 @@ export function relayWindowMessage(data: unknown): void {
         }
         case "TUBESIZE_WATCH_HISTORY": {
             void sendMessage("addWatchHistory", {
-                videoId: message.videoId,
+                mediaId: message.mediaId,
                 platform: message.platform,
                 bytes: message.bytes,
             }).catch((err: unknown) => {

@@ -56,8 +56,8 @@ export function parseLiveFormats(
     return { formats, audio };
 }
 
-async function fetchYoutubeHtml(videoTag: string) {
-    const res = await fetchAndRetry(`https://www.youtube.com/watch?v=${videoTag}`, {
+async function fetchYoutubeHtml(mediaId: string) {
+    const res = await fetchAndRetry(`https://www.youtube.com/watch?v=${mediaId}`, {
         method: "GET",
         signal: AbortSignal.timeout(CONFIG.FETCH_HTML_TIMEOUT),
     });
@@ -67,17 +67,17 @@ async function fetchYoutubeHtml(videoTag: string) {
 }
 
 export async function extractYtInitialResponse(
-    videoTag: string,
+    mediaId: string,
     html: string | undefined,
 ): Promise<ytInitialPlayerResponse> {
-    const validHtml = html || (await fetchYoutubeHtml(videoTag));
+    const validHtml = html || (await fetchYoutubeHtml(mediaId));
     const match = validHtml.match(CONFIG.YT_INITIAL_PLAYER_REGEX);
     if (!match?.[1]) throw new Error("No match found");
 
     const data = JSON.parse(match[1]) as unknown;
     const ytInitial = ytInitialSchema.parse(data);
 
-    if (ytInitial.videoDetails.videoId !== videoTag) {
+    if (ytInitial.videoDetails.videoId !== mediaId) {
         throw new Error("Video ID mismatch between extracted data and requested video");
     }
     return ytInitial;
@@ -314,12 +314,12 @@ export async function getYoutubeResponse(
     message: YoutubeMessage,
 ): Promise<YoutubeBackgroundResponse> {
     try {
-        const { videoTag, html } = message;
-        if (!videoTag) {
-            throw new Error("No video tag provided");
+        const { mediaId, html } = message;
+        if (!mediaId) {
+            throw new Error("No media ID provided");
         }
 
-        const cached = await getMediaCache("youtube", videoTag);
+        const cached = await getMediaCache("youtube", mediaId);
         if (cached) {
             return {
                 success: true,
@@ -327,7 +327,7 @@ export async function getYoutubeResponse(
             };
         }
 
-        const ytInitialPlayerResponse = await extractYtInitialResponse(videoTag, html);
+        const ytInitialPlayerResponse = await extractYtInitialResponse(mediaId, html);
         const { videoDetails, microformat } = ytInitialPlayerResponse;
         const { author: channelName, title, isLive } = videoDetails;
         const channelUrl = microformat?.playerMicroformatRenderer.ownerProfileUrl;
@@ -361,7 +361,7 @@ export async function getYoutubeResponse(
             };
         }
 
-        await saveMediaCache("youtube", videoTag, data, isLive ? CONFIG.LIVE_CACHE_TTL : undefined);
+        await saveMediaCache("youtube", mediaId, data, isLive ? CONFIG.LIVE_CACHE_TTL : undefined);
 
         return {
             success: true,

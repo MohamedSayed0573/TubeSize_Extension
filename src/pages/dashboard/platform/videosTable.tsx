@@ -30,7 +30,7 @@ export default function VideosTable({
                 {sorted.map((videoDetails, index) => {
                     return (
                         <VideoTableRow
-                            key={`${videoDetails.date}-${videoDetails.videoTag}`}
+                            key={`${videoDetails.date}-${videoDetails.mediaId}`}
                             videoDetails={videoDetails}
                             index={index + 1}
                             platform={platform}

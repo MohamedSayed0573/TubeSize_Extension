@@ -29,14 +29,14 @@ function PlatformUsageContent({ platform, scope }: { platform: PlatformId; scope
     // Filter based on the platform
     const rows: VideoRowDetails[] = watchHistory.flatMap(({ day, videos }) => {
         return typedEntries(videos).flatMap(([videoKey, bytes]) => {
-            const { platform: videoPlatform, videoTag } = parseVideoKey(videoKey);
+            const { platform: videoPlatform, mediaId } = parseVideoKey(videoKey);
 
             if (videoPlatform !== platform) return [];
 
             const videoMetadata = metadata.find((m) => m.videoKey === videoKey);
 
             return {
-                videoTag,
+                mediaId,
                 usage: bytes,
                 date: day,
                 title: videoMetadata?.title,

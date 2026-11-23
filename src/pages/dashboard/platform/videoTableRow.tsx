@@ -12,7 +12,7 @@ import { t } from "@/i18n/t";
 import { PLATFORM_THEME } from "./platformTheme";
 
 export interface VideoRowDetails {
-    videoTag: string;
+    mediaId: string;
     usage: number;
     title: string | undefined;
     thumbnailUrl: string | undefined;
@@ -37,12 +37,12 @@ export default function VideoTableRow({
         usage,
         channelName,
         channelUrl,
-        videoTag,
+        mediaId,
         contentType,
         url: storedUrl,
     } = videoDetails;
     const url =
-        storedUrl || getPlatformAdapter(platform).videoUrl(videoTag, contentType, channelName);
+        storedUrl || getPlatformAdapter(platform).videoUrl(mediaId, contentType, channelName);
 
     const imageUrl = videoDetails.thumbnailUrl || PLATFORM_THEME[platform].placeholderImage;
     const videoTitle = videoDetails.title || platform;

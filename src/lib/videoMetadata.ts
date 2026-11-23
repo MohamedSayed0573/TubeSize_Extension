@@ -3,7 +3,7 @@ import {
     extractChannelName,
     extractKickVodId,
     extractTwitchVodId,
-    extractVideoTag,
+    extractYoutubeMediaId,
     getKickContentType,
     getTwitchContentType,
 } from "@lib/utils";
@@ -18,10 +18,10 @@ export async function recordTwitchMetadata(url: string) {
         const contentType = getTwitchContentType(url);
         if (!contentType) return;
 
-        const videoTag = contentType === "vod" ? extractTwitchVodId(url) : extractChannelName(url);
-        if (!videoTag) return;
+        const mediaId = contentType === "vod" ? extractTwitchVodId(url) : extractChannelName(url);
+        if (!mediaId) return;
 
-        const existing = await getVideoMetadata(videoTag, "twitch");
+        const existing = await getVideoMetadata(mediaId, "twitch");
         if (existing) return;
 
         const res = await fetch(url);
@@ -42,7 +42,7 @@ export async function recordTwitchMetadata(url: string) {
             channelUrl: `https://www.twitch.tv/${channelName}`,
             type: "twitch",
             contentType,
-            videoTag,
+            mediaId,
             url,
         });
     } catch (err) {
@@ -55,10 +55,10 @@ export async function recordKickMetadata(url: string) {
         const contentType = getKickContentType(url);
         if (!contentType) return;
 
-        const videoTag = contentType === "vod" ? extractKickVodId(url) : extractChannelName(url);
-        if (!videoTag) return;
+        const mediaId = contentType === "vod" ? extractKickVodId(url) : extractChannelName(url);
+        if (!mediaId) return;
 
-        const existing = await getVideoMetadata(videoTag, "kick");
+        const existing = await getVideoMetadata(mediaId, "kick");
         if (existing) return;
 
         const channelName = extractChannelName(url);
@@ -85,7 +85,7 @@ export async function recordKickMetadata(url: string) {
         await addVideoMetadata({
             type: "kick",
             contentType,
-            videoTag,
+            mediaId,
             url,
             title,
             channelName,
@@ -99,14 +99,14 @@ export async function recordKickMetadata(url: string) {
 
 export async function recordYoutubeMetadata(url: string) {
     try {
-        const videoTag = extractVideoTag(url);
-        if (!videoTag) return;
+        const mediaId = extractYoutubeMediaId(url);
+        if (!mediaId) return;
 
-        const existing = await getVideoMetadata(videoTag, "youtube");
+        const existing = await getVideoMetadata(mediaId, "youtube");
         if (existing) return;
 
         const response = await getYoutubeResponse({
-            videoTag,
+            mediaId,
             av1Supported: await getCachedAv1Support(),
         });
         if (!response.success) return;
@@ -114,7 +114,7 @@ export async function recordYoutubeMetadata(url: string) {
         const { data } = response;
         await addVideoMetadata({
             type: "youtube",
-            videoTag,
+            mediaId,
             title: data.title || data.channelName || "Youtube",
             channelName: data.channelName ?? "",
             thumbnailUrl: data.thumbnailUrl ?? "https://www.youtube.com/img/desktop/yt_1200.png",

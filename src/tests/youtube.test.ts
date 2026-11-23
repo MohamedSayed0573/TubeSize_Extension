@@ -58,7 +58,7 @@ describe("handleYoutube", () => {
     test("should return the video title and channel for a video", async () => {
         const html = `<script>var ytInitialPlayerResponse = ${readAsset("ytInitialPlayerResponse.json")};</script>`;
 
-        const response = await handleYoutube({ videoTag: "I82j7AzMU80", html });
+        const response = await handleYoutube({ mediaId: "I82j7AzMU80", html });
 
         expect(response.success).toBe(true);
         if (!response.success) return;
@@ -74,7 +74,7 @@ describe("handleYoutube", () => {
     test("should return the stream title and channel for a live stream", async () => {
         const html = `<script>var ytInitialPlayerResponse = ${readAsset("ytInitialPlayerResponseLive.json")};</script>`;
 
-        const response = await handleYoutube({ videoTag: "feSFplc7tMY", html });
+        const response = await handleYoutube({ mediaId: "feSFplc7tMY", html });
 
         expect(response.success).toBe(true);
         if (!response.success) return;

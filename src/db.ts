@@ -15,7 +15,6 @@ export interface WatchHistory {
 
 interface BaseVideoMetadata {
     videoKey: VideoKey;
-    videoTag: string;
     title: string;
     channelName: string;
     channelUrl: string;
@@ -41,9 +40,9 @@ interface KickMetadata extends BaseVideoMetadata {
 export type VideoMetadata = YoutubeMetadata | TwitchMetadata | KickMetadata;
 
 export type VideoMetadataInput =
-    | Omit<YoutubeMetadata, "videoKey">
-    | Omit<TwitchMetadata, "videoKey">
-    | Omit<KickMetadata, "videoKey">;
+    | (Omit<YoutubeMetadata, "videoKey"> & { mediaId: string })
+    | (Omit<TwitchMetadata, "videoKey"> & { mediaId: string })
+    | (Omit<KickMetadata, "videoKey"> & { mediaId: string });
 
 class TubeSizeDatabase extends Dexie {
     siteUsage!: Table<SiteUsage, DateKey>;
@@ -144,13 +143,13 @@ export async function getWatchHistoryByDate(day: DateKey | DateKey[]) {
         : database.watchHistory.get(day);
 }
 
-export async function addVideoMetadata(metadata: VideoMetadataInput) {
-    const videoKey = toVideoKey(metadata.type, metadata.videoTag);
+export async function addVideoMetadata({ mediaId, ...metadata }: VideoMetadataInput) {
+    const videoKey = toVideoKey(metadata.type, mediaId);
     await database.videoMetaData.put({ ...metadata, videoKey });
 }
 
-export async function getVideoMetadata(videoTag: string, type: VideoMetadata["type"]) {
-    return await database.videoMetaData.get(toVideoKey(type, videoTag));
+export async function getVideoMetadata(mediaId: string, type: VideoMetadata["type"]) {
+    return await database.videoMetaData.get(toVideoKey(type, mediaId));
 }
 
 export async function getAllVideoMetadata() {

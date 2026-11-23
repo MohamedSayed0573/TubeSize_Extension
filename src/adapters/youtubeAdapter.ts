@@ -4,7 +4,7 @@ import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
 import { getAv1Support } from "@/lib/codecSupport";
 import { humanizeDuration } from "@/lib/humanize";
-import { extractVideoTag, isShortsVideo, isYoutubePage } from "@/lib/utils";
+import { extractYoutubeMediaId, isShortsVideo, isYoutubePage } from "@/lib/utils";
 import { sendMessage } from "@/messaging";
 
 import type {
@@ -16,8 +16,8 @@ import type {
 } from "./types";
 
 async function loadYoutubeData(tabUrl: string, _tabId?: number, options?: LoadPlatformOptions) {
-    const videoTag = extractVideoTag(tabUrl);
-    if (!videoTag) {
+    const mediaId = extractYoutubeMediaId(tabUrl);
+    if (!mediaId) {
         throw new Error("Open a YouTube video or stream");
     }
 
@@ -29,7 +29,7 @@ async function loadYoutubeData(tabUrl: string, _tabId?: number, options?: LoadPl
     }
 
     const response = await sendMessage("youtubeVideo", {
-        videoTag,
+        mediaId,
         html: options?.html,
         av1Supported,
     });
@@ -54,7 +54,7 @@ function matchYoutubeUrl(tabUrl: string): boolean {
 }
 
 function isRunningVideo(tabUrl: string): boolean {
-    return isYoutubePage(tabUrl) && !!extractVideoTag(tabUrl);
+    return isYoutubePage(tabUrl) && !!extractYoutubeMediaId(tabUrl);
 }
 
 function youtubeFormats(youtube: YoutubeData, options?: FormatOptions): DisplayFormat[] {
@@ -110,8 +110,8 @@ function youtubeHeader(youtube: YoutubeData): HeaderViewData {
     };
 }
 
-function youtubeVideoUrl(videoTag: string): string {
-    return `https://youtube.com/watch?v=${videoTag}`;
+function youtubeVideoUrl(mediaId: string): string {
+    return `https://youtube.com/watch?v=${mediaId}`;
 }
 
 export const youtubeAdapter = {

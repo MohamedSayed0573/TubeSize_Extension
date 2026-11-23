@@ -212,14 +212,14 @@ describe("getKickVodResponse", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const first = await getKickVodResponse({ vodId: uuid, channelName: "xqc" });
+        const first = await getKickVodResponse({ mediaId: uuid, channelName: "xqc" });
 
         expect(first).toEqual({
             success: true,
             data: {
                 platform: "kick",
                 type: "vod",
-                vodId: uuid,
+                mediaId: uuid,
                 channelName: "xqc",
                 channelUrl: "https://kick.com/xqc",
                 durationSeconds: 3600,
@@ -236,7 +236,7 @@ describe("getKickVodResponse", () => {
 
         // Second call should hit media cache without making any network requests.
         fetchMock.mockClear();
-        const second = await getKickVodResponse({ vodId: uuid, channelName: "xqc" });
+        const second = await getKickVodResponse({ mediaId: uuid, channelName: "xqc" });
 
         expect(second.success).toBe(true);
         if (first.success && second.success) {
@@ -275,14 +275,14 @@ describe("getKickVodResponse", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const response = await getKickVodResponse({ vodId: slug, channelName: "xqc" });
+        const response = await getKickVodResponse({ mediaId: slug, channelName: "xqc" });
 
         expect(response).toEqual({
             success: true,
             data: {
                 platform: "kick",
                 type: "vod",
-                vodId: slug,
+                mediaId: slug,
                 channelName: "xqc",
                 channelUrl: "https://kick.com/xqc",
                 durationSeconds: 91,
@@ -311,7 +311,7 @@ describe("getKickVodResponse", () => {
         }) as unknown as typeof fetch;
 
         const response = await getKickVodResponse({
-            vodId: "missing-slug-vod",
+            mediaId: "missing-slug-vod",
             channelName: "xqc",
         });
 
@@ -326,7 +326,9 @@ describe("getKickVodResponse", () => {
         globalThis.fetch = jest.fn(async () =>
             Response.json({ source: null, livestream: { duration: 10_000 } }),
         ) as unknown as typeof fetch;
-        expect((await getKickVodResponse({ vodId: uuid, channelName: "xqc" })).success).toBe(false);
+        expect((await getKickVodResponse({ mediaId: uuid, channelName: "xqc" })).success).toBe(
+            false,
+        );
 
         // Null livestream
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
@@ -336,7 +338,9 @@ describe("getKickVodResponse", () => {
                 livestream: null,
             }),
         ) as unknown as typeof fetch;
-        expect((await getKickVodResponse({ vodId: uuid, channelName: "xqc" })).success).toBe(false);
+        expect((await getKickVodResponse({ mediaId: uuid, channelName: "xqc" })).success).toBe(
+            false,
+        );
 
         // Zero duration
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
@@ -349,7 +353,9 @@ describe("getKickVodResponse", () => {
             }
             return new Response(MASTER_M3U8, { status: 200 });
         }) as unknown as typeof fetch;
-        expect((await getKickVodResponse({ vodId: uuid, channelName: "xqc" })).success).toBe(false);
+        expect((await getKickVodResponse({ mediaId: uuid, channelName: "xqc" })).success).toBe(
+            false,
+        );
     });
 
     test("returns failure when master M3U8 has no playlists", async () => {
@@ -366,7 +372,7 @@ describe("getKickVodResponse", () => {
             return new Response("#EXTM3U\n", { status: 200 });
         }) as unknown as typeof fetch;
 
-        const response = await getKickVodResponse({ vodId: uuid, channelName: "xqc" });
+        const response = await getKickVodResponse({ mediaId: uuid, channelName: "xqc" });
         expect(response.success).toBe(false);
     });
 });

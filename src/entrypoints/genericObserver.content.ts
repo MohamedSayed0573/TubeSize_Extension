@@ -291,7 +291,7 @@ export default defineContentScript({
                 window.postMessage(
                     {
                         type: "TUBESIZE_WATCH_HISTORY",
-                        videoId: target.videoId,
+                        mediaId: target.mediaId,
                         platform: target.platform,
                         bytes: total,
                     } satisfies WatchHistoryMessage,

@@ -35,20 +35,20 @@ export type AddUsageMessage = {
 };
 
 export type AddWatchHistoryMessage = {
-    videoId: string;
+    mediaId: string;
     bytes: number;
     platform: PlatformId;
 };
 
 export type YoutubeMessage = {
-    videoTag: string;
+    mediaId: string;
     html?: string;
     /** `undefined` means the device capability has not been detected yet. */
     av1Supported?: boolean;
 };
 
 export type TwitchVodMessage = {
-    vodId: string;
+    mediaId: string;
 };
 
 export type TwitchLiveMessage = {
@@ -57,7 +57,7 @@ export type TwitchLiveMessage = {
 };
 
 export type KickVodMessage = {
-    vodId: string;
+    mediaId: string;
     channelName: string;
 };
 
@@ -70,7 +70,7 @@ export type UsageMessage = { type: "TUBESIZE_SITE_USAGE"; bytes: number };
 
 export type WatchHistoryMessage = {
     type: "TUBESIZE_WATCH_HISTORY";
-    videoId: string;
+    mediaId: string;
     bytes: number;
     platform: PlatformId;
 };
