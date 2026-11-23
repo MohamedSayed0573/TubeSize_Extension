@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "all": "concurrently \"bun run build\" \"bun run lint\" \"bun run test\"",
+        "all": "bun run tsc && bun run lint --max-warnings=0 && bun run prettier:check && bun run knip && bun run test && bun run build && bun run build:firefox",
         "build": "wxt build",
         "build:firefox": "wxt build -b firefox",
         "dev": "wxt",
@@ -19,7 +19,7 @@
         "prettier:check": "bun fmt --check",
         "prelint": "bun scripts/checkBun.ts",
         "lint": "bun lint .",
-        "tsc": "bun check",
+        "tsc": "bun check && bun check -p tsconfig.mainWorld.json",
         "knip": "KNIP_DISABLE_RAW_TRANSFER=1 knip",
         "verify": "bun scripts/verify.ts",
         "prepare": "husky"
@@ -62,7 +62,6 @@
         "@types/react-dom": "^19.3.0",
         "@webext-core/fake-browser": "^2.0.1",
         "@wxt-dev/module-react": "^1.2.2",
-        "concurrently": "^10.0.7",
         "husky": "^9.1.7",
         "knip": "^6.46.1",
         "playwright-core": "^1.65.1",

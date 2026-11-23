@@ -51,13 +51,18 @@ jobs:
               run: bun run tsc
 
             - name: Lint
-              run: bun run lint
+              run: bun run lint --max-warnings=0
 
             - name: Knip
               run: bun run knip
 
             - name: Run Tests
               run: bun run test
+
+            - name: Build release packages
+              run: |
+                  bun run zip
+                  bun run zip:firefox
 
             - name: Commit, tag, and push version bump
               if: inputs.dryRun != true
@@ -68,11 +73,6 @@ jobs:
                   git commit -am "chore(release): $VERSION"
                   git tag "extension-v$VERSION" -m "Release extension-v$VERSION"
                   git push origin "HEAD:${{ github.ref_name }}" --follow-tags
-
-            - name: Build release packages
-              run: |
-                  bun run zip
-                  bun run zip:firefox
 
             - name: Submit to stores
               env:

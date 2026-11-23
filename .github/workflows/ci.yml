@@ -33,6 +33,9 @@ jobs:
             - name: Lint
               run: bun run lint --max-warnings=0
 
+            - name: Format
+              run: bun run prettier:check
+
             - name: Knip
               run: bun run knip
 
@@ -41,3 +44,6 @@ jobs:
 
             - name: Build
               run: bun run build
+
+            - name: Build Firefox
+              run: bun run build:firefox
