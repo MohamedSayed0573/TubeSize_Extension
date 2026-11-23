@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 
 import { isValidDateKey, toDateKey } from "@lib/dateUtils";
 import {
@@ -75,7 +75,7 @@ describe("isTwitchPage", () => {
     test("should return true for twitch.com", () => {
         expect(isTwitchPage("https://www.twitch.com/somechannel")).toBe(true);
     });
-    test("should return false for twitch.com/videos", () => {
+    test("should return true for twitch.com/videos", () => {
         expect(isTwitchPage("https://www.twitch.com/videos")).toBe(true);
     });
     test("should return true for a URL with a different path than videos", () => {
@@ -255,36 +255,64 @@ describe("getWatchHistoryTarget", () => {
 });
 
 describe("fetchAndRetry", () => {
-    // test("should fail after 4 retries", async () => {
-    //     globalThis.fetch = jest.fn().mockRejectedValue(new Error("failed"));
-    //     await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).rejects.toThrow(
-    //         "failed",
-    //     );
-    //     expect(globalThis.fetch).toHaveBeenCalledTimes(4);
-    // }, 10_000);
+    const originalFetch = globalThis.fetch;
+    const originalSetTimeout = globalThis.setTimeout;
 
-    // test("should succeed after 3 fails", async () => {
-    //     globalThis.fetch = jest
-    //         .fn()
-    //         .mockRejectedValueOnce(new Error("failed 1"))
-    //         .mockRejectedValueOnce(new Error("failed 2"))
-    //         .mockRejectedValueOnce(new Error("failed 3"))
-    //         .mockResolvedValueOnce({ ok: true });
+    beforeEach(() => {
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
+        globalThis.setTimeout = ((
+            callback: (...args: unknown[]) => void,
+            _ms?: number,
+            ...args: unknown[]
+        ) => originalSetTimeout(callback, 0, ...args)) as unknown as typeof setTimeout;
+    });
 
-    //     await expect(fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE")).resolves.toEqual(
-    //         {
-    //             ok: true,
-    //         },
-    //     );
-    //     expect(globalThis.fetch).toHaveBeenCalledTimes(4);
-    // }, 10_000);
+    afterEach(() => {
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
+        globalThis.fetch = originalFetch;
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
+        globalThis.setTimeout = originalSetTimeout;
+    });
+
+    test("should fail after exhausting all retries", async () => {
+        const fetchMock = jest.fn().mockRejectedValue(new Error("failed"));
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const result = await fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE");
+        expect(result).toEqual({
+            success: false,
+            error: new Error("failed"),
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    test("should succeed after 3 failed attempts", async () => {
+        const response = { status: 200, ok: true } as unknown as Response;
+        const fetchMock = jest
+            .fn()
+            .mockRejectedValueOnce(new Error("failed 1"))
+            .mockRejectedValueOnce(new Error("failed 2"))
+            .mockRejectedValueOnce(new Error("failed 3"))
+            .mockResolvedValueOnce(response);
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const result = await fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE");
+        expect(result).toEqual({
+            success: true,
+            response,
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
 
     test("should not retry on client errors 4xx", async () => {
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = jest.fn().mockResolvedValue({
+        const fetchMock = jest.fn().mockResolvedValue({
             status: 400,
             ok: false,
-        }) as unknown as typeof fetch;
+        });
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
 
         const result = await fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE");
         expect(result).toEqual({
@@ -292,7 +320,7 @@ describe("fetchAndRetry", () => {
             error: new Error("Client Error: 400, won't retry"),
         });
 
-        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     test("should retry on server errors 5xx", async () => {
@@ -316,6 +344,20 @@ describe("fetchAndRetry", () => {
                 ok: true,
             } as unknown as Response,
         });
+    });
+
+    test("should not retry when the request is aborted", async () => {
+        const abortError = new DOMException("Aborted", "AbortError");
+        const fetchMock = jest.fn().mockRejectedValue(abortError);
+        // eslint-disable-next-line unicorn/no-global-object-property-assignment
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const result = await fetchAndRetry("https://www.youtube.com/watch?v=yaodD79Q4iE");
+        expect(result).toEqual({
+            success: false,
+            error: new Error("Request aborted"),
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 });
 
