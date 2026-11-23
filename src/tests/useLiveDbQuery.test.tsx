@@ -54,6 +54,16 @@ function DateHarness() {
     return <output data-testid="date">{today}</output>;
 }
 
+async function waitForText(host: HTMLElement, expected: string, maxAttempts = 100): Promise<void> {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (host.textContent === expected) return;
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        });
+    }
+    expect(host.textContent).toBe(expected);
+}
+
 describe("useLiveDbQuery and useCurrentDateKey React hooks", () => {
     let cleanupDom: (() => Promise<void>) | undefined;
     let root: Root | undefined;
@@ -121,15 +131,13 @@ describe("useLiveDbQuery and useCurrentDateKey React hooks", () => {
             root?.render(<UsageHarness />);
         });
 
-        await act(async () => {
-            await new Promise((resolve) => setTimeout(resolve, 30));
-        });
+        await waitForText(host, "0");
         expect(host.textContent).toBe("0");
 
         await act(async () => {
             await addSiteUsage({ [yt]: 12_345 });
-            await new Promise((resolve) => setTimeout(resolve, 30));
         });
+        await waitForText(host, "12345");
         expect(host.textContent).toBe("12345");
     });
 });

@@ -30,6 +30,26 @@ function createSettingsMenu(qualityLabels: Array<{ label: string; isPremium?: bo
     return settingsMenu;
 }
 
+function createMenuItem(entry: { label: string; isPremium?: boolean }) {
+    const menuItem = document.createElement("div");
+    menuItem.className = "ytp-menuitem";
+    const itemLabel = document.createElement("div");
+    itemLabel.className = "ytp-menuitem-label";
+    const innerDiv = document.createElement("div");
+    const span = document.createElement("span");
+    span.textContent = entry.label;
+    if (entry.isPremium) {
+        const premium = document.createElement("span");
+        premium.className = "ytp-premium-label";
+        premium.textContent = "Premium";
+        span.append(premium);
+    }
+    innerDiv.append(span);
+    itemLabel.append(innerDiv);
+    menuItem.append(itemLabel);
+    return menuItem;
+}
+
 function createQualityPanel(qualityLabels: Array<{ label: string; isPremium?: boolean }>) {
     const qualityPanel = document.createElement("div");
     qualityPanel.className = "ytp-panel ytp-quality-menu";
@@ -38,27 +58,19 @@ function createQualityPanel(qualityLabels: Array<{ label: string; isPremium?: bo
     panelMenu.className = "ytp-panel-menu";
 
     for (const entry of qualityLabels) {
-        const menuItem = document.createElement("div");
-        menuItem.className = "ytp-menuitem";
-        const itemLabel = document.createElement("div");
-        itemLabel.className = "ytp-menuitem-label";
-        const innerDiv = document.createElement("div");
-        const span = document.createElement("span");
-        span.textContent = entry.label;
-        if (entry.isPremium) {
-            const premium = document.createElement("span");
-            premium.className = "ytp-premium-label";
-            premium.textContent = "Premium";
-            span.append(premium);
-        }
-        innerDiv.append(span);
-        itemLabel.append(innerDiv);
-        menuItem.append(itemLabel);
-        panelMenu.append(menuItem);
+        panelMenu.append(createMenuItem(entry));
     }
 
     qualityPanel.append(panelMenu);
     return qualityPanel;
+}
+
+async function waitForCondition(predicate: () => boolean, maxAttempts = 100): Promise<void> {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (predicate()) return;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(predicate()).toBe(true);
 }
 
 const sampleVod: YoutubeData = {
@@ -137,7 +149,9 @@ describe("qualityMenuInjector", () => {
         expect(settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")).toHaveLength(0);
 
         settingsMenu.append(createQualityPanel([{ label: "1080p" }]));
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        await waitForCondition(
+            () => settingsMenu.querySelectorAll(".tubesize-quality-menu-panel").length === 1,
+        );
 
         const badges = [...settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")].map(
             (node) => node.textContent,
@@ -145,15 +159,34 @@ describe("qualityMenuInjector", () => {
         expect(badges).toEqual(["1.8 GB/hour"]);
     });
 
-    test("updates badges in place without duplication and clears on clearQualityMenu", async () => {
+    test("reuses existing badges in place without duplication across observer mutations and clears on clearQualityMenu", async () => {
         const settingsMenu = createSettingsMenu([{ label: "1080p" }]);
 
         await injectMenu(youtubeAdapter, sampleVod);
-        expect(
-            [...settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")].map(
-                (node) => node.textContent,
-            ),
-        ).toEqual(["500 MB"]);
+        const initialBadges = [...settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")];
+        expect(initialBadges).toHaveLength(1);
+        const firstBadge = initialBadges[0];
+        if (!firstBadge) throw new Error("Expected initial badge element");
+        expect(firstBadge.textContent).toBe("500 MB");
+
+        // Trigger a childList mutation on .ytp-panel-menu with stale badge text to verify
+        // the active MutationObserver updates the existing badge DOM node in place.
+        firstBadge.textContent = "stale";
+        const panelMenu = settingsMenu.querySelector(".ytp-panel-menu");
+        if (!panelMenu) throw new Error("Expected .ytp-panel-menu element");
+        panelMenu.append(createMenuItem({ label: "720p" }));
+
+        await waitForCondition(
+            () =>
+                settingsMenu.querySelectorAll(".tubesize-quality-menu-panel").length === 2 &&
+                firstBadge.textContent === "500 MB",
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        const reusedBadges = [...settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")];
+        expect(reusedBadges).toHaveLength(2);
+        expect(reusedBadges[0]).toBe(firstBadge);
+        expect(reusedBadges.map((node) => node.textContent)).toEqual(["500 MB", "250 MB"]);
 
         await injectMenu(youtubeAdapter, {
             ...sampleVod,
@@ -167,6 +200,7 @@ describe("qualityMenuInjector", () => {
                 },
             ],
         });
+        await new Promise((resolve) => setTimeout(resolve, 10));
 
         const updatedBadges = [...settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")];
         expect(updatedBadges).toHaveLength(1);
