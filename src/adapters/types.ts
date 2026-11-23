@@ -36,6 +36,11 @@ export type HeaderViewData = {
 
 export type VideoContentType = "live" | "vod";
 
+export type FormatOptions = {
+    /** Whether to include the separate audio stream in projected sizes (defaults to true). */
+    includeAudio?: boolean;
+};
+
 /**
  * The subset of a platform adapter the toaster needs: it only maps platform
  * data to the format list (resolution, total size, bitrate). Keeping this
@@ -43,7 +48,7 @@ export type VideoContentType = "live" | "vod";
  * loading/header behaviour.
  */
 export interface ToastAdapter {
-    formats: (data: PlatformData) => DisplayFormat[];
+    formats: (data: PlatformData, options?: FormatOptions) => DisplayFormat[];
 }
 
 export interface PlatformAdapter extends ToastAdapter {
@@ -60,7 +65,7 @@ export interface PlatformAdapter extends ToastAdapter {
     isRunningVideo: (tabUrl: string) => boolean;
 
     // The function to map the platform's data to the popup's format list.
-    formats: (data: PlatformData) => DisplayFormat[];
+    formats: (data: PlatformData, options?: FormatOptions) => DisplayFormat[];
 
     // The function to map the platform's data to the popup header's title and duration.
     header: (data: PlatformData) => HeaderViewData;

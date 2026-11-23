@@ -32,10 +32,12 @@ export default function FormatView({
     const advancedView = query.data.advancedView ?? CONFIG.DEFAULT_ADVANCED_VIEW;
     const includeAudio = query.data.includeAudio ?? CONFIG.DEFAULT_INCLUDE_AUDIO;
 
-    const formats = adapter.formats(data);
     const audio = adapter.audio?.(data);
     // The audio row and its include-audio switch are YouTube-only details.
     const showAudioControls = advancedView && audio !== undefined;
+    // The include-audio switch only exists in advanced view, so the simple
+    // view always includes audio in the displayed numbers.
+    const formats = adapter.formats(data, { includeAudio: advancedView ? includeAudio : true });
 
     return (
         <TooltipProvider delay={200}>
@@ -65,18 +67,12 @@ export default function FormatView({
                         key={format.key}
                         format={format}
                         currentQuality={currentQuality?.quality}
-                        audio={audio}
-                        includeAudio={includeAudio}
                     />
                 ) : (
-                    // The include-audio switch only exists in advanced view, so the
-                    // simple view always shows the merged (default) numbers.
                     <FormatItem
                         key={format.key}
                         format={format}
                         currentQuality={currentQuality?.quality}
-                        audio={audio}
-                        includeAudio
                     />
                 ),
             )}

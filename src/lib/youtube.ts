@@ -18,13 +18,9 @@ export function parseVideoFormats(
     av1Supported?: boolean,
 ): { formats: YoutubeVideoFormat[]; audio?: AudioStreamInfo } {
     const audio = parseAudio(data);
-    const mergedFormats = mergeAudioWithVideo(
-        chooseVideoFormats(data, av1Supported),
-        audio?.sizeBytes ?? 0,
-    );
     const durationSeconds = Number(data.videoDetails.lengthSeconds || "0");
 
-    const formats = mergedFormats
+    const formats = chooseVideoFormats(data, av1Supported)
         .map((format) => ({
             type: "video" as const,
             ...format,
@@ -35,23 +31,13 @@ export function parseVideoFormats(
     return { formats, audio };
 }
 
-export function mergeAudioWithVideo(videoFormats: ChosenVideoFormat[], audioSize: number) {
-    return videoFormats.map((videoFormat) => ({
-        ...videoFormat,
-        sizeBytes: videoFormat.sizeBytes + audioSize,
-    }));
-}
-
 export function parseLiveFormats(
     data: ytInitialPlayerResponse,
     av1Supported?: boolean,
 ): { formats: StreamInfo[]; audio?: AudioStreamInfo } {
     const audio = parseAudio(data);
 
-    const formats = mergeAudioWithVideo(
-        chooseVideoFormats(data, av1Supported),
-        audio?.sizeBytes ?? 0,
-    )
+    const formats = chooseVideoFormats(data, av1Supported)
         .map((format) => ({
             type: "live" as const,
             resolution: format.height,
@@ -217,9 +203,8 @@ function parseAudio(data: ytInitialPlayerResponse): AudioStreamInfo | undefined 
     const chosen = itags.find((itag) => itag.formatId === preferredItag);
     if (!chosen) return undefined;
 
-    // Audio sizes were merged into video formats using size / duration, so the
-    // display layer must subtract the same share. This stays correct even when
-    // the reported bitrate differs from the actual size.
+    // Derived from actual size / duration (or per-hour size / 3600 for live)
+    // rather than reported bitrate so the audio rate stays consistent with its size.
     const durationSeconds = Number(data.videoDetails.lengthSeconds || "0");
     const bytesPerSecond =
         chosen.sizeBytes / (isLive ? 3600 : durationSeconds > 0 ? durationSeconds : 3600);

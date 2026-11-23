@@ -27,9 +27,9 @@ export type AudioStreamInfo = {
     codec?: AudioCodec;
     /** Average bitrate in bits per second, when YouTube reports one. */
     bitrate?: number;
-    /** Stream size; this is how much audio is merged into every video size. */
+    /** Stream size in bytes (per-hour size for live). */
     sizeBytes: number;
-    /** Audio share of each video format as a rate, derived from `sizeBytes / duration`. */
+    /** Stream byte rate, derived from `sizeBytes / duration`. */
     bytesPerSecond: number;
     /** Every distinct audio itag YouTube offered, for the advanced view tooltip. */
     itags: AudioItag[];
@@ -76,8 +76,8 @@ type YoutubeVideoData = {
     thumbnailUrl: string | undefined;
     channelName: string | undefined;
     channelUrl: string | undefined;
-    // One audio stream shared by every video format; sizes below are merged
-    // with it, and only the popup's display layer subtracts it.
+    // One audio stream shared by every video format; formats store video-only
+    // sizes and the adapter adds audio when projecting display formats.
     audio?: AudioStreamInfo;
 };
 

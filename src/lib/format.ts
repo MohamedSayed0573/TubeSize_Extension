@@ -113,11 +113,6 @@ export function formatBadge(bytes: number) {
     return `${(bytes / 1_000_000_000).toFixed(1)}G`;
 }
 
-/** Drops the audio stream's byte rate, or 0 when unknown. */
-function withoutAudio(value: number, audioShare: number, includeAudio: boolean): number {
-    return includeAudio ? value : Math.max(value - audioShare, 0);
-}
-
 /**
  * Formats an audio stream's size the same way video is formatted: total bytes
  * for VODs, per-hour / per-minute rates for live.
@@ -140,27 +135,18 @@ export function audioDisplaySizes(
     };
 }
 
-export function formatDisplaySizes(
-    format: DisplayFormat,
-    audio: AudioStreamInfo | undefined,
-    includeAudio: boolean,
-) {
-    const perSecond = withoutAudio(
-        format.sizePerSecondBytes,
-        audio?.bytesPerSecond ?? 0,
-        includeAudio,
-    );
-
+export function formatDisplaySizes(format: DisplayFormat) {
     if (format.kind === "vod") {
-        const total = withoutAudio(format.sizeBytes, audio?.sizeBytes ?? 0, includeAudio);
         return {
-            primary: formatBytes(total),
-            secondary: format.hideRate ? undefined : formatRate(perSecond, "minute"),
+            primary: formatBytes(format.sizeBytes),
+            secondary: format.hideRate
+                ? undefined
+                : formatRate(format.sizePerSecondBytes, "minute"),
         };
     }
 
     return {
-        primary: formatRate(perSecond, "hour"),
-        secondary: formatRate(perSecond, "minute"),
+        primary: formatRate(format.sizePerSecondBytes, "hour"),
+        secondary: formatRate(format.sizePerSecondBytes, "minute"),
     };
 }
