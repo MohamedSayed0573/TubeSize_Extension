@@ -13,7 +13,6 @@
     ],
     "tags": ["-lintignore"],
     "ignore": ["src/components/ui/**"],
-    "ignoreDependencies": ["oxfmt", "oxlint", "oxlint-tsgolint"],
     "ignoreExportsUsedInFile": true,
     "vite": true
 }
