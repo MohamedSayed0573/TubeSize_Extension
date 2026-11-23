@@ -46,7 +46,7 @@ async function runPlatformPage<P extends PlatformId>(
         // Storage access can be slow, so make sure a newer navigation
         // hasn't started while we waited.
         if (navigationId !== latestNavigationId) return;
-        await startToastTracking(adapter, data);
+        await startToastTracking(adapter, data, () => navigationId === latestNavigationId);
     }
 }
 

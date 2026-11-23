@@ -20,9 +20,13 @@ async function getToasterThreshold() {
 export async function startToastTracking<P extends PlatformId>(
     adapter: ToastAdapter<P>,
     data: PlatformDataMap[P],
+    isCurrent?: () => boolean,
 ) {
     const toasterThresholdMbph = await getToasterThreshold();
+    if (isCurrent && !isCurrent()) return;
+
     await trackResolutionChanges((resolution) => {
+        if (isCurrent && !isCurrent()) return;
         void showPlatformToast(adapter, data, resolution, toasterThresholdMbph);
     });
 }
