@@ -3,9 +3,10 @@ import { scopeToDateKey } from "@lib/usage";
 
 import { getAllWatchHistory, getWatchHistoryByDate } from "@/db";
 
-import { scopeDepKey, useLiveDbQuery } from "./useLiveDbQuery";
+import { scopeDepKey, useCurrentDateKey, useLiveDbQuery } from "./useLiveDbQuery";
 
 export function useWatchHistory(scope?: UsageScope) {
+    const today = useCurrentDateKey();
     return useLiveDbQuery(async () => {
         if (!scope) return (await getAllWatchHistory()) ?? null;
 
@@ -13,5 +14,5 @@ export function useWatchHistory(scope?: UsageScope) {
         if (dateKey.kind === "all") return (await getAllWatchHistory()) ?? null;
 
         return (await getWatchHistoryByDate(dateKey.days)) ?? null;
-    }, [scopeDepKey(scope)]);
+    }, [scopeDepKey(scope, today)]);
 }
