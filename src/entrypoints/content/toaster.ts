@@ -1,10 +1,11 @@
 import type { DateKey, PlatformId } from "@app-types/types";
-import { createToast } from "@components/toast";
 import { getDateKey } from "@lib/dateUtils";
 import { megabytesPerHour } from "@lib/format";
 import { toasterSuppressedDate } from "@lib/storage";
 
 import type { DisplayFormat, PlatformDataMap, ToastAdapter } from "@/adapters/types";
+
+import { createToast } from "./toast";
 
 const HOST_ID = "TubeSize-Toast-Host";
 
@@ -69,6 +70,6 @@ export async function showPlatformToast<P extends PlatformId>(
     });
 }
 
-function unmountToast() {
+export function unmountToast() {
     document.querySelector(`#${HOST_ID}`)?.remove();
 }

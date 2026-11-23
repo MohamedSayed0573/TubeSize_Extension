@@ -1,9 +1,10 @@
 import type { PlatformId } from "@app-types/types";
 import { toasterThreshold } from "@lib/storage";
-import { showPlatformToast } from "@pages/toaster";
 
 import type { PlatformDataMap, ToastAdapter } from "@/adapters/types";
-import { trackResolutionChanges } from "@/resolution";
+
+import { trackResolutionChanges } from "./resolution";
+import { showPlatformToast } from "./toaster";
 
 /**
  * @returns The toaster threshold in MB per hour.

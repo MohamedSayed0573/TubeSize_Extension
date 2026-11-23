@@ -4,7 +4,7 @@ import { youtubePage } from "./youtubePage";
 
 /**
  * Contract for a per-platform page module. Each supported site implements this
- * interface and registers itself in the `PLATFORMS` registry in `pageNavigation.ts`;
+ * interface and registers itself in the `PLATFORMS` registry below;
  * the generic dispatcher never needs to know which platform is active.
  */
 export interface PlatformPage<TData> {

@@ -1,9 +1,8 @@
 import type { PlatformId } from "@app-types/types";
+import { waitForElement } from "@lib/dom";
+import { formatDisplaySizes } from "@lib/format";
 
 import type { DisplayFormat, PlatformDataMap, ToastAdapter } from "@/adapters/types";
-
-import { waitForElement } from "./lib/dom";
-import { formatDisplaySizes } from "./lib/format";
 
 const SETTINGS_MENU_SELECTOR = ".ytp-settings-menu";
 const PANEL_MENU_SELECTOR = ".ytp-panel-menu";

@@ -1,13 +1,13 @@
 import type { YoutubeData } from "@app-types/platforms.types";
 import { extractVideoTag, isYoutubePage } from "@lib/utils";
-import { startToastTracking } from "@pages/toasterTracking";
 
 import { youtubeAdapter } from "@/adapters/youtubeAdapter";
 import { getAv1Support } from "@/lib/codecSupport";
 import { sendMessage } from "@/messaging";
-import { injectMenu } from "@/qualityMenuInjector";
 
 import type { PlatformPage } from "./platformPage";
+import { injectMenu } from "./qualityMenuInjector";
+import { startToastTracking } from "./toasterTracking";
 
 // YouTube only writes the ytInitialPlayerResponse script on a full page load.
 // After an SPA navigation it still describes the previous video, so it can only

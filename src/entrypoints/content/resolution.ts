@@ -1,5 +1,5 @@
 /**
- * Get the current resolution of the video being played on thepage by observing the DOM for video element.
+ * Get the current resolution of the video being played on the page by observing the DOM for a video element.
  * @returns The current resolution as a number or undefined
  */
 export async function getCurrentResolution() {

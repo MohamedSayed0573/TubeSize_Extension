@@ -1,9 +1,9 @@
 import { toasterEnabled } from "@lib/storage";
 
-import { clearQualityMenu } from "@/qualityMenuInjector";
-import { stopResolutionTracking } from "@/resolution";
-
 import { PLATFORMS } from "./platformPage";
+import { clearQualityMenu } from "./qualityMenuInjector";
+import { stopResolutionTracking } from "./resolution";
+import { unmountToast } from "./toaster";
 
 let latestNavigationId = 0;
 
@@ -39,6 +39,7 @@ export async function handlePageNavigation() {
 function resetFeatureState() {
     stopResolutionTracking();
     clearQualityMenu();
+    unmountToast();
 }
 
 async function isToasterEnabled() {

@@ -5,7 +5,8 @@ import { defineContentScript } from "wxt/utils/define-content-script";
 // therefore has no access to `chrome.*`. genericObserver posts SITE_USAGE /
 // WATCH_HISTORY window messages; this ISOLATED-world script is the only thing
 // on non-platform pages, and forwards them to the background. It is kept apart
-// from content.ts so the heavy platform pipeline is not injected everywhere.
+// from src/entrypoints/content/index.ts so the heavy platform pipeline is not
+// injected everywhere.
 import { isPlatformId } from "@/lib/utils";
 import { sendMessage } from "@/messaging";
 

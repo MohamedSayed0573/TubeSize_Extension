@@ -103,7 +103,7 @@ export default defineContentScript({
             const response = await originalFetch(...args);
 
             const contentLength = response.headers.get("content-length");
-            // Background.ts's chrome.webRequest is responsible for tracking requests with known content length.
+            // Background usageTracker.ts's chrome.webRequest listener counts requests with a known content length.
             if (contentLength && Number(contentLength) > 0) return response;
 
             const clone = response.clone();
