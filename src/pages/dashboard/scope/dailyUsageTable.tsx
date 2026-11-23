@@ -9,11 +9,12 @@ import {
     TableRow,
 } from "@components/ui/table";
 import { formatBytes } from "@lib/format";
+import { buildDatePath } from "@lib/routes";
 import { Link } from "react-router";
 
 import { t } from "@/i18n/t";
 
-export interface DailyUsage {
+interface DailyUsage {
     day: DateKey;
     bytes: number;
 }
@@ -39,6 +40,7 @@ export default function DailyUsageTable({
                     </TableHeader>
                     <TableBody>
                         {usage.map(({ bytes, day }, index) => {
+                            const share = totalUsage > 0 ? (bytes / totalUsage) * 100 : 0;
                             return (
                                 <TableRow
                                     key={day}
@@ -48,10 +50,10 @@ export default function DailyUsageTable({
                                         {index + 1}
                                     </TableCell>
                                     <TableCell className="hover:underline">
-                                        <Link to={`/${day}`}>{day}</Link>
+                                        <Link to={buildDatePath(day)}>{day}</Link>
                                     </TableCell>
                                     <TableCell className="text-neutral-400">
-                                        {((bytes / totalUsage) * 100).toFixed(1)}%
+                                        {share.toFixed(1)}%
                                     </TableCell>
                                     <TableCell className="font-medium">
                                         {formatBytes(bytes)}

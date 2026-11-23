@@ -1,5 +1,4 @@
 import { Button } from "@components/ui/button";
-import { InvalidImportJson } from "@lib/errors";
 
 import { getAllSiteUsage, type SiteUsage } from "@/db";
 import { t } from "@/i18n/t";
@@ -30,16 +29,15 @@ function filterUsage(siteUsage: SiteUsage[]) {
 export function ExportToJsonBtn({
     setError,
 }: {
-    setError: React.Dispatch<React.SetStateAction<InvalidImportJson | undefined>>;
+    setError: React.Dispatch<React.SetStateAction<Error | undefined>>;
 }) {
     async function getData() {
         const siteUsage = await getAllSiteUsage();
         if (!siteUsage || siteUsage.length === 0)
-            return setError(new InvalidImportJson(t("dashboard_noUsageToExport")));
+            return setError(new Error(t("dashboard_noUsageToExport")));
 
         const filteredUsage = filterUsage(siteUsage);
-        if (filteredUsage.length === 0)
-            return setError(new InvalidImportJson(t("dashboard_noUsageToExport")));
+        if (filteredUsage.length === 0) return setError(new Error(t("dashboard_noUsageToExport")));
 
         const json = JSON.stringify(filteredUsage);
         const blob = new Blob([json], { type: "application/json" });

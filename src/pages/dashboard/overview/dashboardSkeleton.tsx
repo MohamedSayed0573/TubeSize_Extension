@@ -1,4 +1,5 @@
 import { Skeleton } from "@components/ui/skeleton";
+import { buildRangePath } from "@lib/routes";
 import { Link } from "react-router";
 
 import { t, tPlural } from "@/i18n/t";
@@ -21,16 +22,16 @@ function StatsCard({ title }: { title: string }) {
 function StatsRow() {
     return (
         <div className="grid grid-cols-4 gap-2 py-2.5">
-            <Link to="/today">
+            <Link to={buildRangePath("today")}>
                 <StatsCard title={t("dashboard_today")} />
             </Link>
-            <Link to="/week">
+            <Link to={buildRangePath("week")}>
                 <StatsCard title={t("dashboard_week")} />
             </Link>
-            <Link to="/month">
+            <Link to={buildRangePath("month")}>
                 <StatsCard title={t("dashboard_month")} />
             </Link>
-            <Link to="/lifetime">
+            <Link to={buildRangePath("lifetime")}>
                 <StatsCard title={t("dashboard_lifetime")} />
             </Link>
         </div>

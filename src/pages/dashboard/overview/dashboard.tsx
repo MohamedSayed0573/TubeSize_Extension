@@ -1,6 +1,5 @@
 import { AlertDestructive } from "@components/alertDestructive";
 import { useSiteUsage } from "@hooks/useSiteUsage";
-import type { InvalidImportJson } from "@lib/errors";
 import { useState } from "react";
 
 import { UsageChartSection } from "./chartSection";
@@ -10,11 +9,10 @@ import { FooterBtns } from "./footerBtns";
 import { StatsRow } from "./statsRow";
 
 export default function Dashboard({ chart }: { chart: "daily" | "sites" }) {
-    const { data: usage, isPending, isError, error } = useSiteUsage();
-    const [btnError, setError] = useState<InvalidImportJson>();
+    const { data: usage, isPending } = useSiteUsage();
+    const [btnError, setError] = useState<Error>();
 
     if (isPending) return <DashboardSkeleton />;
-    if (isError) throw error;
 
     return (
         <>

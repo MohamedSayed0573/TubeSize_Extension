@@ -1,23 +1,24 @@
 import { AlertDialogBasic } from "@components/alertDialogBasic";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
+import { refreshUsageBadge } from "@/badge";
 import { clearDatabaseData } from "@/db";
 import { t } from "@/i18n/t";
 
 export default function ClearUsageButton() {
-    const queryClient = useQueryClient();
-    const { mutate: clearUsage, isPending: isClearingPending } = useMutation({
-        mutationFn: async () => {
-            await clearDatabaseData();
-        },
+    const [isClearingPending, setIsClearingPending] = useState(false);
 
-        onSuccess: async () => {
-            await Promise.all([
-                queryClient.invalidateQueries({ queryKey: ["siteUsage"] }),
-                queryClient.invalidateQueries({ queryKey: ["watchHistory"] }),
-            ]);
-        },
-    });
+    const clearUsage = () => {
+        setIsClearingPending(true);
+        void clearDatabaseData()
+            .then(() => refreshUsageBadge())
+            .catch((err: unknown) => {
+                console.error("Failed to clear usage data:", err);
+            })
+            .finally(() => {
+                setIsClearingPending(false);
+            });
+    };
 
     return (
         <AlertDialogBasic

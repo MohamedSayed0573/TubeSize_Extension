@@ -1,15 +1,18 @@
 import { AlertDialogBasic } from "@components/alertDialogBasic";
 import { Button } from "@components/ui/button";
 import { useSiteUsage } from "@hooks/useSiteUsage";
-import { InvalidImportJson } from "@lib/errors";
-import { useQueryClient } from "@tanstack/react-query";
 
+import { refreshUsageBadge } from "@/badge";
 import { setAllSiteUsage } from "@/db";
 import { t } from "@/i18n/t";
 
-async function importJson() {
+function toError(err: unknown): Error {
+    return err instanceof Error ? err : new Error(String(err));
+}
+
+async function importJson(): Promise<void> {
     const { ImportSchema } = await import("@lib/schema");
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
         const input = document.createElement("input");
         input.type = "file";
         input.accept = ".json";
@@ -23,20 +26,16 @@ async function importJson() {
                 .then((textFile) => {
                     const siteUsage: unknown = JSON.parse(textFile);
                     const result = ImportSchema.safeParse(siteUsage);
-                    if (!result.success) throw new InvalidImportJson(result.error.message);
+                    if (!result.success) throw new Error(result.error.message);
                     return result.data;
                 })
-                .then((data) => {
-                    return resolve(setAllSiteUsage(data));
+                .then(async (data) => {
+                    await setAllSiteUsage(data);
+                    await refreshUsageBadge();
+                    return resolve();
                 })
                 .catch((err: unknown) => {
-                    return reject(
-                        err instanceof InvalidImportJson
-                            ? err
-                            : new InvalidImportJson(
-                                  err instanceof Error ? err.message : String(err),
-                              ),
-                    );
+                    return reject(toError(err));
                 });
         });
     });
@@ -45,26 +44,17 @@ async function importJson() {
 export function ImportJson({
     setError,
 }: {
-    setError: React.Dispatch<React.SetStateAction<InvalidImportJson | undefined>>;
+    setError: React.Dispatch<React.SetStateAction<Error | undefined>>;
 }) {
-    const queryClient = useQueryClient();
-
     const handleImport = () => {
         setError(undefined);
-        importJson()
-            .then(() => void queryClient.invalidateQueries({ queryKey: ["siteUsage"] }))
-            .catch((err: unknown) => {
-                console.error(err);
-                setError(
-                    err instanceof InvalidImportJson
-                        ? err
-                        : new InvalidImportJson(err instanceof Error ? err.message : String(err)),
-                );
-            });
+        importJson().catch((err: unknown) => {
+            console.error(err);
+            setError(toError(err));
+        });
     };
 
-    const siteUsageQuery = useSiteUsage();
-    const siteUsage = siteUsageQuery.data;
+    const { data: siteUsage } = useSiteUsage();
 
     if (!siteUsage || siteUsage.length === 0)
         return (

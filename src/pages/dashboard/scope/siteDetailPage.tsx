@@ -3,17 +3,16 @@ import { useSiteUsage } from "@hooks/useSiteUsage";
 import { getSiteKey } from "@lib/domain";
 import { typedEntries } from "@lib/utils";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
+import DashboardNotFound from "@pages/dashboard/shared/notFound";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useParams } from "react-router";
 
 import DailyUsageTable from "./dailyUsageTable";
 
-export default function SiteDetailPage() {
-    const { siteName } = useParams();
-    const { data, isPending, isError, error } = useSiteUsage();
+function SiteDetailContent({ siteName }: { siteName: string }) {
+    const { data, isPending } = useSiteUsage();
 
-    if (!siteName || isPending) return;
-    if (isError) throw error;
+    if (isPending) return;
     if (!data) return <NoUsageData />;
 
     const targetSite = getSiteKey(siteName);
@@ -28,6 +27,15 @@ export default function SiteDetailPage() {
     });
 
     const totalUsage = [...dayToBytes].reduce((sum, [, bytes]) => sum + bytes, 0);
+
+    if (totalUsage === 0) {
+        return (
+            <>
+                <DashboardHeader title={siteName} totalDataUsage={0} />
+                <NoUsageData />
+            </>
+        );
+    }
 
     const sortedUsage = Array.from(dayToBytes)
         .filter(([, bytes]) => bytes > 0)
@@ -44,4 +52,12 @@ export default function SiteDetailPage() {
             </div>
         </>
     );
+}
+
+export default function SiteDetailPage() {
+    const { siteName } = useParams();
+
+    if (!siteName) return <DashboardNotFound />;
+
+    return <SiteDetailContent siteName={siteName} />;
 }

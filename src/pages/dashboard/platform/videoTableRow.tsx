@@ -1,5 +1,6 @@
 import type { DateKey, PlatformId } from "@app-types/types";
 import { formatBytes } from "@lib/format";
+import { buildDatePath } from "@lib/routes";
 import { Link } from "react-router";
 
 import { getPlatformAdapter } from "@/adapters/registry";
@@ -79,7 +80,7 @@ export default function VideoTableRow({
                     <span className="truncate text-sm font-normal">
                         <Link
                             className="text-gray-400 no-underline hover:underline"
-                            to={`/${date}`}
+                            to={buildDatePath(date)}
                         >
                             {date}
                         </Link>

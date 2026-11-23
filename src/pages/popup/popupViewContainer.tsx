@@ -3,6 +3,7 @@ import { useSiteUsageToday } from "@hooks/useSiteUsageToday";
 import useTab from "@hooks/useTab";
 import { useTotalUsage } from "@hooks/useTotalUsage";
 import { getSiteKey, getSiteLabel, toOrigin } from "@lib/domain";
+import { buildRangePath, buildSitePath } from "@lib/routes";
 
 import { t } from "@/i18n/t";
 
@@ -26,8 +27,8 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
     const { data: tab } = useTab();
     const origin = getTabOrigin(tab?.tabUrl);
 
-    const totalUsage = useTotalUsage();
-    const siteUsage = useSiteUsageToday(origin ? getSiteKey(origin) : undefined);
+    const { data: totalUsage } = useTotalUsage();
+    const { data: siteUsage } = useSiteUsageToday(origin ? getSiteKey(origin) : undefined);
 
     return (
         <div className="flex flex-col gap-2 px-3 py-2 text-xs text-zinc-400">
@@ -35,7 +36,7 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
                 <PopupUsage
                     text={t("popup_totalUsageToday")}
                     usage={totalUsage}
-                    navigateTo="dashboard/today"
+                    navigateTo={{ page: "dashboard", path: buildRangePath("today") }}
                     variant="todayUsage"
                 />
 
@@ -43,7 +44,7 @@ export function PopupViewContainer({ children }: { children: React.ReactNode }) 
                     <PopupUsage
                         text={t("popup_siteUsage", [getSiteLabel(origin)])}
                         usage={siteUsage}
-                        navigateTo={`dashboard/site/${encodeURIComponent(getSiteKey(origin))}`}
+                        navigateTo={{ page: "dashboard", path: buildSitePath(getSiteKey(origin)) }}
                         variant="siteUsage"
                         origin={origin}
                     />

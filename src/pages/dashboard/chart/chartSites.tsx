@@ -1,6 +1,7 @@
 import type { Origin, SiteKey } from "@app-types/types";
-import { sumBySite } from "@lib/domain";
+import { getSiteKey, sumBySite } from "@lib/domain";
 import { formatBytes } from "@lib/format";
+import { buildSitePath } from "@lib/routes";
 import { typedEntries } from "@lib/utils";
 import { useNavigate } from "react-router";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
@@ -124,7 +125,7 @@ export default function ChartSites({ usage }: { usage: SiteUsage[] }) {
                                     "site" in payload &&
                                     typeof payload.site === "string"
                                 ) {
-                                    void navigate(`/site/${encodeURIComponent(payload.site)}`);
+                                    void navigate(buildSitePath(getSiteKey(payload.site)));
                                 }
                             }}
                         >

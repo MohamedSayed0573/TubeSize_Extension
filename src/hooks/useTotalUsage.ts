@@ -1,15 +1,13 @@
 import { getUsageNumber } from "@lib/usage";
-import { useLiveQuery } from "dexie-react-hooks";
 
 import { getSiteUsage } from "@/db";
 
+import { useCurrentDateKey, useLiveDbQuery } from "./useLiveDbQuery";
+
 export function useTotalUsage() {
-    return useLiveQuery(
-        async () => {
-            const siteUsage = await getSiteUsage();
-            return siteUsage ? getUsageNumber([siteUsage]) : undefined;
-        },
-        [],
-        0,
-    );
+    const today = useCurrentDateKey();
+    return useLiveDbQuery(async () => {
+        const siteUsage = await getSiteUsage(today);
+        return siteUsage ? getUsageNumber([siteUsage]) : 0;
+    }, [today]);
 }

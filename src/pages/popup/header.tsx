@@ -1,5 +1,6 @@
 import type { PlatformId } from "@app-types/types";
-import { chromeNavigate } from "@lib/utils";
+import { chromeNavigate } from "@lib/browser";
+import { POPUP_ROUTES } from "@lib/routes";
 import { ExternalLink, Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 
@@ -43,14 +44,14 @@ export default function Header<P extends PlatformId>({ adapter, data }: Props<P>
             <div className="flex items-center justify-between gap-2.5">
                 <button
                     className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
-                    onClick={() => void navigate("/settings")}
+                    onClick={() => void navigate(POPUP_ROUTES.settings)}
                 >
                     {t("popup_settings")}
                     <SettingsIcon className="size-3.5 opacity-70" aria-hidden="true" />
                 </button>
                 <button
                     className="flex flex-2 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/8 bg-white/8 p-2 text-xs text-neutral-100 transition-colors hover:border-white/15 hover:bg-white/15"
-                    onClick={() => chromeNavigate("dashboard")}
+                    onClick={() => chromeNavigate({ page: "dashboard" })}
                 >
                     {t("popup_dashboard")}
                     <ExternalLink className="size-3.5 opacity-70" aria-hidden="true" />

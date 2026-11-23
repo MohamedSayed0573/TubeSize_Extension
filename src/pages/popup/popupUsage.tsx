@@ -1,6 +1,7 @@
 import SiteIcon from "@components/siteIcon";
+import { chromeNavigate } from "@lib/browser";
 import { formatBytes } from "@lib/format";
-import { chromeNavigate } from "@lib/utils";
+import type { ExtensionPageTarget } from "@lib/routes";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
@@ -14,7 +15,7 @@ function splitSize(formatted: string): { value: string; unit: string } {
 interface PopupUsageProps {
     text: string;
     usage: number | undefined;
-    navigateTo: string;
+    navigateTo: ExtensionPageTarget;
     variant?: "todayUsage" | "siteUsage";
     origin?: string;
 }
