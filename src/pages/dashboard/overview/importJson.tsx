@@ -1,11 +1,14 @@
 import { AlertDialogBasic } from "@components/alertDialogBasic";
 import { Button } from "@components/ui/button";
 import { useSiteUsage } from "@hooks/useSiteUsage";
-import { InvalidImportJson } from "@lib/errors";
 
 import { refreshUsageBadge } from "@/badge";
 import { setAllSiteUsage } from "@/db";
 import { t } from "@/i18n/t";
+
+function toError(err: unknown): Error {
+    return err instanceof Error ? err : new Error(String(err));
+}
 
 async function importJson(): Promise<void> {
     const { ImportSchema } = await import("@lib/schema");
@@ -23,7 +26,7 @@ async function importJson(): Promise<void> {
                 .then((textFile) => {
                     const siteUsage: unknown = JSON.parse(textFile);
                     const result = ImportSchema.safeParse(siteUsage);
-                    if (!result.success) throw new InvalidImportJson(result.error.message);
+                    if (!result.success) throw new Error(result.error.message);
                     return result.data;
                 })
                 .then(async (data) => {
@@ -32,13 +35,7 @@ async function importJson(): Promise<void> {
                     return resolve();
                 })
                 .catch((err: unknown) => {
-                    return reject(
-                        err instanceof InvalidImportJson
-                            ? err
-                            : new InvalidImportJson(
-                                  err instanceof Error ? err.message : String(err),
-                              ),
-                    );
+                    return reject(toError(err));
                 });
         });
     });
@@ -47,17 +44,13 @@ async function importJson(): Promise<void> {
 export function ImportJson({
     setError,
 }: {
-    setError: React.Dispatch<React.SetStateAction<InvalidImportJson | undefined>>;
+    setError: React.Dispatch<React.SetStateAction<Error | undefined>>;
 }) {
     const handleImport = () => {
         setError(undefined);
         importJson().catch((err: unknown) => {
             console.error(err);
-            setError(
-                err instanceof InvalidImportJson
-                    ? err
-                    : new InvalidImportJson(err instanceof Error ? err.message : String(err)),
-            );
+            setError(toError(err));
         });
     };
 
