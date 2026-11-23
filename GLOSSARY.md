@@ -1,0 +1,67 @@
+# TubeSize Domain Glossary
+
+Canonical domain vocabulary for **TubeSize**, a Manifest V3 browser extension with two bounded contexts:
+
+1. **Usage Tracking (Post-hoc / Measured)** — Counting actual network bytes transferred across all websites and attributing traffic on supported platforms to watched media.
+2. **Size Estimation (Pre-play / Predicted)** — Resolving media manifests to estimate total download size and/or data rate per quality tier before or during playback.
+
+All size and rate calculations use **decimal SI units (base 1000)**: `1 KB = 1,000 B`, `1 MB = 1,000,000 B`, `1 GB = 1,000,000,000 B` (matching ISP data caps; see [`src/lib/format.ts`](src/lib/format.ts)).
+
+---
+
+## 1. Platforms & Media Identity
+
+| Term | Definition | Code Reference |
+| :--- | :--- | :--- |
+| **Platform** (`PlatformId`) | A video/streaming service with first-class TubeSize support: `"youtube"`, `"twitch"`, or `"kick"`. Distinct from a general **Site**. | [`src/lib/constants.ts`](src/lib/constants.ts), [`src/types/types.ts`](src/types/types.ts) |
+| **Content Type** (`VideoContentType`) | Whether a media item has a fixed duration (`"vod"`) or is an ongoing broadcast (`"live"`). On YouTube, VODs are currently typed as `"video"` with an optional `isShorts` flag. | [`src/adapters/types.ts`](src/adapters/types.ts), [`src/types/platforms.types.ts`](src/types/platforms.types.ts) |
+| **Media Identifier** *(currently `videoTag` / `videoId` / `vodId` / `channelName`)* | The platform-local identifier for a watchable item: 11-char ID on YouTube, numeric VOD ID or channel login on Twitch, UUID/slug or channel name on Kick. | [`src/lib/utils.ts`](src/lib/utils.ts), [`src/lib/videoMetadata.ts`](src/lib/videoMetadata.ts) |
+| **Video Key** (`videoKey`) | Globally unique composite key `<platform>:<mediaId>` (e.g. `youtube:dQw4w9WgXcQ`, `twitch:shroud`) used to join `watchHistory` and `videoMetaData` in IndexedDB. | [`toVideoKey`](src/lib/utils.ts), [`src/db.ts`](src/db.ts) |
+| **Video Metadata** (`VideoMetadata`) | Cached descriptive record for a watched item (`title`, `channelName`, `channelUrl`, `thumbnailUrl`, plus `contentType` and `url` on Twitch/Kick), lazily fetched when watch history is first recorded. Stored in IndexedDB `videoMetaData`. | [`src/db.ts`](src/db.ts), [`src/lib/videoMetadata.ts`](src/lib/videoMetadata.ts) |
+
+---
+
+## 2. Formats, Codecs & Size Estimation
+
+| Term | Definition | Code Reference |
+| :--- | :--- | :--- |
+| **Platform Data** (`PlatformData`) | Platform-specific estimate payload (`YoutubeData \| TwitchData \| KickData`) produced by the background script and optionally cached in `chrome.storage.local`. | [`src/types/platforms.types.ts`](src/types/platforms.types.ts) |
+| **Display Format** (`DisplayFormat`) | Normalized, platform-agnostic UI projection of a selectable quality tier (`kind: "vod" \| "live"`, `resolution`, `sizePerSecondBytes`, and `sizeBytes` for VODs). Consumed by the Popup, Toaster, and Quality Menu Injector. | [`src/adapters/types.ts`](src/adapters/types.ts) |
+| **Quality Tier / Resolution** | Vertical pixel height identifying a selectable stream tier (e.g. `1080`, `720`). On YouTube, parsed from `qualityLabel` (nominal height, e.g. `720` even on cropped aspect ratios). | [`getFormatHeight`](src/lib/youtube.ts), [`src/resolution.ts`](src/resolution.ts) |
+| **Itag** (`formatId`, `VideoItag`, `AudioItag`) | YouTube's numeric identifier for a specific adaptive stream encoding (e.g. `251` Opus VOD audio, `140` AAC live audio, `399` 1080p AV1). | [`src/lib/youtube.ts`](src/lib/youtube.ts), [`src/types/platforms.types.ts`](src/types/platforms.types.ts) |
+| **Audio Stream Info** (`AudioStreamInfo`) | YouTube-only description of the single chosen audio track (`251` for VOD, `140` for live). Its size/rate is pre-merged into every video format and optionally subtracted at render time when `includeAudio` is disabled. | [`parseAudio`](src/lib/youtube.ts), [`formatDisplaySizes`](src/lib/format.ts) |
+| **Codec Support / AV1 Support** (`CodecSupportCache`) | Device-local check via `navigator.mediaCapabilities.decodingInfo` for power-efficient 4K AV1 decoding (cached 7 days in `local:codecSupport`). Controls whether YouTube estimates above `1080p` prefer `av01` or fall back to `vp9`/`avc`. | [`src/lib/codecSupport.ts`](src/lib/codecSupport.ts), [`getPreferredCodecs`](src/lib/youtube.ts) |
+| **Master M3U8 / Media Playlist** | HLS manifests used by Twitch and Kick. The Master M3U8 lists quality variants (`RESOLUTION`, `BANDWIDTH`); each variant points to a Media Playlist listing individual media segments. | [`src/lib/m3u8.ts`](src/lib/m3u8.ts) |
+| **HLS Segment Sampling** | Live-stream estimation method for Twitch and Kick: sends `Range: bytes=0-0` probes on up to 10 `"live"` segments to compute real bytes/sec from `Content-Range`, falling back to Master M3U8 `BANDWIDTH` if ads are detected or probes fail. Currently gated by `isFromPopup: true`. | [`estimateHlsStreamSizes`](src/lib/hlsSize.ts) |
+| **Media Cache** | TTL-backed cache of `PlatformData` in `chrome.storage.local` keyed as `local:<platform>:<id>`. VODs use the user's `cacheTTL` (default 3 days); YouTube live uses `LIVE_CACHE_TTL` (5 min); Twitch/Kick live streams are not cached. Entries with empty or zero-size formats are skipped. | [`src/lib/storage.ts`](src/lib/storage.ts), [`src/lib/storageService.ts`](src/lib/storageService.ts) |
+
+---
+
+## 3. Usage Tracking & Attribution
+
+| Term | Definition | Code Reference |
+| :--- | :--- | :--- |
+| **Origin** | Scheme + host + port of the tab (`new URL(tab.url).origin`, e.g. `https://www.youtube.com`). Used as the raw map key inside `SiteUsage.usage` in IndexedDB. | [`src/entrypoints/background/usageTracker.ts`](src/entrypoints/background/usageTracker.ts), [`src/db.ts`](src/db.ts) |
+| **Site Key** (`site`) | Normalized aggregation key for reporting: registrable domain (`example.com`) for most origins, full hostname without `www.` for Google subdomains (`drive.google.com`), or the raw origin when no registrable domain exists. | [`getSiteKey`](src/lib/domain.ts), [`sumBySite`](src/lib/domain.ts) |
+| **Site Label** | Human-readable display name for a site key (e.g. `"Google Drive"`, `"Gmail"`, `"Youtube"`). | [`getSiteLabel`](src/lib/domain.ts) |
+| **Site Usage** (`SiteUsage`) | Daily IndexedDB record (`siteUsage` table, keyed by `day: DateKey`) mapping `origin -> bytes`. | [`src/db.ts`](src/db.ts) |
+| **Watch History** (`WatchHistory`) | Daily IndexedDB record (`watchHistory` table, keyed by `day: DateKey`) mapping `videoKey -> bytes` for traffic observed on supported platform watch pages. | [`src/db.ts`](src/db.ts) |
+| **Dual-Path Usage Accounting** | Complementary byte-counting split that avoids double-counting: (1) **Background `webRequest.onCompleted`** counts responses with a positive `Content-Length` header; (2) **Page-World Observer** (`genericObserver.content.ts`) patches `fetch`, `XMLHttpRequest`, and classic `blob:` `Worker`s to count streamed/chunked responses *without* `Content-Length`. | [`src/entrypoints/background/usageTracker.ts`](src/entrypoints/background/usageTracker.ts), [`src/entrypoints/genericObserver.content.ts`](src/entrypoints/genericObserver.content.ts) |
+| **Usage Bridge** | Lightweight `ISOLATED`-world content script on `<all_urls>` that relays `TUBESIZE_SITE_USAGE` and `TUBESIZE_WATCH_HISTORY` `window.postMessage` events from the `MAIN`-world observer to the background script. | [`src/entrypoints/usageBridge.content.ts`](src/entrypoints/usageBridge.content.ts) |
+| **Usage Buffer** (`UsageBuffer`) | In-memory accumulator in the background script that batches `webRequest` origin and video bytes and flushes them to IndexedDB every 3 seconds, restoring drained counts on write failure. | [`src/entrypoints/background/usageBuffer.ts`](src/entrypoints/background/usageBuffer.ts) |
+| **Date Key** (`DateKey`) | Local-timezone calendar date string formatted `YYYY-MM-DD`. Primary key for `siteUsage`, `watchHistory`, and `toasterSuppressedDate`. | [`src/types/types.ts`](src/types/types.ts), [`src/lib/dateUtils.ts`](src/lib/dateUtils.ts) |
+| **Usage Range** (`UsageRange`) | Named rolling window: `"today"` (1 day), `"week"` (7 days), `"month"` (30 days), or `"lifetime"` (all stored days). | [`src/lib/constants.ts`](src/lib/constants.ts), [`scopeToDateKey`](src/lib/usage.ts) |
+| **Usage Scope** (`UsageScope`) | Discriminated union selecting either a single day (`{ type: "date", date }`) or a rolling window (`{ type: "range", range }`) for Dashboard queries. | [`src/types/types.ts`](src/types/types.ts), [`src/pages/dashboard/scope/scopePage.tsx`](src/pages/dashboard/scope/scopePage.tsx) |
+
+---
+
+## 4. Architecture, Surfaces & Settings
+
+| Term | Definition | Code Reference |
+| :--- | :--- | :--- |
+| **Platform Adapter** (`PlatformAdapter`) | Registry-backed adapter per platform (`youtubeAdapter`, `twitchAdapter`, `kickAdapter`) encapsulating URL matching, playback detection (`isRunningVideo`), data loading, `DisplayFormat[]` mapping, header formatting, optional audio info, and canonical watch URL construction. | [`src/adapters/types.ts`](src/adapters/types.ts), [`src/adapters/registry.ts`](src/adapters/registry.ts) |
+| **Platform Page** (`PlatformPage`) | Content-script module per platform (`youtubePage`, `twitchPage`, `kickPage`) invoked on page load and YouTube SPA navigation (`yt-navigate-finish`) to initialize data, run optional DOM hooks, and start the toaster. | [`src/entrypoints/content/platformPage.ts`](src/entrypoints/content/platformPage.ts) |
+| **Quality Menu Injector** | YouTube-only `MutationObserver` that injects estimated primary size badges into YouTube's native `.ytp-quality-menu` panel. | [`src/qualityMenuInjector.ts`](src/qualityMenuInjector.ts) |
+| **Toaster** *(Bandwidth Warning Toast)* | In-page warning overlay (`#TubeSize-Toast-Host`) shown when the active video's resolution exceeds `toasterThreshold` (MB/hour). Can be dismissed or suppressed for the current local day (`toasterSuppressedDate`). | [`src/pages/toaster.ts`](src/pages/toaster.ts), [`src/pages/toasterTracking.ts`](src/pages/toasterTracking.ts) |
+| **Usage Badge** | Extension toolbar action badge showing today's cumulative all-sites usage in compact SI form (e.g. `450M`, `1.2G`), cleared when `0 B`. | [`src/badge.ts`](src/badge.ts), [`formatBadge`](src/lib/format.ts) |
+| **Settings** (`SettingsMap`) | User preferences persisted in `chrome.storage.sync`: `toasterEnabled`, `toasterThreshold` (MB/hour, default `500`), `cacheTTL` (seconds, default 3 days), `advancedView` (show itags/codecs/fps), `includeAudio`, and `language`. | [`src/lib/storage.ts`](src/lib/storage.ts), [`src/lib/storageService.ts`](src/lib/storageService.ts) |
