@@ -524,6 +524,9 @@ export async function installPlatformRoutes(context: BrowserContext): Promise<vo
                 body: Buffer.alloc(100_000),
             });
         }
+        // route.fulfill always gives the browser a Content-Length, so this is not a chunked
+        // response. Genuine chunked accounting is covered by the local /__fixture__/stream handler
+        // (fixture:usage-site); platform media routes only add media bytes to the site total.
         if (url.pathname === "/__ts_media_stream") {
             return await route.fulfill({
                 status: 200,

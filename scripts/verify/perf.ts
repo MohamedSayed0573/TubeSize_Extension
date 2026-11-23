@@ -528,6 +528,9 @@ export async function measureDashboardPerf(opts: {
     mainPage: Page;
     serviceWorker: Worker;
 }): Promise<DashboardPerfReport> {
+    if (!opts.url.includes("/dashboard.html")) {
+        throw new Error(`perf dashboard needs a dashboard target, got ${opts.target}.`);
+    }
     if (opts.viewport) await opts.mainPage.setViewportSize(opts.viewport);
     const db = await inspectDb(opts.serviceWorker);
     // ChartDaily draws a bar for every stored day, but ChartSites drops sites under 1 MB, so a
