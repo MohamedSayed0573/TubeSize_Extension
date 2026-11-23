@@ -176,7 +176,7 @@ export async function readPageSummary(page: Page): Promise<PageSummary> {
 
 export async function launchExtension(
     extDir: string,
-    timeoutMs = 15_000,
+    timeoutMs = 30_000,
 ): Promise<{
     extId: string;
     profileDir: string;

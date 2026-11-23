@@ -42,14 +42,16 @@ export function ExportToJsonBtn({
             return setError(new InvalidImportJson(t("dashboard_noUsageToExport")));
 
         const json = JSON.stringify(filteredUsage);
-        const blob = new Blob([json]);
+        const blob = new Blob([json], { type: "application/json" });
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = blobUrl;
         a.download = `tubesize-${new Date().toISOString().split("T")[0]}.json`;
+        document.body.append(a);
         a.click();
+        a.remove();
 
-        return blobUrl;
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     }
 
     return (
@@ -57,9 +59,7 @@ export function ExportToJsonBtn({
             variant="outline"
             className="w-full"
             onClick={() => {
-                getData()
-                    .then((u) => u && URL.revokeObjectURL(u))
-                    .catch((err) => setError(err as Error));
+                getData().catch((err) => setError(err as Error));
             }}
         >
             {t("dashboard_exportJson")}

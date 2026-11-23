@@ -32,15 +32,17 @@ const HELP = `TubeSize Verification CLI (Playwright)
 Usage: bun run verify <command> [options]
 
 Commands:
-  doctor                        Health check: Bun, Chromium, build freshness, MV3 boot
-  start [opts]                  Launch isolated Playwright session (--target, --seed, --lang, --build)
+  doctor [--timeout <ms>]       Health check: Bun, Chromium, build freshness, MV3 boot
+  start [opts]                  Launch isolated Playwright session (--target, --seed, --lang, --build, --timeout)
   status                        Check active session URL, dir, and error count
   stop                          Close active session & delete temp profile (keeps .verify-evidence/)
   goto <target>                 Navigate (popup|settings|daily|sites|today|date:*|platform:*|site:*|URL)
-  snapshot [file.aria.txt]      Print ARIA accessibility tree (roles & names)
+  snapshot [file] [opts]        Print ARIA tree (--selector <css> to scope, --quiet/-q when saving to file)
   click [locator]               Click (--role <r> [--name <n>] | --label <l> | --text <t> | --selector <css>)
-  fill --value <v> [locator]    Fill an input
-  press <key>                   Press a keyboard key (Enter, Escape, Tab, ...)
+  fill --value <v> [locator]    Fill an input (locators also accept --exact and --nth <n>)
+  press <key> [--repeat <n>]    Press a keyboard key N times (Enter, Escape, ArrowRight, ...)
+  upload <file> [locator]       Click a file-chooser trigger and upload a local file
+  download [out] [locator]      Click a download trigger and save the file (default: .verify-evidence/<name>)
   reload                        Reload current page and wait for UI settle
   seed <full|empty> [--lang]    Re-seed IndexedDB (and optional language) and reload
   state                         Inspect URL, dir, IndexedDB counts, chrome.storage.sync & errors
@@ -108,7 +110,25 @@ async function call(
     }
 }
 
-async function runDoctor(): Promise<number> {
+function parsePositiveInt(raw: string | undefined, fallback: number, flagName: string): number {
+    if (raw === undefined) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n <= 0) {
+        throw new Error(`${flagName} must be a positive integer (got "${raw}").`);
+    }
+    return n;
+}
+
+function parseNonNegativeInt(raw: string | undefined, flagName: string): number | undefined {
+    if (raw === undefined) return undefined;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 0) {
+        throw new Error(`${flagName} must be a non-negative integer (got "${raw}").`);
+    }
+    return n;
+}
+
+async function runDoctor(timeoutMs: number): Promise<number> {
     const chrome = findChromiumExecutable();
     const manifestPath = join(EXT_DIR, "manifest.json");
     out(`TubeSize Verify Doctor`);
@@ -131,27 +151,48 @@ async function runDoctor(): Promise<number> {
         `  [${stale ? "!" : "✓"}] build     MV${manifest.manifest_version ?? "?"} v${manifest.version ?? "?"} (${stale ? "STALE — run bun run build" : "fresh"})`,
     );
 
-    const browser = await launchExtension(EXT_DIR);
-    try {
-        await browser.page.goto(`chrome-extension://${browser.extId}/popup.html#/`, {
-            waitUntil: "domcontentloaded",
+    let closeBrowser: (() => Promise<void>) | null = null;
+    let interrupted = false;
+    const onSignal = (sig: NodeJS.Signals) => {
+        interrupted = true;
+        void (closeBrowser ? closeBrowser() : Promise.resolve()).finally(() => {
+            process.exit(sig === "SIGINT" ? 130 : 143);
         });
-        const ready = await waitForSettle(browser.page, 4000);
-        const summary = await readPageSummary(browser.page);
-        if (browser.issues.length > 0 || summary.hasErrorBoundary || !ready) {
-            out(
-                `  [✗] boot      ${browser.issues.map((i) => i.message).join("; ") || (summary.hasErrorBoundary ? "Error boundary rendered" : "Popup never settled (blank or loading)")}`,
-            );
-            return 1;
+    };
+    process.on("SIGINT", onSignal);
+    process.on("SIGTERM", onSignal);
+
+    try {
+        const browser = await launchExtension(EXT_DIR, timeoutMs);
+        closeBrowser = browser.close;
+        if (interrupted) {
+            await browser.close();
+            return 130;
         }
-        if (stale) {
-            out("  [!] build is STALE — rebuild before verifying (bun run build)");
-            return 2;
+        try {
+            await browser.page.goto(`chrome-extension://${browser.extId}/popup.html#/`, {
+                waitUntil: "domcontentloaded",
+            });
+            const ready = await waitForSettle(browser.page, 4000);
+            const summary = await readPageSummary(browser.page);
+            if (browser.issues.length > 0 || summary.hasErrorBoundary || !ready) {
+                out(
+                    `  [✗] boot      ${browser.issues.map((i) => i.message).join("; ") || (summary.hasErrorBoundary ? "Error boundary rendered" : "Popup never settled (blank or loading)")}`,
+                );
+                return 1;
+            }
+            if (stale) {
+                out("  [!] build is STALE — rebuild before verifying (bun run build)");
+                return 2;
+            }
+            out(`  [✓] boot      MV3 worker online & popup clean (id: ${browser.extId})`);
+            return 0;
+        } finally {
+            await browser.close();
         }
-        out(`  [✓] boot      MV3 worker online & popup clean (id: ${browser.extId})`);
-        return 0;
     } finally {
-        await browser.close();
+        process.off("SIGINT", onSignal);
+        process.off("SIGTERM", onSignal);
     }
 }
 
@@ -209,6 +250,11 @@ async function main(): Promise<number> {
             seed: { type: "string", default: "full" },
             lang: { type: "string", default: "en" },
             target: { type: "string", default: "daily" },
+            timeout: { type: "string" },
+            quiet: { type: "boolean", short: "q", default: false },
+            exact: { type: "boolean", default: false },
+            nth: { type: "string" },
+            repeat: { type: "string" },
             role: { type: "string" },
             name: { type: "string" },
             label: { type: "string" },
@@ -223,11 +269,22 @@ async function main(): Promise<number> {
         return 0;
     }
 
+    const locatorPayload = () => ({
+        role: values.role,
+        name: values.name,
+        label: values.label,
+        text: values.text,
+        selector: values.selector,
+        exact: values.exact,
+        nth: parseNonNegativeInt(values.nth, "--nth"),
+    });
+
     switch (cmd) {
         case "doctor":
-            return await runDoctor();
+            return await runDoctor(parsePositiveInt(values.timeout, 30_000, "--timeout"));
 
         case "start": {
+            const startTimeoutMs = parsePositiveInt(values.timeout, 40_000, "--timeout");
             if (values.build) {
                 const b = Bun.spawnSync({
                     cmd: ["bun", "run", "build"],
@@ -263,13 +320,15 @@ async function main(): Promise<number> {
                     values.lang,
                     "--target",
                     values.target,
+                    "--timeout",
+                    String(startTimeoutMs),
                 ],
                 { cwd: ROOT, detached: true, stdio: ["ignore", fd, fd] },
             );
             child.unref();
             closeSync(fd);
 
-            const deadline = Date.now() + 20_000;
+            const deadline = Date.now() + startTimeoutMs;
             while (Date.now() < deadline) {
                 const s = readSession();
                 if (s) {
@@ -320,15 +379,20 @@ async function main(): Promise<number> {
         }
 
         case "snapshot": {
-            const data = await call("/snapshot", {});
+            const data = await call("/snapshot", { selector: values.selector });
             const aria = String(data.aria ?? "");
             if (positionals[0]) {
                 const dest = resolve(positionals[0]);
                 mkdirSync(dirname(dest), { recursive: true });
-                writeFileSync(dest, `${aria}\n`);
-                out(`# Saved → ${relative(ROOT, dest)}`);
+                const content = `${aria}\n`;
+                writeFileSync(dest, content);
+                const lines = aria ? aria.split("\n").length : 0;
+                const bytes = Buffer.byteLength(content, "utf8");
+                out(`# Saved → ${relative(ROOT, dest)} (${lines} lines, ${bytes} B)`);
+                if (values.quiet) return 0;
             }
-            out(`# ${data.page?.url} (dir=${data.page?.dir})\n${aria}`);
+            const scope = values.selector ? ` selector=${values.selector}` : "";
+            out(`# ${data.page?.url} (dir=${data.page?.dir}${scope})\n${aria}`);
             return 0;
         }
 
@@ -339,11 +403,7 @@ async function main(): Promise<number> {
                 return 1;
             }
             const data = await call(`/${cmd}`, {
-                role: values.role,
-                name: values.name,
-                label: values.label,
-                text: values.text,
-                selector: values.selector,
+                ...locatorPayload(),
                 value: values.value,
             });
             const errs = (data.newIssues as RuntimeIssue[]) ?? [];
@@ -355,12 +415,52 @@ async function main(): Promise<number> {
 
         case "press": {
             if (!positionals[0]) {
-                out("Usage: bun run verify press <key>");
+                out("Usage: bun run verify press <key> [--repeat <n>]");
                 return 1;
             }
-            const data = await call("/press", { key: positionals[0] });
+            const repeat = parsePositiveInt(values.repeat, 1, "--repeat");
+            const data = await call("/press", { key: positionals[0], repeat });
             const errs = (data.newIssues as RuntimeIssue[]) ?? [];
-            out(`Pressed ${positionals[0]} → ${data.page?.url} (newErrors=${errs.length})`);
+            out(
+                `Pressed ${positionals[0]}${repeat > 1 ? ` x${repeat}` : ""} → ${data.page?.url} (newErrors=${errs.length})`,
+            );
+            return report(data);
+        }
+
+        case "upload": {
+            if (!positionals[0]) {
+                out(
+                    "Usage: bun run verify upload <file> [--role/--name|--label|--text|--selector]",
+                );
+                return 1;
+            }
+            const absFile = resolve(positionals[0]);
+            if (!existsSync(absFile)) {
+                out(`FAIL: File not found: ${absFile}`);
+                return 1;
+            }
+            const data = await call("/upload", {
+                file: absFile,
+                ...locatorPayload(),
+            });
+            const errs = (data.newIssues as RuntimeIssue[]) ?? [];
+            out(
+                `Uploaded ${relative(ROOT, absFile)} → ${data.page?.url} (dir=${data.page?.dir}, newErrors=${errs.length})`,
+            );
+            return report(data);
+        }
+
+        case "download": {
+            const dest = positionals[0] ? resolve(positionals[0]) : undefined;
+            const data = await call("/download", {
+                path: dest,
+                outDir: EVIDENCE_DIR,
+                ...locatorPayload(),
+            });
+            const errs = (data.newIssues as RuntimeIssue[]) ?? [];
+            out(
+                `Downloaded ${String(data.suggestedFilename ?? "")} (${String(data.bytes ?? 0)} B) → ${relative(ROOT, String(data.path ?? ""))} (newErrors=${errs.length})`,
+            );
             return report(data);
         }
 

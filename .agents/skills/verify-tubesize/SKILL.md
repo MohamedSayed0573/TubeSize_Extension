@@ -68,10 +68,12 @@ bun run build:firefox
 ```bash
 bun run verify status                                         # Check session health & error count
 bun run verify goto <target>                                  # popup|settings|daily|sites|today|date:*|platform:*|site:*|URL
-bun run verify snapshot [path.aria.txt]                       # Print ARIA accessibility tree (roles & names)
-bun run verify click --role button --name "Settings"          # Also supports --label, --text, --selector
+bun run verify snapshot [path.aria.txt] [--selector <css>] [--quiet]  # Print/save ARIA tree (scoped & quiet optional)
+bun run verify click --role button --name "Settings"          # Also supports --label, --text, --selector, --exact, --nth <n>
 bun run verify fill --role textbox --name "Search" --value "Python"
-bun run verify press Enter
+bun run verify press ArrowRight --repeat 5                    # Press a key N times (default 1)
+bun run verify upload <file> --role button --name "Import JSON"       # Trigger file chooser & upload local file
+bun run verify download [out.json] --role button --name "Export To JSON" # Trigger download & save to disk
 bun run verify reload                                         # Reload and wait for UI settle
 bun run verify seed <full|empty> [--lang en|ar]               # Re-seed IndexedDB / language & reload
 bun run verify state                                          # URL, dir, IndexedDB counts, chrome.storage.sync, errors
