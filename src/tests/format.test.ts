@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+    audioDisplaySizes,
     formatAudioCodec,
     formatBadge,
     formatBitrate,
@@ -152,75 +153,45 @@ const liveFormat: DisplayFormat = {
     sizePerSecondBytes: 2000,
 };
 
-describe("formatDisplaySizes", () => {
-    test("with audio included, shows the merged numbers", () => {
-        expect(formatDisplaySizes(vodFormat, vodAudio, true)).toEqual({
-            primary: "2 MB",
-            secondary: "120 KB/min",
-        });
-        expect(formatDisplaySizes(liveFormat, liveAudio, true)).toEqual({
-            primary: "7.2 MB/hour",
-            secondary: "120 KB/min",
+describe("audioDisplaySizes", () => {
+    test("formats VOD audio as total bytes with no secondary rate", () => {
+        expect(audioDisplaySizes(vodAudio, "vod", false)).toEqual({
+            primary: "500 KB",
         });
     });
 
-    test("with audio excluded, subtracts the audio share from a VOD", () => {
-        // Audio bitrate 8000 bps = 1000 bytes/s, so per-second drops to 1000.
-        expect(formatDisplaySizes(vodFormat, vodAudio, false)).toEqual({
-            primary: "1.5 MB",
-            secondary: "60 KB/min",
-        });
-    });
-
-    test("with audio excluded, subtracts the audio share from a live stream", () => {
-        expect(formatDisplaySizes(liveFormat, liveAudio, false)).toEqual({
+    test("formats live audio as per-hour primary and per-minute secondary", () => {
+        expect(audioDisplaySizes(liveAudio, "live", false)).toEqual({
             primary: "3.6 MB/hour",
             secondary: "60 KB/min",
         });
     });
 
-    test("hides the secondary rate for shorts", () => {
-        const shorts: DisplayFormat = { ...vodFormat, hideRate: true };
-        expect(formatDisplaySizes(shorts, vodAudio, true).secondary).toBeUndefined();
+    test("hides the secondary rate when hideRate is true", () => {
+        expect(audioDisplaySizes(liveAudio, "live", true)).toEqual({
+            primary: "3.6 MB/hour",
+            secondary: undefined,
+        });
     });
+});
 
-    test("without audio data, exclusion changes nothing", () => {
-        expect(formatDisplaySizes(vodFormat, undefined, false)).toEqual({
+describe("formatDisplaySizes", () => {
+    test("formats a VOD with total size and per-minute rate", () => {
+        expect(formatDisplaySizes(vodFormat)).toEqual({
             primary: "2 MB",
             secondary: "120 KB/min",
         });
     });
 
-    test("video-only rate uses size/duration share, not reported bitrate", () => {
-        // Bitrate implies 10_000 bytes/s, but the actual size implies
-        // 8_000 bytes/s. Excluding audio must drop the size-derived share.
-        const mismatchedAudio: AudioStreamInfo = {
-            formatId: 251,
-            codec: "opus",
-            bitrate: 80_000,
-            sizeBytes: 1_000_000,
-            bytesPerSecond: 8_000,
-            itags: [],
-        };
-        expect(
-            formatDisplaySizes(
-                { ...vodFormat, sizePerSecondBytes: 20_000 },
-                mismatchedAudio,
-                false,
-            ),
-        ).toEqual({
-            primary: "1 MB", // 2 000 000 − 1 000 000
-            secondary: "720 KB/min", // 20 000 − 8 000; a bitrate-derived 10 000 would give 600
+    test("formats a live stream with per-hour and per-minute rates", () => {
+        expect(formatDisplaySizes(liveFormat)).toEqual({
+            primary: "7.2 MB/hour",
+            secondary: "120 KB/min",
         });
     });
 
-    test("never shows a negative size when audio exceeds the total", () => {
-        const hugeAudio: AudioStreamInfo = {
-            formatId: 251,
-            sizeBytes: 5_000_000,
-            bytesPerSecond: 5_000_000 / 3600,
-            itags: [],
-        };
-        expect(formatDisplaySizes(vodFormat, hugeAudio, false).primary).toBe("0 B");
+    test("hides the secondary rate for shorts", () => {
+        const shorts: DisplayFormat = { ...vodFormat, hideRate: true };
+        expect(formatDisplaySizes(shorts).secondary).toBeUndefined();
     });
 });

@@ -7,7 +7,7 @@ import { humanizeDuration } from "@/lib/humanize";
 import { extractVideoTag, isShortsVideo, isYoutubePage } from "@/lib/utils";
 import { sendMessage } from "@/messaging";
 
-import type { DisplayFormat, HeaderViewData, PlatformData } from "./types";
+import type { DisplayFormat, FormatOptions, HeaderViewData, PlatformData } from "./types";
 
 async function loadYoutubeData(tabUrl: string, tabId: number) {
     const videoTag = extractVideoTag(tabUrl)!;
@@ -42,16 +42,20 @@ function isRunningVideo(tabUrl: string): boolean {
     return isYoutubePage(tabUrl) && !!extractVideoTag(tabUrl);
 }
 
-function youtubeFormats(data: PlatformData): DisplayFormat[] {
+function youtubeFormats(data: PlatformData, options?: FormatOptions): DisplayFormat[] {
     const youtube = data as YoutubeData;
+    const includeAudio = options?.includeAudio ?? true;
+    const audio = includeAudio ? youtube.audio : undefined;
+    const audioSizeBytes = audio?.sizeBytes ?? 0;
+    const audioBytesPerSecond = audio?.bytesPerSecond ?? 0;
 
     if (youtube.type === "video") {
         return youtube.formats.map((format) => ({
             kind: "vod",
             key: format.formatId,
             resolution: format.height,
-            sizeBytes: format.sizeBytes,
-            sizePerSecondBytes: format.sizePerSecondBytes,
+            sizeBytes: format.sizeBytes + audioSizeBytes,
+            sizePerSecondBytes: format.sizePerSecondBytes + audioBytesPerSecond,
             hideRate: youtube.isShorts,
             codec: format.codec,
             formatId: format.formatId,
@@ -64,7 +68,7 @@ function youtubeFormats(data: PlatformData): DisplayFormat[] {
         kind: "live",
         key: stream.resolution,
         resolution: stream.resolution,
-        sizePerSecondBytes: stream.sizePerSecondBytes,
+        sizePerSecondBytes: stream.sizePerSecondBytes + audioBytesPerSecond,
         codec: stream.codec,
         formatId: stream.formatId,
         fps: stream.fps,
@@ -72,7 +76,7 @@ function youtubeFormats(data: PlatformData): DisplayFormat[] {
     }));
 }
 
-// One audio stream for the whole video; the display layer threads it separately.
+// One audio stream for the whole video, shown as a separate row in advanced view.
 function youtubeAudio(data: PlatformData) {
     return (data as YoutubeData).audio;
 }

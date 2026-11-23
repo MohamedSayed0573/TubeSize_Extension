@@ -1,7 +1,7 @@
 import { formatDisplaySizes } from "@lib/format";
 import { cn } from "@lib/utils";
 
-import type { AudioStreamInfo, DisplayFormat } from "@/adapters/types";
+import type { DisplayFormat } from "@/adapters/types";
 import { t } from "@/i18n/t";
 
 import SizeColumn from "./sizeColumn";
@@ -9,11 +9,9 @@ import SizeColumn from "./sizeColumn";
 interface Props {
     format: DisplayFormat;
     currentQuality: number | undefined;
-    audio: AudioStreamInfo | undefined;
-    includeAudio: boolean;
 }
 
-export default function FormatItem({ format, currentQuality, audio, includeAudio }: Props) {
+export default function FormatItem({ format, currentQuality }: Props) {
     const { resolution } = format;
 
     return (
@@ -32,7 +30,7 @@ export default function FormatItem({ format, currentQuality, audio, includeAudio
                     </span>
                 )}
             </div>
-            <SizeColumn {...formatDisplaySizes(format, audio, includeAudio)} />
+            <SizeColumn {...formatDisplaySizes(format)} />
         </div>
     );
 }

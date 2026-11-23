@@ -102,7 +102,7 @@ function injectBadges(qualityMenu: HTMLElement, lookup: Map<number, string>) {
 function createQualitySizeLookup(formats: DisplayFormat[]) {
     const lookup = new Map<number, string>();
     for (const format of formats) {
-        const size = formatDisplaySizes(format, undefined, true).primary;
+        const size = formatDisplaySizes(format).primary;
         lookup.set(format.resolution, size);
     }
     return lookup;
