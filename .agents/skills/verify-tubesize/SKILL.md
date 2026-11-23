@@ -59,7 +59,7 @@ Read [features/README.md](./features/README.md) first, then follow the matching 
 ### Static & Unit Checks (from `package.json`)
 
 ```bash
-bun run tsc && bun run lint --max-warnings=0 && bun run test && bun run build && bun run build:firefox && bun run knip
+bun run all
 ```
 
 ### Interactive Playwright Commands
@@ -95,9 +95,9 @@ bun run verify screenshot .verify-evidence/<name>.png         # Capture 2x PNG p
 
 - Popup header actions: `button "Settings"`, `button "Dashboard"`
 - Popup Advanced View audio switch: `switch "Include audio in sizes"`
-- Popup Changelog Notice dismiss button: `--selector '[role="status"] button'`
+- Popup Changelog Notice dismiss button: `button "Dismiss"` (Arabic: `button "إغلاق"`, inside `<output>`)
 - Settings language combobox: `combobox "Language"` (`#language-select`, options `English` / `العربية`)
-- Settings usage alert: `switch "Enable video usage limit exceeded alert"`, `#toasterThreshold` slider (200–1000)
+- Settings usage alert: `switch "Enable video usage limit exceeded alert"`, `#toasterThreshold` slider (200–1000; target thumb with `--selector '[data-slot="slider-thumb"]' --nth 1`)
 - Settings advanced view: `switch "Enable advanced view"` (CSS fallback: `label[for="advancedViewToggle"] ~ [role="switch"]`)
 - Dashboard chart tabs: `link "By Day"` (`a[href="#/daily"]`), `link "By Site"` (`a[href="#/sites"]`)
 - Dashboard footer actions: `button "Clear All Usage Data"`, `button "Export To JSON"`, `button "Import JSON"`, dialog confirm `button "Continue"`, `button "Cancel"`
