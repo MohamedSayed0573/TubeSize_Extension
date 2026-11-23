@@ -1,4 +1,3 @@
-import type { Origin } from "@app-types/types";
 import { isFirefox } from "@lib/browser";
 import { toOrigin } from "@lib/domain";
 import { getWatchHistoryTarget, toVideoKey } from "@lib/utils";
@@ -19,7 +18,7 @@ const NO_TAB_ID = -1;
 
 // Chrome reports `initiator` (already an origin); Firefox has no `initiator`
 // and reports `originUrl`/`documentUrl` (full URLs) instead.
-type CompletedRequestDetails = chrome.webRequest.OnCompletedDetails & {
+export type CompletedRequestDetails = chrome.webRequest.OnCompletedDetails & {
     originUrl?: string;
     documentUrl?: string;
 };
@@ -37,22 +36,25 @@ export function setupTrackUsage() {
     startFlushTimer(buffer);
 }
 
-async function trackRequest(buffer: UsageBuffer, details: chrome.webRequest.OnCompletedDetails) {
+export async function trackRequest(buffer: UsageBuffer, details: CompletedRequestDetails) {
     try {
-        const requestDetails = details as CompletedRequestDetails;
-        if (!isCountableRequest(requestDetails)) return;
+        if (!isCountableRequest(details)) return;
 
-        const bytes = getContentLength(requestDetails);
+        const bytes = getContentLength(details);
         if (bytes === undefined) return;
 
+        const tab = await chrome.tabs.get(details.tabId);
+        const tabUrl = tab.url;
+        if (isExtensionUrl(tabUrl)) return;
+
         // Requests that can't be attributed to a page origin are skipped.
-        const origin = await getRequestOrigin(requestDetails);
-        if (!origin) {
-            throw new Error("Skipping request from unknown origin: " + requestDetails.url);
+        const origin = tabUrl ? toOrigin(tabUrl) : undefined;
+        if (!tabUrl || !origin) {
+            throw new Error("Skipping request from unknown origin: " + details.url);
         }
 
         buffer.addOrigin(origin, bytes);
-        void trackWatchHistory(buffer, requestDetails.tabId, bytes);
+        trackWatchHistory(buffer, tabUrl, bytes);
     } catch (err) {
         console.error("Failed to track request usage:", err);
     }
@@ -94,20 +96,16 @@ function startFlushTimer(buffer: UsageBuffer) {
     }, FLUSH_INTERVAL_MS);
 }
 
-function isCountableRequest(details: CompletedRequestDetails) {
+export function isCountableRequest(details: CompletedRequestDetails) {
     return !(
         details.tabId === NO_TAB_ID ||
-        isExtensionUrl(details.initiator ?? details.originUrl ?? details.documentUrl) ||
+        isExtensionUrl(details.url) ||
+        isExtensionUrl(details.initiator) ||
+        isExtensionUrl(details.originUrl) ||
+        isExtensionUrl(details.documentUrl) ||
         details.fromCache ||
         details.method === "HEAD"
     );
-}
-
-async function getRequestOrigin(details: CompletedRequestDetails): Promise<Origin | undefined> {
-    const tabId = details.tabId;
-
-    const tab = await chrome.tabs.get(tabId);
-    return tab.url ? toOrigin(tab.url) : undefined;
 }
 
 function isExtensionUrl(url: string | undefined): boolean {
@@ -132,11 +130,8 @@ function toWireBytes(value: string | undefined): number | undefined {
     return Number.isFinite(bytes) && bytes > 0 ? bytes : undefined;
 }
 
-async function trackWatchHistory(buffer: UsageBuffer, tabId: number, bytes: number) {
+function trackWatchHistory(buffer: UsageBuffer, url: string, bytes: number) {
     try {
-        const { url } = await chrome.tabs.get(tabId);
-        if (!url) return;
-
         const target = getWatchHistoryTarget(url);
         if (!target) return;
 
