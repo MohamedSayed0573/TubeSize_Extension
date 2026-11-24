@@ -1,8 +1,6 @@
 import type {
     AddUsageResponse,
     AddWatchHistoryResponse,
-    GetUsageResponse,
-    GetWatchHistoryResponse,
     KickBackgroundResponse,
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
@@ -25,7 +23,7 @@ import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
 import { getYoutubeResponse } from "@lib/youtube";
 
 import { refreshUsageBadge } from "@/badge";
-import { addSiteUsage, addWatchHistory, getSiteUsage, getWatchHistory } from "@/db";
+import { addSiteUsage, addWatchHistory } from "@/db";
 
 function isValidUsageBytes(usage: unknown): usage is number {
     return typeof usage === "number" && Number.isFinite(usage) && usage >= 0;
@@ -125,22 +123,6 @@ export async function handleKickLive(message: KickLiveMessage): Promise<KickBack
     }
 }
 
-export async function handleGetUsage(): Promise<GetUsageResponse> {
-    try {
-        const usage = await getSiteUsage();
-
-        return {
-            success: true,
-            data: usage?.usage,
-        };
-    } catch (err) {
-        return {
-            success: false,
-            message: err instanceof Error ? err.message : String(err),
-        };
-    }
-}
-
 export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBackgroundResponse> {
     try {
         return await getYoutubeResponse(message);
@@ -148,22 +130,6 @@ export async function handleYoutube(message: YoutubeMessage): Promise<YoutubeBac
         return {
             success: false,
             message: err instanceof Error ? err.message : "Unknown error",
-        };
-    }
-}
-
-export async function handleGetWatchHistory(): Promise<GetWatchHistoryResponse> {
-    try {
-        const usage = await getWatchHistory();
-
-        return {
-            success: true,
-            data: usage?.videos,
-        };
-    } catch (err) {
-        return {
-            success: false,
-            message: err instanceof Error ? err.message : String(err),
         };
     }
 }

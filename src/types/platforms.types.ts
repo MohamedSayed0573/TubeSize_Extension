@@ -1,7 +1,7 @@
 import type { ytInitialSchema } from "@lib/schema";
 import { z } from "zod";
 
-import type { Origin, PlatformId, VideoKey } from "./types";
+import type { PlatformId } from "./types";
 
 export type ytInitialPlayerResponse = z.infer<typeof ytInitialSchema>;
 
@@ -148,9 +148,7 @@ export type KickData = KickLiveData | KickVodData;
 export type KickBackgroundResponse = BackgroundResponse<KickData>;
 
 export type AddUsageResponse = BackgroundResponse<null>;
-export type GetUsageResponse = BackgroundResponse<Record<Origin, number> | undefined>;
 export type AddWatchHistoryResponse = BackgroundResponse<null>;
-export type GetWatchHistoryResponse = BackgroundResponse<Record<VideoKey, number> | undefined>;
 
 export type PlatformDataMap = {
     youtube: YoutubeData;

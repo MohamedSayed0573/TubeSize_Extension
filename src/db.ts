@@ -123,10 +123,6 @@ export async function addWatchHistory(watchHistory: Record<VideoKey, number>) {
     });
 }
 
-export async function getWatchHistory(day = getDateKey()) {
-    return await database.watchHistory.get(day);
-}
-
 export async function getAllWatchHistory(): Promise<WatchHistory[]> {
     return await database.watchHistory.toArray();
 }

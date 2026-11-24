@@ -3,8 +3,6 @@ import { onMessage } from "@/messaging";
 import {
     handleAddUsage,
     handleAddWatchHistory,
-    handleGetUsage,
-    handleGetWatchHistory,
     handleKickLive,
     handleKickVod,
     handleTwitchLive,
@@ -22,8 +20,5 @@ export function attachMessageHandler() {
     onMessage("kickLive", ({ data }) => handleKickLive(data));
 
     onMessage("addUsage", ({ data, sender }) => handleAddUsage(data, sender));
-    onMessage("getUsage", () => handleGetUsage());
-
     onMessage("addWatchHistory", ({ data }) => handleAddWatchHistory(data));
-    onMessage("getWatchHistory", () => handleGetWatchHistory());
 }

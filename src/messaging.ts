@@ -1,8 +1,6 @@
 import type {
     AddUsageResponse,
     AddWatchHistoryResponse,
-    GetUsageResponse,
-    GetWatchHistoryResponse,
     KickBackgroundResponse,
     TwitchBackgroundResponse,
     YoutubeBackgroundResponse,
@@ -30,9 +28,7 @@ interface BackgroundProtocolMap {
     kickVod(data: KickVodMessage): KickBackgroundResponse;
     kickLive(data: KickLiveMessage): KickBackgroundResponse;
     addUsage(data: AddUsageMessage): AddUsageResponse;
-    getUsage(data: undefined): GetUsageResponse;
     addWatchHistory(data: AddWatchHistoryMessage): AddWatchHistoryResponse;
-    getWatchHistory(data: undefined): GetWatchHistoryResponse;
 }
 
 interface TabProtocolMap {

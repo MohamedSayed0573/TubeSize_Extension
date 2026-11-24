@@ -15,7 +15,6 @@ import {
     getSiteUsageByDate,
     getVideoMetadata,
     getVideoMetadataByVideoKey,
-    getWatchHistory,
     getWatchHistoryByDate,
     setAllSiteUsage,
 } from "@/db";
@@ -106,7 +105,6 @@ describe("siteUsage table", () => {
 
 describe("watchHistory table", () => {
     test("returns empty results when no watch history is stored", async () => {
-        expect(await getWatchHistory()).toBeUndefined();
         expect(await getAllWatchHistory()).toEqual([]);
         expect(await getWatchHistoryByDate(dateKey("2026-05-01"))).toBeUndefined();
         expect(await getWatchHistoryByDate([dateKey("2026-05-01")])).toEqual([]);
@@ -132,17 +130,13 @@ describe("watchHistory table", () => {
         const day2 = getDateKey();
         await addWatchHistory({ [kickVod]: 4_000 });
 
-        expect(await getWatchHistory(day1)).toEqual({
-            day: day1,
-            videos: { [ytVideo]: 1_500, [twitchStream]: 2_000 },
-        });
-        expect(await getWatchHistory()).toEqual({
-            day: day2,
-            videos: { [kickVod]: 4_000 },
-        });
         expect(await getWatchHistoryByDate(day1)).toEqual({
             day: day1,
             videos: { [ytVideo]: 1_500, [twitchStream]: 2_000 },
+        });
+        expect(await getWatchHistoryByDate(day2)).toEqual({
+            day: day2,
+            videos: { [kickVod]: 4_000 },
         });
         expect(await getWatchHistoryByDate([day1, day2])).toEqual([
             { day: day2, videos: { [kickVod]: 4_000 } },
