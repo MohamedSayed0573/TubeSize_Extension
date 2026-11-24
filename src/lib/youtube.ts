@@ -6,7 +6,6 @@ import type {
     StreamInfo,
     VideoCodec,
     VideoItag,
-    YoutubeBackgroundResponse,
     YoutubeData,
     YoutubeVideoFormat,
     ytInitialPlayerResponse,
@@ -303,67 +302,45 @@ function getThumbnailUrl(data: ytInitialPlayerResponse): string | undefined {
     return data.videoDetails.thumbnail.thumbnails.toSorted((a, b) => b.width - a.width)[0]?.url;
 }
 
-export async function getYoutubeResponse(
-    message: YoutubeMessage,
-): Promise<YoutubeBackgroundResponse> {
-    try {
-        const { mediaId, html } = message;
-        if (!mediaId) {
-            throw new Error("No media ID provided");
-        }
+export async function getYoutubeData(message: YoutubeMessage): Promise<YoutubeData> {
+    const { mediaId, html } = message;
+    if (!mediaId) {
+        throw new Error("No media ID provided");
+    }
 
-        const cached = await getMediaCache("youtube", mediaId);
-        if (cached) {
-            return {
-                success: true,
-                ...cached,
-            };
-        }
+    const cached = await getMediaCache("youtube", mediaId);
+    if (cached) {
+        return cached.data;
+    }
 
-        const ytInitialPlayerResponse = await extractYtInitialResponse(mediaId, html);
-        const { videoDetails, microformat } = ytInitialPlayerResponse;
-        const { author: channelName, title, isLive } = videoDetails;
-        const channelUrl = microformat?.playerMicroformatRenderer.ownerProfileUrl;
+    const ytInitialPlayerResponse = await extractYtInitialResponse(mediaId, html);
+    const { videoDetails, microformat } = ytInitialPlayerResponse;
+    const { author: channelName, title, isLive } = videoDetails;
+    const channelUrl = microformat?.playerMicroformatRenderer.ownerProfileUrl;
 
-        const baseData = {
-            platform: "youtube" as const,
-            title,
-            channelName,
-            thumbnailUrl: getThumbnailUrl(ytInitialPlayerResponse),
-            channelUrl,
-        };
+    const baseData = {
+        platform: "youtube" as const,
+        title,
+        channelName,
+        thumbnailUrl: getThumbnailUrl(ytInitialPlayerResponse),
+        channelUrl,
+    };
 
-        let data: YoutubeData;
-        if (isLive) {
-            const { formats, audio } = parseLiveFormats(
-                ytInitialPlayerResponse,
-                message.av1Supported,
-            );
-            data = { ...baseData, type: "live", formats, audio };
-        } else {
-            const { formats, audio } = parseVideoFormats(
-                ytInitialPlayerResponse,
-                message.av1Supported,
-            );
-            data = {
-                ...baseData,
-                type: "vod" as const,
-                durationSeconds: Number(videoDetails.lengthSeconds),
-                formats,
-                audio,
-            };
-        }
-
-        await saveMediaCache("youtube", mediaId, data, isLive ? CONFIG.LIVE_CACHE_TTL : undefined);
-
-        return {
-            success: true,
-            data,
-        };
-    } catch (err) {
-        return {
-            success: false,
-            message: err instanceof Error ? err.message : "Unknown error",
+    let data: YoutubeData;
+    if (isLive) {
+        const { formats, audio } = parseLiveFormats(ytInitialPlayerResponse, message.av1Supported);
+        data = { ...baseData, type: "live", formats, audio };
+    } else {
+        const { formats, audio } = parseVideoFormats(ytInitialPlayerResponse, message.av1Supported);
+        data = {
+            ...baseData,
+            type: "vod" as const,
+            durationSeconds: Number(videoDetails.lengthSeconds),
+            formats,
+            audio,
         };
     }
+
+    await saveMediaCache("youtube", mediaId, data, isLive ? CONFIG.LIVE_CACHE_TTL : undefined);
+    return data;
 }

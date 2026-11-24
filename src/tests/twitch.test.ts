@@ -1,100 +1,111 @@
-import { afterEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 
-import { filterM3u8, parseM3U8 } from "@lib/m3u8";
-import {
-    getTwitchLiveClientId,
-    getTwitchLiveMasterM3u8,
-    getTwitchLiveToken,
-    getTwitchVodClientId,
-    getTwitchVodMasterM3u8,
-    getTwitchVodToken,
-    parseTwitchPageMetadata,
-} from "@lib/twitch";
+import { getMediaCache } from "@lib/storageService";
+import { getTwitchLiveData, getTwitchVodData, parseTwitchPageMetadata } from "@lib/twitch";
+
+const cleanups: Array<() => void> = [];
+
+function readAsset(name: string): string {
+    return fs.readFileSync(path.join(process.cwd(), "src", "tests", "assets", name), "utf8");
+}
+
+function stubFetch(handler: (input: string | URL, init?: RequestInit) => Promise<Response>) {
+    const mockFetch: typeof fetch = Object.assign(
+        (input: string | URL | Request, init?: RequestInit) => {
+            const target = input instanceof Request ? input.url : input;
+            return handler(target, init);
+        },
+        { preconnect: globalThis.fetch.preconnect },
+    );
+    const spy = spyOn(globalThis, "fetch").mockImplementation(mockFetch);
+    cleanups.push(() => spy.mockRestore());
+    return spy;
+}
+
+const MASTER_M3U8 = `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-STREAM-INF:BANDWIDTH=2602418,RESOLUTION=1280x720,CODECS="avc1.64001F,mp4a.40.2"
+https://cdn.twitch.example/720p.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=1627418,RESOLUTION=852x480,CODECS="avc1.4D401F,mp4a.40.2"
+https://cdn.twitch.example/480p.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=974418,CODECS="avc1.4D401E,mp4a.40.2"
+https://cdn.twitch.example/audio-only.m3u8
+`;
+
+const LIVE_MEDIA_M3U8 = `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:2
+#EXTINF:2.0,live
+https://cdn.twitch.example/seg-0.ts
+#EXTINF:2.0,live
+https://cdn.twitch.example/seg-1.ts
+#EXTINF:2.0,live
+https://cdn.twitch.example/seg-2.ts
+#EXTINF:2.0,live
+https://cdn.twitch.example/seg-3.ts
+`;
 
 afterEach(() => {
-    jest.resetAllMocks();
+    while (cleanups.length > 0) cleanups.pop()?.();
 });
 
-describe("getTwitchLiveClientId", () => {
-    test("should extract client ID from Twitch page", async () => {
-        const channelName = "hivise";
-        const htmlPath = path.join(process.cwd(), "src", "tests", "assets", "twitch.html");
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = jest.fn().mockResolvedValue({
-            ok: true,
-            text: () => fs.readFileSync(htmlPath, "utf8"),
-        }) as unknown as typeof fetch;
-        const clientId = await getTwitchLiveClientId(channelName);
-        expect(clientId).toBe("kimne78kx3ncx6brgo4mv6wki5et0ko");
-    });
-});
+describe("getTwitchLiveData", () => {
+    test("extracts client ID from Twitch HTML, posts live GQL variables, and uses BANDWIDTH for non-popup requests", async () => {
+        const twitchHtml = readAsset("twitch.html");
+        let gqlHeaders: HeadersInit | undefined;
+        let gqlVariables: Record<string, unknown> | undefined;
+        let usherUrl: string | undefined;
 
-describe("getTwitchVodClientId", () => {
-    test("should extract client ID from the VOD page", async () => {
-        const htmlPath = path.join(process.cwd(), "src", "tests", "assets", "twitch.html");
-        const fetchMock = jest.fn().mockResolvedValue({
-            ok: true,
-            text: () => fs.readFileSync(htmlPath, "utf8"),
-        });
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = fetchMock as unknown as typeof fetch;
-
-        const clientId = await getTwitchVodClientId("2748008198");
-
-        expect(clientId).toBe("kimne78kx3ncx6brgo4mv6wki5et0ko");
-        expect(fetchMock).toHaveBeenCalledWith("https://www.twitch.tv/videos/2748008198", {});
-    });
-});
-
-describe("getTwitchToken", () => {
-    test("should request and return the live playback token", async () => {
-        const fetchMock = jest
-            .fn<(...args: Parameters<typeof fetch>) => Promise<unknown>>()
-            .mockResolvedValueOnce({
-                ok: true,
-                text: () => 'clientId = "live-client-id"',
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => ({
+        stubFetch(async (input, init) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/hivise") {
+                return new Response(twitchHtml, { status: 200 });
+            }
+            if (url === "https://gql.twitch.tv/gql") {
+                gqlHeaders = init?.headers;
+                gqlVariables = (
+                    JSON.parse(typeof init?.body === "string" ? init.body : "{}") as {
+                        variables: Record<string, unknown>;
+                    }
+                ).variables;
+                return Response.json({
                     data: {
                         streamPlaybackAccessToken: {
-                            value: '{"foo":"bar"}',
+                            value: '{"token":"live"}',
                             signature: "live-signature",
                         },
                     },
-                }),
-            });
-
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = fetchMock as unknown as typeof fetch;
-
-        const token = await getTwitchLiveToken("hivise");
-
-        expect(token).toEqual({
-            value: '{"foo":"bar"}',
-            signature: "live-signature",
+                });
+            }
+            if (url.startsWith("https://usher.ttvnw.net/api/v2/channel/hls/hivise.m3u8")) {
+                usherUrl = url;
+                return new Response(MASTER_M3U8, { status: 200 });
+            }
+            return new Response("Not found", { status: 404 });
         });
-        expect(fetchMock).toHaveBeenNthCalledWith(1, "https://www.twitch.tv/hivise", {});
-        expect(fetchMock).toHaveBeenCalledTimes(2);
-        expect(fetchMock.mock.calls[1]?.[0]).toBe("https://gql.twitch.tv/gql");
 
-        const request = fetchMock.mock.calls[1]?.[1];
-        if (!request) {
-            throw new Error("Expected gql request options");
-        }
-        const body = JSON.parse(request.body as string) as unknown as {
-            variables: Record<string, unknown>;
-        };
+        const data = await getTwitchLiveData({
+            channelName: "hivise",
+            isFromPopup: false,
+        });
 
-        expect(request.method).toBe("POST");
-        expect(request.headers).toEqual({
-            "Client-Id": "live-client-id",
+        expect(data).toEqual({
+            platform: "twitch",
+            type: "live",
+            channelName: "hivise",
+            channelUrl: "https://www.twitch.tv/hivise",
+            data: [
+                { type: "live", resolution: 720, sizePerSecondBytes: 325_302.25 },
+                { type: "live", resolution: 480, sizePerSecondBytes: 203_427.25 },
+            ],
+        });
+        expect(gqlHeaders).toEqual({
+            "Client-Id": "kimne78kx3ncx6brgo4mv6wki5et0ko",
             "Content-Type": "application/json",
         });
-        expect(body.variables).toEqual({
+        expect(gqlVariables).toEqual({
             login: "hivise",
             isLive: true,
             vodID: "",
@@ -102,47 +113,129 @@ describe("getTwitchToken", () => {
             playerType: "site",
             platform: "web",
         });
+        expect(usherUrl).toBe(
+            "https://usher.ttvnw.net/api/v2/channel/hls/hivise.m3u8?token=%7B%22token%22%3A%22live%22%7D&sig=live-signature&allow_source=true",
+        );
+        expect(await getMediaCache("twitch", "hivise")).toBeNull();
     });
 
-    test("should request and return the vod playback token", async () => {
-        const fetchMock = jest
-            .fn<(...args: Parameters<typeof fetch>) => Promise<unknown>>()
-            .mockResolvedValueOnce({
-                ok: true,
-                text: () => 'clientId = "vod-client-id"',
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => ({
+    test("uses HLS segment sampling for popup requests", async () => {
+        stubFetch(async (input) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/hivise") {
+                return new Response('clientId = "live-client-id"', { status: 200 });
+            }
+            if (url === "https://gql.twitch.tv/gql") {
+                return Response.json({
                     data: {
-                        videoPlaybackAccessToken: {
-                            value: '{"vod":true}',
-                            signature: "vod-signature",
+                        streamPlaybackAccessToken: {
+                            value: '{"token":"live"}',
+                            signature: "live-signature",
                         },
                     },
-                }),
-            });
-
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = fetchMock as unknown as typeof fetch;
-
-        const token = await getTwitchVodToken("2748008198");
-
-        expect(token).toEqual({
-            value: '{"vod":true}',
-            signature: "vod-signature",
+                });
+            }
+            if (url.startsWith("https://usher.ttvnw.net/api/v2/channel/hls/hivise.m3u8")) {
+                return new Response(
+                    `#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=2400000,RESOLUTION=1280x720\nhttps://cdn.twitch.example/720p.m3u8\n`,
+                    { status: 200 },
+                );
+            }
+            if (url === "https://cdn.twitch.example/720p.m3u8") {
+                return new Response(LIVE_MEDIA_M3U8, { status: 200 });
+            }
+            if (url.includes("/seg-")) {
+                return new Response("x", {
+                    status: 206,
+                    headers: { "content-range": "bytes 0-0/1000000" },
+                });
+            }
+            return new Response("Not found", { status: 404 });
         });
-        expect(fetchMock).toHaveBeenNthCalledWith(1, "https://www.twitch.tv/videos/2748008198", {});
 
-        const request = fetchMock.mock.calls[1]?.[1];
-        if (!request) {
-            throw new Error("Expected gql request options");
-        }
-        const body = JSON.parse(request.body as string) as {
-            variables: Record<string, unknown>;
-        };
+        const data = await getTwitchLiveData({
+            channelName: "hivise",
+            isFromPopup: true,
+        });
 
-        expect(body.variables).toEqual({
+        expect(data).toEqual({
+            platform: "twitch",
+            type: "live",
+            channelName: "hivise",
+            channelUrl: "https://www.twitch.tv/hivise",
+            data: [{ type: "live", resolution: 720, sizePerSecondBytes: 500_000 }],
+        });
+    });
+
+    test("rejects when client ID or playback access token is missing", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        stubFetch(async () => new Response("<html>offline</html>", { status: 200 }));
+        await expect(
+            getTwitchLiveData({ channelName: "offline", isFromPopup: false }),
+        ).rejects.toThrow("Failed to extract client ID from Twitch page");
+
+        stubFetch(async (input) => {
+            if (input.toString() === "https://www.twitch.tv/offline") {
+                return new Response('clientId = "cid"', { status: 200 });
+            }
+            return Response.json({ data: {} });
+        });
+        await expect(
+            getTwitchLiveData({ channelName: "offline", isFromPopup: false }),
+        ).rejects.toThrow("Failed to get stream playback access token");
+    });
+});
+
+describe("getTwitchVodData", () => {
+    test("fetches VOD token and master M3U8, caches the result, and serves cache hits without fetching", async () => {
+        let gqlVariables: Record<string, unknown> | undefined;
+        let usherUrl: string | undefined;
+
+        const fetchSpy = stubFetch(async (input, init) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/videos/2748008198") {
+                return new Response('clientId = "vod-client-id"', { status: 200 });
+            }
+            if (url === "https://gql.twitch.tv/gql") {
+                gqlVariables = (
+                    JSON.parse(typeof init?.body === "string" ? init.body : "{}") as {
+                        variables: Record<string, unknown>;
+                    }
+                ).variables;
+                return Response.json({
+                    data: {
+                        videoPlaybackAccessToken: {
+                            value: '{"token":"vod"}',
+                            signature: "vod-signature",
+                        },
+                        video: { lengthSeconds: 3600 },
+                    },
+                });
+            }
+            if (url.startsWith("https://usher.ttvnw.net/vod/v2/2748008198.m3u8")) {
+                usherUrl = url;
+                return new Response(MASTER_M3U8, { status: 200 });
+            }
+            return new Response("Not found", { status: 404 });
+        });
+
+        const first = await getTwitchVodData({ mediaId: "2748008198" });
+
+        expect(first).toEqual({
+            platform: "twitch",
+            type: "vod",
+            mediaId: "2748008198",
+            durationSeconds: 3600,
+            channelName: undefined,
+            channelUrl: undefined,
+            data: [
+                { type: "live", resolution: 720, sizePerSecondBytes: 325_302.25 },
+                { type: "live", resolution: 480, sizePerSecondBytes: 203_427.25 },
+            ],
+        });
+        expect(gqlVariables).toEqual({
             login: "",
             isLive: false,
             vodID: "2748008198",
@@ -150,108 +243,49 @@ describe("getTwitchToken", () => {
             playerType: "site",
             platform: "web",
         });
-    });
-});
-
-describe("getTwitchMasterM3u8", () => {
-    test("should request live m3u8 data with token and signature", async () => {
-        const fetchMock = jest
-            .fn<(...args: Parameters<typeof fetch>) => Promise<unknown>>()
-            .mockResolvedValue({
-                ok: true,
-                text: () => `#EXTM3U
-#EXT-X-STREAM-INF:BANDWIDTH=2602418,RESOLUTION=1280x720
-720p.m3u8
-`,
-            });
-
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = fetchMock as unknown as typeof fetch;
-
-        const data = await getTwitchLiveMasterM3u8(
-            { value: '{"token":"live"}', signature: "live-signature" },
-            "hivise",
-        );
-
-        expect(data).toHaveLength(1);
-        expect(data[0]?.uri).toBe("720p.m3u8");
-        expect(data[0]?.attributes.BANDWIDTH).toBe(2_602_418);
-        expect(data[0]?.attributes.RESOLUTION?.height).toBe(720);
-
-        const requestUrl = fetchMock.mock.calls[0]?.[0];
-
-        expect(requestUrl instanceof URL ? requestUrl.toString() : undefined).toBe(
-            "https://usher.ttvnw.net/api/v2/channel/hls/hivise.m3u8?token=%7B%22token%22%3A%22live%22%7D&sig=live-signature&allow_source=true",
-        );
-    });
-
-    test("should request vod m3u8 data with token and signature", async () => {
-        const fetchMock = jest
-            .fn<(...args: Parameters<typeof fetch>) => Promise<unknown>>()
-            .mockResolvedValue({
-                ok: true,
-                text: () => `#EXTM3U
-#EXT-X-STREAM-INF:BANDWIDTH=1627418,RESOLUTION=852x480
-480p.m3u8
-#EXT-X-ENDLIST
-`,
-            });
-
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.fetch = fetchMock as unknown as typeof fetch;
-
-        const data = await getTwitchVodMasterM3u8(
-            { value: '{"token":"vod"}', signature: "vod-signature" },
-            "2748008198",
-        );
-
-        expect(data).toHaveLength(1);
-        expect(data[0]?.uri).toBe("480p.m3u8");
-        expect(data[0]?.attributes.BANDWIDTH).toBe(1_627_418);
-        expect(data[0]?.attributes.RESOLUTION?.height).toBe(480);
-
-        const requestUrl = fetchMock.mock.calls[0]?.[0];
-
-        expect(requestUrl instanceof URL ? requestUrl.toString() : undefined).toBe(
+        expect(usherUrl).toBe(
             "https://usher.ttvnw.net/vod/v2/2748008198.m3u8?token=%7B%22token%22%3A%22vod%22%7D&sig=vod-signature&allow_source=true",
         );
-    });
-});
 
-describe("filterM3u8", () => {
-    test("should keep only m3u8 variants with resolution and bandwidth", () => {
-        const m3u8Data = `#EXTM3U
-#EXT-X-VERSION:3
-#EXT-X-STREAM-INF:BANDWIDTH=2602418,RESOLUTION=1280x720,CODECS="avc1.64001F,mp4a.40.2"
-720p.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=1627418,RESOLUTION=852x480,CODECS="avc1.4D401F,mp4a.40.2"
-480p.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=974418,CODECS="avc1.4D401E,mp4a.40.2"
-360p.m3u8
-`;
-
-        expect(filterM3u8(parseM3U8(m3u8Data).playlists ?? [])).toEqual([
-            {
-                type: "live",
-                sizePerSecondBytes: 325_302.25,
-                resolution: 720,
-            },
-            {
-                type: "live",
-                sizePerSecondBytes: 203_427.25,
-                resolution: 480,
-            },
-        ]);
+        fetchSpy.mockClear();
+        const second = await getTwitchVodData({ mediaId: "2748008198" });
+        expect(second).toEqual(first);
+        expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    test("should return an empty array when no playable variants exist", () => {
-        const m3u8Data = `#EXTM3U
-#EXT-X-VERSION:3
-#EXT-X-STREAM-INF:BANDWIDTH=974418
-audio-only.m3u8
-`;
+    test("rejects when VOD duration is missing or master M3U8 has no playlists", async () => {
+        stubFetch(async (input) => {
+            if (input.toString() === "https://www.twitch.tv/videos/1111") {
+                return new Response('clientId = "vod-client-id"', { status: 200 });
+            }
+            return Response.json({
+                data: {
+                    videoPlaybackAccessToken: { value: "tok", signature: "sig" },
+                },
+            });
+        });
+        await expect(getTwitchVodData({ mediaId: "1111" })).rejects.toThrow(
+            "Failed to get Twitch VOD duration",
+        );
 
-        expect(filterM3u8(parseM3U8(m3u8Data).playlists ?? [])).toEqual([]);
+        stubFetch(async (input) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/videos/2222") {
+                return new Response('clientId = "vod-client-id"', { status: 200 });
+            }
+            if (url === "https://gql.twitch.tv/gql") {
+                return Response.json({
+                    data: {
+                        videoPlaybackAccessToken: { value: "tok", signature: "sig" },
+                        video: { lengthSeconds: 120 },
+                    },
+                });
+            }
+            return new Response("#EXTM3U\n", { status: 200 });
+        });
+        await expect(getTwitchVodData({ mediaId: "2222" })).rejects.toThrow(
+            "No playlists found in master M3U8",
+        );
     });
 });
 

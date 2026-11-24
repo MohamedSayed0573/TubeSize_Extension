@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
-import type { KickData, TwitchData, YoutubeData } from "@app-types/platforms.types";
+import type {
+    KickLiveData,
+    KickVodData,
+    TwitchLiveData,
+    TwitchVodData,
+    YoutubeData,
+} from "@app-types/platforms.types";
 import type {
     KickLiveMessage,
     KickVodMessage,
@@ -40,7 +46,7 @@ const SAMPLE_YOUTUBE_VOD: YoutubeData = {
     ],
 };
 
-const SAMPLE_TWITCH_VOD: TwitchData = {
+const SAMPLE_TWITCH_VOD: TwitchVodData = {
     platform: "twitch",
     type: "vod",
     mediaId: "2748008198",
@@ -50,7 +56,7 @@ const SAMPLE_TWITCH_VOD: TwitchData = {
     data: [{ type: "live", resolution: 1080, sizePerSecondBytes: 500_000 }],
 };
 
-const SAMPLE_TWITCH_LIVE: TwitchData = {
+const SAMPLE_TWITCH_LIVE: TwitchLiveData = {
     platform: "twitch",
     type: "live",
     channelName: "shroud",
@@ -58,7 +64,7 @@ const SAMPLE_TWITCH_LIVE: TwitchData = {
     data: [{ type: "live", resolution: 1080, sizePerSecondBytes: 600_000 }],
 };
 
-const SAMPLE_KICK_VOD: KickData = {
+const SAMPLE_KICK_VOD: KickVodData = {
     platform: "kick",
     type: "vod",
     mediaId: "vod-123",
@@ -68,7 +74,7 @@ const SAMPLE_KICK_VOD: KickData = {
     data: [{ type: "live", resolution: 1080, sizePerSecondBytes: 550_000 }],
 };
 
-const SAMPLE_KICK_LIVE: KickData = {
+const SAMPLE_KICK_LIVE: KickLiveData = {
     platform: "kick",
     type: "live",
     channelName: "xqc",
