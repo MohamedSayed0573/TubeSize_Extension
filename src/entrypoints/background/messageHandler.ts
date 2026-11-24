@@ -12,12 +12,6 @@ import {
     handleYoutube,
 } from "./handlers";
 
-/**
- * Registers the background handlers for every message in the protocol map.
- *
- * `@webext-core/messaging` routes messages by type, so each type gets its own
- * listener and the payload never has to repeat the message type.
- */
 export function attachMessageHandler() {
     onMessage("youtubeVideo", ({ data }) => handleYoutube(data));
 

@@ -10,10 +10,6 @@ export function getLastNDays(n: number): DateKey[] {
     return lastNDays;
 }
 
-/**
- * Returns the date key for a given date in the format "YYYY-MM-DD".
- * @example "2023-05-15"
- */
 export function getDateKey(date?: Date): DateKey {
     // en-CA formats as YYYY-MM-DD
     const formatted = new Intl.DateTimeFormat("en-CA").format(date ?? new Date());

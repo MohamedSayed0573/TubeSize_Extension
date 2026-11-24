@@ -225,7 +225,6 @@ interface VerifyResponse {
     report?: unknown;
 }
 
-/** Prints new runtime issues / readiness problems and returns the exit code (0 ok, 1 fail). */
 function report(data: VerifyResponse): number {
     const errs = data.newIssues ?? [];
     for (const e of errs) out(`  [✗] ${e.source}/${e.level}: ${e.message}`);
@@ -362,7 +361,6 @@ async function runStop(quiet = false): Promise<number> {
             // Process already exited.
         }
     }
-    // Wait for the old server to fully exit so it cannot touch a replacement session's state.
     const isAlive = () => {
         try {
             process.kill(s.pid, 0);

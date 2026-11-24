@@ -51,7 +51,7 @@ describe("getTwitchVodClientId", () => {
 describe("getTwitchToken", () => {
     test("should request and return the live playback token", async () => {
         const fetchMock = jest
-            .fn()
+            .fn<(...args: Parameters<typeof fetch>) => Promise<unknown>>()
             .mockResolvedValueOnce({
                 ok: true,
                 text: () => 'clientId = "live-client-id"',
@@ -79,11 +79,9 @@ describe("getTwitchToken", () => {
         });
         expect(fetchMock).toHaveBeenNthCalledWith(1, "https://www.twitch.tv/hivise", {});
         expect(fetchMock).toHaveBeenCalledTimes(2);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(fetchMock.mock.calls[1]?.[0]).toBe("https://gql.twitch.tv/gql");
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        const request = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
+        const request = fetchMock.mock.calls[1]?.[1];
         if (!request) {
             throw new Error("Expected gql request options");
         }
@@ -108,7 +106,7 @@ describe("getTwitchToken", () => {
 
     test("should request and return the vod playback token", async () => {
         const fetchMock = jest
-            .fn()
+            .fn<(...args: Parameters<typeof fetch>) => Promise<unknown>>()
             .mockResolvedValueOnce({
                 ok: true,
                 text: () => 'clientId = "vod-client-id"',
@@ -136,8 +134,7 @@ describe("getTwitchToken", () => {
         });
         expect(fetchMock).toHaveBeenNthCalledWith(1, "https://www.twitch.tv/videos/2748008198", {});
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        const request = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
+        const request = fetchMock.mock.calls[1]?.[1];
         if (!request) {
             throw new Error("Expected gql request options");
         }
@@ -158,13 +155,15 @@ describe("getTwitchToken", () => {
 
 describe("getTwitchMasterM3u8", () => {
     test("should request live m3u8 data with token and signature", async () => {
-        const fetchMock = jest.fn().mockResolvedValue({
-            ok: true,
-            text: () => `#EXTM3U
+        const fetchMock = jest
+            .fn<(...args: Parameters<typeof fetch>) => Promise<unknown>>()
+            .mockResolvedValue({
+                ok: true,
+                text: () => `#EXTM3U
 #EXT-X-STREAM-INF:BANDWIDTH=2602418,RESOLUTION=1280x720
 720p.m3u8
 `,
-        });
+            });
 
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -179,23 +178,24 @@ describe("getTwitchMasterM3u8", () => {
         expect(data[0]?.attributes.BANDWIDTH).toBe(2_602_418);
         expect(data[0]?.attributes.RESOLUTION?.height).toBe(720);
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        const requestUrl = fetchMock.mock.calls[0]?.[0] as URL | undefined;
+        const requestUrl = fetchMock.mock.calls[0]?.[0];
 
-        expect(requestUrl?.toString()).toBe(
+        expect(requestUrl instanceof URL ? requestUrl.toString() : undefined).toBe(
             "https://usher.ttvnw.net/api/v2/channel/hls/hivise.m3u8?token=%7B%22token%22%3A%22live%22%7D&sig=live-signature&allow_source=true",
         );
     });
 
     test("should request vod m3u8 data with token and signature", async () => {
-        const fetchMock = jest.fn().mockResolvedValue({
-            ok: true,
-            text: () => `#EXTM3U
+        const fetchMock = jest
+            .fn<(...args: Parameters<typeof fetch>) => Promise<unknown>>()
+            .mockResolvedValue({
+                ok: true,
+                text: () => `#EXTM3U
 #EXT-X-STREAM-INF:BANDWIDTH=1627418,RESOLUTION=852x480
 480p.m3u8
 #EXT-X-ENDLIST
 `,
-        });
+            });
 
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -210,10 +210,9 @@ describe("getTwitchMasterM3u8", () => {
         expect(data[0]?.attributes.BANDWIDTH).toBe(1_627_418);
         expect(data[0]?.attributes.RESOLUTION?.height).toBe(480);
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        const requestUrl = fetchMock.mock.calls[0]?.[0] as URL | undefined;
+        const requestUrl = fetchMock.mock.calls[0]?.[0];
 
-        expect(requestUrl?.toString()).toBe(
+        expect(requestUrl instanceof URL ? requestUrl.toString() : undefined).toBe(
             "https://usher.ttvnw.net/vod/v2/2748008198.m3u8?token=%7B%22token%22%3A%22vod%22%7D&sig=vod-signature&allow_source=true",
         );
     });
@@ -282,10 +281,13 @@ describe("parseTwitchPageMetadata", () => {
         ],
     });
 
-    // Live pages embed a top-level VideoObject only while the channel is live.
     const liveGraph = JSON.stringify({
         "@graph": [
-            { "@type": "Person", alternateName: "summit1g", url: "https://www.twitch.tv/summit1g" },
+            {
+                "@type": "Person",
+                alternateName: "summit1g",
+                url: "https://www.twitch.tv/summit1g",
+            },
             { "@type": "BreadcrumbList", itemListElement: [] },
             {
                 "@type": "ItemList",
@@ -358,7 +360,9 @@ describe("parseTwitchPageMetadata", () => {
     });
 
     test("should fall back to an empty thumbnail when thumbnailUrl is missing", () => {
-        const graph = JSON.stringify({ "@graph": [{ "@type": "VideoObject", name: "title" }] });
+        const graph = JSON.stringify({
+            "@graph": [{ "@type": "VideoObject", name: "title" }],
+        });
 
         expect(parseTwitchPageMetadata(twitchPageHtml(graph), "vod")?.thumbnailUrl).toBe("");
     });
@@ -372,7 +376,9 @@ describe("parseTwitchPageMetadata", () => {
     });
 
     test("should throw when the ld+json does not match the schema", () => {
-        const graph = JSON.stringify({ "@graph": [{ "@type": "VideoObject", name: 42 }] });
+        const graph = JSON.stringify({
+            "@graph": [{ "@type": "VideoObject", name: 42 }],
+        });
 
         expect(() => parseTwitchPageMetadata(twitchPageHtml(graph), "vod")).toThrow();
     });

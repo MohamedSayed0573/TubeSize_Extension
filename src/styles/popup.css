@@ -3,9 +3,6 @@
 @import "shadcn/tailwind.css";
 @import "./shared.css";
 
-/* Utilities are generated only for these sources, so dashboard-only
-   classes never ship in the popup stylesheet. Both entries need the
-   shared UI components (settings uses ui/select, ui/slider, ...). */
 @source "../components";
 @source "../layouts";
 @source "../pages/popup";

@@ -47,7 +47,6 @@ export async function trackRequest(buffer: UsageBuffer, details: CompletedReques
         const tabUrl = tab.url;
         if (isExtensionUrl(tabUrl)) return;
 
-        // Requests that can't be attributed to a page origin are skipped.
         const origin = tabUrl ? toOrigin(tabUrl) : undefined;
         if (!tabUrl || !origin) {
             throw new Error("Skipping request from unknown origin: " + details.url);
@@ -60,12 +59,8 @@ export async function trackRequest(buffer: UsageBuffer, details: CompletedReques
     }
 }
 
-/**
- * Writes the buffered bytes every FLUSH_INTERVAL_MS.
- */
 function startFlushTimer(buffer: UsageBuffer) {
     async function flushBuffer() {
-        // Skip the flush when there is nothing pending.
         if (!buffer.hasPendingUsage) return;
 
         try {
@@ -112,10 +107,6 @@ function isExtensionUrl(url: string | undefined): boolean {
     return !!url && (url.startsWith("chrome-extension://") || url.startsWith("moz-extension://"));
 }
 
-/**
- * Responses without a usable Content-Length are counted by the Fetch monkey patch
- * in genericObserver.content.ts instead.
- */
 function getContentLength(details: chrome.webRequest.OnCompletedDetails) {
     const header = details.responseHeaders?.find(
         (candidate) => candidate.name.toLowerCase() === CONTENT_LENGTH_HEADER,

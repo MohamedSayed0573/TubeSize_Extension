@@ -548,7 +548,12 @@ export async function openToolbarPopup(opts: {
     extId: string;
     issues: RuntimeIssue[];
     timeoutMs?: number;
-}): Promise<{ popupPage: Page; cdpBrowser: Browser; openToTargetMs: number; startedAt: number }> {
+}): Promise<{
+    popupPage: Page;
+    cdpBrowser: Browser;
+    openToTargetMs: number;
+    startedAt: number;
+}> {
     const cdpUrl = `http://127.0.0.1:${opts.cdpPort}`;
     const existingTargetIds = await collectPageTargetIds(cdpUrl);
 
@@ -577,7 +582,6 @@ export async function openToolbarPopup(opts: {
     throw new Error("Timed out waiting for extension popup target.");
 }
 
-/** Target ids of every open page, so a popup opened later can be told apart from them. */
 async function collectPageTargetIds(cdpUrl: string): Promise<Set<string>> {
     const browser = await chromium.connectOverCDP(cdpUrl);
     try {
@@ -682,12 +686,20 @@ export async function launchExtension(
             }));
         await serviceWorkerMonitor.attachExisting();
 
-        // Track every tab (e.g. dashboard opened via chrome.tabs.create from the popup).
         for (const p of context.pages()) attachPageListeners(p, extId, issues);
         context.on("page", (p) => attachPageListeners(p, extId, issues));
         const page = context.pages()[0] ?? (await context.newPage());
 
-        return { extId, profileDir, context, page, serviceWorker, cdpPort, issues, close };
+        return {
+            extId,
+            profileDir,
+            context,
+            page,
+            serviceWorker,
+            cdpPort,
+            issues,
+            close,
+        };
     } catch (err) {
         await close();
         throw err;

@@ -1,6 +1,5 @@
 import { buildExtensionPagePath, type ExtensionPageTarget } from "@lib/routes";
 
-/** Opens an extension page in a new tab using a typed route target. */
 export function chromeNavigate(target: ExtensionPageTarget | undefined) {
     if (!target) return;
     void chrome.tabs.create({

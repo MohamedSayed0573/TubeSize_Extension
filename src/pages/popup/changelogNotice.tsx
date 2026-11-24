@@ -6,11 +6,6 @@ import { t } from "@/i18n/t";
 
 const RELEASES_URL = "https://github.com/MohamedSayed0573/TubeSize_Extension/releases/latest";
 
-/**
- * Banner pointing users at the release notes for a version they just updated
- * to. It renders only when the stored version differs from the running one, so
- * a fresh install (or an unchanged version) stays quiet.
- */
 export default function ChangelogNotice() {
     const version = chrome.runtime.getManifest().version;
     const [isNewRelease, setIsNewRelease] = useState(false);
@@ -24,8 +19,6 @@ export default function ChangelogNotice() {
                 if (!active) return;
 
                 if (seenVersion === null) {
-                    // First run with changelog tracking: seed the stored version
-                    // instead of announcing a fresh install as an update.
                     await lastSeenVersion.setValue(version);
                     return;
                 }

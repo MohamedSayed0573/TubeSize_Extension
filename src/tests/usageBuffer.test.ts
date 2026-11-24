@@ -100,13 +100,11 @@ describe("UsageBuffer", () => {
         const inFlight = buffer.drain();
         expect(buffer.hasPendingUsage).toBe(false);
 
-        // New traffic arrives while the drained snapshot is being written.
         buffer.addOrigin(ytOrigin, 400);
         buffer.addOrigin(kickOrigin, 900);
         buffer.addVideo(ytVideo, 150);
         buffer.addVideo(kickVideo, 300);
 
-        // Simulated flush failure restores the drained snapshot into the buffer.
         buffer.restore(inFlight);
 
         expect(buffer.hasPendingUsage).toBe(true);

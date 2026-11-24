@@ -72,7 +72,9 @@ async function main() {
     const parsedTimeout = values.timeout ? Number(values.timeout) : NaN;
     const launchTimeoutMs =
         Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : 30_000;
-    const browser = await launchExtension(extDir, launchTimeoutMs, { enableCdp: true });
+    const browser = await launchExtension(extDir, launchTimeoutMs, {
+        enableCdp: true,
+    });
     const { extId, issues, context, serviceWorker, cdpPort } = browser;
 
     let mainPage: Page = browser.page;
@@ -99,8 +101,6 @@ async function main() {
         await installPlatformRoutes(context);
     };
 
-    // Live navigations must reach the real site: fixture routes would otherwise keep serving
-    // synthetic HTML from an earlier fixture visit for the rest of the session.
     const disablePlatformRoutes = async () => {
         if (!platformRoutesInstalled) return;
         platformRoutesInstalled = false;
@@ -116,7 +116,6 @@ async function main() {
         return resolveTargetUrl(extId, raw);
     };
 
-    /** Runs an action; if it opened a new tab, switch to it and wait for it to settle. */
     const withNewTab = async (action: () => Promise<unknown>, settleMs: number) => {
         const known = new Set(context.pages());
         await action();
@@ -205,7 +204,10 @@ async function main() {
                         issues,
                         timeoutMs: 4000,
                     });
-                    popupState = { page: opened.popupPage, cdpBrowser: opened.cdpBrowser };
+                    popupState = {
+                        page: opened.popupPage,
+                        cdpBrowser: opened.cdpBrowser,
+                    };
                     const ready = await waitForSettle(opened.popupPage, 6000);
                     return Response.json({
                         ok: true,
@@ -577,7 +579,6 @@ async function main() {
             // Server already stopped.
         }
         await browser.close();
-        // Only remove the state file if it still belongs to this server (a newer one may own it).
         try {
             if (existsSync(stateFile)) {
                 const owner = JSON.parse(readFileSync(stateFile, "utf8")) as {
@@ -603,7 +604,6 @@ async function main() {
     process.once("SIGINT", () => void shutdown());
     process.once("SIGTERM", () => void shutdown());
 
-    // Bootstrap language, optional prevVersion & seed via serviceWorker, then navigate to requested target.
     try {
         await serviceWorker.evaluate(
             async (opts: { lang: string; prevVersion?: string }) => {

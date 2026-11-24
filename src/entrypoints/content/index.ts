@@ -28,7 +28,6 @@ export default defineContentScript({
 
         void handlePageNavigation();
 
-        // YouTube navigates between videos without reloading the page.
         addEventListener("yt-navigate-finish", () => void handlePageNavigation());
 
         setupMessageHandler();

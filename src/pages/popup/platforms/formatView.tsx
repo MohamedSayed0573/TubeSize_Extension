@@ -34,11 +34,10 @@ export default function FormatView<P extends PlatformId>({
     const includeAudio = query.data.includeAudio ?? CONFIG.DEFAULT_INCLUDE_AUDIO;
 
     const audio = adapter.audio?.(data);
-    // The audio row and its include-audio switch are YouTube-only details.
     const showAudioControls = advancedView && audio !== undefined;
-    // The include-audio switch only exists in advanced view, so the simple
-    // view always includes audio in the displayed numbers.
-    const formats = adapter.formats(data, { includeAudio: advancedView ? includeAudio : true });
+    const formats = adapter.formats(data, {
+        includeAudio: advancedView ? includeAudio : true,
+    });
 
     return (
         <TooltipProvider delay={200}>

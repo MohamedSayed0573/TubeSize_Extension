@@ -41,8 +41,16 @@ afterEach(() => {
 describe("estimateHlsStreamSizes", () => {
     test("computes bytes/sec from 206 Content-Range segment probes sorted by resolution descending", async () => {
         const master = buildMasterM3u8([
-            { height: 480, bandwidth: 1_600_000, uri: "https://cdn.example.com/480p.m3u8" },
-            { height: 1080, bandwidth: 6_400_000, uri: "https://cdn.example.com/1080p.m3u8" },
+            {
+                height: 480,
+                bandwidth: 1_600_000,
+                uri: "https://cdn.example.com/480p.m3u8",
+            },
+            {
+                height: 1080,
+                bandwidth: 6_400_000,
+                uri: "https://cdn.example.com/1080p.m3u8",
+            },
         ]);
 
         const playlist1080 = buildMediaPlaylist(liveSegments("1080p", 5, 2));
@@ -60,7 +68,6 @@ describe("estimateHlsStreamSizes", () => {
             if (url.includes("/1080p/seg-")) {
                 const headers = new Headers(init?.headers);
                 requestedRanges.push(headers.get("range") ?? "");
-                // 1,200,000 bytes over 2s = 600,000 B/s
                 return new Response("x", {
                     status: 206,
                     headers: { "content-range": "bytes 0-0/1200000" },
@@ -69,7 +76,6 @@ describe("estimateHlsStreamSizes", () => {
             if (url.includes("/480p/seg-")) {
                 const headers = new Headers(init?.headers);
                 requestedRanges.push(headers.get("range") ?? "");
-                // 500,000 bytes over 2.5s = 200,000 B/s
                 return new Response("x", {
                     status: 206,
                     headers: { "content-range": "bytes 0-0/500000" },
@@ -92,11 +98,19 @@ describe("estimateHlsStreamSizes", () => {
 
     test("samples at most 10 live segments and ignores non-live ad segments in the playlist", async () => {
         const master = buildMasterM3u8([
-            { height: 720, bandwidth: 3_200_000, uri: "https://cdn.example.com/720p.m3u8" },
+            {
+                height: 720,
+                bandwidth: 3_200_000,
+                uri: "https://cdn.example.com/720p.m3u8",
+            },
         ]);
 
         const playlist = buildMediaPlaylist([
-            { duration: 2, title: "Amazon", uri: "https://cdn.example.com/720p/ad-0.ts" },
+            {
+                duration: 2,
+                title: "Amazon",
+                uri: "https://cdn.example.com/720p/ad-0.ts",
+            },
             ...liveSegments("720p", 12, 2),
         ]);
 
@@ -107,7 +121,6 @@ describe("estimateHlsStreamSizes", () => {
                 return new Response(playlist, { status: 200 });
             }
             probedUrls.push(url);
-            // Segments 0..9 are 800,000 bytes / 2s = 400,000 B/s; segments 10+ would skew the average.
             const bytes = url.includes("seg-10") || url.includes("seg-11") ? 9_999_999 : 800_000;
             return new Response("x", {
                 status: 206,
@@ -127,15 +140,30 @@ describe("estimateHlsStreamSizes", () => {
 
     test("falls back to Master M3U8 BANDWIDTH without probing segments when fewer than 4 live segments exist", async () => {
         const master = buildMasterM3u8([
-            { height: 720, bandwidth: 2_400_000, uri: "https://cdn.example.com/720p.m3u8" },
-            { height: 1080, bandwidth: 4_800_000, uri: "https://cdn.example.com/1080p.m3u8" },
+            {
+                height: 720,
+                bandwidth: 2_400_000,
+                uri: "https://cdn.example.com/720p.m3u8",
+            },
+            {
+                height: 1080,
+                bandwidth: 4_800_000,
+                uri: "https://cdn.example.com/1080p.m3u8",
+            },
         ]);
 
-        // Only 3 live segments plus ad segments triggers ad fallback.
         const adPlaylist = buildMediaPlaylist([
             ...liveSegments("720p", 3, 2),
-            { duration: 5, title: "Amazon", uri: "https://cdn.example.com/720p/ad-1.ts" },
-            { duration: 5, title: "Amazon", uri: "https://cdn.example.com/720p/ad-2.ts" },
+            {
+                duration: 5,
+                title: "Amazon",
+                uri: "https://cdn.example.com/720p/ad-1.ts",
+            },
+            {
+                duration: 5,
+                title: "Amazon",
+                uri: "https://cdn.example.com/720p/ad-2.ts",
+            },
         ]);
 
         const requestedUrls: string[] = [];
@@ -158,8 +186,16 @@ describe("estimateHlsStreamSizes", () => {
 
     test("falls back per-resolution to Master M3U8 BANDWIDTH when segment probes fail or lack usable sizes", async () => {
         const master = buildMasterM3u8([
-            { height: 1080, bandwidth: 8_000_000, uri: "https://cdn.example.com/1080p.m3u8" },
-            { height: 720, bandwidth: 3_200_000, uri: "https://cdn.example.com/720p.m3u8" },
+            {
+                height: 1080,
+                bandwidth: 8_000_000,
+                uri: "https://cdn.example.com/1080p.m3u8",
+            },
+            {
+                height: 720,
+                bandwidth: 3_200_000,
+                uri: "https://cdn.example.com/720p.m3u8",
+            },
         ]);
 
         const playlist1080 = buildMediaPlaylist(liveSegments("1080p", 4, 2));
@@ -170,13 +206,11 @@ describe("estimateHlsStreamSizes", () => {
             if (url.endsWith("1080p.m3u8")) return new Response(playlist1080, { status: 200 });
             if (url.endsWith("720p.m3u8")) return new Response(playlist720, { status: 200 });
             if (url.includes("/1080p/seg-")) {
-                // Unknown total size ("*") causes 1080p to fall back to Master BANDWIDTH / 8.
                 return new Response("x", {
                     status: 206,
                     headers: { "content-range": "bytes 0-0/*" },
                 });
             }
-            // 720p uses a 200 response with Content-Length: 700,000 bytes over 2s = 350,000 B/s.
             return new Response("x", {
                 status: 200,
                 headers: { "content-length": "700000" },
@@ -195,14 +229,17 @@ describe("estimateHlsStreamSizes", () => {
 
     test("falls back to BANDWIDTH when surviving valid segment duration is below 4 seconds", async () => {
         const master = buildMasterM3u8([
-            { height: 720, bandwidth: 4_000_000, uri: "https://cdn.example.com/720p.m3u8" },
+            {
+                height: 720,
+                bandwidth: 4_000_000,
+                uri: "https://cdn.example.com/720p.m3u8",
+            },
         ]);
         const playlist = buildMediaPlaylist(liveSegments("720p", 4, 2));
 
         const fetchMock = jest.fn(async (input: string | URL) => {
             const url = input.toString();
             if (url.endsWith("720p.m3u8")) return new Response(playlist, { status: 200 });
-            // Only seg-0 succeeds (2s < 4s threshold); others return 404.
             if (url.endsWith("seg-0.ts")) {
                 return new Response("x", {
                     status: 206,

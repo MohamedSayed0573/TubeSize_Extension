@@ -5,8 +5,6 @@ import { fakeBrowser } from "@webext-core/fake-browser";
 
 import { onMessage, sendMessage } from "@/messaging";
 
-// The fake browser is installed as the global `chrome` so that the messenger
-// resolves the same APIs it uses in the extension.
 const fakeChrome = fakeBrowser as unknown as typeof chrome;
 // eslint-disable-next-line unicorn/no-global-object-property-assignment
 globalThis.chrome = fakeChrome;
@@ -94,7 +92,9 @@ describe("sendMessage to a tab", () => {
             callback({ res: 1080 });
         }) as typeof chrome.tabs.sendMessage;
 
-        const resolution = await sendMessage("getCurrentResolution", undefined, { tabId: 7 });
+        const resolution = await sendMessage("getCurrentResolution", undefined, {
+            tabId: 7,
+        });
 
         expect(resolution).toBe(1080);
     });

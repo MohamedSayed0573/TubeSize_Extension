@@ -21,7 +21,7 @@ export const ytInitialSchema = z.object({
         title: z.string(),
         lengthSeconds: z.string(),
         isLive: z.boolean().optional(),
-        author: z.string(), // Channel name. e.g., GothamChess
+        author: z.string(),
         thumbnail: z.object({
             thumbnails: z.array(
                 z.object({
@@ -35,7 +35,6 @@ export const ytInitialSchema = z.object({
     microformat: z
         .object({
             playerMicroformatRenderer: z.object({
-                // The Channel URL. e.g., http://www.youtube.com/@SherGhani1
                 ownerProfileUrl: z.string().optional(),
             }),
         })

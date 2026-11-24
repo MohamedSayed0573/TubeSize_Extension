@@ -24,7 +24,6 @@ async function loadKickData(
     _tabId?: number,
     options?: LoadPlatformOptions,
 ): Promise<KickData> {
-    // The page is a Kick Video (Not a live stream)
     if (isKickVod(tabUrl)) {
         const mediaId = extractKickVodId(tabUrl);
         const channelName = extractChannelName(tabUrl);
@@ -41,7 +40,6 @@ async function loadKickData(
         return response.data;
     }
 
-    // The page is a Kick Live Stream
     const channelName = extractChannelName(tabUrl);
     if (!channelName) {
         throw new Error("Open a Kick stream or video");

@@ -25,7 +25,6 @@ export {
     toVideoKey,
 } from "./platformUrl";
 
-/** Typed wrapper around `Object.entries` that preserves branded record keys. */
 export function typedEntries<K extends string, V>(record: Readonly<Record<K, V>>): Array<[K, V]> {
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries widens branded string keys to string
     return Object.entries(record) as Array<[K, V]>;
@@ -44,7 +43,6 @@ export async function fetchAndRetry(
             const response = await fetch(url, options);
             if (response.ok) return { success: true, response };
 
-            // Don't retry client errors (4xx)
             if (response.status >= 400 && response.status < 500) {
                 return {
                     success: false,
@@ -52,7 +50,6 @@ export async function fetchAndRetry(
                 };
             }
 
-            // Server error (5xx) — will retry
             throw new Error(`Server Error: ${response.status}`);
         } catch (err) {
             lastError = err instanceof Error ? err : new Error(String(err));
@@ -60,9 +57,7 @@ export async function fetchAndRetry(
             if (lastError.name === "AbortError") {
                 return { success: false, error: new Error("Request aborted") };
             }
-            // Skip the timeout if the last attempt
             if (maxRetries > attempt) {
-                // Exponential backoff before retry
                 await sleep(Math.pow(2, attempt) * 1000);
             }
         }

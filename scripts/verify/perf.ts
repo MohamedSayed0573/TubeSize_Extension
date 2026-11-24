@@ -3,6 +3,7 @@ import { join, relative, resolve } from "node:path";
 
 import { type Browser, type Page, type Worker } from "playwright-core";
 
+import CONFIG from "../../src/lib/constants";
 import { openToolbarPopup, type RuntimeIssue, waitForSettle } from "./browser";
 import { inspectDb } from "./seed";
 
@@ -385,7 +386,12 @@ async function openAndAttachPopup(opts: {
     cdpPort: number;
     extId: string;
     issues: RuntimeIssue[];
-}): Promise<{ popupPage: Page; cdpBrowser: Browser; openToTargetMs: number; t0: number }> {
+}): Promise<{
+    popupPage: Page;
+    cdpBrowser: Browser;
+    openToTargetMs: number;
+    t0: number;
+}> {
     const opened = await openToolbarPopup({ ...opts, timeoutMs: 5000 });
     return { ...opened, t0: opened.startedAt };
 }
@@ -430,11 +436,9 @@ export async function measurePopupPerf(opts: {
     if (opts.viewport) await opts.mainPage.setViewportSize(opts.viewport);
     await opts.mainPage.goto(opts.url, { waitUntil: "domcontentloaded" });
     await waitForSettle(opts.mainPage, 6000);
-    // Allow content script init (e.g. YouTube initial response) to complete before timing runs.
     await opts.mainPage.waitForTimeout(300);
 
     if (opts.cached) {
-        // Warm cache once before timed runs.
         const warm = await openAndAttachPopup({
             mainPage: opts.mainPage,
             serviceWorker: opts.serviceWorker,
@@ -520,9 +524,6 @@ export async function measurePopupPerf(opts: {
     };
 }
 
-/** Mirrors ChartSites' MIN_SITE_BYTES: sites below it are hidden from the dashboard chart. */
-const MIN_CHARTED_SITE_BYTES = 1_000_000;
-
 export async function measureDashboardPerf(opts: {
     target: string;
     url: string;
@@ -537,12 +538,10 @@ export async function measureDashboardPerf(opts: {
     }
     if (opts.viewport) await opts.mainPage.setViewportSize(opts.viewport);
     const db = await inspectDb(opts.serviceWorker);
-    // ChartDaily draws a bar for every stored day, but ChartSites drops sites under 1 MB, so a
-    // sites view full of sub-1 MB traffic legitimately renders an empty chart.
     const expectsChart = opts.url.includes("#/daily")
         ? db.siteUsageDays > 0
         : opts.url.includes("#/sites")
-          ? Object.values(db.siteTotals).some((bytes) => bytes >= MIN_CHARTED_SITE_BYTES)
+          ? Object.values(db.siteTotals).some((bytes) => bytes >= CONFIG.MIN_CHARTED_SITE_BYTES)
           : false;
 
     const samples: DashboardPerfSample[] = [];
@@ -551,7 +550,6 @@ export async function measureDashboardPerf(opts: {
     let pageEventListeners: number | null = null;
 
     for (let i = 1; i <= opts.runs; i++) {
-        // Navigate to about:blank first so every run is a genuine cold document navigation.
         await opts.mainPage.goto("about:blank", { waitUntil: "domcontentloaded" });
 
         const t0 = performance.now();

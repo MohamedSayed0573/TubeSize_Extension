@@ -68,9 +68,6 @@ describe("handleYoutube", () => {
         expect(response.data.audio).toEqual(audio);
     });
 
-    // A live stream has no length, so its payload carries the stream title
-    // instead of a duration. Without it the recorder stored the channel name
-    // as the title of every live stream.
     test("should return the stream title and channel for a live stream", async () => {
         const html = `<script>var ytInitialPlayerResponse = ${readAsset("ytInitialPlayerResponseLive.json")};</script>`;
 
@@ -372,15 +369,18 @@ describe("youtubeAdapter.formats", () => {
     });
 
     test("uses audio bytesPerSecond rather than reported bitrate", () => {
-        // Reported bitrate is 80_000 bps (10_000 B/s), while bytesPerSecond is 500 B/s.
         const [vod] = youtubeAdapter.formats(vodData, { includeAudio: true });
         expect(vod?.sizePerSecondBytes).toBe(2000);
     });
 
     test("leaves video sizes unchanged when audio is missing", () => {
         const withoutAudio: YoutubeData = { ...vodData, audio: undefined };
-        const [included] = youtubeAdapter.formats(withoutAudio, { includeAudio: true });
-        const [excluded] = youtubeAdapter.formats(withoutAudio, { includeAudio: false });
+        const [included] = youtubeAdapter.formats(withoutAudio, {
+            includeAudio: true,
+        });
+        const [excluded] = youtubeAdapter.formats(withoutAudio, {
+            includeAudio: false,
+        });
 
         expect(included).toEqual(excluded);
         expect(included).toMatchObject({

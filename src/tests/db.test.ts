@@ -214,7 +214,6 @@ describe("videoMetaData table", () => {
             videoKey: twitchKey,
         });
 
-        // Updating an existing video replaces the stored metadata record.
         await addVideoMetadata({ ...ytInput, title: "Updated Title" });
         expect((await getVideoMetadata(ytInput.mediaId, "youtube"))?.title).toBe("Updated Title");
 

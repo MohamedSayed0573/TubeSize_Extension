@@ -1,4 +1,5 @@
 import type { Origin, SiteKey } from "@app-types/types";
+import CONFIG from "@lib/constants";
 import { getSiteKey, sumBySite } from "@lib/domain";
 import { formatBytes } from "@lib/format";
 import { buildSitePath } from "@lib/routes";
@@ -19,14 +20,16 @@ const chartConfig = {
     },
 } satisfies ChartConfig;
 
-const MIN_SITE_BYTES = 1_000_000; // 1 MB
 const MAX_SITES = 10;
 
-type ChartSiteItem = { site: SiteKey; label: string; bytes: number; fill: string };
+type ChartSiteItem = {
+    site: SiteKey;
+    label: string;
+    bytes: number;
+    fill: string;
+};
 type TooltipPayloadEntry = { payload: ChartSiteItem };
 
-// Sum each site's usage across all days, dropping sites under 1 MB,
-// and keep the top MAX_SITES ranked by total bytes
 function buildSiteData(usage: SiteUsage[]): ChartSiteItem[] {
     const usageByOrigin: Record<Origin, number> = {};
     for (const { usage: sites } of usage) {
@@ -36,7 +39,7 @@ function buildSiteData(usage: SiteUsage[]): ChartSiteItem[] {
     }
 
     return Array.from(sumBySite(usageByOrigin).values())
-        .filter((item) => item.bytes >= MIN_SITE_BYTES)
+        .filter((item) => item.bytes >= CONFIG.MIN_CHARTED_SITE_BYTES)
         .sort((a, b) => b.bytes - a.bytes)
         .slice(0, MAX_SITES)
         .map((item, index) => ({
@@ -61,17 +64,14 @@ function ChartSitesTooltipContent({
         <div className="min-w-32 rounded-xl border border-neutral-800 bg-[#0a0a0a] px-3 py-2 text-xs shadow-xl">
             <div className="flex items-center justify-between gap-6">
                 <span className="flex min-w-0 items-stretch gap-1.5">
-                    {/* Indicator */}
                     <span
                         className="w-1 shrink-0 rounded-xs"
                         style={{ backgroundColor: data.fill }}
                     />
 
-                    {/* Website Name */}
                     <span className="max-w-35 truncate text-neutral-300">{data.label}</span>
                 </span>
 
-                {/* Formatted Usage */}
                 <span className="font-mono text-stone-200">{formatBytes(data.bytes)}</span>
             </div>
         </div>
