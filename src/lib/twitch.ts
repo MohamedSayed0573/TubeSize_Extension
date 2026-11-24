@@ -1,8 +1,4 @@
-import type {
-    TwitchBackgroundResponse,
-    TwitchLiveData,
-    TwitchVodData,
-} from "@app-types/platforms.types";
+import type { TwitchLiveData, TwitchVodData } from "@app-types/platforms.types";
 import type { TwitchLiveMessage, TwitchVodMessage } from "@app-types/types";
 import CONFIG from "@lib/constants";
 import { resolveHlsStreams } from "@lib/hls";
@@ -99,9 +95,7 @@ function buildTwitchMasterUrl(tokenData: TwitchTokenData, baseUrl: string): URL 
     return masterUrl;
 }
 
-export async function getTwitchLiveResponse(
-    message: TwitchLiveMessage,
-): Promise<TwitchBackgroundResponse> {
+export async function getTwitchLiveData(message: TwitchLiveMessage): Promise<TwitchLiveData> {
     const clientId = await getTwitchClientId(`https://www.twitch.tv/${message.channelName}`);
     const twitchToken = await getTwitchToken(clientId, {
         login: message.channelName,
@@ -119,29 +113,19 @@ export async function getTwitchLiveResponse(
         sampleSegments: message.isFromPopup,
     });
 
-    const response: TwitchLiveData = {
+    return {
         platform: "twitch",
         type: "live",
         data: twitchData,
         channelName: message.channelName,
         channelUrl: `https://www.twitch.tv/${message.channelName}`,
     };
-    return {
-        success: true,
-        data: response,
-    };
 }
 
-export async function getTwitchVodResponse(
-    message: TwitchVodMessage,
-): Promise<TwitchBackgroundResponse> {
+export async function getTwitchVodData(message: TwitchVodMessage): Promise<TwitchVodData> {
     const cached = await getMediaCache("twitch", message.mediaId);
-    if (cached) {
-        return {
-            success: true,
-            data: cached.data,
-            createdAt: cached.createdAt,
-        };
+    if (cached?.data.type === "vod") {
+        return cached.data;
     }
 
     const clientId = await getTwitchClientId(`https://www.twitch.tv/videos/${message.mediaId}`);
@@ -162,7 +146,7 @@ export async function getTwitchVodResponse(
     );
     const filteredM3U8Data = await resolveHlsStreams(masterUrl);
 
-    const response: TwitchVodData = {
+    const data: TwitchVodData = {
         platform: "twitch",
         type: "vod",
         data: filteredM3U8Data,
@@ -171,12 +155,9 @@ export async function getTwitchVodResponse(
         channelName: undefined,
         channelUrl: undefined,
     };
-    await saveMediaCache("twitch", message.mediaId, response);
+    await saveMediaCache("twitch", message.mediaId, data);
 
-    return {
-        success: true,
-        data: response,
-    };
+    return data;
 }
 
 export interface TwitchPageMetadata {

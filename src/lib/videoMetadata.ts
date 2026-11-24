@@ -5,7 +5,7 @@ import type {
     ParsedYoutubeMedia,
 } from "@lib/platformUrl";
 import { parseTwitchPageMetadata } from "@lib/twitch";
-import { getYoutubeResponse } from "@lib/youtube";
+import { getYoutubeData } from "@lib/youtube";
 import * as cheerio from "cheerio";
 
 import { addVideoMetadata, getVideoMetadata } from "@/db";
@@ -102,13 +102,11 @@ async function recordYoutubeMetadata(media: ParsedYoutubeMedia) {
         const existing = await getVideoMetadata(media.mediaId, "youtube");
         if (existing) return;
 
-        const response = await getYoutubeResponse({
+        const data = await getYoutubeData({
             mediaId: media.mediaId,
             av1Supported: await getCachedAv1Support(),
         });
-        if (!response.success) return;
 
-        const { data } = response;
         await addVideoMetadata({
             type: "youtube",
             mediaId: media.mediaId,

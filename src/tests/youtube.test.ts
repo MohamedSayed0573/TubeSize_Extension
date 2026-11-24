@@ -8,10 +8,14 @@ import type {
     ytInitialPlayerResponse,
 } from "@app-types/platforms.types";
 import { ytInitialSchema } from "@lib/schema";
-import { extractYtInitialResponse, parseLiveFormats, parseVideoFormats } from "@lib/youtube";
+import {
+    extractYtInitialResponse,
+    getYoutubeData,
+    parseLiveFormats,
+    parseVideoFormats,
+} from "@lib/youtube";
 
 import { youtubeAdapter } from "@/adapters/youtubeAdapter";
-import { handleYoutube } from "@/entrypoints/background/handlers";
 
 function readAsset(name: string): string {
     return fs.readFileSync(path.join(process.cwd(), "src", "tests", "assets", name), "utf8").trim();
@@ -54,31 +58,27 @@ describe("extractYtInitialResponse", () => {
     });
 });
 
-describe("handleYoutube", () => {
+describe("getYoutubeData", () => {
     test("should return the video title and channel for a video", async () => {
         const html = `<script>var ytInitialPlayerResponse = ${readAsset("ytInitialPlayerResponse.json")};</script>`;
 
-        const response = await handleYoutube({ mediaId: "I82j7AzMU80", html });
+        const data = await getYoutubeData({ mediaId: "I82j7AzMU80", html });
 
-        expect(response.success).toBe(true);
-        if (!response.success) return;
-        expect(response.data.type).toBe("vod");
-        expect(response.data.title).toBe("How does Claude Code *actually* work?");
-        expect(response.data.channelName).toBe("Theo - t3․gg");
-        expect(response.data.audio).toEqual(audio);
+        expect(data.type).toBe("vod");
+        expect(data.title).toBe("How does Claude Code *actually* work?");
+        expect(data.channelName).toBe("Theo - t3․gg");
+        expect(data.audio).toEqual(audio);
     });
 
     test("should return the stream title and channel for a live stream", async () => {
         const html = `<script>var ytInitialPlayerResponse = ${readAsset("ytInitialPlayerResponseLive.json")};</script>`;
 
-        const response = await handleYoutube({ mediaId: "feSFplc7tMY", html });
+        const data = await getYoutubeData({ mediaId: "feSFplc7tMY", html });
 
-        expect(response.success).toBe(true);
-        if (!response.success) return;
-        expect(response.data.type).toBe("live");
-        expect(response.data.title).toBe("🔴LIVE Manchester Airport Plane Spotting 🛫");
-        expect(response.data.channelName).toBe("Think Planes");
-        expect(response.data.audio).toEqual(liveAudio);
+        expect(data.type).toBe("live");
+        expect(data.title).toBe("🔴LIVE Manchester Airport Plane Spotting 🛫");
+        expect(data.channelName).toBe("Think Planes");
+        expect(data.audio).toEqual(liveAudio);
     });
 });
 

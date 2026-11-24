@@ -1,9 +1,9 @@
 import type {
-    AddUsageResponse,
-    AddWatchHistoryResponse,
-    KickBackgroundResponse,
-    TwitchBackgroundResponse,
-    YoutubeBackgroundResponse,
+    KickLiveData,
+    KickVodData,
+    TwitchLiveData,
+    TwitchVodData,
+    YoutubeData,
 } from "@app-types/platforms.types";
 import type {
     AddUsageMessage,
@@ -21,14 +21,18 @@ import {
     type SendMessageOptions,
 } from "@webext-core/messaging";
 
+export type BackgroundResponse<T> =
+    | { success: true; data: T }
+    | { success: false; message: string };
+
 interface BackgroundProtocolMap {
-    youtubeVideo(data: YoutubeMessage): YoutubeBackgroundResponse;
-    twitchVod(data: TwitchVodMessage): TwitchBackgroundResponse;
-    twitchLive(data: TwitchLiveMessage): TwitchBackgroundResponse;
-    kickVod(data: KickVodMessage): KickBackgroundResponse;
-    kickLive(data: KickLiveMessage): KickBackgroundResponse;
-    addUsage(data: AddUsageMessage): AddUsageResponse;
-    addWatchHistory(data: AddWatchHistoryMessage): AddWatchHistoryResponse;
+    youtubeVideo(data: YoutubeMessage): BackgroundResponse<YoutubeData>;
+    twitchVod(data: TwitchVodMessage): BackgroundResponse<TwitchVodData>;
+    twitchLive(data: TwitchLiveMessage): BackgroundResponse<TwitchLiveData>;
+    kickVod(data: KickVodMessage): BackgroundResponse<KickVodData>;
+    kickLive(data: KickLiveMessage): BackgroundResponse<KickLiveData>;
+    addUsage(data: AddUsageMessage): BackgroundResponse<null>;
+    addWatchHistory(data: AddWatchHistoryMessage): BackgroundResponse<null>;
 }
 
 interface TabProtocolMap {

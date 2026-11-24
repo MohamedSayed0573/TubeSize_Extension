@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 
-import type { AddWatchHistoryResponse } from "@app-types/platforms.types";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
-import { onMessage, sendMessage } from "@/messaging";
+import { onMessage, sendMessage, type BackgroundResponse } from "@/messaging";
 
 const fakeChrome = fakeBrowser as unknown as typeof chrome;
 // eslint-disable-next-line unicorn/no-global-object-property-assignment
@@ -47,7 +46,7 @@ describe("sendMessage", () => {
     });
 
     test("does not deliver a message to listeners of other types", async () => {
-        const watchHistoryHandler = jest.fn<() => AddWatchHistoryResponse>(() => ({
+        const watchHistoryHandler = jest.fn<() => BackgroundResponse<null>>(() => ({
             success: true,
             data: null,
         }));

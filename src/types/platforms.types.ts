@@ -40,18 +40,6 @@ export type ChosenVideoFormat = {
     itags: VideoItag[];
 };
 
-type SuccessResponse<T> = {
-    success: true;
-    data: T;
-    createdAt?: string;
-};
-type ErrorResponse = {
-    success: false;
-    message: string;
-};
-
-type BackgroundResponse<T> = SuccessResponse<T> | ErrorResponse;
-
 export type YoutubeVideoFormat = {
     type: "vod";
     formatId: number;
@@ -88,7 +76,6 @@ type YoutubeLiveData = {
 };
 
 export type YoutubeData = YoutubeVodData | YoutubeLiveData;
-export type YoutubeBackgroundResponse = BackgroundResponse<YoutubeData>;
 
 export type StreamInfo = {
     type: "live";
@@ -118,7 +105,6 @@ export type TwitchVodData = {
 };
 
 export type TwitchData = TwitchLiveData | TwitchVodData;
-export type TwitchBackgroundResponse = BackgroundResponse<TwitchData>;
 
 export type KickLiveData = {
     platform: "kick";
@@ -139,10 +125,6 @@ export type KickVodData = {
 };
 
 export type KickData = KickLiveData | KickVodData;
-export type KickBackgroundResponse = BackgroundResponse<KickData>;
-
-export type AddUsageResponse = BackgroundResponse<null>;
-export type AddWatchHistoryResponse = BackgroundResponse<null>;
 
 export type PlatformDataMap = {
     youtube: YoutubeData;

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 
-import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
+import { getKickLiveData, getKickVodData } from "@lib/kick";
 import { getMediaCache } from "@lib/storageService";
 
 const originalFetch = globalThis.fetch;
@@ -43,7 +43,7 @@ afterEach(() => {
     globalThis.setTimeout = originalSetTimeout;
 });
 
-describe("getKickLiveResponse", () => {
+describe("getKickLiveData", () => {
     test("extracts escaped streamId, POSTs playback info, and uses BANDWIDTH for non-popup requests", async () => {
         let playbackMethod: string | undefined;
         let playbackBody: string | undefined;
@@ -70,23 +70,20 @@ describe("getKickLiveResponse", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const response = await getKickLiveResponse({
+        const data = await getKickLiveData({
             channelName: "xqc",
             isFromPopup: false,
         });
 
-        expect(response).toEqual({
-            success: true,
-            data: {
-                platform: "kick",
-                type: "live",
-                channelName: "xqc",
-                channelUrl: "https://kick.com/xqc",
-                data: [
-                    { type: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
-                    { type: "live", resolution: 720, sizePerSecondBytes: 300_000 },
-                ],
-            },
+        expect(data).toEqual({
+            platform: "kick",
+            type: "live",
+            channelName: "xqc",
+            channelUrl: "https://kick.com/xqc",
+            data: [
+                { type: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
+                { type: "live", resolution: 720, sizePerSecondBytes: 300_000 },
+            ],
         });
         expect(playbackMethod).toBe("POST");
         expect(JSON.parse(playbackBody ?? "{}")).toMatchObject({
@@ -127,24 +124,21 @@ describe("getKickLiveResponse", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const response = await getKickLiveResponse({
+        const data = await getKickLiveData({
             channelName: "trainwreckstv",
             isFromPopup: true,
         });
 
-        expect(response).toEqual({
-            success: true,
-            data: {
-                platform: "kick",
-                type: "live",
-                channelName: "trainwreckstv",
-                channelUrl: "https://kick.com/trainwreckstv",
-                data: [{ type: "live", resolution: 720, sizePerSecondBytes: 500_000 }],
-            },
+        expect(data).toEqual({
+            platform: "kick",
+            type: "live",
+            channelName: "trainwreckstv",
+            channelUrl: "https://kick.com/trainwreckstv",
+            data: [{ type: "live", resolution: 720, sizePerSecondBytes: 500_000 }],
         });
     });
 
-    test("returns failure when streamId cannot be extracted from channel HTML", async () => {
+    test("throws when streamId cannot be extracted from channel HTML", async () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async () => {
             return new Response("<html><body>Offline channel</body></html>", {
@@ -152,15 +146,15 @@ describe("getKickLiveResponse", () => {
             });
         }) as unknown as typeof fetch;
 
-        const response = await getKickLiveResponse({
-            channelName: "offline",
-            isFromPopup: false,
-        });
-
-        expect(response.success).toBe(false);
+        await expect(
+            getKickLiveData({
+                channelName: "offline",
+                isFromPopup: false,
+            }),
+        ).rejects.toThrow("Failed to extract stream ID from the page");
     });
 
-    test("returns failure when playback endpoint returns 4xx or omits playback_url.live", async () => {
+    test("throws when playback endpoint returns 4xx or omits playback_url.live", async () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async (input: string | URL) => {
             const url = input.toString();
@@ -170,11 +164,12 @@ describe("getKickLiveResponse", () => {
             return Response.json({ playback_url: {} });
         }) as unknown as typeof fetch;
 
-        const missingUrl = await getKickLiveResponse({
-            channelName: "broken",
-            isFromPopup: false,
-        });
-        expect(missingUrl.success).toBe(false);
+        await expect(
+            getKickLiveData({
+                channelName: "broken",
+                isFromPopup: false,
+            }),
+        ).rejects.toThrow("Master M3U8 URL not found in playback response");
 
         const requestedUrls: string[] = [];
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
@@ -190,11 +185,12 @@ describe("getKickLiveResponse", () => {
             return new Response("Not found", { status: 404 });
         }) as unknown as typeof fetch;
 
-        const httpError = await getKickLiveResponse({
-            channelName: "broken",
-            isFromPopup: false,
-        });
-        expect(httpError.success).toBe(false);
+        await expect(
+            getKickLiveData({
+                channelName: "broken",
+                isFromPopup: false,
+            }),
+        ).rejects.toThrow("Error fetching playback info");
         expect(requestedUrls).toEqual([
             "https://kick.com/broken",
             "https://web.kick.com/api/v1/stream/stream-1/playback",
@@ -202,7 +198,7 @@ describe("getKickLiveResponse", () => {
     });
 });
 
-describe("getKickVodResponse", () => {
+describe("getKickVodData", () => {
     test("resolves UUID VODs via the v1 video API, caches the result, and serves cache hits without fetching", async () => {
         const uuid = "12345678-1234-1234-1234-123456789abc";
         const fetchedUrls: string[] = [];
@@ -224,42 +220,36 @@ describe("getKickVodResponse", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const first = await getKickVodResponse({
+        const first = await getKickVodData({
             mediaId: uuid,
             channelName: "xqc",
         });
 
         expect(first).toEqual({
-            success: true,
-            data: {
-                platform: "kick",
-                type: "vod",
-                mediaId: uuid,
-                channelName: "xqc",
-                channelUrl: "https://kick.com/xqc",
-                durationSeconds: 3600,
-                data: [
-                    { type: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
-                    { type: "live", resolution: 720, sizePerSecondBytes: 300_000 },
-                ],
-            },
+            platform: "kick",
+            type: "vod",
+            mediaId: uuid,
+            channelName: "xqc",
+            channelUrl: "https://kick.com/xqc",
+            durationSeconds: 3600,
+            data: [
+                { type: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
+                { type: "live", resolution: 720, sizePerSecondBytes: 300_000 },
+            ],
         });
         expect(fetchedUrls).toEqual([
             `https://kick.com/api/v1/video/${uuid}`,
             "https://cdn.kick.example/vod-master.m3u8",
         ]);
+        expect((await getMediaCache("kick", uuid))?.createdAt).toBeDefined();
 
         fetchMock.mockClear();
-        const second = await getKickVodResponse({
+        const second = await getKickVodData({
             mediaId: uuid,
             channelName: "xqc",
         });
 
-        expect(second.success).toBe(true);
-        if (first.success && second.success) {
-            expect(second.data).toEqual(first.data);
-            expect(second.createdAt).toBeDefined();
-        }
+        expect(second).toEqual(first);
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
@@ -292,25 +282,22 @@ describe("getKickVodResponse", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const response = await getKickVodResponse({
+        const data = await getKickVodData({
             mediaId: slug,
             channelName: "xqc",
         });
 
-        expect(response).toEqual({
-            success: true,
-            data: {
-                platform: "kick",
-                type: "vod",
-                mediaId: slug,
-                channelName: "xqc",
-                channelUrl: "https://kick.com/xqc",
-                durationSeconds: 91,
-                data: [
-                    { type: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
-                    { type: "live", resolution: 720, sizePerSecondBytes: 300_000 },
-                ],
-            },
+        expect(data).toEqual({
+            platform: "kick",
+            type: "vod",
+            mediaId: slug,
+            channelName: "xqc",
+            channelUrl: "https://kick.com/xqc",
+            durationSeconds: 91,
+            data: [
+                { type: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
+                { type: "live", resolution: 720, sizePerSecondBytes: 300_000 },
+            ],
         });
         expect(fetchedUrls).toEqual([
             "https://kick.com/api/v2/channels/xqc/videos",
@@ -318,7 +305,7 @@ describe("getKickVodResponse", () => {
         ]);
     });
 
-    test("returns failure when a slug VOD is absent from channel videos", async () => {
+    test("throws when a slug VOD is absent from channel videos", async () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async () => {
             return Response.json([
@@ -330,23 +317,23 @@ describe("getKickVodResponse", () => {
             ]);
         }) as unknown as typeof fetch;
 
-        const response = await getKickVodResponse({
-            mediaId: "missing-slug-vod",
-            channelName: "xqc",
-        });
-
-        expect(response.success).toBe(false);
+        await expect(
+            getKickVodData({
+                mediaId: "missing-slug-vod",
+                channelName: "xqc",
+            }),
+        ).rejects.toThrow("Kick VOD not found in channel videos");
     });
 
-    test("returns failure when UUID VOD metadata has missing source, null livestream, or non-positive duration", async () => {
+    test("throws when UUID VOD metadata has missing source, null livestream, or non-positive duration", async () => {
         const uuid = "abcdefab-1234-5678-90ab-abcdefabcdef";
 
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async () =>
             Response.json({ source: null, livestream: { duration: 10_000 } }),
         ) as unknown as typeof fetch;
-        expect((await getKickVodResponse({ mediaId: uuid, channelName: "xqc" })).success).toBe(
-            false,
+        await expect(getKickVodData({ mediaId: uuid, channelName: "xqc" })).rejects.toThrow(
+            "Kick VOD source not found",
         );
 
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
@@ -356,8 +343,8 @@ describe("getKickVodResponse", () => {
                 livestream: null,
             }),
         ) as unknown as typeof fetch;
-        expect((await getKickVodResponse({ mediaId: uuid, channelName: "xqc" })).success).toBe(
-            false,
+        await expect(getKickVodData({ mediaId: uuid, channelName: "xqc" })).rejects.toThrow(
+            "Kick VOD duration not found",
         );
 
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
@@ -370,12 +357,12 @@ describe("getKickVodResponse", () => {
             }
             return new Response(MASTER_M3U8, { status: 200 });
         }) as unknown as typeof fetch;
-        expect((await getKickVodResponse({ mediaId: uuid, channelName: "xqc" })).success).toBe(
-            false,
+        await expect(getKickVodData({ mediaId: uuid, channelName: "xqc" })).rejects.toThrow(
+            "Kick VOD duration not found",
         );
     });
 
-    test("returns failure when master M3U8 has no playlists", async () => {
+    test("throws when master M3U8 has no playlists", async () => {
         const uuid = "11111111-2222-3333-4444-555555555555";
 
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
@@ -389,10 +376,11 @@ describe("getKickVodResponse", () => {
             return new Response("#EXTM3U\n", { status: 200 });
         }) as unknown as typeof fetch;
 
-        const response = await getKickVodResponse({
-            mediaId: uuid,
-            channelName: "xqc",
-        });
-        expect(response.success).toBe(false);
+        await expect(
+            getKickVodData({
+                mediaId: uuid,
+                channelName: "xqc",
+            }),
+        ).rejects.toThrow("No playlists found in master M3U8");
     });
 });
