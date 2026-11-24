@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 
 import { toOrigin } from "@lib/domain";
+import { toVideoKey } from "@lib/utils";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
+import { addVideoMetadata, clearDatabaseData } from "@/db";
 import { UsageBuffer } from "@/entrypoints/background/usageBuffer";
 import {
     type CompletedRequestDetails,
@@ -37,9 +39,10 @@ function makeDetails(overrides: Partial<CompletedRequestDetails> = {}): Complete
 
 const cleanups: Array<() => void> = [];
 
-afterEach(() => {
+afterEach(async () => {
     while (cleanups.length > 0) cleanups.pop()?.();
     fakeBrowser.reset();
+    await clearDatabaseData();
 });
 
 describe("isCountableRequest", () => {
@@ -197,6 +200,69 @@ describe("trackRequest", () => {
         expect(buffer.drain()).toEqual({
             origins: { [origin("https://example.com")]: 25_000 },
             videos: {},
+        });
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    test("attributes watch history for YouTube, Twitch, and Kick media pages and skips non-media pages", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        await addVideoMetadata({
+            type: "youtube",
+            mediaId: "dQw4w9WgXcQ",
+            title: "YT Video",
+            channelName: "Channel",
+            channelUrl: "https://www.youtube.com/@channel",
+            thumbnailUrl: "",
+        });
+        await addVideoMetadata({
+            type: "twitch",
+            contentType: "live",
+            mediaId: "shroud",
+            url: "https://www.twitch.tv/shroud",
+            title: "Shroud",
+            channelName: "shroud",
+            channelUrl: "https://www.twitch.tv/shroud",
+            thumbnailUrl: "",
+        });
+        await addVideoMetadata({
+            type: "kick",
+            contentType: "vod",
+            mediaId: "vod-123",
+            url: "https://kick.com/xqc/videos/vod-123",
+            title: "xQc VOD",
+            channelName: "xqc",
+            channelUrl: "https://kick.com/xqc",
+            thumbnailUrl: "",
+        });
+
+        const buffer = new UsageBuffer();
+        const tabs = await Promise.all([
+            fakeBrowser.tabs.create({ url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }),
+            fakeBrowser.tabs.create({ url: "https://www.twitch.tv/shroud" }),
+            fakeBrowser.tabs.create({ url: "https://kick.com/xqc/videos/vod-123" }),
+            fakeBrowser.tabs.create({ url: "https://www.youtube.com/embed/dQw4w9WgXcQ" }),
+            fakeBrowser.tabs.create({ url: "https://www.twitch.tv/directory" }),
+            fakeBrowser.tabs.create({ url: "https://kick.com/browse" }),
+        ]);
+
+        for (const tab of tabs) {
+            await trackRequest(
+                buffer,
+                makeDetails({
+                    tabId: tab.id,
+                    url: "https://cdn.example.net/segment.ts",
+                    initiator: "https://example.com",
+                    responseHeaders: [{ name: "content-length", value: "1000" }],
+                }),
+            );
+        }
+
+        expect(buffer.drain().videos).toEqual({
+            [toVideoKey("youtube", "dQw4w9WgXcQ")]: 1000,
+            [toVideoKey("twitch", "shroud")]: 1000,
+            [toVideoKey("kick", "vod-123")]: 1000,
         });
         expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
