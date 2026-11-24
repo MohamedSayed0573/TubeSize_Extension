@@ -5,7 +5,7 @@ import path from "node:path";
 import { parsePlatformUrl, toVideoKey } from "@lib/platformUrl";
 import { recordVideoMetadata } from "@lib/videoMetadata";
 
-import { addVideoMetadata, clearDatabaseData, getVideoMetadata } from "@/db";
+import { addVideoMetadata, clearDatabaseData, getVideoMetadataByVideoKey } from "@/db";
 
 const cleanups: Array<() => void> = [];
 
@@ -53,7 +53,7 @@ describe("recordVideoMetadata", () => {
         const vodUrl = "https://kick.com/xqc/videos/vod-98231";
         await recordVideoMetadata(requireMedia(vodUrl), vodUrl);
 
-        expect(await getVideoMetadata("vod-98231", "kick")).toMatchObject({
+        expect(await getVideoMetadataByVideoKey(toVideoKey("kick", "vod-98231"))).toMatchObject({
             videoKey: toVideoKey("kick", "vod-98231"),
             type: "kick",
             contentType: "vod",
@@ -72,7 +72,7 @@ describe("recordVideoMetadata", () => {
         const liveUrl = "https://kick.com/xqc";
         await recordVideoMetadata(requireMedia(liveUrl), liveUrl);
 
-        expect(await getVideoMetadata("xqc", "kick")).toMatchObject({
+        expect(await getVideoMetadataByVideoKey(toVideoKey("kick", "xqc"))).toMatchObject({
             videoKey: toVideoKey("kick", "xqc"),
             type: "kick",
             contentType: "live",
@@ -114,7 +114,7 @@ describe("recordVideoMetadata", () => {
 
         const liveUrl = "https://www.twitch.tv/shroud";
         await recordVideoMetadata(requireMedia(liveUrl), liveUrl);
-        expect(await getVideoMetadata("shroud", "twitch")).toMatchObject({
+        expect(await getVideoMetadataByVideoKey(toVideoKey("twitch", "shroud"))).toMatchObject({
             videoKey: toVideoKey("twitch", "shroud"),
             type: "twitch",
             contentType: "live",
@@ -126,7 +126,7 @@ describe("recordVideoMetadata", () => {
 
         const vodUrl = "https://www.twitch.tv/videos/2748008198";
         await recordVideoMetadata(requireMedia(vodUrl), vodUrl);
-        expect(await getVideoMetadata("2748008198", "twitch")).toMatchObject({
+        expect(await getVideoMetadataByVideoKey(toVideoKey("twitch", "2748008198"))).toMatchObject({
             videoKey: toVideoKey("twitch", "2748008198"),
             type: "twitch",
             contentType: "vod",
@@ -171,7 +171,9 @@ describe("recordVideoMetadata", () => {
         const url = "https://www.youtube.com/watch?v=I82j7AzMU80";
         await recordVideoMetadata(requireMedia(url), url);
 
-        expect(await getVideoMetadata("I82j7AzMU80", "youtube")).toMatchObject({
+        expect(
+            await getVideoMetadataByVideoKey(toVideoKey("youtube", "I82j7AzMU80")),
+        ).toMatchObject({
             videoKey: toVideoKey("youtube", "I82j7AzMU80"),
             type: "youtube",
             title: "How does Claude Code *actually* work?",
@@ -189,6 +191,111 @@ describe("recordVideoMetadata", () => {
         const url = "https://www.youtube.com/watch?v=I82j7AzMU80";
         await recordVideoMetadata(requireMedia(url), url);
 
-        expect(await getVideoMetadata("I82j7AzMU80", "youtube")).toBeUndefined();
+        expect(
+            await getVideoMetadataByVideoKey(toVideoKey("youtube", "I82j7AzMU80")),
+        ).toBeUndefined();
+    });
+
+    test("deduplicates concurrent fetches for the same VideoKey while allowing distinct keys in parallel", async () => {
+        let resolveTwitch!: (value: Response) => void;
+        let resolveKick!: (value: Response) => void;
+        const twitchPromise = new Promise<Response>((resolve) => {
+            resolveTwitch = resolve;
+        });
+        const kickPromise = new Promise<Response>((resolve) => {
+            resolveKick = resolve;
+        });
+
+        const calls: string[] = [];
+        const mockFetch: typeof fetch = Object.assign(
+            (input: string | URL | Request) => {
+                const target = input instanceof Request ? input.url : input.toString();
+                calls.push(target);
+                if (target === "https://www.twitch.tv/shroud") return twitchPromise;
+                if (target === "https://kick.com/xqc") return kickPromise;
+                return Promise.reject(new Error(`Unexpected URL: ${target}`));
+            },
+            { preconnect: globalThis.fetch.preconnect },
+        );
+        const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(mockFetch);
+        cleanups.push(() => fetchSpy.mockRestore());
+
+        const twitchUrl = "https://www.twitch.tv/shroud";
+        const kickUrl = "https://kick.com/xqc";
+        const twitchMedia = requireMedia(twitchUrl);
+        const kickMedia = requireMedia(kickUrl);
+
+        const p1 = recordVideoMetadata(twitchMedia, twitchUrl);
+        const p2 = recordVideoMetadata(twitchMedia, twitchUrl);
+        const p3 = recordVideoMetadata(twitchMedia, twitchUrl);
+        const pKick = recordVideoMetadata(kickMedia, kickUrl);
+
+        expect(p2).toBe(p1);
+        expect(p3).toBe(p1);
+
+        const twitchLdJson = JSON.stringify({
+            "@graph": [
+                {
+                    "@type": "VideoObject",
+                    description: "Live FPS",
+                    thumbnailUrl: "https://static-cdn.jtvnw.net/shroud.jpg",
+                },
+            ],
+        });
+        resolveTwitch(
+            new Response(`<script type="application/ld+json">${twitchLdJson}</script>`, {
+                status: 200,
+            }),
+        );
+        resolveKick(
+            new Response(
+                `<html><head><meta property="og:title" content="xQc Live" /></head></html>`,
+                { status: 200 },
+            ),
+        );
+
+        await Promise.all([p1, p2, p3, pKick]);
+
+        expect(calls.filter((u) => u === twitchUrl)).toHaveLength(1);
+        expect(calls.filter((u) => u === kickUrl)).toHaveLength(1);
+        expect(await getVideoMetadataByVideoKey(toVideoKey("twitch", "shroud"))).toMatchObject({
+            title: "Live FPS",
+        });
+        expect(await getVideoMetadataByVideoKey(toVideoKey("kick", "xqc"))).toMatchObject({
+            title: "xQc Live",
+        });
+    });
+
+    test("clears in-flight entry after a failed fetch so a later attempt retries and persists", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        const twitchLdJson = JSON.stringify({
+            "@graph": [
+                {
+                    "@type": "VideoObject",
+                    description: "Recovered stream",
+                    thumbnailUrl: "https://static-cdn.jtvnw.net/shroud.jpg",
+                },
+            ],
+        });
+        const fetchSpy = stubFetch([
+            new Error("temporary outage"),
+            new Response(`<script type="application/ld+json">${twitchLdJson}</script>`, {
+                status: 200,
+            }),
+        ]);
+
+        const liveUrl = "https://www.twitch.tv/shroud";
+        const media = requireMedia(liveUrl);
+
+        await recordVideoMetadata(media, liveUrl);
+        expect(await getVideoMetadataByVideoKey(toVideoKey("twitch", "shroud"))).toBeUndefined();
+
+        await recordVideoMetadata(media, liveUrl);
+        expect(await getVideoMetadataByVideoKey(toVideoKey("twitch", "shroud"))).toMatchObject({
+            title: "Recovered stream",
+        });
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 });

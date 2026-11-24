@@ -141,10 +141,6 @@ export async function addVideoMetadata({ mediaId, ...metadata }: VideoMetadataIn
     await database.videoMetaData.put({ ...metadata, videoKey });
 }
 
-export async function getVideoMetadata(mediaId: string, type: VideoMetadata["type"]) {
-    return await database.videoMetaData.get(toVideoKey(type, mediaId));
-}
-
 export async function getVideoMetadataByVideoKey(
     videoKey: VideoKey,
 ): Promise<VideoMetadata | undefined>;
