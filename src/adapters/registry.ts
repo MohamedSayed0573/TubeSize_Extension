@@ -1,4 +1,5 @@
 import type { PlatformId } from "@app-types/types";
+import { parsePlatformUrl } from "@lib/platformUrl";
 
 import { kickAdapter } from "./kickAdapter";
 import { twitchAdapter } from "./twitchAdapter";
@@ -11,10 +12,9 @@ const ADAPTERS_BY_PLATFORM: { [P in PlatformId]: PlatformAdapter<P> } = {
     kick: kickAdapter,
 };
 
-const ADAPTERS: AnyPlatformAdapter[] = Object.values(ADAPTERS_BY_PLATFORM);
-
 export function findPlatformAdapter(tabUrl: string): AnyPlatformAdapter | undefined {
-    return ADAPTERS.find((adapter) => adapter.match(tabUrl));
+    const parsed = parsePlatformUrl(tabUrl);
+    return parsed ? ADAPTERS_BY_PLATFORM[parsed.platform] : undefined;
 }
 
 export function getPlatformAdapter<P extends PlatformId>(platform: P): PlatformAdapter<P> {

@@ -4,7 +4,7 @@ import { scopeDepKey, useCurrentDateKey, useLiveDbQuery } from "@hooks/useLiveDb
 import { usePlatformWatchReport } from "@hooks/useUsage";
 import { toDateKey } from "@lib/dateUtils";
 import { toOrigin } from "@lib/domain";
-import { toVideoKey } from "@lib/utils";
+import { toVideoKey } from "@lib/platformUrl";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 

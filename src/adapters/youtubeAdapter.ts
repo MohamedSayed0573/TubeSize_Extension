@@ -1,10 +1,10 @@
 import type { YoutubeData } from "@app-types/platforms.types";
+import { parsePlatformUrl } from "@lib/platformUrl";
 
 import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
 import { getAv1Support } from "@/lib/codecSupport";
 import { humanizeDuration } from "@/lib/humanize";
-import { extractYoutubeMediaId, isShortsVideo, isYoutubePage } from "@/lib/utils";
 import { sendMessage } from "@/messaging";
 
 import type {
@@ -16,8 +16,8 @@ import type {
 } from "./types";
 
 async function loadYoutubeData(tabUrl: string, _tabId?: number, options?: LoadPlatformOptions) {
-    const mediaId = extractYoutubeMediaId(tabUrl);
-    if (!mediaId) {
+    const parsed = parsePlatformUrl(tabUrl);
+    if (parsed?.kind !== "media" || parsed.platform !== "youtube") {
         throw new Error("Open a YouTube video or stream");
     }
 
@@ -29,7 +29,7 @@ async function loadYoutubeData(tabUrl: string, _tabId?: number, options?: LoadPl
     }
 
     const response = await sendMessage("youtubeVideo", {
-        mediaId,
+        mediaId: parsed.mediaId,
         html: options?.html,
         av1Supported,
     });
@@ -42,19 +42,16 @@ async function loadYoutubeData(tabUrl: string, _tabId?: number, options?: LoadPl
         throw new Error("No video formats found for this video");
     }
 
-    if (response.data.type === "vod" && isShortsVideo(tabUrl)) {
+    if (response.data.type === "vod" && parsed.isShorts) {
         response.data.isShorts = true;
     }
 
     return response.data;
 }
 
-function matchYoutubeUrl(tabUrl: string): boolean {
-    return isYoutubePage(tabUrl);
-}
-
 function isRunningVideo(tabUrl: string): boolean {
-    return isYoutubePage(tabUrl) && !!extractYoutubeMediaId(tabUrl);
+    const parsed = parsePlatformUrl(tabUrl);
+    return parsed?.kind === "media" && parsed.platform === "youtube";
 }
 
 function youtubeFormats(youtube: YoutubeData, options?: FormatOptions): DisplayFormat[] {
@@ -116,7 +113,6 @@ function youtubeVideoUrl(mediaId: string): string {
 export const youtubeAdapter = {
     platform: "youtube",
     load: loadYoutubeData,
-    match: matchYoutubeUrl,
     isRunningVideo,
     formats: youtubeFormats,
     header: youtubeHeader,

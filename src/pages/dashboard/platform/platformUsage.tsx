@@ -1,8 +1,9 @@
 import type { PlatformId, UsageScope } from "@app-types/types";
 import { usePlatformWatchReport } from "@hooks/useUsage";
 import { formatDate } from "@lib/format";
+import { isPlatformId } from "@lib/platformUrl";
 import { parseScopeSearch } from "@lib/routes";
-import { capitalize, isPlatformId } from "@lib/utils";
+import { capitalize } from "@lib/utils";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useParams, useSearchParams } from "react-router";

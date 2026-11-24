@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, setSystemTime, test } from "bu
 
 import { toDateKey } from "@lib/dateUtils";
 import { getSiteKey, toOrigin } from "@lib/domain";
+import { toVideoKey } from "@lib/platformUrl";
 import {
     aggregateSitesUsage,
     exportSiteUsageJson,
@@ -15,7 +16,6 @@ import {
     summarizeDailyUsage,
     summarizeRangeUsage,
 } from "@lib/usage";
-import { toVideoKey } from "@lib/utils";
 
 import {
     addSiteUsage,

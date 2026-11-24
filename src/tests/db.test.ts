@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, setSystemTime, test } from "bu
 
 import { getDateKey, toDateKey } from "@lib/dateUtils";
 import { toOrigin } from "@lib/domain";
-import { toVideoKey } from "@lib/utils";
+import { toVideoKey } from "@lib/platformUrl";
 
 import {
     addSiteUsage,

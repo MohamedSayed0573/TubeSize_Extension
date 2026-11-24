@@ -1,48 +1,52 @@
+import type {
+    ParsedKickMedia,
+    ParsedPlatformMedia,
+    ParsedTwitchMedia,
+    ParsedYoutubeMedia,
+} from "@lib/platformUrl";
 import { parseTwitchPageMetadata } from "@lib/twitch";
-import {
-    extractChannelName,
-    extractKickVodId,
-    extractTwitchVodId,
-    extractYoutubeMediaId,
-    getKickContentType,
-    getTwitchContentType,
-} from "@lib/utils";
 import { getYoutubeResponse } from "@lib/youtube";
 import * as cheerio from "cheerio";
 
 import { addVideoMetadata, getVideoMetadata } from "@/db";
 import { getCachedAv1Support } from "@/lib/codecSupport";
 
-export async function recordTwitchMetadata(url: string) {
+export async function recordVideoMetadata(media: ParsedPlatformMedia, url: string): Promise<void> {
+    switch (media.platform) {
+        case "youtube":
+            return recordYoutubeMetadata(media);
+        case "twitch":
+            return recordTwitchMetadata(media, url);
+        case "kick":
+            return recordKickMetadata(media, url);
+        default: {
+            const exhaustive: never = media;
+            return exhaustive;
+        }
+    }
+}
+
+async function recordTwitchMetadata(media: ParsedTwitchMedia, url: string) {
     try {
-        const contentType = getTwitchContentType(url);
-        if (!contentType) return;
-
-        const mediaId = contentType === "vod" ? extractTwitchVodId(url) : extractChannelName(url);
-        if (!mediaId) return;
-
-        const existing = await getVideoMetadata(mediaId, "twitch");
+        const existing = await getVideoMetadata(media.mediaId, "twitch");
         if (existing) return;
 
         const res = await fetch(url);
         if (!res.ok) return;
         const html = await res.text();
 
-        const metadata = parseTwitchPageMetadata(html, contentType);
+        const metadata = parseTwitchPageMetadata(html, media.contentType);
         if (!metadata) return;
 
-        const channelName =
-            contentType === "live"
-                ? (extractChannelName(url) ?? metadata.channelName)
-                : metadata.channelName;
+        const channelName = media.contentType === "live" ? media.channelName : metadata.channelName;
 
         await addVideoMetadata({
             ...metadata,
             channelName,
             channelUrl: `https://www.twitch.tv/${channelName}`,
             type: "twitch",
-            contentType,
-            mediaId,
+            contentType: media.contentType,
+            mediaId: media.mediaId,
             url,
         });
     } catch (err) {
@@ -50,63 +54,56 @@ export async function recordTwitchMetadata(url: string) {
     }
 }
 
-export async function recordKickMetadata(url: string) {
+async function fetchKickPageMeta(
+    url: string,
+): Promise<{ title: string; thumbnailUrl: string } | undefined> {
     try {
-        const contentType = getKickContentType(url);
-        if (!contentType) return;
+        const res = await fetch(url);
+        if (!res.ok) return undefined;
 
-        const mediaId = contentType === "vod" ? extractKickVodId(url) : extractChannelName(url);
-        if (!mediaId) return;
+        const html = await res.text();
+        const $ = cheerio.load(html);
+        return {
+            title:
+                $('meta[property="og:title"]').attr("content")?.trim() || $("title").text().trim(),
+            thumbnailUrl: $('meta[property="og:image"]').attr("content")?.trim() ?? "",
+        };
+    } catch {
+        return undefined;
+    }
+}
 
-        const existing = await getVideoMetadata(mediaId, "kick");
+async function recordKickMetadata(media: ParsedKickMedia, url: string) {
+    try {
+        const existing = await getVideoMetadata(media.mediaId, "kick");
         if (existing) return;
 
-        const channelName = extractChannelName(url);
-        if (!channelName) return;
+        const { channelName } = media;
         const channelUrl = `https://kick.com/${channelName}`;
-
-        let title = channelName;
-        let thumbnailUrl = "";
-        try {
-            const res = await fetch(url);
-            if (res.ok) {
-                const html = await res.text();
-                const $ = cheerio.load(html);
-                title =
-                    $('meta[property="og:title"]').attr("content")?.trim() ||
-                    $("title").text().trim() ||
-                    channelName;
-                thumbnailUrl = $('meta[property="og:image"]').attr("content")?.trim() ?? "";
-            }
-        } catch {
-            // Fall back to the channel-based defaults below.
-        }
+        const pageMeta = await fetchKickPageMeta(url);
 
         await addVideoMetadata({
             type: "kick",
-            contentType,
-            mediaId,
+            contentType: media.contentType,
+            mediaId: media.mediaId,
             url,
-            title,
+            title: pageMeta?.title || channelName,
             channelName,
             channelUrl,
-            thumbnailUrl,
+            thumbnailUrl: pageMeta?.thumbnailUrl ?? "",
         });
     } catch (err) {
         console.error("Failed to record kick metadata:", err);
     }
 }
 
-export async function recordYoutubeMetadata(url: string) {
+async function recordYoutubeMetadata(media: ParsedYoutubeMedia) {
     try {
-        const mediaId = extractYoutubeMediaId(url);
-        if (!mediaId) return;
-
-        const existing = await getVideoMetadata(mediaId, "youtube");
+        const existing = await getVideoMetadata(media.mediaId, "youtube");
         if (existing) return;
 
         const response = await getYoutubeResponse({
-            mediaId,
+            mediaId: media.mediaId,
             av1Supported: await getCachedAv1Support(),
         });
         if (!response.success) return;
@@ -114,7 +111,7 @@ export async function recordYoutubeMetadata(url: string) {
         const { data } = response;
         await addVideoMetadata({
             type: "youtube",
-            mediaId,
+            mediaId: media.mediaId,
             title: data.title || data.channelName || "Youtube",
             channelName: data.channelName ?? "",
             thumbnailUrl: data.thumbnailUrl ?? "https://www.youtube.com/img/desktop/yt_1200.png",

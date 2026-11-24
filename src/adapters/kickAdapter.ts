@@ -1,13 +1,7 @@
+import { isKickVideoUuid, parsePlatformUrl } from "@lib/platformUrl";
+
 import { getLanguage } from "@/i18n/language";
 import { humanizeDuration } from "@/lib/humanize";
-import {
-    extractChannelName,
-    extractKickVodId,
-    isKickPage,
-    isKickStream,
-    isKickVideoUuid,
-    isKickVod,
-} from "@/lib/utils";
 import { sendMessage } from "@/messaging";
 import type { KickData } from "@/types/platforms.types";
 
@@ -24,29 +18,23 @@ async function loadKickData(
     _tabId?: number,
     options?: LoadPlatformOptions,
 ): Promise<KickData> {
-    if (isKickVod(tabUrl)) {
-        const mediaId = extractKickVodId(tabUrl);
-        const channelName = extractChannelName(tabUrl);
-        if (!mediaId || !channelName) {
-            throw new Error("Open a Kick stream or video");
-        }
+    const parsed = parsePlatformUrl(tabUrl);
+    if (parsed?.kind !== "media" || parsed.platform !== "kick") {
+        throw new Error("Open a Kick stream or video");
+    }
 
+    if (parsed.contentType === "vod") {
         const response = await sendMessage("kickVod", {
-            mediaId,
-            channelName,
+            mediaId: parsed.mediaId,
+            channelName: parsed.channelName,
         });
         if (!response.success) throw new Error(response.message);
 
         return response.data;
     }
 
-    const channelName = extractChannelName(tabUrl);
-    if (!channelName) {
-        throw new Error("Open a Kick stream or video");
-    }
-
     const response = await sendMessage("kickLive", {
-        channelName: channelName,
+        channelName: parsed.channelName,
         isFromPopup: options?.isFromPopup ?? true,
     });
     if (!response.success) throw new Error(response.message);
@@ -54,12 +42,9 @@ async function loadKickData(
     return response.data;
 }
 
-function matchKickUrl(tabUrl: string): boolean {
-    return isKickPage(tabUrl);
-}
-
 function isRunningVideo(tabUrl: string): boolean {
-    return isKickPage(tabUrl) && (isKickStream(tabUrl) || isKickVod(tabUrl));
+    const parsed = parsePlatformUrl(tabUrl);
+    return parsed?.kind === "media" && parsed.platform === "kick";
 }
 
 function kickFormats(kick: KickData): DisplayFormat[] {
@@ -120,7 +105,6 @@ function kickVideoUrl(
 export const kickAdapter = {
     platform: "kick",
     load: loadKickData,
-    match: matchKickUrl,
     isRunningVideo,
     formats: kickFormats,
     header: kickHeader,

@@ -1,11 +1,7 @@
 import { isFirefox } from "@lib/browser";
 import { toOrigin } from "@lib/domain";
-import { getWatchHistoryTarget, toVideoKey } from "@lib/utils";
-import {
-    recordKickMetadata,
-    recordTwitchMetadata,
-    recordYoutubeMetadata,
-} from "@lib/videoMetadata";
+import { parsePlatformUrl, toVideoKey } from "@lib/platformUrl";
+import { recordVideoMetadata } from "@lib/videoMetadata";
 
 import { refreshUsageBadge } from "@/badge";
 import { addSiteUsage, addWatchHistory } from "@/db";
@@ -123,14 +119,11 @@ function toWireBytes(value: string | undefined): number | undefined {
 
 function trackWatchHistory(buffer: UsageBuffer, url: string, bytes: number) {
     try {
-        const target = getWatchHistoryTarget(url);
-        if (!target) return;
+        const parsed = parsePlatformUrl(url);
+        if (parsed?.kind !== "media") return;
 
-        buffer.addVideo(toVideoKey(target.platform, target.mediaId), bytes);
-
-        if (target.platform === "youtube") void recordYoutubeMetadata(url);
-        else if (target.platform === "twitch") void recordTwitchMetadata(url);
-        else if (target.platform === "kick") void recordKickMetadata(url);
+        buffer.addVideo(toVideoKey(parsed.platform, parsed.mediaId), bytes);
+        void recordVideoMetadata(parsed, url);
     } catch (err) {
         console.error("Failed to attribute usage to a video:", err);
     }
