@@ -7,17 +7,22 @@ export function typedEntries<K extends string, V>(record: Readonly<Record<K, V>>
     return Object.entries(record) as Array<[K, V]>;
 }
 
+export type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
+
+const defaultFetch: FetchLike = (input, init) => fetch(input, init);
+
 type FetchResponse = { success: true; response: Response } | { success: false; error: Error };
 export async function fetchAndRetry(
     url: string | URL,
     options: RequestInit = {},
     maxRetries = CONFIG.DEFAULT_MAX_RETRIES,
     sleep: (ms: number) => Promise<void> = delay,
+    fetchFn: FetchLike = defaultFetch,
 ): Promise<FetchResponse> {
     let lastError: Error | undefined;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-            const response = await fetch(url, options);
+            const response = await fetchFn(url, options);
             if (response.ok) return { success: true, response };
 
             if (response.status >= 400 && response.status < 500) {

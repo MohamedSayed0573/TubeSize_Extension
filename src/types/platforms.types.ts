@@ -120,12 +120,6 @@ export type TwitchVodData = {
 export type TwitchData = TwitchLiveData | TwitchVodData;
 export type TwitchBackgroundResponse = BackgroundResponse<TwitchData>;
 
-export type TwitchTokenData = {
-    value: string;
-    signature: string;
-    durationSeconds?: number;
-};
-
 export type KickLiveData = {
     platform: "kick";
     type: "live";

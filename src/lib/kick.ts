@@ -1,7 +1,6 @@
 import type { KickBackgroundResponse, KickLiveData, KickVodData } from "@app-types/platforms.types";
 import type { KickLiveMessage, KickVodMessage } from "@app-types/types";
-import { estimateHlsStreamSizes } from "@lib/hlsSize";
-import { filterM3u8, parseM3U8 } from "@lib/m3u8";
+import { resolveHlsStreams } from "@lib/hls";
 import { isKickVideoUuid } from "@lib/platformUrl";
 import {
     kickChannelVideosResponseSchema,
@@ -10,7 +9,6 @@ import {
 } from "@lib/schema";
 import { getMediaCache, saveMediaCache } from "@lib/storageService";
 import { fetchAndRetry } from "@lib/utils";
-import type { PlaylistItem } from "m3u8-parser";
 
 async function getKickHtml(url: string): Promise<string> {
     const res = await fetchAndRetry(url, {
@@ -30,7 +28,7 @@ function getKickStreamId(html: string): string | undefined {
     return match[1];
 }
 
-async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
+async function getKickLiveMasterM3u8Url(streamId: string): Promise<string> {
     const url = `https://web.kick.com/api/v1/stream/${streamId}/playback`;
     const payload = {
         video_player: {
@@ -78,19 +76,7 @@ async function getKickMasterM3u8(streamId: string): Promise<PlaylistItem[]> {
         throw new Error("Master M3U8 URL not found in playback response");
     }
 
-    const masterM3u8Res = await fetchAndRetry(m3u8Url);
-    if (!masterM3u8Res.success) {
-        throw new Error(`Error fetching master M3U8: ${masterM3u8Res.error.message}`);
-    }
-    const masterM3u8Data = await masterM3u8Res.response.text();
-
-    const playlists = parseM3U8(masterM3u8Data).playlists;
-
-    if (!playlists || playlists.length === 0) {
-        throw new Error("No playlists found in master M3U8");
-    }
-
-    return playlists;
+    return m3u8Url;
 }
 
 export async function getKickLiveResponse(
@@ -103,10 +89,10 @@ export async function getKickLiveResponse(
             throw new Error("Failed to extract stream ID from the page");
         }
 
-        const masterM3U8Data = await getKickMasterM3u8(streamId);
-        const kickData = message.isFromPopup
-            ? await estimateHlsStreamSizes(masterM3U8Data)
-            : filterM3u8(masterM3U8Data);
+        const masterM3u8Url = await getKickLiveMasterM3u8Url(streamId);
+        const kickData = await resolveHlsStreams(masterM3u8Url, {
+            sampleSegments: message.isFromPopup,
+        });
 
         const response: KickLiveData = {
             platform: "kick",
@@ -184,16 +170,6 @@ export async function getKickVodResponse(message: KickVodMessage): Promise<KickB
             ? await getKickVodByUuid(message.mediaId)
             : await findKickVodInChannelVideos(message.channelName, message.mediaId);
 
-        const masterRes = await fetchAndRetry(source);
-        if (!masterRes.success) {
-            throw new Error(`Error fetching master M3U8: ${masterRes.error.message}`);
-        }
-        const masterM3U8Data = await masterRes.response.text();
-
-        const playlists = parseM3U8(masterM3U8Data).playlists;
-        if (!playlists || playlists.length === 0) {
-            throw new Error("No playlists found in master M3U8");
-        }
         if (!Number.isFinite(durationMs) || durationMs <= 0) {
             throw new Error("Kick VOD duration not found");
         }
@@ -201,7 +177,7 @@ export async function getKickVodResponse(message: KickVodMessage): Promise<KickB
         const response: KickVodData = {
             platform: "kick",
             type: "vod",
-            data: filterM3u8(playlists),
+            data: await resolveHlsStreams(source),
             mediaId: message.mediaId,
             channelName: message.channelName,
             channelUrl: `https://kick.com/${message.channelName}`,
