@@ -171,7 +171,7 @@ export default defineContentScript({
         const NativeWorker = Worker;
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.Worker = new Proxy(NativeWorker, {
-            construct(target, args: [string | URL, WorkerOptions?]) {
+            construct(target, args: [string | URL, WorkerOptions?], newTarget) {
                 const [scriptURL, options] = args;
                 let wrappedUrl: string | undefined;
                 try {
@@ -198,10 +198,16 @@ export default defineContentScript({
                 }
                 if (wrappedUrl) {
                     try {
-                        const worker = new target(wrappedUrl, options);
-                        relayWorkerUsage(worker);
-                        revokeWorkerUrlWhenLoaded(worker, wrappedUrl);
-                        return worker;
+                        const worker: unknown = Reflect.construct(
+                            target,
+                            [wrappedUrl, options],
+                            newTarget,
+                        );
+                        if (worker instanceof NativeWorker) {
+                            relayWorkerUsage(worker);
+                            revokeWorkerUrlWhenLoaded(worker, wrappedUrl);
+                            return worker;
+                        }
                     } catch {
                         // The page CSP (worker-src) may forbid blob: workers, making
                         // the re-hosted constructor throw. The object URL was never
@@ -210,7 +216,8 @@ export default defineContentScript({
                         URL.revokeObjectURL(wrappedUrl);
                     }
                 }
-                return new target(...args);
+                const fallback: unknown = Reflect.construct(target, args, newTarget);
+                return fallback instanceof NativeWorker ? fallback : new target(...args);
             },
         });
 
