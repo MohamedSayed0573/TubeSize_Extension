@@ -1,6 +1,6 @@
 # All-sites usage tracking & watch history
 
-All-sites usage tracking measures actual network bytes transferred on every visited website using dual-path accounting (fixed `Content-Length` responses plus streamed `fetch`, `XMLHttpRequest`, and classic `blob:` `Worker` bodies), records daily totals in IndexedDB `siteUsage`, attributes countable traffic on supported watch pages to `watchHistory` (with lazy `videoMetaData` on the `webRequest` path), and normalizes origins into site keys and labels.
+All-sites usage tracking measures actual network bytes transferred on every visited website using dual-path accounting (fixed `Content-Length` responses plus streamed `fetch`, `XMLHttpRequest`, and classic `blob:` `Worker` bodies), records daily totals in IndexedDB `siteUsage`, attributes countable traffic on supported watch pages to `watchHistory` (with lazy single-flight `videoMetaData` across both accounting paths), and normalizes origins into site keys and labels.
 
 ## Sub-features
 
@@ -9,7 +9,7 @@ All-sites usage tracking measures actual network bytes transferred on every visi
 - `tracking-xhr-stream` counts incremental `XMLHttpRequest` progress for streamed responses without `Content-Length`.
 - `tracking-worker-stream` re-hosts classic `blob:` `Worker`s to count `fetch()` responses without `Content-Length` inside dedicated workers.
 - `tracking-dedup-exclusions` avoids double-counting `Content-Length` responses across both paths and ignores `HEAD` requests, cached responses, and extension-origin URLs.
-- `tracking-watch-history` attributes countable tab traffic on YouTube, Twitch, and Kick watch pages to `watchHistory` (`<platform>:<mediaId>`) and lazily records `videoMetaData` from `webRequest` traffic.
+- `tracking-watch-history` attributes countable tab traffic on YouTube, Twitch, and Kick watch pages to `watchHistory` (`<platform>:<mediaId>`) and lazily records single-flight `videoMetaData` across both `webRequest` and `usageBridge` traffic.
 - `tracking-site-normalization` merges subdomains like `www.example.com` and `m.example.com` while keeping Google product subdomains (`drive.google.com`, `mail.google.com`) distinct.
 
 ## How to get to it (user POV)
@@ -33,6 +33,6 @@ Preconditions:
 
 ## Gotchas
 
-- Re-hosted `blob:` workers (`setInterval(..., 3000)`) flush to the page-world observer (`setInterval(..., 3000)`), which relays directly to `handleAddUsage` (bypassing `UsageBuffer`), while `Content-Length` `webRequest` traffic flushes via the background `UsageBuffer` (`setInterval(..., 3000)`); always wait at least `6500 ms` (`wait --ms 6500`) after worker traffic completes before asserting `state`.
+- Re-hosted `blob:` workers (`setInterval(..., 3000)`) flush to the page-world observer (`setInterval(..., 3000)`), which relays through `UsageBridge` into `UsageIngestion` (flushing immediately), while `Content-Length` `webRequest` traffic flushes via `UsageIngestion` (`setInterval(..., 3000)`); always wait at least `6500 ms` (`wait --ms 6500`) after worker traffic completes before asserting `state`.
 - On `fixture:usage-site`, the page document itself is served as a chunked stream without `Content-Length` so initial navigation HTML does not alter the expected `570000` byte count.
-- `UsageBuffer` flushes `siteUsage` and `watchHistory` inside `setInterval` in the background service worker; in long-lived sessions keep the session alive during the 3–4.5s flush window rather than calling `stop` immediately.
+- `UsageIngestion` flushes buffered `webRequest` `siteUsage` and `watchHistory` inside `setInterval` in the background service worker; in long-lived sessions keep the session alive during the 3–4.5s flush window rather than calling `stop` immediately.

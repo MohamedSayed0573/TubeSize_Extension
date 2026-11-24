@@ -7,7 +7,12 @@ import { toVideoKey } from "@lib/platformUrl";
 import { getMediaCache } from "@lib/storageService";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
-import { clearDatabaseData, getAllSiteUsage, getAllWatchHistory } from "@/db";
+import {
+    clearDatabaseData,
+    getAllSiteUsage,
+    getAllWatchHistory,
+    getVideoMetadataByVideoKey,
+} from "@/db";
 import { attachMessageHandler } from "@/entrypoints/background/messageHandler";
 import { sendMessage } from "@/messaging";
 
@@ -372,5 +377,80 @@ describe("attachMessageHandler RPC seam", () => {
             success: false,
             message: "Invalid usage bytes",
         });
+    });
+
+    test("records single-flight video metadata when addWatchHistory arrives from a platform tab", async () => {
+        ensureMessageHandlersAttached();
+
+        const liveLdJson = JSON.stringify({
+            "@graph": [
+                {
+                    "@type": "VideoObject",
+                    description: "Bridge Stream Title",
+                    thumbnailUrl: "https://static-cdn.jtvnw.net/shroud.jpg",
+                },
+            ],
+        });
+        const fetchSpy = stubFetch(async (input) => {
+            if (input.toString() === "https://www.twitch.tv/shroud") {
+                return new Response(`<script type="application/ld+json">${liveLdJson}</script>`, {
+                    status: 200,
+                });
+            }
+            return new Response("Not found", { status: 404 });
+        });
+
+        senderTabUrl = "https://www.twitch.tv/shroud";
+
+        const [first, second] = await Promise.all([
+            sendMessage("addWatchHistory", {
+                platform: "twitch",
+                mediaId: "shroud",
+                bytes: 1_500,
+            }),
+            sendMessage("addWatchHistory", {
+                platform: "twitch",
+                mediaId: "shroud",
+                bytes: 2_500,
+            }),
+        ]);
+        expect(first).toEqual({ success: true, data: null });
+        expect(second).toEqual({ success: true, data: null });
+
+        for (let i = 0; i < 10; i++) {
+            if (await getVideoMetadataByVideoKey(toVideoKey("twitch", "shroud"))) break;
+            await new Promise((resolve) => setTimeout(resolve, 5));
+        }
+
+        expect((await getAllWatchHistory())[0]?.videos[toVideoKey("twitch", "shroud")]).toBe(4_000);
+        expect(await getVideoMetadataByVideoKey(toVideoKey("twitch", "shroud"))).toMatchObject({
+            videoKey: toVideoKey("twitch", "shroud"),
+            type: "twitch",
+            contentType: "live",
+            channelName: "shroud",
+            title: "Bridge Stream Title",
+        });
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test("ignores addUsage and addWatchHistory messages originating from extension pages", async () => {
+        ensureMessageHandlersAttached();
+
+        senderTabUrl = "chrome-extension://abcdef/dashboard.html#/daily";
+
+        expect(await sendMessage("addUsage", { bytes: 2_048 })).toEqual({
+            success: true,
+            data: null,
+        });
+        expect(
+            await sendMessage("addWatchHistory", {
+                platform: "youtube",
+                mediaId: "dQw4w9WgXcQ",
+                bytes: 2_048,
+            }),
+        ).toEqual({ success: true, data: null });
+
+        expect(await getAllSiteUsage()).toEqual([]);
+        expect(await getAllWatchHistory()).toEqual([]);
     });
 });

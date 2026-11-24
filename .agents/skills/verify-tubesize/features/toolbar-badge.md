@@ -29,5 +29,5 @@ Preconditions:
 ## Gotchas
 
 - `refreshUsageBadge()` reads **today's** `siteUsage` row only, and neither `background/index.ts` startup nor `bun run verify seed` (`empty`/`full`/`heavy`) calls it — the badge stays at `"" rgba(0,0,0,0)` until live traffic, Clear, or Import triggers `refreshUsageBadge()`.
-- Classic `blob:` worker flushes (3s) feed the page-world observer (3s), which relays directly to `handleAddUsage` (refreshing the badge immediately), while `Content-Length` `webRequest` traffic flushes via the background `UsageBuffer` (3s); always wait `6500 ms` after worker traffic completes before reading `Badge:` via `bun run verify state`.
+- Classic `blob:` worker flushes (3s) feed the page-world observer (3s), which relays through `UsageBridge` into `UsageIngestion` (flushing and refreshing the badge immediately), while `Content-Length` `webRequest` traffic flushes via `UsageIngestion` (3s); always wait `6500 ms` after worker traffic completes before reading `Badge:` via `bun run verify state`.
 - `chrome.action.getBadgeText({})` cannot be rendered inside a page screenshot; inspect the authoritative Chromium badge value and RGBA color via `bun run verify state` / `state --json`.
