@@ -298,4 +298,53 @@ describe("recordVideoMetadata", () => {
         });
         expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
+
+    test("aborts stalled page fetches on timeout and releases the in-flight key for retry", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        const twitchLdJson = JSON.stringify({
+            "@graph": [
+                {
+                    "@type": "VideoObject",
+                    description: "Unstuck stream",
+                    thumbnailUrl: "https://static-cdn.jtvnw.net/shroud.jpg",
+                },
+            ],
+        });
+
+        let attempt = 0;
+        const mockFetch: typeof fetch = Object.assign(
+            (_input: string | URL | Request, init?: RequestInit) => {
+                attempt += 1;
+                if (attempt === 1) {
+                    return new Promise<Response>((_resolve, reject) => {
+                        init?.signal?.addEventListener("abort", () => {
+                            reject(new DOMException("Aborted", "AbortError"));
+                        });
+                    });
+                }
+                return Promise.resolve(
+                    new Response(`<script type="application/ld+json">${twitchLdJson}</script>`, {
+                        status: 200,
+                    }),
+                );
+            },
+            { preconnect: globalThis.fetch.preconnect },
+        );
+        const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(mockFetch);
+        cleanups.push(() => fetchSpy.mockRestore());
+
+        const liveUrl = "https://www.twitch.tv/shroud";
+        const media = requireMedia(liveUrl);
+
+        await recordVideoMetadata(media, liveUrl, { timeoutMs: 25 });
+        expect(await getVideoMetadataByVideoKey(toVideoKey("twitch", "shroud"))).toBeUndefined();
+
+        await recordVideoMetadata(media, liveUrl, { timeoutMs: 25 });
+        expect(await getVideoMetadataByVideoKey(toVideoKey("twitch", "shroud"))).toMatchObject({
+            title: "Unstuck stream",
+        });
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
 });

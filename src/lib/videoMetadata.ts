@@ -1,4 +1,5 @@
 import type { VideoKey } from "@app-types/types";
+import CONFIG from "@lib/constants";
 import {
     type ParsedKickMedia,
     type ParsedPlatformMedia,
@@ -15,22 +16,40 @@ import { getCachedAv1Support } from "@/lib/codecSupport";
 
 const inFlightMetadata = new Map<VideoKey, Promise<void>>();
 
-export function recordVideoMetadata(media: ParsedPlatformMedia, url: string): Promise<void> {
+export function recordVideoMetadata(
+    media: ParsedPlatformMedia,
+    url: string,
+    options?: { timeoutMs?: number },
+): Promise<void> {
     const videoKey = toVideoKey(media.platform, media.mediaId);
     const pending = inFlightMetadata.get(videoKey);
     if (pending) return pending;
 
-    const task = recordVideoMetadataOnce(videoKey, media, url).finally(() => {
+    const timeoutMs = options?.timeoutMs ?? CONFIG.FETCH_HTML_TIMEOUT;
+    const task = recordVideoMetadataOnce(videoKey, media, url, timeoutMs).finally(() => {
         inFlightMetadata.delete(videoKey);
     });
     inFlightMetadata.set(videoKey, task);
     return task;
 }
 
+async function fetchPageHtml(url: string, timeoutMs: number): Promise<string | undefined> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) return undefined;
+        return await res.text();
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
 async function recordVideoMetadataOnce(
     videoKey: VideoKey,
     media: ParsedPlatformMedia,
     url: string,
+    timeoutMs: number,
 ): Promise<void> {
     try {
         const existing = await getVideoMetadataByVideoKey(videoKey);
@@ -41,10 +60,10 @@ async function recordVideoMetadataOnce(
                 await recordYoutubeMetadata(media);
                 return;
             case "twitch":
-                await recordTwitchMetadata(media, url);
+                await recordTwitchMetadata(media, url, timeoutMs);
                 return;
             case "kick":
-                await recordKickMetadata(media, url);
+                await recordKickMetadata(media, url, timeoutMs);
                 return;
             default: {
                 const exhaustive: never = media;
@@ -56,10 +75,9 @@ async function recordVideoMetadataOnce(
     }
 }
 
-async function recordTwitchMetadata(media: ParsedTwitchMedia, url: string) {
-    const res = await fetch(url);
-    if (!res.ok) return;
-    const html = await res.text();
+async function recordTwitchMetadata(media: ParsedTwitchMedia, url: string, timeoutMs: number) {
+    const html = await fetchPageHtml(url, timeoutMs);
+    if (!html) return;
 
     const metadata = parseTwitchPageMetadata(html, media.contentType);
     if (!metadata) return;
@@ -79,12 +97,12 @@ async function recordTwitchMetadata(media: ParsedTwitchMedia, url: string) {
 
 async function fetchKickPageMeta(
     url: string,
+    timeoutMs: number,
 ): Promise<{ title: string; thumbnailUrl: string } | undefined> {
     try {
-        const res = await fetch(url);
-        if (!res.ok) return undefined;
+        const html = await fetchPageHtml(url, timeoutMs);
+        if (!html) return undefined;
 
-        const html = await res.text();
         const $ = cheerio.load(html);
         return {
             title:
@@ -96,10 +114,10 @@ async function fetchKickPageMeta(
     }
 }
 
-async function recordKickMetadata(media: ParsedKickMedia, url: string) {
+async function recordKickMetadata(media: ParsedKickMedia, url: string, timeoutMs: number) {
     const { channelName } = media;
     const channelUrl = `https://kick.com/${channelName}`;
-    const pageMeta = await fetchKickPageMeta(url);
+    const pageMeta = await fetchKickPageMeta(url, timeoutMs);
 
     await addVideoMetadata({
         type: "kick",
