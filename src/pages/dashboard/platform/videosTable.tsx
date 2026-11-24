@@ -1,22 +1,18 @@
 import type { PlatformId } from "@app-types/types";
+import type { PlatformWatchRow } from "@lib/usage";
 
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { t } from "@/i18n/t";
 
 import VideoTableRow from "./videoTableRow";
-import type { VideoRowDetails } from "./videoTableRow";
-
-export type { VideoRowDetails } from "./videoTableRow";
 
 export default function VideosTable({
     rows,
     platform,
 }: {
-    rows: VideoRowDetails[];
+    rows: PlatformWatchRow[];
     platform: PlatformId;
 }) {
-    const sorted = rows.toSorted((a, b) => b.usage - a.usage);
-
     return (
         <Table className="font-mono">
             <TableHeader className="uppercase">
@@ -27,7 +23,7 @@ export default function VideosTable({
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {sorted.map((videoDetails, index) => {
+                {rows.map((videoDetails, index) => {
                     return (
                         <VideoTableRow
                             key={`${videoDetails.date}-${videoDetails.mediaId}`}

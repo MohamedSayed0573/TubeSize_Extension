@@ -1,17 +1,16 @@
 import { AlertDialogBasic } from "@components/alertDialogBasic";
 import { Button } from "@components/ui/button";
-import { useSiteUsage } from "@hooks/useSiteUsage";
+import { useSiteUsage } from "@hooks/useUsage";
+import { importSiteUsageJson } from "@lib/usage";
 
 import { refreshUsageBadge } from "@/badge";
-import { setAllSiteUsage } from "@/db";
 import { t } from "@/i18n/t";
 
 function toError(err: unknown): Error {
     return err instanceof Error ? err : new Error(String(err));
 }
 
-async function importJson(): Promise<void> {
-    const { ImportSchema } = await import("@lib/schema");
+function importJson(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
         const input = document.createElement("input");
         input.type = "file";
@@ -23,14 +22,8 @@ async function importJson(): Promise<void> {
             const file = input.files?.item(0);
             if (!file) return;
             file.text()
-                .then((textFile) => {
-                    const siteUsage: unknown = JSON.parse(textFile);
-                    const result = ImportSchema.safeParse(siteUsage);
-                    if (!result.success) throw new Error(result.error.message);
-                    return result.data;
-                })
-                .then(async (data) => {
-                    await setAllSiteUsage(data);
+                .then(async (textFile) => {
+                    await importSiteUsageJson(textFile);
                     await refreshUsageBadge();
                     return resolve();
                 })

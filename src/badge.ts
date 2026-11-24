@@ -1,11 +1,9 @@
 import { formatBadge } from "@lib/format";
-
-import { getSiteUsage } from "./db";
-import { getUsageNumber } from "./lib/usage";
+import { getTodayUsageSummary } from "@lib/usage";
 
 export async function refreshUsageBadge() {
-    const siteUsage = await getSiteUsage();
-    await setUsageBadge(getUsageNumber(siteUsage ? [siteUsage] : []));
+    const { totalBytes } = await getTodayUsageSummary();
+    await setUsageBadge(totalBytes);
 }
 
 async function setUsageBadge(bytes: number, tabId?: number) {

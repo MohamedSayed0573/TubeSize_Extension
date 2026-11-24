@@ -50,10 +50,10 @@ export function UsageChartSection({
     usage,
     chart,
 }: {
-    usage: SiteUsage[] | null;
+    usage: SiteUsage[];
     chart: "daily" | "sites";
 }) {
-    if (!usage) {
+    if (usage.length === 0) {
         return <NoUsageData />;
     }
 

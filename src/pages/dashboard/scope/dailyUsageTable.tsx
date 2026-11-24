@@ -1,4 +1,3 @@
-import type { DateKey } from "@app-types/types";
 import {
     Table,
     TableBody,
@@ -10,20 +9,16 @@ import {
 } from "@components/ui/table";
 import { formatBytes } from "@lib/format";
 import { buildDatePath } from "@lib/routes";
+import type { SiteDailyUsageEntry } from "@lib/usage";
 import { Link } from "react-router";
 
 import { t } from "@/i18n/t";
-
-interface DailyUsage {
-    day: DateKey;
-    bytes: number;
-}
 
 export default function DailyUsageTable({
     usage,
     totalUsage,
 }: {
-    usage: DailyUsage[];
+    usage: SiteDailyUsageEntry[];
     totalUsage: number;
 }) {
     return (

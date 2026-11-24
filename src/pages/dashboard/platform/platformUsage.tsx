@@ -1,51 +1,23 @@
 import type { PlatformId, UsageScope } from "@app-types/types";
-import { useVideoMetadata } from "@hooks/useVideoMetadata";
-import { useWatchHistory } from "@hooks/useWatchHistory";
+import { usePlatformWatchReport } from "@hooks/useUsage";
 import { formatDate } from "@lib/format";
 import { parseScopeSearch } from "@lib/routes";
-import { capitalize, isPlatformId, parseVideoKey, typedEntries } from "@lib/utils";
+import { capitalize, isPlatformId } from "@lib/utils";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useParams, useSearchParams } from "react-router";
 
-import { getVideoContentType, getVideoUrl } from "@/db";
 import { t, tPlural } from "@/i18n/t";
 
 import DashboardNotFound from "../shared/notFound";
 import { PlatformLogo } from "./platformLogos";
-import VideosTable, { type VideoRowDetails } from "./videosTable";
+import VideosTable from "./videosTable";
 import VideosTableSkeleton from "./videosTableSkeleton";
 
 function PlatformUsageContent({ platform, scope }: { platform: PlatformId; scope: UsageScope }) {
-    const historyQuery = useWatchHistory(scope);
-    const metadataQuery = useVideoMetadata();
+    const { data: rows, isPending } = usePlatformWatchReport(platform, scope);
 
-    if (historyQuery.isPending || metadataQuery.isPending) return <VideosTableSkeleton />;
-
-    const watchHistory = historyQuery.data ?? [];
-    const metadata = metadataQuery.data ?? [];
-
-    const rows: VideoRowDetails[] = watchHistory.flatMap(({ day, videos }) => {
-        return typedEntries(videos).flatMap(([videoKey, bytes]) => {
-            const { platform: videoPlatform, mediaId } = parseVideoKey(videoKey);
-
-            if (videoPlatform !== platform) return [];
-
-            const videoMetadata = metadata.find((m) => m.videoKey === videoKey);
-
-            return {
-                mediaId,
-                usage: bytes,
-                date: day,
-                title: videoMetadata?.title,
-                channelName: videoMetadata?.channelName,
-                channelUrl: videoMetadata?.channelUrl,
-                thumbnailUrl: videoMetadata?.thumbnailUrl,
-                contentType: getVideoContentType(videoMetadata),
-                url: getVideoUrl(videoMetadata),
-            };
-        });
-    });
+    if (isPending) return <VideosTableSkeleton />;
 
     const totalDataUsage = rows.reduce((sum, current) => sum + current.usage, 0);
     const label = capitalize(platform);

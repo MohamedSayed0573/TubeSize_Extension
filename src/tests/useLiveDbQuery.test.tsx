@@ -1,12 +1,20 @@
 import { afterEach, beforeEach, describe, expect, setSystemTime, test } from "bun:test";
 
 import { scopeDepKey, useCurrentDateKey, useLiveDbQuery } from "@hooks/useLiveDbQuery";
+import { usePlatformWatchReport } from "@hooks/useUsage";
 import { toDateKey } from "@lib/dateUtils";
 import { toOrigin } from "@lib/domain";
+import { toVideoKey } from "@lib/utils";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-import { addSiteUsage, clearDatabaseData, getSiteUsage } from "@/db";
+import {
+    addSiteUsage,
+    addVideoMetadata,
+    addWatchHistory,
+    clearDatabaseData,
+    getSiteUsage,
+} from "@/db";
 
 import { installDomEnv } from "./domEnv";
 
@@ -52,6 +60,13 @@ describe("scopeDepKey midnight rollover", () => {
 function DateHarness() {
     const today = useCurrentDateKey();
     return <output data-testid="date">{today}</output>;
+}
+
+function WatchReportHarness() {
+    const result = usePlatformWatchReport("youtube", { type: "range", range: "lifetime" });
+    if (result.isPending) return <span>pending</span>;
+    const first = result.data[0];
+    return <output>{first ? `${first.title ?? "untitled"}:${first.usage}` : "empty"}</output>;
 }
 
 async function waitForText(host: HTMLElement, expected: string, maxAttempts = 100): Promise<void> {
@@ -139,5 +154,37 @@ describe("useLiveDbQuery and useCurrentDateKey React hooks", () => {
         });
         await waitForText(host, "12345");
         expect(host.textContent).toBe("12345");
+    });
+
+    test("usePlatformWatchReport reacts to both watchHistory and videoMetaData updates", async () => {
+        setSystemTime(new Date(2026, 4, 15, 12, 0, 0));
+        const videoKey = toVideoKey("youtube", "dQw4w9WgXcQ");
+
+        const host = document.createElement("div");
+        document.body.append(host);
+        root = createRoot(host);
+
+        await act(async () => {
+            root?.render(<WatchReportHarness />);
+        });
+
+        await waitForText(host, "empty");
+
+        await act(async () => {
+            await addWatchHistory({ [videoKey]: 5_000 });
+        });
+        await waitForText(host, "untitled:5000");
+
+        await act(async () => {
+            await addVideoMetadata({
+                type: "youtube",
+                mediaId: "dQw4w9WgXcQ",
+                title: "Loaded Title",
+                channelName: "Channel",
+                channelUrl: "https://www.youtube.com/@channel",
+                thumbnailUrl: "",
+            });
+        });
+        await waitForText(host, "Loaded Title:5000");
     });
 });

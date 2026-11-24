@@ -1,5 +1,5 @@
 import type { UsageScope } from "@app-types/types";
-import { useSiteUsage } from "@hooks/useSiteUsage";
+import { useSiteUsage } from "@hooks/useUsage";
 import { getLastNDays } from "@lib/dateUtils";
 import { formatDate } from "@lib/format";
 import { parseScopeParam } from "@lib/routes";
@@ -40,7 +40,7 @@ function ScopePageContent({ scope }: { scope: UsageScope }) {
 
     if (isPending) return <VideosTableSkeleton />;
 
-    if (!usage || usage.length === 0)
+    if (usage.length === 0)
         return (
             <>
                 <DashboardHeader title={getTitle(scope)} totalDataUsage={0} />

@@ -1,5 +1,5 @@
 import { AlertDestructive } from "@components/alertDestructive";
-import { useSiteUsage } from "@hooks/useSiteUsage";
+import { useSiteUsage } from "@hooks/useUsage";
 import { useState } from "react";
 
 import { UsageChartSection } from "./chartSection";
@@ -21,7 +21,7 @@ export default function Dashboard({ chart }: { chart: "daily" | "sites" }) {
             )}
             <DashboardBanner />
             <div className="flex flex-1 flex-col bg-neutral-950/70 px-6 pt-1 pb-3.5">
-                <StatsRow usage={usage ?? []} />
+                <StatsRow usage={usage} />
                 <UsageChartSection chart={chart} usage={usage} />
                 <FooterBtns setError={setError} />
             </div>
