@@ -22,8 +22,8 @@ import {
     type WatchHistory,
 } from "@/db";
 
-import { getLastNDays } from "./dateUtils";
-import { getSiteKey, sumBySite, type SiteUsageTotal } from "./domain";
+import { getLastNDays, isValidDateKey } from "./dateUtils";
+import { getSiteKey, isOrigin, sumBySite, type SiteUsageTotal } from "./domain";
 import { parseVideoKey, typedEntries } from "./utils";
 
 type DayKeyQuery = { kind: "all" } | { kind: "days"; days: DateKey[] };
@@ -265,14 +265,8 @@ export async function getPlatformWatchReport(
         .toSorted((a, b) => b.usage - a.usage);
 }
 
-function isValidExportEntry(url: string, bytes: number): boolean {
-    if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes < 0) return false;
-    try {
-        void new URL(url);
-        return true;
-    } catch {
-        return false;
-    }
+function isValidExportEntry(origin: string, bytes: number): boolean {
+    return typeof bytes === "number" && Number.isFinite(bytes) && bytes >= 0 && isOrigin(origin);
 }
 
 export async function exportSiteUsageJson(): Promise<string | undefined> {
@@ -281,6 +275,8 @@ export async function exportSiteUsageJson(): Promise<string | undefined> {
 
     const filtered: SiteUsage[] = [];
     for (const { day, usage } of siteUsage) {
+        if (!isValidDateKey(day)) continue;
+
         const usageRecords: Record<Origin, number> = {};
         let hasEntries = false;
 

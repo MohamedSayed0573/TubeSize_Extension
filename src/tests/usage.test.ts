@@ -340,6 +340,37 @@ describe("exportSiteUsageJson and importSiteUsageJson", () => {
         expect(await getAllSiteUsage()).toEqual(seeded);
     });
 
+    test("preserves opaque origins and strips non-origin paths so exports always re-import cleanly", async () => {
+        const yt = origin("https://www.youtube.com");
+        const opaque = origin("data:text/plain,opaque");
+        const badPathKey = "https://example.com/watch?v=1" as unknown as typeof yt;
+
+        await setAllSiteUsage([
+            {
+                day: dateKey("2026-05-03"),
+                usage: {
+                    [yt]: 2_000,
+                    [opaque]: 512,
+                    [badPathKey]: 9_999,
+                },
+            },
+        ]);
+
+        const exported = await exportSiteUsageJson();
+        expect(exported).toBeDefined();
+
+        const reimported = await importSiteUsageJson(exported!);
+        expect(reimported).toEqual([
+            {
+                day: dateKey("2026-05-03"),
+                usage: {
+                    [yt]: 2_000,
+                    [opaque]: 512,
+                },
+            },
+        ]);
+    });
+
     test("rejects malformed JSON and schema violations without modifying existing data", async () => {
         const yt = origin("https://www.youtube.com");
         const initial: SiteUsage[] = [{ day: dateKey("2026-05-01"), usage: { [yt]: 1_000 } }];
