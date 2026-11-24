@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
+import fs from "node:fs";
+import path from "node:path";
 
 import { parsePlatformUrl, toVideoKey } from "@lib/platformUrl";
 import { recordVideoMetadata } from "@lib/videoMetadata";
@@ -151,5 +153,42 @@ describe("recordVideoMetadata", () => {
         await recordVideoMetadata(requireMedia(url), url);
 
         expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    test("records YouTube metadata from fetched watch HTML", async () => {
+        const ytJson = fs
+            .readFileSync(
+                path.join(process.cwd(), "src", "tests", "assets", "ytInitialPlayerResponse.json"),
+                "utf8",
+            )
+            .trim();
+        const fetchSpy = stubFetch([
+            new Response(`<script>var ytInitialPlayerResponse = ${ytJson};</script>`, {
+                status: 200,
+            }),
+        ]);
+
+        const url = "https://www.youtube.com/watch?v=I82j7AzMU80";
+        await recordVideoMetadata(requireMedia(url), url);
+
+        expect(await getVideoMetadata("I82j7AzMU80", "youtube")).toMatchObject({
+            videoKey: toVideoKey("youtube", "I82j7AzMU80"),
+            type: "youtube",
+            title: "How does Claude Code *actually* work?",
+            channelName: "Theo - t3․gg",
+        });
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test("does not throw or persist YouTube metadata when fetch fails", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        stubFetch([new Response("Not found", { status: 404 })]);
+
+        const url = "https://www.youtube.com/watch?v=I82j7AzMU80";
+        await recordVideoMetadata(requireMedia(url), url);
+
+        expect(await getVideoMetadata("I82j7AzMU80", "youtube")).toBeUndefined();
     });
 });
