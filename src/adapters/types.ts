@@ -62,8 +62,6 @@ export interface PlatformAdapter<P extends PlatformId = PlatformId> extends Toas
         options?: LoadPlatformOptions,
     ) => Promise<PlatformDataMap[P]>;
 
-    match: (tabUrl: string) => boolean;
-
     isRunningVideo: (tabUrl: string) => boolean;
 
     formats: (data: PlatformDataMap[P], options?: FormatOptions) => DisplayFormat[];

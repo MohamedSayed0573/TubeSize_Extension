@@ -20,8 +20,8 @@ import type {
 } from "@app-types/types";
 import { toOrigin } from "@lib/domain";
 import { getKickLiveResponse, getKickVodResponse } from "@lib/kick";
+import { toVideoKey } from "@lib/platformUrl";
 import { getTwitchLiveResponse, getTwitchVodResponse } from "@lib/twitch";
-import { toVideoKey } from "@lib/utils";
 import { getYoutubeResponse } from "@lib/youtube";
 
 import { refreshUsageBadge } from "@/badge";

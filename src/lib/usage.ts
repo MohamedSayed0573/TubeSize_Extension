@@ -24,7 +24,8 @@ import {
 
 import { getLastNDays, isValidDateKey } from "./dateUtils";
 import { getSiteKey, isOrigin, sumBySite, type SiteUsageTotal } from "./domain";
-import { parseVideoKey, typedEntries } from "./utils";
+import { parseVideoKey } from "./platformUrl";
+import { typedEntries } from "./utils";
 
 type DayKeyQuery = { kind: "all" } | { kind: "days"; days: DateKey[] };
 

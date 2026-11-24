@@ -1,7 +1,7 @@
 import type { WindowMessage } from "@app-types/types";
+import { isPlatformId } from "@lib/platformUrl";
 import { defineContentScript } from "wxt/utils/define-content-script";
 
-import { isPlatformId } from "@/lib/utils";
 import { sendMessage } from "@/messaging";
 
 function isValidBytes(bytes: unknown): bytes is number {

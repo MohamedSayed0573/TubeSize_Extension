@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 
 import { toOrigin } from "@lib/domain";
-import { toVideoKey } from "@lib/utils";
+import { toVideoKey } from "@lib/platformUrl";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
 import { addVideoMetadata, clearDatabaseData } from "@/db";

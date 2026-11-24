@@ -1,13 +1,8 @@
+import { parsePlatformUrl } from "@lib/platformUrl";
+
 import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
 import { humanizeDuration } from "@/lib/humanize";
-import {
-    extractChannelName,
-    extractTwitchVodId,
-    isTwitchLive,
-    isTwitchPage,
-    isTwitchVod,
-} from "@/lib/utils";
 import { sendMessage } from "@/messaging";
 import type { TwitchData } from "@/types/platforms.types";
 
@@ -24,27 +19,22 @@ async function loadTwitchData(
     _tabId?: number,
     options?: LoadPlatformOptions,
 ): Promise<TwitchData> {
-    if (isTwitchVod(tabUrl)) {
-        const mediaId = extractTwitchVodId(tabUrl);
-        if (!mediaId) {
-            throw new Error("Open a Twitch stream or video");
-        }
+    const parsed = parsePlatformUrl(tabUrl);
+    if (parsed?.kind !== "media" || parsed.platform !== "twitch") {
+        throw new Error("Open a Twitch stream or video");
+    }
 
+    if (parsed.contentType === "vod") {
         const response = await sendMessage("twitchVod", {
-            mediaId,
+            mediaId: parsed.mediaId,
         });
         if (!response.success) throw new Error(response.message);
 
         return response.data;
     }
 
-    const channelName = extractChannelName(tabUrl);
-    if (!channelName) {
-        throw new Error("Open a Twitch stream or video");
-    }
-
     const response = await sendMessage("twitchLive", {
-        channelName,
+        channelName: parsed.channelName,
         isFromPopup: options?.isFromPopup ?? true,
     });
 
@@ -53,12 +43,9 @@ async function loadTwitchData(
     return response.data;
 }
 
-function matchTwitchUrl(tabUrl: string): boolean {
-    return isTwitchPage(tabUrl);
-}
-
 function isRunningVideo(tabUrl: string): boolean {
-    return isTwitchPage(tabUrl) && (isTwitchLive(tabUrl) || isTwitchVod(tabUrl));
+    const parsed = parsePlatformUrl(tabUrl);
+    return parsed?.kind === "media" && parsed.platform === "twitch";
 }
 
 function twitchFormats(twitch: TwitchData): DisplayFormat[] {
@@ -104,7 +91,6 @@ function twitchVideoUrl(mediaId: string, contentType?: VideoContentType): string
 export const twitchAdapter = {
     platform: "twitch",
     load: loadTwitchData,
-    match: matchTwitchUrl,
     isRunningVideo,
     formats: twitchFormats,
     header: twitchHeader,

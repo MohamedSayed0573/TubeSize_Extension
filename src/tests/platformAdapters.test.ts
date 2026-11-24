@@ -110,6 +110,9 @@ describe("adapter.isRunningVideo", () => {
         expect(youtubeAdapter.isRunningVideo("https://www.youtube.com/")).toBe(false);
         expect(youtubeAdapter.isRunningVideo("https://www.youtube.com/watch?v=short")).toBe(false);
         expect(youtubeAdapter.isRunningVideo("https://www.youtube.com/live/")).toBe(false);
+        expect(youtubeAdapter.isRunningVideo("https://www.youtube.com/embed/dQw4w9WgXcQ")).toBe(
+            false,
+        );
         expect(youtubeAdapter.isRunningVideo("https://www.twitch.tv/shroud")).toBe(false);
     });
 
@@ -190,6 +193,9 @@ describe("adapter.load URL dispatch", () => {
         await expect(twitchAdapter.load("https://www.twitch.tv/")).rejects.toThrow(
             "Open a Twitch stream or video",
         );
+        await expect(twitchAdapter.load("https://www.twitch.tv/directory")).rejects.toThrow(
+            "Open a Twitch stream or video",
+        );
     });
 
     test("kickAdapter.load routes VODs to kickVod and channels to kickLive", async () => {
@@ -215,6 +221,9 @@ describe("adapter.load URL dispatch", () => {
         expect(liveMessages).toEqual([{ channelName: "xqc", isFromPopup: false }]);
 
         await expect(kickAdapter.load("https://kick.com/")).rejects.toThrow(
+            "Open a Kick stream or video",
+        );
+        await expect(kickAdapter.load("https://kick.com/browse")).rejects.toThrow(
             "Open a Kick stream or video",
         );
     });

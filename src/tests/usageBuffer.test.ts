@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { toOrigin } from "@lib/domain";
-import { toVideoKey } from "@lib/utils";
+import { toVideoKey } from "@lib/platformUrl";
 
 import { UsageBuffer } from "@/entrypoints/background/usageBuffer";
 

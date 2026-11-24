@@ -2,29 +2,6 @@ import CONFIG from "@lib/constants";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-export {
-    extractChannelName,
-    extractKickVodId,
-    extractTwitchVodId,
-    extractYoutubeMediaId,
-    getKickContentType,
-    getTwitchContentType,
-    getWatchHistoryTarget,
-    isKickPage,
-    isKickStream,
-    isKickVideoUuid,
-    isKickVod,
-    isPlatformId,
-    isShortsVideo,
-    isTwitchLive,
-    isTwitchPage,
-    isTwitchVod,
-    isVideoKey,
-    isYoutubePage,
-    parseVideoKey,
-    toVideoKey,
-} from "./platformUrl";
-
 export function typedEntries<K extends string, V>(record: Readonly<Record<K, V>>): Array<[K, V]> {
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries widens branded string keys to string
     return Object.entries(record) as Array<[K, V]>;
