@@ -1,8 +1,8 @@
-import type { PlatformId, UsageScope } from "@app-types/types";
-import { useWatchHistory } from "@hooks/useWatchHistory";
+import type { UsageScope } from "@app-types/types";
+import { usePlatformTotals } from "@hooks/useUsage";
 import { formatBytes } from "@lib/format";
 import { buildPlatformPath } from "@lib/routes";
-import { capitalize, cn, parseVideoKey, typedEntries } from "@lib/utils";
+import { capitalize, cn } from "@lib/utils";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 
@@ -10,27 +10,14 @@ import { PlatformLogo } from "../platform/platformLogos";
 import { PLATFORM_THEME } from "../platform/platformTheme";
 
 export default function PlatformCards({ scope }: { scope: UsageScope }) {
-    const { data: history, isPending } = useWatchHistory(scope);
-    if (isPending) return;
-    if (!history) return;
-
-    const platformToBytes: Map<PlatformId, number> = new Map();
-    for (const dayOfWatchHistory of history) {
-        for (const [videoKey, bytes] of typedEntries(dayOfWatchHistory.videos)) {
-            const { platform } = parseVideoKey(videoKey);
-            platformToBytes.set(platform, (platformToBytes.get(platform) ?? 0) + bytes);
-        }
-    }
-
-    if (platformToBytes.size === 0) return null;
-
-    const entries = [...platformToBytes].toSorted(([, a], [, b]) => b - a);
+    const { data: totals, isPending } = usePlatformTotals(scope);
+    if (isPending || totals.length === 0) return null;
 
     return (
         <div
             className={cn("mx-auto flex w-full max-w-4xl flex-wrap justify-center gap-3 px-4 py-4")}
         >
-            {entries.map(([platform, bytes]) => {
+            {totals.map(({ platform, bytes }) => {
                 return (
                     <Link
                         key={platform}

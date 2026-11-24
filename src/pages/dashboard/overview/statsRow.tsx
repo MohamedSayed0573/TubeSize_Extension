@@ -1,8 +1,7 @@
 import type { UsageRange } from "@app-types/types";
-import { getLastNDays } from "@lib/dateUtils";
 import { formatBytes } from "@lib/format";
 import { buildRangePath } from "@lib/routes";
-import { getUsageNumber } from "@lib/usage";
+import { summarizeRangeUsage } from "@lib/usage";
 import { cn } from "@lib/utils";
 import { Activity, CalendarDays, CalendarRange, Database } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -46,9 +45,7 @@ function StatsCard({
 }
 
 export function StatsRow({ usage }: { usage: SiteUsage[] }) {
-    const todayUsage = usage.find((u) => getLastNDays(1).includes(u.day));
-    const last7DaysUsage = usage.filter((u) => getLastNDays(7).includes(u.day));
-    const last30DaysUsage = usage.filter((u) => getLastNDays(30).includes(u.day));
+    const totals = summarizeRangeUsage(usage);
 
     const cards: Array<{
         to: string;
@@ -60,28 +57,28 @@ export function StatsRow({ usage }: { usage: SiteUsage[] }) {
         {
             to: buildRangePath("today"),
             title: "today",
-            value: formatBytes(todayUsage ? getUsageNumber([todayUsage]) : 0),
+            value: formatBytes(totals.today),
             icon: CalendarDays,
             accentClass: "bg-sky-500/10 text-sky-400",
         },
         {
             to: buildRangePath("week"),
             title: "week",
-            value: formatBytes(getUsageNumber(last7DaysUsage)),
+            value: formatBytes(totals.week),
             icon: CalendarRange,
             accentClass: "bg-emerald-500/10 text-emerald-400",
         },
         {
             to: buildRangePath("month"),
             title: "month",
-            value: formatBytes(getUsageNumber(last30DaysUsage)),
+            value: formatBytes(totals.month),
             icon: Activity,
             accentClass: "bg-violet-500/10 text-violet-400",
         },
         {
             to: buildRangePath("lifetime"),
             title: "lifetime",
-            value: formatBytes(getUsageNumber(usage)),
+            value: formatBytes(totals.lifetime),
             icon: Database,
             accentClass: "bg-amber-500/10 text-amber-400",
         },

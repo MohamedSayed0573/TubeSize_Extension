@@ -1,12 +1,11 @@
 import type { DateKey } from "@app-types/types";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@components/ui/chart";
 import { parseDateKey, toDateKey } from "@lib/dateUtils";
-import { sumBySite, type SiteUsageTotal } from "@lib/domain";
 
 import "@styles/chart.css";
 import { formatBytes } from "@lib/format";
 import { buildDatePath } from "@lib/routes";
-import { getUsageNumber } from "@lib/usage";
+import { summarizeDailyUsage, type DailySiteUsage } from "@lib/usage";
 import { useNavigate } from "react-router";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
@@ -24,9 +23,7 @@ const chartConfig = {
     },
 } satisfies ChartConfig;
 
-type ChartUsageItem = { date: DateKey; usage: number; sites: SiteUsageTotal[] };
-
-type TooltipPayloadEntry = { payload: ChartUsageItem };
+type TooltipPayloadEntry = { payload: DailySiteUsage };
 
 const MAX_VISIBLE_SITES = 3;
 
@@ -95,13 +92,7 @@ function ChartTooltipContentCustom({
 
 export function Chart({ usage }: { usage: SiteUsage[] }) {
     const navigate = useNavigate();
-    const usageData = usage.map(({ day, usage: sites }) => {
-        return {
-            date: day,
-            usage: getUsageNumber([{ day, usage: sites }]),
-            sites: Array.from(sumBySite(sites).values()).toSorted((a, b) => b.bytes - a.bytes),
-        };
-    }) satisfies ChartUsageItem[];
+    const usageData = summarizeDailyUsage(usage);
 
     return (
         <Card className="my-2 flex min-h-0 flex-1 flex-col bg-[#1d1d1d] py-0 ring-0">

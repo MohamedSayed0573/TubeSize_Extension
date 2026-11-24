@@ -1,9 +1,9 @@
-import type { Origin, SiteKey } from "@app-types/types";
+import type { SiteKey } from "@app-types/types";
 import CONFIG from "@lib/constants";
-import { getSiteKey, sumBySite } from "@lib/domain";
+import { getSiteKey } from "@lib/domain";
 import { formatBytes } from "@lib/format";
 import { buildSitePath } from "@lib/routes";
-import { typedEntries } from "@lib/utils";
+import { aggregateSitesUsage } from "@lib/usage";
 import { useNavigate } from "react-router";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
 
@@ -31,16 +31,8 @@ type ChartSiteItem = {
 type TooltipPayloadEntry = { payload: ChartSiteItem };
 
 function buildSiteData(usage: SiteUsage[]): ChartSiteItem[] {
-    const usageByOrigin: Record<Origin, number> = {};
-    for (const { usage: sites } of usage) {
-        for (const [origin, bytes] of typedEntries(sites)) {
-            usageByOrigin[origin] = (usageByOrigin[origin] ?? 0) + bytes;
-        }
-    }
-
-    return Array.from(sumBySite(usageByOrigin).values())
+    return aggregateSitesUsage(usage)
         .filter((item) => item.bytes >= CONFIG.MIN_CHARTED_SITE_BYTES)
-        .sort((a, b) => b.bytes - a.bytes)
         .slice(0, MAX_SITES)
         .map((item, index) => ({
             site: item.site,

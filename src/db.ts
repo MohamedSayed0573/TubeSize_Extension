@@ -4,8 +4,6 @@ import type { SiteUsage } from "@lib/schema";
 import { toVideoKey, typedEntries } from "@lib/utils";
 import { Dexie, type Table } from "dexie";
 
-import type { VideoContentType } from "./adapters/types";
-
 export type { SiteUsage };
 
 export interface WatchHistory {
@@ -85,9 +83,8 @@ export async function getSiteUsage(day = getDateKey(new Date())) {
     return await database.siteUsage.get(day);
 }
 
-export async function getAllSiteUsage() {
-    const siteUsage = await database.siteUsage.toArray();
-    return siteUsage.length === 0 ? undefined : siteUsage;
+export async function getAllSiteUsage(): Promise<SiteUsage[]> {
+    return await database.siteUsage.toArray();
 }
 
 export async function setAllSiteUsage(data: SiteUsage[]) {
@@ -98,7 +95,7 @@ export async function setAllSiteUsage(data: SiteUsage[]) {
 }
 
 export async function getSiteUsageByDate(day: DateKey): Promise<SiteUsage | undefined>;
-export async function getSiteUsageByDate(day: DateKey[]): Promise<SiteUsage[] | undefined>;
+export async function getSiteUsageByDate(day: DateKey[]): Promise<SiteUsage[]>;
 export async function getSiteUsageByDate(day: DateKey | DateKey[]) {
     return Array.isArray(day)
         ? database.siteUsage.where("day").anyOf(day).toArray()
@@ -129,13 +126,12 @@ export async function getWatchHistory(day = getDateKey()) {
     return await database.watchHistory.get(day);
 }
 
-export async function getAllWatchHistory() {
-    const watchHistory = await database.watchHistory.toArray();
-    return watchHistory.length === 0 ? undefined : watchHistory;
+export async function getAllWatchHistory(): Promise<WatchHistory[]> {
+    return await database.watchHistory.toArray();
 }
 
 export async function getWatchHistoryByDate(day: DateKey): Promise<WatchHistory | undefined>;
-export async function getWatchHistoryByDate(day: DateKey[]): Promise<WatchHistory[] | undefined>;
+export async function getWatchHistoryByDate(day: DateKey[]): Promise<WatchHistory[]>;
 export async function getWatchHistoryByDate(day: DateKey | DateKey[]) {
     return Array.isArray(day)
         ? // eslint-disable-next-line unicorn/no-array-reverse -- Dexie Collection.reverse() sets query order, not Array#reverse
@@ -150,11 +146,6 @@ export async function addVideoMetadata({ mediaId, ...metadata }: VideoMetadataIn
 
 export async function getVideoMetadata(mediaId: string, type: VideoMetadata["type"]) {
     return await database.videoMetaData.get(toVideoKey(type, mediaId));
-}
-
-export async function getAllVideoMetadata() {
-    const videoMetadata = await database.videoMetaData.toArray();
-    return videoMetadata.length === 0 ? undefined : videoMetadata;
 }
 
 export async function getVideoMetadataByVideoKey(
@@ -177,14 +168,4 @@ export async function clearDatabaseData() {
             await database.videoMetaData.clear();
         },
     );
-}
-
-export function getVideoContentType(
-    metadata: VideoMetadata | undefined,
-): VideoContentType | undefined {
-    return metadata && "contentType" in metadata ? metadata.contentType : undefined;
-}
-
-export function getVideoUrl(metadata: VideoMetadata | undefined): string | undefined {
-    return metadata && "url" in metadata && metadata.url ? metadata.url : undefined;
 }

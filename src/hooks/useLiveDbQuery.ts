@@ -70,7 +70,7 @@ export function useLiveDbQuery<T>(
     querier: () => Promise<T> | T,
     deps: readonly unknown[] = [],
 ): LiveQueryResult<T> {
-    const result = useLiveQuery<T, typeof PENDING>(querier, [...deps], PENDING);
+    const result = useLiveQuery<T, typeof PENDING>(async () => await querier(), [...deps], PENDING);
     if (result === PENDING) {
         return { data: undefined, isPending: true };
     }

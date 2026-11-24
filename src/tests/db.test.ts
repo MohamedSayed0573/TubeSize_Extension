@@ -10,18 +10,14 @@ import {
     addWatchHistory,
     clearDatabaseData,
     getAllSiteUsage,
-    getAllVideoMetadata,
     getAllWatchHistory,
     getSiteUsage,
     getSiteUsageByDate,
-    getVideoContentType,
     getVideoMetadata,
     getVideoMetadataByVideoKey,
-    getVideoUrl,
     getWatchHistory,
     getWatchHistoryByDate,
     setAllSiteUsage,
-    type VideoMetadata,
 } from "@/db";
 
 function origin(url: string) {
@@ -45,9 +41,9 @@ afterEach(() => {
 });
 
 describe("siteUsage table", () => {
-    test("returns undefined when no site usage is stored", async () => {
+    test("returns empty results when no site usage is stored", async () => {
         expect(await getSiteUsage()).toBeUndefined();
-        expect(await getAllSiteUsage()).toBeUndefined();
+        expect(await getAllSiteUsage()).toEqual([]);
         expect(await getSiteUsageByDate(dateKey("2026-05-01"))).toBeUndefined();
         expect(await getSiteUsageByDate([dateKey("2026-05-01")])).toEqual([]);
     });
@@ -55,7 +51,7 @@ describe("siteUsage table", () => {
     test("ignores empty usage objects without creating a day record", async () => {
         await addSiteUsage({});
 
-        expect(await getAllSiteUsage()).toBeUndefined();
+        expect(await getAllSiteUsage()).toEqual([]);
     });
 
     test("merges same-day origins and preserves unrelated origins", async () => {
@@ -109,9 +105,9 @@ describe("siteUsage table", () => {
 });
 
 describe("watchHistory table", () => {
-    test("returns undefined when no watch history is stored", async () => {
+    test("returns empty results when no watch history is stored", async () => {
         expect(await getWatchHistory()).toBeUndefined();
-        expect(await getAllWatchHistory()).toBeUndefined();
+        expect(await getAllWatchHistory()).toEqual([]);
         expect(await getWatchHistoryByDate(dateKey("2026-05-01"))).toBeUndefined();
         expect(await getWatchHistoryByDate([dateKey("2026-05-01")])).toEqual([]);
     });
@@ -119,7 +115,7 @@ describe("watchHistory table", () => {
     test("ignores empty watch history updates", async () => {
         await addWatchHistory({});
 
-        expect(await getAllWatchHistory()).toBeUndefined();
+        expect(await getAllWatchHistory()).toEqual([]);
     });
 
     test("accumulates bytes per video on the same day and queries multiple days newest-first", async () => {
@@ -195,15 +191,15 @@ describe("videoMetaData table", () => {
     };
 
     test("stores, overwrites, and retrieves video metadata by media ID and type and by VideoKey", async () => {
-        expect(await getAllVideoMetadata()).toBeUndefined();
+        const ytKey = toVideoKey("youtube", ytInput.mediaId);
+        const twitchKey = toVideoKey("twitch", twitchInput.mediaId);
+        const kickKey = toVideoKey("kick", kickInput.mediaId);
+
+        expect(await getVideoMetadataByVideoKey([ytKey, twitchKey, kickKey])).toEqual([]);
 
         await addVideoMetadata(ytInput);
         await addVideoMetadata(twitchInput);
         await addVideoMetadata(kickInput);
-
-        const ytKey = toVideoKey("youtube", ytInput.mediaId);
-        const twitchKey = toVideoKey("twitch", twitchInput.mediaId);
-        const kickKey = toVideoKey("kick", kickInput.mediaId);
 
         expect(await getVideoMetadata(ytInput.mediaId, "youtube")).toEqual({
             ...ytStored,
@@ -220,8 +216,6 @@ describe("videoMetaData table", () => {
         const batch = await getVideoMetadataByVideoKey([ytKey, kickKey]);
         expect(batch).toHaveLength(2);
         expect(batch.map((item) => item.videoKey).toSorted()).toEqual([kickKey, ytKey].toSorted());
-
-        expect(await getAllVideoMetadata()).toHaveLength(3);
     });
 
     test("returns undefined for unknown video keys", async () => {
@@ -250,89 +244,8 @@ describe("clearDatabaseData", () => {
 
         await clearDatabaseData();
 
-        expect(await getAllSiteUsage()).toBeUndefined();
-        expect(await getAllWatchHistory()).toBeUndefined();
-        expect(await getAllVideoMetadata()).toBeUndefined();
-    });
-});
-
-describe("getVideoContentType", () => {
-    test("returns contentType for Twitch and Kick metadata and undefined otherwise", () => {
-        const ytMeta: VideoMetadata = {
-            type: "youtube",
-            videoKey: toVideoKey("youtube", "dQw4w9WgXcQ"),
-            title: "YT",
-            channelName: "Ch",
-            channelUrl: "https://youtube.com/@ch",
-            thumbnailUrl: "",
-        };
-        const twitchLive: VideoMetadata = {
-            type: "twitch",
-            videoKey: toVideoKey("twitch", "shroud"),
-            contentType: "live",
-            title: "Live",
-            channelName: "shroud",
-            channelUrl: "https://twitch.tv/shroud",
-            thumbnailUrl: "",
-            url: "https://twitch.tv/shroud",
-        };
-        const kickVod: VideoMetadata = {
-            type: "kick",
-            videoKey: toVideoKey("kick", "vod-1"),
-            contentType: "vod",
-            title: "VOD",
-            channelName: "xqc",
-            channelUrl: "https://kick.com/xqc",
-            thumbnailUrl: "",
-            url: "https://kick.com/xqc/videos/vod-1",
-        };
-
-        expect(getVideoContentType(undefined)).toBeUndefined();
-        expect(getVideoContentType(ytMeta)).toBeUndefined();
-        expect(getVideoContentType(twitchLive)).toBe("live");
-        expect(getVideoContentType(kickVod)).toBe("vod");
-    });
-});
-
-describe("getVideoUrl", () => {
-    test("returns canonical URL when stored and non-empty, undefined otherwise", () => {
-        const ytMeta: VideoMetadata = {
-            type: "youtube",
-            videoKey: toVideoKey("youtube", "dQw4w9WgXcQ"),
-            title: "YT",
-            channelName: "Ch",
-            channelUrl: "https://youtube.com/@ch",
-            thumbnailUrl: "",
-        };
-        const twitchLive: VideoMetadata = {
-            type: "twitch",
-            videoKey: toVideoKey("twitch", "shroud"),
-            contentType: "live",
-            title: "Live",
-            channelName: "shroud",
-            channelUrl: "https://twitch.tv/shroud",
-            thumbnailUrl: "",
-            url: "https://twitch.tv/shroud",
-        };
-        const kickVod: VideoMetadata = {
-            type: "kick",
-            videoKey: toVideoKey("kick", "vod-1"),
-            contentType: "vod",
-            title: "VOD",
-            channelName: "xqc",
-            channelUrl: "https://kick.com/xqc",
-            thumbnailUrl: "",
-            url: "https://kick.com/xqc/videos/vod-1",
-        };
-        const kickEmptyUrl: VideoMetadata = {
-            ...kickVod,
-            url: "",
-        };
-
-        expect(getVideoUrl(undefined)).toBeUndefined();
-        expect(getVideoUrl(ytMeta)).toBeUndefined();
-        expect(getVideoUrl(twitchLive)).toBe("https://twitch.tv/shroud");
-        expect(getVideoUrl(kickVod)).toBe("https://kick.com/xqc/videos/vod-1");
-        expect(getVideoUrl(kickEmptyUrl)).toBeUndefined();
+        expect(await getAllSiteUsage()).toEqual([]);
+        expect(await getAllWatchHistory()).toEqual([]);
+        expect(await getVideoMetadata("dQw4w9WgXcQ", "youtube")).toBeUndefined();
     });
 });
