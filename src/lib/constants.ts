@@ -2,7 +2,6 @@ const PLATFORMS = ["youtube", "twitch", "kick"] as const;
 
 const DEFAULT_CACHE_TTL = 3 * 24 * 60 * 60;
 
-/** Live payloads go stale as soon as the broadcast changes, so cache them briefly. */
 const LIVE_CACHE_TTL = 5 * 60;
 
 const CONFIG = {
@@ -21,6 +20,7 @@ const CONFIG = {
     DEFAULT_ADVANCED_VIEW: false,
     DEFAULT_INCLUDE_AUDIO: true,
     NUMBER_OF_SEGMENTS_TO_CHECK: 10,
+    MIN_CHARTED_SITE_BYTES: 1_000_000,
     RANGES: ["today", "week", "month", "lifetime"],
     PLATFORMS,
     TWITCH_GQL_GRAPHQL_QUERY: `

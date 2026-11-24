@@ -9,7 +9,6 @@ export interface DbSnapshot {
     videoMetaCount: number;
     latestDay: string | null;
     totalBytes: number;
-    /** All-time bytes per site, used to predict whether the Sites chart has visible bars. */
     siteTotals: Record<string, number>;
     todayUsage: Record<string, number>;
     todayWatchHistory: Record<string, number>;
@@ -55,7 +54,9 @@ export async function applySeed(target: Worker, mode: SeedMode): Promise<DbSnaps
                     },
                     { once: true },
                 );
-                req.addEventListener("success", () => res(req.result), { once: true });
+                req.addEventListener("success", () => res(req.result), {
+                    once: true,
+                });
                 req.addEventListener("error", () => rej(req.error), { once: true });
             });
 
@@ -163,7 +164,10 @@ export async function applySeed(target: Worker, mode: SeedMode): Promise<DbSnaps
             }
 
             const siteRows: Array<{ day: string; usage: Record<string, number> }> = [];
-            const historyRows: Array<{ day: string; videos: Record<string, number> }> = [];
+            const historyRows: Array<{
+                day: string;
+                videos: Record<string, number>;
+            }> = [];
             let totalBytes = 0;
 
             for (let ago = totalDays - 1; ago >= 0; ago--) {

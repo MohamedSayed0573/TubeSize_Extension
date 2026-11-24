@@ -90,7 +90,6 @@ function youtubeFormats(youtube: YoutubeData, options?: FormatOptions): DisplayF
     }));
 }
 
-// One audio stream for the whole video, shown as a separate row in advanced view.
 function youtubeAudio(youtube: YoutubeData) {
     return youtube.audio;
 }

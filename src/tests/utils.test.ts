@@ -228,8 +228,6 @@ describe("getWatchHistoryTarget", () => {
         });
     });
 
-    // Live streams keep the `/live/<id>` URL while they are on air, so it has to
-    // be tracked like any other watch URL.
     test("should return the youtube target for a live stream URL", () => {
         expect(getWatchHistoryTarget("https://www.youtube.com/live/yaodD79Q4iE")).toEqual({
             mediaId: "yaodD79Q4iE",
@@ -419,7 +417,10 @@ describe("domain key helpers", () => {
     test("builds, validates, and parses VideoKey values", () => {
         const key = toVideoKey("youtube", "dQw4w9WgXcQ");
         expect(isVideoKey(key)).toBe(true);
-        expect(parseVideoKey(key)).toEqual({ platform: "youtube", mediaId: "dQw4w9WgXcQ" });
+        expect(parseVideoKey(key)).toEqual({
+            platform: "youtube",
+            mediaId: "dQw4w9WgXcQ",
+        });
         expect(isVideoKey("unknown:abc")).toBe(false);
         expect(isVideoKey("youtube:")).toBe(false);
         expect(isVideoKey("no-colon")).toBe(false);

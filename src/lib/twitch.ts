@@ -14,10 +14,6 @@ import { fetchAndRetry } from "@lib/utils";
 import * as cheerio from "cheerio";
 import type { PlaylistItem } from "m3u8-parser";
 
-/**
- * The variables the Twitch GQL API expects. A live stream and a VOD use the
- * same query and only differ in these fields.
- */
 type TwitchGqlVariables = {
     login: string;
     isLive: boolean;
@@ -250,7 +246,6 @@ export function parseTwitchPageMetadata(
     // Real VOD pages often lack meta[name=description] but carry the channel
     // as the first word of the VideoObject description ("jynxzi went live…").
     const descriptionChannelName = item.description?.split(" ")[0];
-    // VOD titles commonly end with "- <channel> on Twitch".
     const nameChannelName = item.name?.match(/-\s*(\S+)\s+on Twitch/i)?.[1];
 
     const channelName =

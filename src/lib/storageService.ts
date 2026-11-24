@@ -13,14 +13,6 @@ import {
 } from "@lib/storage";
 import { storage, type StorageItemKey } from "@wxt-dev/storage";
 
-/**
- * Higher-level storage operations: cached media with TTL, aggregated settings,
- * and area cleanup. Key definitions live in `storage.ts`.
- */
-
-/**
- * Whether a cache entry is still valid.
- */
 export function isFresh(entry: { expiry?: number } | null): boolean {
     return entry !== null && entry.expiry !== undefined && entry.expiry > Date.now();
 }
@@ -69,13 +61,6 @@ function isValidCachedPlatformData<T extends PlatformId>(
     return candidate.platform === target && (candidate.type === "vod" || candidate.type === "live");
 }
 
-/**
- * Read a cached media response for `target` from local storage, deleting it when
- * expired or matching a legacy cache shape (missing `platform` or legacy YouTube
- * `type: "video"`). The returned data type is inferred from the target platform.
- *
- * @returns `null` when the entry is missing, expired, or invalid.
- */
 export async function getMediaCache<T extends PlatformId>(
     target: T,
     id: string,
@@ -93,11 +78,6 @@ export async function getMediaCache<T extends PlatformId>(
     return cached;
 }
 
-/**
- * Cache a media response in local storage. `ttlSeconds` defaults to the
- * user-configured `cacheTTL` setting. Responses with empty or partially
- * unknown sizes are skipped, since they may be incomplete.
- */
 export async function saveMediaCache<T extends PlatformId>(
     target: T,
     id: string,
@@ -116,7 +96,6 @@ export async function saveMediaCache<T extends PlatformId>(
     });
 }
 
-/** Remove every cached media response, leaving other local values untouched. */
 export async function clearMediaCache(): Promise<void> {
     const snapshot = await storage.snapshot("local");
     const prefixes = CONFIG.PLATFORMS.map((platform) => mediaCachePrefix(platform));
@@ -127,7 +106,6 @@ export async function clearMediaCache(): Promise<void> {
     if (keys.length > 0) await storage.removeItems(keys);
 }
 
-/** Read all sync settings, applying defaults for unset keys. */
 export async function getSettings(): Promise<Required<SettingsMap>> {
     const [enabled, threshold, ttl, isAdvancedView, isAudioIncluded] = await Promise.all([
         toasterEnabled.getValue(),
@@ -146,7 +124,6 @@ export async function getSettings(): Promise<Required<SettingsMap>> {
     };
 }
 
-/** Persist any provided sync settings; omitted keys are left untouched. */
 export async function saveSettings(settings: SettingsMap): Promise<void> {
     const updates: Promise<void>[] = [];
 

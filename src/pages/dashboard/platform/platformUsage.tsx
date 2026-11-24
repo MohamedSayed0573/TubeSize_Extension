@@ -25,8 +25,6 @@ function PlatformUsageContent({ platform, scope }: { platform: PlatformId; scope
     const watchHistory = historyQuery.data ?? [];
     const metadata = metadataQuery.data ?? [];
 
-    // Merge Watch History and Video Metadata into one Array shape.
-    // Filter based on the platform
     const rows: VideoRowDetails[] = watchHistory.flatMap(({ day, videos }) => {
         return typedEntries(videos).flatMap(([videoKey, bytes]) => {
             const { platform: videoPlatform, mediaId } = parseVideoKey(videoKey);

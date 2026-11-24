@@ -207,8 +207,6 @@ function parseAudio(data: ytInitialPlayerResponse): AudioStreamInfo | undefined 
     const chosen = itags.find((itag) => itag.formatId === preferredItag);
     if (!chosen) return undefined;
 
-    // Derived from actual size / duration (or per-hour size / 3600 for live)
-    // rather than reported bitrate so the audio rate stays consistent with its size.
     const durationSeconds = Number(data.videoDetails.lengthSeconds || "0");
     const bytesPerSecond =
         chosen.sizeBytes / (isLive ? 3600 : durationSeconds > 0 ? durationSeconds : 3600);
@@ -231,8 +229,6 @@ function toVideoItag(format: AdaptiveFormat): VideoItag {
     };
 }
 
-// AV1 support only matters above 1080p. Below that, AV1 is always preferred;
-// when it is unsupported, higher resolutions fall back to VP9/AVC.
 function getPreferredCodecs(height: number, av1Supported?: boolean): readonly VideoCodec[] {
     if (height <= 1080 || av1Supported === true) return ["av01", "vp9", "avc"];
     return ["vp9", "avc"];
@@ -270,7 +266,6 @@ function chooseVideoFormats(
     const isLive = data.videoDetails.isLive || false;
     const formatsByHeight = new Map<number, AdaptiveFormat[]>();
 
-    // Group formats by height
     for (const format of data.streamingData.adaptiveFormats) {
         if (!format.mimeType?.startsWith("video/")) continue;
         if (getFormatSizeBytes(format, isLive) <= 0) continue;
@@ -280,7 +275,6 @@ function chooseVideoFormats(
 
         const formats = formatsByHeight.get(height);
         if (formats) {
-            // Keep one entry per itag so the tooltip never lists a format twice.
             if (formats.some((existing) => existing.itag === format.itag)) continue;
             formats.push(format);
         } else formatsByHeight.set(height, [format]);
@@ -288,7 +282,6 @@ function chooseVideoFormats(
 
     const chosenFormats: ChosenVideoFormat[] = [];
 
-    // Pick one format per height, preferring the preferred codec and SDR variant.
     for (const [height, formats] of formatsByHeight) {
         const format = pickVideoFormat(formats, height, av1Supported);
         if (!format) continue;

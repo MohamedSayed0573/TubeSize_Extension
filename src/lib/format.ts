@@ -5,10 +5,6 @@ import { filesize, type FilesizeOptions } from "filesize";
 import type { AudioStreamInfo, DisplayFormat } from "@/adapters/types";
 import { getLanguage } from "@/i18n/language";
 
-/**
- * Formats bytes as a human-readable string using decimal SI units (1000-based).
- * @example formatBytes(1000) returns "1 KB"
- */
 export function formatBytes(bytes: number, options?: FilesizeOptions) {
     const [value, unit] = filesize(bytes, {
         base: 10,
@@ -21,29 +17,16 @@ export function formatBytes(bytes: number, options?: FilesizeOptions) {
     return `${value} ${formattedUnit}`;
 }
 
-/**
- * Formats a bytes-per-second rate against the given time basis.
- * @example formatRate(1_000_000, "hour") returns "3.6 GB/hour"
- * @example formatRate(1_000_000, "minute") returns "60 MB/min"
- */
 export function formatRate(bytesPerSecond: number, per: "hour" | "minute"): string {
     const seconds = per === "hour" ? 3600 : 60;
     const suffix = per === "hour" ? "hour" : "min";
     return `${formatBytes(bytesPerSecond * seconds)}/${suffix}`;
 }
 
-/**
- * Converts a bytes-per-second rate to decimal megabytes per hour (SI).
- * @example megabytesPerHour(1_000_000) returns 3600
- */
 export function megabytesPerHour(bytesPerSecond: number): number {
     return (bytesPerSecond * 3600) / 1_000_000;
 }
 
-/**
- * Formats a video codec identifier for display.
- * @example formatCodec("avc") returns "H.264"
- */
 export function formatCodec(codec: VideoCodec) {
     const labels: Record<VideoCodec, string> = {
         av01: "AV1",
@@ -53,10 +36,6 @@ export function formatCodec(codec: VideoCodec) {
     return labels[codec];
 }
 
-/**
- * Formats an audio codec identifier for display.
- * @example formatAudioCodec("opus") returns "Opus"
- */
 export function formatAudioCodec(codec: AudioCodec) {
     const labels: Record<AudioCodec, string> = {
         opus: "Opus",
@@ -66,22 +45,12 @@ export function formatAudioCodec(codec: AudioCodec) {
     return labels[codec];
 }
 
-/**
- * Formats a bits-per-second rate using decimal SI prefixes (1000-based).
- * @example formatBitrate(146_084) returns "146 kbps"
- * @example formatBitrate(1_200_000) returns "1.2 Mbps"
- */
 export function formatBitrate(bitsPerSecond: number) {
     if (bitsPerSecond < 1000) return `${Math.round(bitsPerSecond)} bps`;
     if (bitsPerSecond < 1_000_000) return `${Math.round(bitsPerSecond / 1000)} kbps`;
     return `${(bitsPerSecond / 1_000_000).toFixed(1)} Mbps`;
 }
 
-/**
- * Formats a date or date range into a human-readable string.
- * @example "2023-05-15" -> "May 15, 2023"
- * @example ["2023-05-15", "2023-05-16"] -> "May 15 – 16, 2023"
- */
 export function formatDate(date: DateKey | DateKey[]) {
     const dtf = new Intl.DateTimeFormat(getLanguage(), {
         month: "short",
@@ -102,10 +71,6 @@ export function formatDate(date: DateKey | DateKey[]) {
     return dtf.format(new Date(`${date}T00:00:00`));
 }
 
-/**
- * Formats bytes for the compact action badge using decimal SI units (1000-based).
- * @example formatBadge(2_400_000) returns "2M"
- */
 export function formatBadge(bytes: number) {
     if (bytes < 1000) return `${bytes}B`;
     if (bytes < 1_000_000) return `${(bytes / 1000).toFixed(0)}K`;
@@ -113,13 +78,6 @@ export function formatBadge(bytes: number) {
     return `${(bytes / 1_000_000_000).toFixed(1)}G`;
 }
 
-/**
- * Formats an audio stream's size the same way video is formatted: total bytes
- * for VODs, per-hour / per-minute rates for live.
- * @param audio the chosen audio stream (its averaged size is what is shown)
- * @param kind "vod" or "live"
- * @param hideRate when true, drop the per-minute secondary rate (shorts)
- */
 export function audioDisplaySizes(
     audio: AudioStreamInfo,
     kind: "vod" | "live",

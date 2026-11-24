@@ -24,7 +24,6 @@ async function loadTwitchData(
     _tabId?: number,
     options?: LoadPlatformOptions,
 ): Promise<TwitchData> {
-    // The page is a Twitch Video (Not a live stream)
     if (isTwitchVod(tabUrl)) {
         const mediaId = extractTwitchVodId(tabUrl);
         if (!mediaId) {
@@ -39,7 +38,6 @@ async function loadTwitchData(
         return response.data;
     }
 
-    // The page is a Twitch Live Stream
     const channelName = extractChannelName(tabUrl);
     if (!channelName) {
         throw new Error("Open a Twitch stream or video");

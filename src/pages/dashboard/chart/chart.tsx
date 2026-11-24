@@ -45,7 +45,6 @@ function ChartTooltipContentCustom({
 
     return (
         <div className="min-w-52 rounded-xl border border-neutral-800 bg-[#0a0a0a] px-3 py-2 text-xs shadow-xl">
-            {/* Date header */}
             <div className="mb-1.5 font-medium text-stone-200">
                 {parseDateKey(data.date).toLocaleDateString(getLanguage(), {
                     month: "short",
@@ -54,10 +53,8 @@ function ChartTooltipContentCustom({
                 })}
             </div>
 
-            {/* List of websites/origins */}
             <div className="grid gap-1">
                 <>
-                    {/* Total row */}
                     <div className="flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                             <span className="size-3 shrink-0 rounded bg-white" />

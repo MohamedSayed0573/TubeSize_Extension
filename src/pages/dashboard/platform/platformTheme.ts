@@ -4,13 +4,9 @@ import twitchLogo from "@assets/twitch.svg";
 import youtubeLogo from "@assets/youtube.svg";
 
 export type PlatformTheme = {
-    // Logo shown on the platform card and the platform page header.
     logo: string;
-    // Tailwind ring + shadow classes for the logo tile.
     ring: string;
-    // Tailwind border + hover classes for the platform card.
     card: string;
-    // Fallback thumbnail for videos without one.
     placeholderImage: string;
 };
 

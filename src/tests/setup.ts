@@ -1,7 +1,3 @@
-// WXT's recommended way to mock extension APIs outside Vitest is to install
-// `@webext-core/fake-browser` as the global `chrome` object. It provides an
-// in-memory implementation of `runtime`, `storage`, and most other APIs used by
-// `@wxt-dev/storage` and `@webext-core/messaging`.
 import { beforeEach } from "bun:test";
 
 import { fakeBrowser } from "@webext-core/fake-browser";

@@ -3,7 +3,6 @@ interface Props {
     secondary: string | undefined;
 }
 
-/** The right-hand size column shared by every format row in the popup. */
 export default function SizeColumn({ primary, secondary }: Props) {
     return (
         <div className="flex shrink-0 flex-col items-end text-right text-sm font-semibold whitespace-nowrap text-teal-200">

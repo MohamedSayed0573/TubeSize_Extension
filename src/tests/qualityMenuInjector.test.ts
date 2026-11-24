@@ -169,8 +169,6 @@ describe("qualityMenuInjector", () => {
         if (!firstBadge) throw new Error("Expected initial badge element");
         expect(firstBadge.textContent).toBe("500 MB");
 
-        // Trigger a childList mutation on .ytp-panel-menu with stale badge text to verify
-        // the active MutationObserver updates the existing badge DOM node in place.
         firstBadge.textContent = "stale";
         const panelMenu = settingsMenu.querySelector(".ytp-panel-menu");
         if (!panelMenu) throw new Error("Expected .ytp-panel-menu element");

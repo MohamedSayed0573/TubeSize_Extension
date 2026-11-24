@@ -10,7 +10,7 @@ export type { SiteUsage };
 
 export interface WatchHistory {
     day: DateKey;
-    videos: Record<VideoKey, number>; // videoKey -> Bytes
+    videos: Record<VideoKey, number>;
 }
 
 interface BaseVideoMetadata {

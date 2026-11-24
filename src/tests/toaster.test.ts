@@ -45,14 +45,14 @@ const vodData: YoutubeData = {
             formatId: 313,
             height: 2160,
             sizeBytes: 900_000_000,
-            sizePerSecondBytes: 250_000, // 900 MB/hour
+            sizePerSecondBytes: 250_000,
         },
         {
             type: "vod",
             formatId: 136,
             height: 720,
             sizeBytes: 300_000_000,
-            sizePerSecondBytes: 83_333, // ~300 MB/hour
+            sizePerSecondBytes: 83_333,
         },
     ],
 };
@@ -68,7 +68,7 @@ const liveData: YoutubeData = {
         {
             type: "live",
             resolution: 1080,
-            sizePerSecondBytes: 250_000, // 900 MB/hour
+            sizePerSecondBytes: 250_000,
         },
     ],
 };

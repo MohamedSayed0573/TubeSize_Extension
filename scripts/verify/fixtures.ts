@@ -41,7 +41,10 @@ export function resolveFixtureTarget(
     const viewport = { width: 1280, height: 800 };
     switch (raw) {
         case "fixture:usage-site":
-            return { url: `http://127.0.0.1:${serverPort}/__fixture__/usage-site`, viewport };
+            return {
+                url: `http://127.0.0.1:${serverPort}/__fixture__/usage-site`,
+                viewport,
+            };
         case "fixture:youtube-vod":
             return { url: "https://www.youtube.com/watch?v=I82j7AzMU80", viewport };
         case "fixture:youtube-shorts":
@@ -131,7 +134,6 @@ function usageSiteHtml(): string {
       \`;
       const workerUrl = URL.createObjectURL(new Blob([source], { type: "application/javascript" }));
       const worker = new Worker(workerUrl);
-      // Keep worker alive across its 3s usage flush interval like a real streaming player worker.
       window.__tsWorkers = window.__tsWorkers || [];
       window.__tsWorkers.push(worker);
       await new Promise((resolve) => {
@@ -166,13 +168,11 @@ function usageSiteHtml(): string {
 </html>`;
 }
 
-/** Handles local `/__fixture__/*` requests for all-sites usage tracking verification. */
 export function handleUsageFixtureRequest(req: Request): Response | null {
     const url = new URL(req.url);
     if (!url.pathname.startsWith("/__fixture__/")) return null;
 
     if (url.pathname === "/__fixture__/usage-site") {
-        // Chunked response with no Content-Length so navigation HTML itself does not pollute byte assertions.
         const htmlBytes = new TextEncoder().encode(usageSiteHtml());
         const htmlStream = new ReadableStream<Uint8Array>({
             start(controller) {
@@ -391,9 +391,9 @@ function buildMediaM3u8(opts: {
 }
 
 const SEGMENT_SIZE_BY_QUALITY: Record<string, number> = {
-    "1080p": 1_500_000, // 750 KB/s = 2.7 GB/hour (distinct from master BANDWIDTH 4000000 -> 1.8 GB/hour)
-    "720p": 800_000, // 400 KB/s = 1.44 GB/hour
-    "480p": 120_000, // 60 KB/s = 216 MB/hour
+    "1080p": 1_500_000,
+    "720p": 800_000,
+    "480p": 120_000,
 };
 
 function buildTwitchHtml(opts: {
@@ -468,10 +468,6 @@ function buildKickHtml(opts: { title: string; streamId?: string; isVideoPage: bo
 </html>`;
 }
 
-/**
- * Every pattern `installPlatformRoutes` registers. `uninstallPlatformRoutes` removes exactly these,
- * so a live navigation after a fixture visit reaches the real network.
- */
 const PLATFORM_ROUTE_PATTERNS = [
     "**/favicon.ico",
     "https://i.ytimg.com/**",
@@ -486,10 +482,6 @@ const PLATFORM_ROUTE_PATTERNS = [
     "https://drive.google.com/**",
 ] as const;
 
-/**
- * Installs deterministic network-boundary fixtures for YouTube, Twitch, Kick, and Google Drive
- * so all real extension content scripts, background parsers, and UI surfaces run offline.
- */
 export async function installPlatformRoutes(context: BrowserContext): Promise<void> {
     const ytVodJson = readAssetText("ytInitialPlayerResponse.json");
     const ytLiveJson = readAssetText("ytInitialPlayerResponseLive.json");
@@ -639,7 +631,9 @@ export async function installPlatformRoutes(context: BrowserContext): Promise<vo
     });
 
     await context.route("https://gql.twitch.tv/**", async (route) => {
-        let body: { variables?: { isLive?: boolean; isVod?: boolean; login?: string } } = {};
+        let body: {
+            variables?: { isLive?: boolean; isVod?: boolean; login?: string };
+        } = {};
         try {
             body = JSON.parse(route.request().postData() ?? "{}") as typeof body;
         } catch {
@@ -807,7 +801,9 @@ export async function installPlatformRoutes(context: BrowserContext): Promise<vo
             status: 200,
             contentType: "application/json",
             body: JSON.stringify({
-                playback_url: { live: "https://kick-hls.mock.invalid/live/master.m3u8" },
+                playback_url: {
+                    live: "https://kick-hls.mock.invalid/live/master.m3u8",
+                },
             }),
         });
     });
@@ -888,7 +884,6 @@ export async function installPlatformRoutes(context: BrowserContext): Promise<vo
     });
 }
 
-/** Removes the platform fixtures so later live navigations are not answered with synthetic HTML. */
 export async function uninstallPlatformRoutes(context: BrowserContext): Promise<void> {
     for (const pattern of PLATFORM_ROUTE_PATTERNS) {
         await context.unroute(pattern).catch(() => {});

@@ -25,10 +25,6 @@ function el<K extends keyof HTMLElementTagNameMap>(
     return node;
 }
 
-/**
- * Builds the toast DOM directly (no framework) — the toast is fully static,
- * so a re-render would have nothing to update anyway.
- */
 export function createToast({
     currentQuality,
     thresholdMbph,

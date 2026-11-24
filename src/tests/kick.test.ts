@@ -70,7 +70,10 @@ describe("getKickLiveResponse", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const response = await getKickLiveResponse({ channelName: "xqc", isFromPopup: false });
+        const response = await getKickLiveResponse({
+            channelName: "xqc",
+            isFromPopup: false,
+        });
 
         expect(response).toEqual({
             success: true,
@@ -90,7 +93,6 @@ describe("getKickLiveResponse", () => {
             video_player: { player: { player_name: "web" } },
             video_session: { page_type: "channel" },
         });
-        // Live responses are not persisted in the media cache.
         expect(await getMediaCache("kick", "xqc")).toBeNull();
     });
 
@@ -115,7 +117,6 @@ describe("getKickLiveResponse", () => {
                 return new Response(LIVE_MEDIA_M3U8, { status: 200 });
             }
             if (url.includes("/seg-")) {
-                // 1,000,000 bytes over 2s = 500,000 B/s (distinct from BANDWIDTH/8 = 300,000 B/s)
                 return new Response("x", {
                     status: 206,
                     headers: { "content-range": "bytes 0-0/1000000" },
@@ -146,10 +147,15 @@ describe("getKickLiveResponse", () => {
     test("returns failure when streamId cannot be extracted from channel HTML", async () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async () => {
-            return new Response("<html><body>Offline channel</body></html>", { status: 200 });
+            return new Response("<html><body>Offline channel</body></html>", {
+                status: 200,
+            });
         }) as unknown as typeof fetch;
 
-        const response = await getKickLiveResponse({ channelName: "offline", isFromPopup: false });
+        const response = await getKickLiveResponse({
+            channelName: "offline",
+            isFromPopup: false,
+        });
 
         expect(response.success).toBe(false);
     });
@@ -164,7 +170,10 @@ describe("getKickLiveResponse", () => {
             return Response.json({ playback_url: {} });
         }) as unknown as typeof fetch;
 
-        const missingUrl = await getKickLiveResponse({ channelName: "broken", isFromPopup: false });
+        const missingUrl = await getKickLiveResponse({
+            channelName: "broken",
+            isFromPopup: false,
+        });
         expect(missingUrl.success).toBe(false);
 
         const requestedUrls: string[] = [];
@@ -181,7 +190,10 @@ describe("getKickLiveResponse", () => {
             return new Response("Not found", { status: 404 });
         }) as unknown as typeof fetch;
 
-        const httpError = await getKickLiveResponse({ channelName: "broken", isFromPopup: false });
+        const httpError = await getKickLiveResponse({
+            channelName: "broken",
+            isFromPopup: false,
+        });
         expect(httpError.success).toBe(false);
         expect(requestedUrls).toEqual([
             "https://kick.com/broken",
@@ -212,7 +224,10 @@ describe("getKickVodResponse", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const first = await getKickVodResponse({ mediaId: uuid, channelName: "xqc" });
+        const first = await getKickVodResponse({
+            mediaId: uuid,
+            channelName: "xqc",
+        });
 
         expect(first).toEqual({
             success: true,
@@ -234,9 +249,11 @@ describe("getKickVodResponse", () => {
             "https://cdn.kick.example/vod-master.m3u8",
         ]);
 
-        // Second call should hit media cache without making any network requests.
         fetchMock.mockClear();
-        const second = await getKickVodResponse({ mediaId: uuid, channelName: "xqc" });
+        const second = await getKickVodResponse({
+            mediaId: uuid,
+            channelName: "xqc",
+        });
 
         expect(second.success).toBe(true);
         if (first.success && second.success) {
@@ -275,7 +292,10 @@ describe("getKickVodResponse", () => {
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-        const response = await getKickVodResponse({ mediaId: slug, channelName: "xqc" });
+        const response = await getKickVodResponse({
+            mediaId: slug,
+            channelName: "xqc",
+        });
 
         expect(response).toEqual({
             success: true,
@@ -321,7 +341,6 @@ describe("getKickVodResponse", () => {
     test("returns failure when UUID VOD metadata has missing source, null livestream, or non-positive duration", async () => {
         const uuid = "abcdefab-1234-5678-90ab-abcdefabcdef";
 
-        // Missing source
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async () =>
             Response.json({ source: null, livestream: { duration: 10_000 } }),
@@ -330,7 +349,6 @@ describe("getKickVodResponse", () => {
             false,
         );
 
-        // Null livestream
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async () =>
             Response.json({
@@ -342,7 +360,6 @@ describe("getKickVodResponse", () => {
             false,
         );
 
-        // Zero duration
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async (input: string | URL) => {
             if (input.toString().includes("/api/v1/video/")) {
@@ -372,7 +389,10 @@ describe("getKickVodResponse", () => {
             return new Response("#EXTM3U\n", { status: 200 });
         }) as unknown as typeof fetch;
 
-        const response = await getKickVodResponse({ mediaId: uuid, channelName: "xqc" });
+        const response = await getKickVodResponse({
+            mediaId: uuid,
+            channelName: "xqc",
+        });
         expect(response.success).toBe(false);
     });
 });

@@ -116,7 +116,6 @@ export async function estimateHlsStreamSizes(
             .toSorted((a, b) => b.resolution - a.resolution);
     }
 
-    // Fallback to bitrate from master M3U8 if we failed to fetch actual segments.
     return streamResults
         .map((result) => {
             if (result.status === "rejected") {

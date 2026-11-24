@@ -18,22 +18,16 @@ export type AudioCodec = "opus" | "aac" | "vorbis";
 export type AudioItag = {
     formatId: number;
     codec?: AudioCodec;
-    /** Average bitrate across duplicate entries for this itag. */
     bitrate?: number;
-    /** Average size across duplicate entries; per-hour size for live. */
     sizeBytes: number;
 };
 
 export type AudioStreamInfo = {
     formatId: number;
     codec?: AudioCodec;
-    /** Average bitrate in bits per second, when YouTube reports one. */
     bitrate?: number;
-    /** Stream size in bytes (per-hour size for live). */
     sizeBytes: number;
-    /** Stream byte rate, derived from `sizeBytes / duration`. */
     bytesPerSecond: number;
-    /** Every distinct audio itag YouTube offered, for the advanced view tooltip. */
     itags: AudioItag[];
 };
 
@@ -79,8 +73,6 @@ type YoutubeVodData = {
     thumbnailUrl: string | undefined;
     channelName: string | undefined;
     channelUrl: string | undefined;
-    // One audio stream shared by every video format; formats store video-only
-    // sizes and the adapter adds audio when projecting display formats.
     audio?: AudioStreamInfo;
 };
 
@@ -160,16 +152,10 @@ export type GetUsageResponse = BackgroundResponse<Record<Origin, number> | undef
 export type AddWatchHistoryResponse = BackgroundResponse<null>;
 export type GetWatchHistoryResponse = BackgroundResponse<Record<VideoKey, number> | undefined>;
 
-/**
- * Platform id -> the data shape that platform produces. `mediaCacheItem` keys
- * cached media off this map, so reads/writes are typed per platform. Adding a
- * platform requires adding one entry here, in the file its data types live in.
- */
 export type PlatformDataMap = {
     youtube: YoutubeData;
     twitch: TwitchData;
     kick: KickData;
 };
 
-/** The data shape any platform produces. */
 export type PlatformData = PlatformDataMap[PlatformId];

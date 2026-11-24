@@ -25,7 +25,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         setCurrentLanguage(next);
     }
 
-    // Translation calls are not hooks, so remount the UI when its locale changes.
     return (
         <LanguageContext value={{ language, changeLanguage }}>
             <DirectionProvider key={language} direction={direction}>

@@ -1,10 +1,5 @@
-/**
- * Get the current resolution of the video being played on the page by observing the DOM for a video element.
- * @returns The current resolution as a number or undefined
- */
 export async function getCurrentResolution() {
     return new Promise<number | undefined>((resolve) => {
-        // Check immediately in case the video is already loaded
         const video = document.querySelector("video");
         if (video && video.videoHeight > 0) {
             return resolve(video.videoHeight);
@@ -39,11 +34,6 @@ let trackingGeneration = 0;
 let videoResizeListener: (() => void) | undefined;
 let currentVideoElement: HTMLVideoElement | undefined;
 
-/**
- * Waits for the video resolution to be available, then invokes `onResolutionChange`
- * whenever the playing video's height changes. Only one tracker can be active at a
- * time; starting a new one replaces the previous listener.
- */
 export async function trackResolutionChanges(onResolutionChange: (resolution: number) => void) {
     const generation = ++trackingGeneration;
     await getCurrentResolution();

@@ -43,8 +43,6 @@ async function runPlatformPage<P extends PlatformId>(
     options?.afterLoad?.(data);
 
     if (await toasterEnabled.getValue()) {
-        // Storage access can be slow, so make sure a newer navigation
-        // hasn't started while we waited.
         if (navigationId !== latestNavigationId) return;
         await startToastTracking(adapter, data, () => navigationId === latestNavigationId);
     }

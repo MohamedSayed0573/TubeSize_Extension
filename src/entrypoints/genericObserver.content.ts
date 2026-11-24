@@ -1,15 +1,3 @@
-// Runs in the page's MAIN world, where `chrome`, Bun, and Node APIs are
-// undefined. `tsconfig.mainWorld.json` enforces this boundary across this
-// entrypoint and all transitive imports.
-//
-// Usage accounting installed here (deduplicated against background
-// usageTracker.ts's webRequest path, which counts responses with a positive
-// Content-Length):
-//   1. fetch() patch — streamed/chunked response bodies fetched by the page
-//   2. XMLHttpRequest patch — response progress for bodies without Content-Length
-//   3. Worker wrap — re-hosts classic web workers with a counting bootstrap,
-//      so fetch() inside workers (Twitch's video worker) is counted too
-
 import type { UsageMessage, WatchHistoryMessage } from "@app-types/types";
 import { getWatchHistoryTarget } from "@lib/platformUrl";
 import { defineContentScript } from "wxt/utils/define-content-script";
@@ -66,7 +54,7 @@ function workerBootstrap(originalUrl: string): string {
 function readWorkerSource(url: string): string | undefined {
     try {
         const xhr = new XMLHttpRequest();
-        xhr.open("GET", url, false); // false = synchronous
+        xhr.open("GET", url, false);
         xhr.send();
         if (xhr.status === 200 && xhr.responseText.length > 0) return xhr.responseText;
     } catch {
@@ -84,7 +72,9 @@ function revokeWorkerUrlWhenLoaded(worker: Worker, url: string) {
         event.stopImmediatePropagation();
         URL.revokeObjectURL(url);
     });
-    worker.addEventListener("error", () => URL.revokeObjectURL(url), { once: true });
+    worker.addEventListener("error", () => URL.revokeObjectURL(url), {
+        once: true,
+    });
 }
 
 export default defineContentScript({
@@ -96,14 +86,12 @@ export default defineContentScript({
     main() {
         let total = 0;
 
-        // Monkey patch fetch to count bytes
         const originalFetch = fetch;
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = Object.assign(async (...args: Parameters<typeof fetch>) => {
             const response = await originalFetch(...args);
 
             const contentLength = response.headers.get("content-length");
-            // Background usageTracker.ts's chrome.webRequest listener counts requests with a known content length.
             if (contentLength && Number(contentLength) > 0) return response;
 
             const clone = response.clone();
@@ -112,8 +100,7 @@ export default defineContentScript({
                 const reader = clone.body?.getReader();
                 if (!reader) return;
 
-                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-                while (true) {
+                for (;;) {
                     const { done, value } = await reader.read();
                     if (done) break;
                     // Count per chunk, not at stream end: live streams keep their
@@ -129,14 +116,11 @@ export default defineContentScript({
             return response;
         }, originalFetch);
 
-        // Count XHR downloads incrementally, regardless of responseType.
-        // Called below with the original XHR instance as its receiver.
         // eslint-disable-next-line @typescript-eslint/unbound-method
         const originalSend = XMLHttpRequest.prototype.send;
         XMLHttpRequest.prototype.send = function (body) {
             let loaded = 0;
             const countProgress = (event: ProgressEvent) => {
-                // Local reads (including our worker source reads) aren't network usage.
                 if (
                     this.responseURL.startsWith("blob:") ||
                     this.responseURL.startsWith("data:") ||
@@ -166,31 +150,6 @@ export default defineContentScript({
             }
         };
 
-        // ---- Worker wrapping: count streaming inside dedicated workers -------------
-        // Content scripts cannot run inside web workers, so fetch() calls made there
-        // are invisible to everything above. Twitch streams its entire video from a
-        // dedicated worker (Amazon IVS: a tiny blob: stub that importScripts the real
-        // player code), which is why Twitch usage was badly undercounted. The fix:
-        // wrap `new Worker()` so each classic blob: worker is re-hosted from our own
-        // blob that first installs a counting bootstrap, then runs the site's code —
-        // the blob: source is inlined so worker startup never touches the network.
-        // Same-origin http(s) workers are passed through natively: re-hosting them
-        // would mean importScripts-ing the original URL from inside our blob worker,
-        // which runs under the page's script-src rather than worker-src — the blob
-        // worker can be allowed while the import is blocked, failing asynchronously
-        // after `super` already succeeded so the native fallback never runs.
-        // Module workers are passed through untouched — ES module imports hoist
-        // above any prepended code, so a bootstrap cannot count them.
-
-        // The bootstrap runs inside the worker before the site's code. It pings the
-        // document (so the object URL behind the worker can be revoked, see
-        // revokeWorkerUrlWhenLoaded), patches fetch() with the same dedup rule as the
-        // page (webRequest counts responses with a known Content-Length; we count the
-        // rest) and relays totals to the document every 3 s.
-
-        // Worker → parent messages arrive on the Worker object, not on window, so the
-        // relay must listen on the instance. Folded into `total`, the page-level
-        // TUBESIZE_SITE_USAGE flush forwards worker bytes to the extension like any other.
         function relayWorkerUsage(worker: Worker) {
             worker.addEventListener("message", (event) => {
                 const data: unknown = event.data;
@@ -209,25 +168,11 @@ export default defineContentScript({
             });
         }
 
-        // Re-hosting gives every worker its own object URL; without cleanup, each one
-        // (bootstrap + the site's blob: source) stays alive until the document dies,
-        // and SPA navigation keeps minting more. Revoking is only safe once the worker
-        // has actually fetched the blob, which the bootstrap's WORKER_READY ping — the
-        // first thing a re-hosted worker does — proves. The ping is swallowed so the
-        // site never sees it. The error listener (which must not swallow the event)
-        // frees URLs of workers that never start.
-        // (revokeWorkerUrlWhenLoaded lives at module scope; see above)
-
-        // Read a blob: worker's source synchronously, in the constructor. The Worker
-        // constructor can't await, and sites commonly revoke their blob: URL right
-        // after `new Worker(...)`, so an async read would race the revocation. The
-        // read is in-memory — it never touches the network, so it can't block the
-        // page.
-
         const NativeWorker = Worker;
         // eslint-disable-next-line unicorn/no-global-object-property-assignment
-        globalThis.Worker = class extends NativeWorker {
-            constructor(scriptURL: string | URL, options?: WorkerOptions) {
+        globalThis.Worker = new Proxy(NativeWorker, {
+            construct(target, args: [string | URL, WorkerOptions?], newTarget) {
+                const [scriptURL, options] = args;
                 let wrappedUrl: string | undefined;
                 try {
                     const url = new URL(String(scriptURL), document.baseURI);
@@ -252,29 +197,29 @@ export default defineContentScript({
                     // setup failure — construct the worker the normal way below
                 }
                 if (wrappedUrl) {
-                    let didRehost = false;
                     try {
-                        super(wrappedUrl, options);
-                        didRehost = true;
+                        const worker: unknown = Reflect.construct(
+                            target,
+                            [wrappedUrl, options],
+                            newTarget,
+                        );
+                        if (worker instanceof NativeWorker) {
+                            relayWorkerUsage(worker);
+                            revokeWorkerUrlWhenLoaded(worker, wrappedUrl);
+                            return worker;
+                        }
                     } catch {
                         // The page CSP (worker-src) may forbid blob: workers, making
                         // the re-hosted constructor throw. The object URL was never
                         // used — free it — and fall back to the original URL so the
                         // site's worker still starts.
                         URL.revokeObjectURL(wrappedUrl);
-                        // oxlint-disable-next-line constructor-super
-                        super(scriptURL, options);
                     }
-                    if (didRehost) {
-                        relayWorkerUsage(this);
-                        revokeWorkerUrlWhenLoaded(this, wrappedUrl);
-                    }
-                } else {
-                    // oxlint-disable-next-line constructor-super
-                    super(scriptURL, options);
                 }
-            }
-        };
+                const fallback: unknown = Reflect.construct(target, args, newTarget);
+                return fallback instanceof NativeWorker ? fallback : new target(...args);
+            },
+        });
 
         setInterval(() => {
             if (total === 0) return;

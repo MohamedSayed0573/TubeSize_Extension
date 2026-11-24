@@ -14,10 +14,6 @@ const SETTINGS_WAIT_TIMEOUT = 5_000;
 let activeObserver: MutationObserver | undefined;
 let menuRequestId = 0;
 
-/**
- * Removes the current video's observer and badges. Called when navigation
- * starts so a failed load can't leave the previous video's sizes on screen.
- */
 export function clearQualityMenu() {
     menuRequestId++;
     activeObserver?.disconnect();
@@ -38,7 +34,6 @@ export async function injectMenu<P extends PlatformId>(
     const settingsMenu = await waitForElement(SETTINGS_MENU_SELECTOR, SETTINGS_WAIT_TIMEOUT);
     if (!settingsMenu || requestId !== menuRequestId) return;
 
-    // A newer request may have attached an observer while we waited.
     activeObserver?.disconnect();
 
     const lookup = createQualitySizeLookup(adapter.formats(data));
@@ -53,7 +48,6 @@ export async function injectMenu<P extends PlatformId>(
     activeObserver = observer;
     observer.observe(settingsMenu, { childList: true, subtree: true });
 
-    // The quality panel may already be open when the new video's data arrives.
     const qualityMenu = settingsMenu.querySelector<HTMLElement>(QUALITY_MENU_BTN_SELECTOR);
     if (qualityMenu) injectBadges(qualityMenu, lookup);
 }
@@ -69,21 +63,15 @@ function injectBadges(qualityMenu: HTMLElement, lookup: Map<number, string>) {
         const innerSpan = innerDiv.querySelector("span");
         if (!innerSpan) continue;
 
-        // Skip premium formats, as we don't support them.
-        // TODO: Add support for premium formats.
         const isPremium = innerSpan.querySelector(".ytp-premium-label");
         if (isPremium) continue;
 
         const qualityText = innerSpan.textContent;
         if (!qualityText) continue;
 
-        // Parse the quality text to get the resolution number (e.g., "1080p" -> 1080)
-        // This also skips any non-numeric quality labels ("Auto")
         const size = lookup.get(parseInt(qualityText));
         if (!size) continue;
 
-        // Update an existing badge in place so a reused menu never shows the
-        // previous video's sizes.
         const existingBadge = innerDiv.querySelector<HTMLElement>(
             `.${TUBESIZE_QUALITY_MENU_CLASS}`,
         );
