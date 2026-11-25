@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 
+import type { MediaEstimate } from "@app-types/platforms.types";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
 import { onMessage, sendMessage, type BackgroundResponse } from "@/messaging";
 
 const fakeChrome = fakeBrowser as unknown as typeof chrome;
-// eslint-disable-next-line unicorn/no-global-object-property-assignment
 globalThis.chrome = fakeChrome;
 
 const cleanups: Array<() => void> = [];
@@ -46,11 +46,11 @@ describe("sendMessage", () => {
     });
 
     test("does not deliver a message to listeners of other types", async () => {
-        const watchHistoryHandler = jest.fn<() => BackgroundResponse<null>>(() => ({
-            success: true,
-            data: null,
+        const estimateMediaHandler = jest.fn<() => BackgroundResponse<MediaEstimate>>(() => ({
+            success: false,
+            message: "unused",
         }));
-        cleanups.push(onMessage("addWatchHistory", watchHistoryHandler));
+        cleanups.push(onMessage("estimateMedia", estimateMediaHandler));
         cleanups.push(
             onMessage("addUsage", () => {
                 return { success: true, data: null };
@@ -59,7 +59,7 @@ describe("sendMessage", () => {
 
         await sendMessage("addUsage", { bytes: 1 });
 
-        expect(watchHistoryHandler).not.toHaveBeenCalled();
+        expect(estimateMediaHandler).not.toHaveBeenCalled();
     });
 
     test("propagates a handler error to the sender", async () => {
@@ -99,8 +99,6 @@ describe("sendMessage to a tab", () => {
     });
 
     test("rejects when the tab has no receiver", async () => {
-        // A tab without a content script leaves the callback without a response,
-        // which is what the browser reports as a missing receiving end.
         fakeChrome.tabs.sendMessage = ((
             _tabId: number,
             _message: unknown,

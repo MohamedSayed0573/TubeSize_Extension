@@ -1,5 +1,4 @@
-import type { AddUsageMessage, AddWatchHistoryMessage } from "@app-types/types";
-import { toOrigin } from "@lib/domain";
+import type { AddUsageMessage } from "@app-types/types";
 
 import { onMessage, type BackgroundResponse } from "@/messaging";
 
@@ -7,7 +6,7 @@ import { estimateMedia } from "./estimateMedia";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 function isValidUsageBytes(usage: unknown): usage is number {
-    return typeof usage === "number" && Number.isFinite(usage) && usage >= 0;
+    return typeof usage === "number" && Number.isFinite(usage) && usage > 0;
 }
 
 async function toBackgroundResponse<T>(
@@ -31,32 +30,17 @@ async function recordUsageFromTab(
     sender: chrome.runtime.MessageSender,
 ): Promise<null> {
     const tabUrl = sender.tab?.url;
-    if (!tabUrl) throw new Error("No origin in handleAddUsage");
-    if (isExtensionUrl(tabUrl)) return null;
+    const frameUrl = sender.url;
+    if (isExtensionUrl(tabUrl) || isExtensionUrl(frameUrl)) return null;
 
-    const origin = toOrigin(tabUrl);
-    if (!origin) throw new Error("Invalid origin in handleAddUsage");
+    const originUrl = tabUrl ?? frameUrl;
+    if (!originUrl) throw new Error("No origin in handleAddUsage");
 
     const { bytes } = message;
     if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
 
-    await ingestion.recordOriginUsage(origin, bytes);
-    return null;
-}
-
-async function recordWatchHistoryFromTab(
-    ingestion: UsageIngestion,
-    message: AddWatchHistoryMessage,
-    sender: chrome.runtime.MessageSender,
-): Promise<null> {
-    const { bytes, platform, mediaId } = message;
-    if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
-
-    const tabUrl = sender.tab?.url;
-    const frameUrl = sender.url;
-    if (isExtensionUrl(tabUrl) || isExtensionUrl(frameUrl)) return null;
-
-    await ingestion.recordVideoUsage(platform, mediaId, bytes, [tabUrl, frameUrl]);
+    const recorded = await ingestion.recordTabUsage(originUrl, bytes, frameUrl);
+    if (!recorded) throw new Error("Invalid origin in handleAddUsage");
     return null;
 }
 
@@ -67,11 +51,6 @@ export function attachMessageHandler(
         onMessage("estimateMedia", ({ data }) => toBackgroundResponse(() => estimateMedia(data))),
         onMessage("addUsage", ({ data, sender }) =>
             toBackgroundResponse(() => recordUsageFromTab(ingestion, data, sender), {
-                logError: true,
-            }),
-        ),
-        onMessage("addWatchHistory", ({ data, sender }) =>
-            toBackgroundResponse(() => recordWatchHistoryFromTab(ingestion, data, sender), {
                 logError: true,
             }),
         ),

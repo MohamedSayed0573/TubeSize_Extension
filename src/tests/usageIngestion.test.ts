@@ -168,7 +168,7 @@ describe("createUsageIngestion", () => {
         });
 
         await expect(
-            ingestion.recordOriginUsage(origin("https://example.com"), 5_000),
+            ingestion.recordTabUsage("https://example.com/article", 5_000),
         ).rejects.toThrow("badge unavailable");
 
         expect(ingestion.hasPendingUsage).toBe(false);
@@ -177,7 +177,9 @@ describe("createUsageIngestion", () => {
         });
     });
 
-    test("skips siteUsage and badge refresh for video-only flushes and records metadata when tab URL matches", async () => {
+    test("records siteUsage, watchHistory, badge refresh, and single-flight metadata in one flush from trusted tab and frame URLs", async () => {
+        const writeSiteUsage = jest.fn(addSiteUsage);
+        const writeWatchHistory = jest.fn(addWatchHistory);
         const refreshBadge = jest.fn(async () => {});
         const kickHtml = `<html><head>
             <meta property="og:title" content="xQc Chunked Stream" />
@@ -200,12 +202,19 @@ describe("createUsageIngestion", () => {
         );
         cleanups.push(() => fetchSpy.mockRestore());
 
-        const ingestion = createUsageIngestion({ refreshBadge });
+        const ingestion = createUsageIngestion({
+            writeSiteUsage,
+            writeWatchHistory,
+            refreshBadge,
+        });
 
-        await ingestion.recordVideoUsage("kick", "xqc", 8_192, [
-            "https://kick.com/xqc",
-            "https://kick.com/other",
-        ]);
+        expect(
+            await ingestion.recordTabUsage(
+                "https://kick.com/xqc",
+                8_192,
+                "https://cdn.example.com/player",
+            ),
+        ).toBe(true);
         await metadataDone;
 
         for (let i = 0; i < 10; i++) {
@@ -213,11 +222,15 @@ describe("createUsageIngestion", () => {
             await new Promise((resolve) => setTimeout(resolve, 5));
         }
 
-        expect(await getAllSiteUsage()).toEqual([]);
+        expect(writeSiteUsage).toHaveBeenCalledTimes(1);
+        expect(writeWatchHistory).toHaveBeenCalledTimes(1);
+        expect(refreshBadge).toHaveBeenCalledTimes(1);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://kick.com")]: 8_192,
+        });
         expect((await getAllWatchHistory())[0]?.videos).toEqual({
             [toVideoKey("kick", "xqc")]: 8_192,
         });
-        expect(refreshBadge).not.toHaveBeenCalled();
         expect(fetchSpy).toHaveBeenCalledTimes(1);
         expect(await getVideoMetadataByVideoKey(toVideoKey("kick", "xqc"))).toMatchObject({
             title: "xQc Chunked Stream",
@@ -225,12 +238,37 @@ describe("createUsageIngestion", () => {
             contentType: "live",
         });
 
-        await ingestion.recordVideoUsage("twitch", "shroud", 1_024, [
-            "https://www.twitch.tv/someone-else",
-            undefined,
-        ]);
-        expect((await getAllWatchHistory())[0]?.videos[toVideoKey("twitch", "shroud")]).toBe(1_024);
+        expect(
+            await ingestion.recordTabUsage(
+                "https://example.com/embed-host",
+                2_048,
+                "https://kick.com/xqc",
+            ),
+        ).toBe(true);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://kick.com")]: 8_192,
+            [origin("https://example.com")]: 2_048,
+        });
+        expect((await getAllWatchHistory())[0]?.videos).toEqual({
+            [toVideoKey("kick", "xqc")]: 10_240,
+        });
         expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+        expect(await ingestion.recordTabUsage("https://www.twitch.tv/directory", 1_024)).toBe(true);
+        expect(writeWatchHistory).toHaveBeenCalledTimes(2);
+        expect((await getAllSiteUsage())[0]?.usage[origin("https://www.twitch.tv")]).toBe(1_024);
+
+        expect(
+            await ingestion.recordTabUsage("chrome-extension://abcdef/dashboard.html", 5_000),
+        ).toBe(false);
+        expect(
+            await ingestion.recordTabUsage(
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                5_000,
+                "moz-extension://1234/panel.html",
+            ),
+        ).toBe(false);
+        expect(ingestion.hasPendingUsage).toBe(false);
     });
 
     test("auto-flushes on interval, logs flush errors without throwing, and stops cleanly", async () => {

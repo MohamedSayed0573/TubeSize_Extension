@@ -3,5 +3,5 @@
     "compilerOptions": {
         "types": []
     },
-    "include": ["./src/entrypoints/genericObserver.content.ts"]
+    "include": ["./src/entrypoints/genericObserver.content.ts", "./src/lib/pageUsageObserver.ts"]
 }

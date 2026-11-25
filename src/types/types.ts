@@ -1,9 +1,5 @@
 import CONFIG from "@lib/constants";
 
-type Prettify<T> = {
-    [K in keyof T]: T[K];
-} & {};
-
 type Brand<T, Name extends string> = T & { readonly __brand: Name };
 
 export type Origin = Brand<string, "Origin">;
@@ -26,12 +22,6 @@ export type AddUsageMessage = {
     bytes: number;
 };
 
-export type AddWatchHistoryMessage = {
-    mediaId: string;
-    bytes: number;
-    platform: PlatformId;
-};
-
 export type EstimateMediaMessage = {
     url: string;
     isFromPopup?: boolean;
@@ -40,15 +30,6 @@ export type EstimateMediaMessage = {
 };
 
 export type UsageMessage = { type: "TUBESIZE_SITE_USAGE"; bytes: number };
-
-export type WatchHistoryMessage = {
-    type: "TUBESIZE_WATCH_HISTORY";
-    mediaId: string;
-    bytes: number;
-    platform: PlatformId;
-};
-
-export type WindowMessage = Prettify<UsageMessage | WatchHistoryMessage>;
 
 export type PlatformId = (typeof CONFIG.PLATFORMS)[number];
 
