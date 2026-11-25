@@ -25,10 +25,12 @@ export default function useChangelogNotice() {
 
     const query = useQuery({
         queryKey,
+        networkMode: "always",
         queryFn: () => checkLastSeenVersion(version),
     });
 
     const dismissMutation = useMutation({
+        networkMode: "always",
         mutationFn: () => lastSeenVersion.setValue(version),
         onMutate: async () => {
             queryClient.setQueryData<boolean>(queryKey, false);

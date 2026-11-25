@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 
 import useChangelogNotice from "@hooks/useChangelogNotice";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fakeBrowser } from "@webext-core/fake-browser";
 import { storage } from "@wxt-dev/storage";
 import { act, Component, type ReactNode } from "react";
@@ -69,6 +69,7 @@ describe("useChangelogNotice", () => {
     });
 
     afterEach(async () => {
+        onlineManager.setOnline(true);
         for (const spy of spies.splice(0)) {
             spy.mockRestore();
         }
@@ -200,6 +201,26 @@ describe("useChangelogNotice", () => {
 
         await waitForCondition(() => consoleErrorSpy.mock.calls.length > 0);
         expect(host?.querySelector("[data-testid='error-boundary']")).toBeNull();
+        expect(stateText()).toBe("hide:3.0.4");
+    });
+
+    test("reads and persists dismissal in local storage while offline", async () => {
+        await storage.setItem("local:lastSeenVersion", "3.0.0");
+        onlineManager.setOnline(false);
+
+        await renderHarness();
+        await waitForCondition(() => stateText() === "show:3.0.4");
+
+        const button = host?.querySelector("button");
+        await act(async () => {
+            button?.click();
+        });
+
+        await waitForCondition(
+            async () =>
+                queryClient?.isMutating() === 0 &&
+                (await storage.getItem<string>("local:lastSeenVersion")) === "3.0.4",
+        );
         expect(stateText()).toBe("hide:3.0.4");
     });
 });
