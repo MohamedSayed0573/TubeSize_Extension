@@ -1,9 +1,8 @@
 import type { PlatformId, UsageScope } from "@app-types/types";
 import { usePlatformWatchReport } from "@hooks/useUsage";
 import { formatDate } from "@lib/format";
-import { isPlatformId } from "@lib/platformUrl";
+import { getPlatformDisplayName, isPlatformId } from "@lib/platformUrl";
 import { parseScopeSearch } from "@lib/routes";
-import { capitalize } from "@lib/utils";
 import DashboardHeader from "@pages/dashboard/shared/dashboardHeader";
 import NoUsageData from "@pages/dashboard/shared/noUsageData";
 import { useParams, useSearchParams } from "react-router";
@@ -21,7 +20,7 @@ function PlatformUsageContent({ platform, scope }: { platform: PlatformId; scope
     if (isPending) return <VideosTableSkeleton />;
 
     const totalDataUsage = rows.reduce((sum, current) => sum + current.usage, 0);
-    const label = capitalize(platform);
+    const label = getPlatformDisplayName(platform);
 
     return (
         <>
@@ -86,7 +85,7 @@ function getScopeLabel(scope: UsageScope): string {
 }
 
 function getTitle(scope: UsageScope, platform: PlatformId) {
-    const label = capitalize(platform);
+    const label = getPlatformDisplayName(platform);
     if (scope.type === "range") {
         if (scope.range === "today") return t("dashboard_titleOnPlatformToday", [label]);
         if (scope.range === "week") return t("dashboard_titleOnPlatformWeek", [label]);

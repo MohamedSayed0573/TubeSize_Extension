@@ -1,10 +1,10 @@
 import type { PlatformId } from "@app-types/types";
 import { formatBytes } from "@lib/format";
+import { buildPlatformVideoUrl, getPlatformDisplayName } from "@lib/platformUrl";
 import { buildDatePath } from "@lib/routes";
 import type { PlatformWatchRow } from "@lib/usage";
 import { Link } from "react-router";
 
-import { getPlatformAdapter } from "@/adapters/registry";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { t } from "@/i18n/t";
@@ -29,11 +29,10 @@ export default function VideoTableRow({
         contentType,
         url: storedUrl,
     } = videoDetails;
-    const url =
-        storedUrl || getPlatformAdapter(platform).videoUrl(mediaId, contentType, channelName);
+    const url = storedUrl || buildPlatformVideoUrl(platform, mediaId, contentType, channelName);
 
     const imageUrl = videoDetails.thumbnailUrl || PLATFORM_THEME[platform].placeholderImage;
-    const videoTitle = videoDetails.title || platform;
+    const videoTitle = videoDetails.title || getPlatformDisplayName(platform);
 
     return (
         <TableRow className="text-stone-200 hover:cursor-pointer hover:bg-neutral-800">

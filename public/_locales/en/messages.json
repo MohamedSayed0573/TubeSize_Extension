@@ -172,8 +172,14 @@
         "description": "Info shown when usage tracking is enabled"
     },
     "popup_unsupportedPage": {
-        "message": "Open a YouTube, Twitch, or Kick video to see estimated data usage.",
-        "description": "Info shown on unsupported pages"
+        "message": "Open a $1 video to see estimated data usage.",
+        "description": "Info shown on unsupported pages",
+        "placeholders": {
+            "platforms": {
+                "content": "$1",
+                "example": "YouTube, Twitch, or Kick"
+            }
+        }
     },
     "popup_noRunningVideo": {
         "message": "No video is playing. Open a video or stream to see estimated data usage.",

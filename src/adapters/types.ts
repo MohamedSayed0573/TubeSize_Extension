@@ -34,8 +34,6 @@ export type HeaderViewData = {
     duration?: string;
 };
 
-export type VideoContentType = "live" | "vod";
-
 export type FormatOptions = {
     /** Whether to include the separate audio stream in projected sizes (defaults to true). */
     includeAudio?: boolean;
@@ -64,8 +62,6 @@ export interface PlatformAdapter<P extends PlatformId = PlatformId> {
     header: (data: PlatformDataMap[P]) => HeaderViewData;
 
     audio?: (data: PlatformDataMap[P]) => AudioStreamInfo | undefined;
-
-    videoUrl: (mediaId: string, contentType?: VideoContentType, channelName?: string) => string;
 }
 
 export type AnyPlatformAdapter = {

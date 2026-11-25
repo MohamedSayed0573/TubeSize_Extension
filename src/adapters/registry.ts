@@ -16,7 +16,3 @@ export function findPlatformAdapter(tabUrl: string): AnyPlatformAdapter | undefi
     const parsed = parsePlatformUrl(tabUrl);
     return parsed ? ADAPTERS_BY_PLATFORM[parsed.platform] : undefined;
 }
-
-export function getPlatformAdapter<P extends PlatformId>(platform: P): PlatformAdapter<P> {
-    return ADAPTERS_BY_PLATFORM[platform];
-}

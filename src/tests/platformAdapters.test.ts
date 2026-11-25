@@ -234,31 +234,3 @@ describe("adapter.load URL dispatch", () => {
         );
     });
 });
-
-describe("adapter.videoUrl", () => {
-    test("builds canonical watch URLs for YouTube, Twitch, and Kick", () => {
-        expect(youtubeAdapter.videoUrl("dQw4w9WgXcQ")).toBe(
-            "https://youtube.com/watch?v=dQw4w9WgXcQ",
-        );
-
-        expect(twitchAdapter.videoUrl("2748008198", "vod")).toBe(
-            "https://www.twitch.tv/videos/2748008198",
-        );
-        expect(twitchAdapter.videoUrl("shroud", "live")).toBe("https://www.twitch.tv/shroud");
-        expect(twitchAdapter.videoUrl("2748008198")).toBe(
-            "https://www.twitch.tv/videos/2748008198",
-        );
-        expect(twitchAdapter.videoUrl("shroud")).toBe("https://www.twitch.tv/shroud");
-
-        expect(kickAdapter.videoUrl("xqc", "live")).toBe("https://kick.com/xqc");
-        expect(kickAdapter.videoUrl("kick-vod-98231", "vod", "xqc")).toBe(
-            "https://kick.com/xqc/videos/kick-vod-98231",
-        );
-        expect(kickAdapter.videoUrl("11111111-2222-3333-4444-555555555555", "vod")).toBe(
-            "https://kick.com/video/11111111-2222-3333-4444-555555555555",
-        );
-        expect(kickAdapter.videoUrl("c7093a5c-demo-vod", undefined, "xqc")).toBe(
-            "https://kick.com/xqc/videos/c7093a5c-demo-vod",
-        );
-    });
-});

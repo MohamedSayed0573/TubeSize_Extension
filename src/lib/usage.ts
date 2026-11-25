@@ -5,10 +5,10 @@ import type {
     SiteKey,
     UsageRange,
     UsageScope,
+    VideoContentType,
     VideoKey,
 } from "@app-types/types";
 
-import type { VideoContentType } from "@/adapters/types";
 import {
     getAllSiteUsage,
     getAllWatchHistory,

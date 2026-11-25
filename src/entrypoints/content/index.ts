@@ -1,3 +1,4 @@
+import { PLATFORM_MATCH_PATTERNS } from "@lib/platformUrl";
 import { defineContentScript } from "wxt/utils/define-content-script";
 
 import { initializeLanguage } from "@/i18n/language";
@@ -7,16 +8,7 @@ import { createContentSession } from "./contentSession";
 import { getCurrentResolution } from "./resolution";
 
 export default defineContentScript({
-    matches: [
-        "*://www.youtube.com/*",
-        "*://youtube.com/*",
-        "*://www.twitch.tv/*",
-        "*://twitch.tv/*",
-        "*://www.twitch.com/*",
-        "*://twitch.com/*",
-        "*://www.kick.com/*",
-        "*://kick.com/*",
-    ],
+    matches: PLATFORM_MATCH_PATTERNS,
     runAt: "document_idle",
     allFrames: true,
 

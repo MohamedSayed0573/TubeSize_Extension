@@ -6,13 +6,7 @@ import { humanizeDuration } from "@/lib/humanize";
 import { sendMessage } from "@/messaging";
 import type { TwitchData } from "@/types/platforms.types";
 
-import type {
-    DisplayFormat,
-    HeaderViewData,
-    LoadPlatformOptions,
-    PlatformAdapter,
-    VideoContentType,
-} from "./types";
+import type { DisplayFormat, HeaderViewData, LoadPlatformOptions, PlatformAdapter } from "./types";
 
 async function loadTwitchData(
     tabUrl: string,
@@ -82,17 +76,10 @@ function twitchHeader(twitch: TwitchData): HeaderViewData {
     };
 }
 
-function twitchVideoUrl(mediaId: string, contentType?: VideoContentType): string {
-    const isVod = contentType === undefined ? /^\d+$/.test(mediaId) : contentType === "vod";
-
-    return isVod ? `https://www.twitch.tv/videos/${mediaId}` : `https://www.twitch.tv/${mediaId}`;
-}
-
 export const twitchAdapter = {
     platform: "twitch",
     load: loadTwitchData,
     isRunningVideo,
     formats: twitchFormats,
     header: twitchHeader,
-    videoUrl: twitchVideoUrl,
 } satisfies PlatformAdapter<"twitch">;

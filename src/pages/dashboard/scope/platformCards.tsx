@@ -1,8 +1,9 @@
 import type { UsageScope } from "@app-types/types";
 import { usePlatformTotals } from "@hooks/useUsage";
 import { formatBytes } from "@lib/format";
+import { getPlatformDisplayName } from "@lib/platformUrl";
 import { buildPlatformPath } from "@lib/routes";
-import { capitalize, cn } from "@lib/utils";
+import { cn } from "@lib/utils";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 
@@ -30,7 +31,7 @@ export default function PlatformCards({ scope }: { scope: UsageScope }) {
                         <PlatformLogo platform={platform} />
                         <div className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center">
                             <span className="max-w-full truncate font-mono text-lg font-bold text-stone-100">
-                                {capitalize(platform)}
+                                {getPlatformDisplayName(platform)}
                             </span>
                             <span className="max-w-full truncate font-mono text-sm text-stone-400">
                                 {formatBytes(bytes)}
