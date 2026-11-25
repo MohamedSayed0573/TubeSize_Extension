@@ -74,3 +74,8 @@ jobs:
               env:
                   TMPDIR: /tmp
               run: bun run verify doctor
+
+            - name: Verify Runtime Smoke
+              env:
+                  TMPDIR: /tmp
+              run: bun run verify smoke

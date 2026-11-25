@@ -29,6 +29,7 @@ import {
     type MetricSummary,
     type PopupPerfReport,
 } from "./verify/perf";
+import { runSmoke, type SmokeReport, type SmokeStepResult } from "./verify/smoke";
 
 const ROOT = resolve(import.meta.dir, "..");
 const EXT_DIR = join(ROOT, ".output", "chrome-mv3");
@@ -43,6 +44,8 @@ Usage: bun run verify <command> [options]
 
 Commands:
   doctor [--timeout <ms>]       Health check: Bun, Chromium, build freshness, MV3 boot
+  smoke [--build] [--timeout <ms>] [--json]
+                                End-to-end offline runtime smoke suite across 5 core flows
   start [opts]                  Launch isolated Playwright session (--target, --seed, --lang, --prev-version, --build, --timeout)
   status                        Check active session URL, surface, dir, and error count
   stop                          Close active session & delete temp profile (keeps .verify-evidence/)
@@ -312,6 +315,83 @@ function parseNonNegativeInt(raw: string | undefined, flagName: string): number 
     return n;
 }
 
+function formatSmokeStep(step: SmokeStepResult, nameWidth: number): string {
+    const mark = step.passed ? "✓" : "✗";
+    const label = step.name.padEnd(nameWidth);
+    const ms = `${step.durationMs} ms`.padStart(8);
+    const summary = step.passed ? step.detail : (step.error ?? "Failed");
+    return `  [${mark}] ${label}  ${ms}  ${summary}`;
+}
+
+function printSmokeReport(rep: SmokeReport): void {
+    out(`TubeSize Verify Smoke (ext ${rep.extId})`);
+    const nameWidth = Math.max(...rep.steps.map((s) => s.name.length), 12);
+    for (const step of rep.steps) {
+        out(formatSmokeStep(step, nameWidth));
+        for (const issue of step.issues) {
+            out(`      [✗] ${issue.source}/${issue.level}: ${issue.message}`);
+        }
+    }
+    const passedCount = rep.steps.filter((s) => s.passed).length;
+    const totalSeconds = (rep.totalDurationMs / 1000).toFixed(1);
+    const status = rep.passed ? "PASS" : "FAIL";
+    out(
+        `${status}: ${passedCount}/${rep.steps.length} smoke flows passed in ${totalSeconds}s (${rep.issues.length} runtime issue(s)).`,
+    );
+}
+
+async function runSmokeCommand(opts: {
+    build: boolean;
+    timeoutMs: number;
+    json: boolean;
+}): Promise<number> {
+    const emitInconclusive = (msg: string): number => {
+        if (opts.json) process.stderr.write(`${msg}\n`);
+        else out(msg);
+        return 2;
+    };
+
+    if (opts.build) {
+        const b = Bun.spawnSync({
+            cmd: ["bun", "run", "build"],
+            cwd: ROOT,
+            stdout: opts.json ? "pipe" : "inherit",
+            stderr: "inherit",
+        });
+        if (b.exitCode !== 0) {
+            if (opts.json && b.stdout && b.stdout.length > 0) {
+                process.stderr.write(b.stdout);
+            }
+            return 1;
+        }
+    }
+
+    const chrome = findChromiumExecutable();
+    if (!chrome) {
+        return emitInconclusive(
+            "INCONCLUSIVE: Chromium not found (set CHROME_PATH or install Playwright Chromium).",
+        );
+    }
+
+    const manifestPath = join(EXT_DIR, "manifest.json");
+    if (!existsSync(manifestPath)) {
+        return emitInconclusive(
+            'INCONCLUSIVE: Missing .output/chrome-mv3/manifest.json — run "bun run build" or pass --build.',
+        );
+    }
+
+    if (!opts.build && getLatestMtimeMs(join(ROOT, "src")) > getLatestMtimeMs(EXT_DIR)) {
+        return emitInconclusive(
+            'INCONCLUSIVE: Build is STALE — run "bun run build" or pass --build.',
+        );
+    }
+
+    const smokeReport = await runSmoke({ extDir: EXT_DIR, timeoutMs: opts.timeoutMs });
+    if (opts.json) out(JSON.stringify(smokeReport, null, 2));
+    else printSmokeReport(smokeReport);
+    return smokeReport.passed ? 0 : 1;
+}
+
 async function runDoctor(timeoutMs: number): Promise<number> {
     const chrome = findChromiumExecutable();
     const manifestPath = join(EXT_DIR, "manifest.json");
@@ -477,6 +557,13 @@ async function main(): Promise<number> {
     switch (cmd) {
         case "doctor":
             return await runDoctor(parsePositiveInt(values.timeout, 30_000, "--timeout"));
+
+        case "smoke":
+            return await runSmokeCommand({
+                build: values.build,
+                timeoutMs: parsePositiveInt(values.timeout, 30_000, "--timeout"),
+                json: values.json,
+            });
 
         case "start": {
             const startTimeoutMs = parsePositiveInt(values.timeout, 40_000, "--timeout");
