@@ -1,5 +1,4 @@
-import type { UsageMessage, WatchHistoryMessage } from "@app-types/types";
-import { parsePlatformUrl } from "@lib/platformUrl";
+import type { UsageMessage } from "@app-types/types";
 import { defineContentScript } from "wxt/utils/define-content-script";
 
 function workerBootstrap(originalUrl: string): string {
@@ -230,19 +229,6 @@ export default defineContentScript({
                 } satisfies UsageMessage,
                 "*",
             );
-
-            const parsed = parsePlatformUrl(location.href);
-            if (parsed?.kind === "media") {
-                window.postMessage(
-                    {
-                        type: "TUBESIZE_WATCH_HISTORY",
-                        mediaId: parsed.mediaId,
-                        platform: parsed.platform,
-                        bytes: total,
-                    } satisfies WatchHistoryMessage,
-                    "*",
-                );
-            }
 
             total = 0;
         }, 3000);

@@ -1,9 +1,5 @@
 import type { MediaEstimate } from "@app-types/platforms.types";
-import type {
-    AddUsageMessage,
-    AddWatchHistoryMessage,
-    EstimateMediaMessage,
-} from "@app-types/types";
+import type { AddUsageMessage, EstimateMediaMessage } from "@app-types/types";
 import {
     defineExtensionMessaging,
     type GetDataType,
@@ -18,7 +14,6 @@ export type BackgroundResponse<T> =
 interface BackgroundProtocolMap {
     estimateMedia(data: EstimateMediaMessage): BackgroundResponse<MediaEstimate>;
     addUsage(data: AddUsageMessage): BackgroundResponse<null>;
-    addWatchHistory(data: AddWatchHistoryMessage): BackgroundResponse<null>;
 }
 
 interface TabProtocolMap {

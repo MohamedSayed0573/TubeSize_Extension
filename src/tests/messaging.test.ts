@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 
+import type { MediaEstimate } from "@app-types/platforms.types";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
 import { onMessage, sendMessage, type BackgroundResponse } from "@/messaging";
@@ -46,11 +47,11 @@ describe("sendMessage", () => {
     });
 
     test("does not deliver a message to listeners of other types", async () => {
-        const watchHistoryHandler = jest.fn<() => BackgroundResponse<null>>(() => ({
-            success: true,
-            data: null,
+        const estimateMediaHandler = jest.fn<() => BackgroundResponse<MediaEstimate>>(() => ({
+            success: false,
+            message: "unused",
         }));
-        cleanups.push(onMessage("addWatchHistory", watchHistoryHandler));
+        cleanups.push(onMessage("estimateMedia", estimateMediaHandler));
         cleanups.push(
             onMessage("addUsage", () => {
                 return { success: true, data: null };
@@ -59,7 +60,7 @@ describe("sendMessage", () => {
 
         await sendMessage("addUsage", { bytes: 1 });
 
-        expect(watchHistoryHandler).not.toHaveBeenCalled();
+        expect(estimateMediaHandler).not.toHaveBeenCalled();
     });
 
     test("propagates a handler error to the sender", async () => {

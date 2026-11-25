@@ -1,4 +1,4 @@
-import type { Origin, PlatformId, VideoKey } from "@app-types/types";
+import type { Origin, VideoKey } from "@app-types/types";
 import { toOrigin } from "@lib/domain";
 import { type ParsedPlatformMedia, parsePlatformUrl, toVideoKey } from "@lib/platformUrl";
 import { typedEntries } from "@lib/utils";
@@ -24,14 +24,8 @@ export interface UsageIngestionDeps {
 
 export interface UsageIngestion {
     readonly hasPendingUsage: boolean;
-    bufferTabUsage(tabUrl: string, bytes: number): boolean;
-    recordOriginUsage(origin: Origin, bytes: number): Promise<void>;
-    recordVideoUsage(
-        platform: PlatformId,
-        mediaId: string,
-        bytes: number,
-        candidateUrls?: ReadonlyArray<string | undefined>,
-    ): Promise<void>;
+    bufferTabUsage(tabUrl: string, bytes: number, frameUrl?: string): boolean;
+    recordTabUsage(tabUrl: string, bytes: number, frameUrl?: string): Promise<boolean>;
     flush(): Promise<void>;
     startAutoFlush(): () => void;
 }
@@ -40,19 +34,13 @@ export function isExtensionUrl(url: string | undefined): boolean {
     return !!url && (url.startsWith("chrome-extension://") || url.startsWith("moz-extension://"));
 }
 
-function resolveMatchingMedia(
-    platform: PlatformId,
-    mediaId: string,
+function resolvePlatformMedia(
     candidateUrls: ReadonlyArray<string | undefined>,
 ): { media: ParsedPlatformMedia; url: string } | undefined {
     for (const url of candidateUrls) {
         if (!url) continue;
         const parsed = parsePlatformUrl(url);
-        if (
-            parsed?.kind === "media" &&
-            parsed.platform === platform &&
-            parsed.mediaId === mediaId
-        ) {
+        if (parsed?.kind === "media") {
             return { media: parsed, url };
         }
     }
@@ -125,18 +113,20 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
         }
     }
 
-    function bufferTabUsage(tabUrl: string, bytes: number): boolean {
+    function bufferTabUsage(tabUrl: string, bytes: number, frameUrl?: string): boolean {
+        if (isExtensionUrl(tabUrl) || isExtensionUrl(frameUrl)) return false;
+
         const origin = toOrigin(tabUrl);
         if (!origin) return false;
 
         origins[origin] = (origins[origin] ?? 0) + bytes;
 
         try {
-            const parsed = parsePlatformUrl(tabUrl);
-            if (parsed?.kind === "media") {
-                const videoKey = toVideoKey(parsed.platform, parsed.mediaId);
+            const matched = resolvePlatformMedia([tabUrl, frameUrl]);
+            if (matched) {
+                const videoKey = toVideoKey(matched.media.platform, matched.media.mediaId);
                 videos[videoKey] = (videos[videoKey] ?? 0) + bytes;
-                void recordMetadata(parsed, tabUrl);
+                void recordMetadata(matched.media, matched.url);
             }
         } catch (err) {
             console.error("Failed to attribute usage to a video:", err);
@@ -145,26 +135,14 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
         return true;
     }
 
-    async function recordOriginUsage(origin: Origin, bytes: number): Promise<void> {
-        origins[origin] = (origins[origin] ?? 0) + bytes;
-        await flush();
-    }
-
-    async function recordVideoUsage(
-        platform: PlatformId,
-        mediaId: string,
+    async function recordTabUsage(
+        tabUrl: string,
         bytes: number,
-        candidateUrls: ReadonlyArray<string | undefined> = [],
-    ): Promise<void> {
-        const videoKey = toVideoKey(platform, mediaId);
-        videos[videoKey] = (videos[videoKey] ?? 0) + bytes;
-
-        const matched = resolveMatchingMedia(platform, mediaId, candidateUrls);
-        if (matched) {
-            void recordMetadata(matched.media, matched.url);
-        }
-
+        frameUrl?: string,
+    ): Promise<boolean> {
+        if (!bufferTabUsage(tabUrl, bytes, frameUrl)) return false;
         await flush();
+        return true;
     }
 
     function stopAutoFlush() {
@@ -190,8 +168,7 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
             return Object.keys(origins).length > 0 || Object.keys(videos).length > 0;
         },
         bufferTabUsage,
-        recordOriginUsage,
-        recordVideoUsage,
+        recordTabUsage,
         flush,
         startAutoFlush,
     };

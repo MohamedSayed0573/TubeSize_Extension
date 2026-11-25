@@ -20,6 +20,7 @@ const cleanups: Array<() => void> = [];
 let attached = false;
 let rootListener: Parameters<typeof fakeBrowser.runtime.onMessage.addListener>[0] | undefined;
 let senderTabUrl: string | undefined;
+let senderFrameUrl: string | undefined;
 
 function attachWrappedRootListener() {
     if (!rootListener) return;
@@ -27,7 +28,11 @@ function attachWrappedRootListener() {
     fakeBrowser.runtime.onMessage.addListener((message, sender, sendResponse) =>
         listener(
             message,
-            senderTabUrl ? { ...sender, tab: { url: senderTabUrl } as chrome.tabs.Tab } : sender,
+            {
+                ...sender,
+                ...(senderTabUrl ? { tab: { url: senderTabUrl } as chrome.tabs.Tab } : {}),
+                ...(senderFrameUrl ? { url: senderFrameUrl } : {}),
+            },
             sendResponse,
         ),
     );
@@ -89,6 +94,7 @@ https://cdn.twitch.example/seg-3.ts
 
 afterEach(async () => {
     senderTabUrl = undefined;
+    senderFrameUrl = undefined;
     while (cleanups.length > 0) cleanups.pop()?.();
     await clearDatabaseData();
 });
@@ -377,14 +383,14 @@ describe("attachMessageHandler RPC seam", () => {
         });
     });
 
-    test("routes addUsage and addWatchHistory with validation and IndexedDB persistence", async () => {
+    test("routes addUsage with validation, single-flush persistence, and no watch history on non-platform origins", async () => {
         ensureMessageHandlersAttached();
 
         const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
         cleanups.push(() => consoleErrorSpy.mockRestore());
 
-        const invalidUsage = await sendMessage("addUsage", { bytes: 500 });
-        expect(invalidUsage).toEqual({
+        const missingOrigin = await sendMessage("addUsage", { bytes: 500 });
+        expect(missingOrigin).toEqual({
             success: false,
             message: "No origin in handleAddUsage",
         });
@@ -397,9 +403,32 @@ describe("attachMessageHandler RPC seam", () => {
         const siteRows = await getAllSiteUsage();
         expect(siteRows).toHaveLength(1);
         expect(siteRows[0]?.usage[toOrigin("https://example.com")!]).toBe(4096);
+        expect(await getAllWatchHistory()).toEqual([]);
+
+        const spoofedPayload = {
+            bytes: 2048,
+            platform: "youtube",
+            mediaId: "dQw4w9WgXcQ",
+        };
+        const spoofedResult = await sendMessage("addUsage", spoofedPayload);
+        expect(spoofedResult).toEqual({ success: true, data: null });
+        expect((await getAllSiteUsage())[0]?.usage[toOrigin("https://example.com")!]).toBe(6144);
+        expect(await getAllWatchHistory()).toEqual([]);
 
         const usageInvalidBytes = await sendMessage("addUsage", { bytes: Number.NaN });
         expect(usageInvalidBytes).toEqual({
+            success: false,
+            message: "Invalid usage bytes",
+        });
+
+        const usageZeroBytes = await sendMessage("addUsage", { bytes: 0 });
+        expect(usageZeroBytes).toEqual({
+            success: false,
+            message: "Invalid usage bytes",
+        });
+
+        const usageNegativeBytes = await sendMessage("addUsage", { bytes: -5 });
+        expect(usageNegativeBytes).toEqual({
             success: false,
             message: "Invalid usage bytes",
         });
@@ -410,30 +439,9 @@ describe("attachMessageHandler RPC seam", () => {
             success: false,
             message: "Invalid origin in handleAddUsage",
         });
-
-        const watchOk = await sendMessage("addWatchHistory", {
-            platform: "youtube",
-            mediaId: "dQw4w9WgXcQ",
-            bytes: 2048,
-        });
-        expect(watchOk).toEqual({ success: true, data: null });
-
-        const watchRows = await getAllWatchHistory();
-        expect(watchRows).toHaveLength(1);
-        expect(watchRows[0]?.videos[toVideoKey("youtube", "dQw4w9WgXcQ")]).toBe(2048);
-
-        const watchInvalid = await sendMessage("addWatchHistory", {
-            platform: "youtube",
-            mediaId: "dQw4w9WgXcQ",
-            bytes: -5,
-        });
-        expect(watchInvalid).toEqual({
-            success: false,
-            message: "Invalid usage bytes",
-        });
     });
 
-    test("records single-flight video metadata when addWatchHistory arrives from a platform tab", async () => {
+    test("derives siteUsage, watchHistory, and single-flight video metadata from trusted sender URLs on addUsage", async () => {
         ensureMessageHandlersAttached();
 
         const liveLdJson = JSON.stringify({
@@ -457,16 +465,8 @@ describe("attachMessageHandler RPC seam", () => {
         senderTabUrl = "https://www.twitch.tv/shroud";
 
         const [first, second] = await Promise.all([
-            sendMessage("addWatchHistory", {
-                platform: "twitch",
-                mediaId: "shroud",
-                bytes: 1_500,
-            }),
-            sendMessage("addWatchHistory", {
-                platform: "twitch",
-                mediaId: "shroud",
-                bytes: 2_500,
-            }),
+            sendMessage("addUsage", { bytes: 1_500 }),
+            sendMessage("addUsage", { bytes: 2_500 }),
         ]);
         expect(first).toEqual({ success: true, data: null });
         expect(second).toEqual({ success: true, data: null });
@@ -476,6 +476,7 @@ describe("attachMessageHandler RPC seam", () => {
             await new Promise((resolve) => setTimeout(resolve, 5));
         }
 
+        expect((await getAllSiteUsage())[0]?.usage[toOrigin("https://www.twitch.tv")!]).toBe(4_000);
         expect((await getAllWatchHistory())[0]?.videos[toVideoKey("twitch", "shroud")]).toBe(4_000);
         expect(await getVideoMetadataByVideoKey(toVideoKey("twitch", "shroud"))).toMatchObject({
             videoKey: toVideoKey("twitch", "shroud"),
@@ -485,24 +486,40 @@ describe("attachMessageHandler RPC seam", () => {
             title: "Bridge Stream Title",
         });
         expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+        senderTabUrl = undefined;
+        senderFrameUrl = "https://www.twitch.tv/shroud";
+        expect(await sendMessage("addUsage", { bytes: 500 })).toEqual({
+            success: true,
+            data: null,
+        });
+        expect((await getAllSiteUsage())[0]?.usage[toOrigin("https://www.twitch.tv")!]).toBe(4_500);
+        expect((await getAllWatchHistory())[0]?.videos[toVideoKey("twitch", "shroud")]).toBe(4_500);
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
 
-    test("ignores addUsage and addWatchHistory messages originating from extension pages", async () => {
+    test("ignores addUsage messages originating from chrome-extension or moz-extension tab or frame URLs", async () => {
         ensureMessageHandlersAttached();
 
         senderTabUrl = "chrome-extension://abcdef/dashboard.html#/daily";
-
         expect(await sendMessage("addUsage", { bytes: 2_048 })).toEqual({
             success: true,
             data: null,
         });
-        expect(
-            await sendMessage("addWatchHistory", {
-                platform: "youtube",
-                mediaId: "dQw4w9WgXcQ",
-                bytes: 2_048,
-            }),
-        ).toEqual({ success: true, data: null });
+
+        senderTabUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        senderFrameUrl = "moz-extension://1234-5678/panel.html";
+        expect(await sendMessage("addUsage", { bytes: 2_048 })).toEqual({
+            success: true,
+            data: null,
+        });
+
+        senderTabUrl = undefined;
+        senderFrameUrl = "chrome-extension://abcdef/popup.html";
+        expect(await sendMessage("addUsage", { bytes: 2_048 })).toEqual({
+            success: true,
+            data: null,
+        });
 
         expect(await getAllSiteUsage()).toEqual([]);
         expect(await getAllWatchHistory()).toEqual([]);
