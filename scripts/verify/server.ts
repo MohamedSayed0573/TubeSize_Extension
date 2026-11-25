@@ -112,8 +112,11 @@ async function main() {
             if (raw !== "fixture:usage-site") await ensurePlatformRoutes();
             return resolveFixtureTarget(raw, serverPort);
         }
-        await disablePlatformRoutes();
-        return resolveTargetUrl(extId, raw);
+        const resolved = resolveTargetUrl(extId, raw);
+        if (/^https?:\/\//.test(resolved.url)) {
+            await disablePlatformRoutes();
+        }
+        return resolved;
     };
 
     const withNewTab = async (action: () => Promise<unknown>, settleMs: number) => {

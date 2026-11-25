@@ -131,7 +131,11 @@ export function resolveTargetUrl(
             url: `chrome-extension://${extId}/dashboard.html#/site/${encodeURIComponent(raw.slice(5))}`,
             viewport: { width: 1280, height: 800 },
         };
-    if (raw.startsWith("#/")) return { url: `chrome-extension://${extId}/dashboard.html${raw}` };
+    if (raw.startsWith("#/"))
+        return {
+            url: `chrome-extension://${extId}/dashboard.html${raw}`,
+            viewport: { width: 1280, height: 800 },
+        };
     if (/^(chrome-extension|https?):\/\//.test(raw)) return { url: raw };
     return { url: `chrome-extension://${extId}/${raw.replace(/^\/+/, "")}` };
 }

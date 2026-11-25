@@ -33,6 +33,6 @@ Preconditions:
 ## Gotchas
 
 - `bun run verify goto today` resolves to `dashboard.html#/<YYYY-MM-DD>` (a single-date route propagating `?date=`), whereas `bun run verify goto "#/today"` opens the named `today` range route (propagating `?range=today` and auto-refreshing across local midnight via `useCurrentDateKey()`).
-- `SiteDetailPage` normalizes `:siteName` with `getSiteKey()` for lookups and displays the raw param in `DashboardHeader`; pass a site key (e.g. `youtube.com`, `drive.google.com`, or URI-encoded origin for IP/`localhost` origins).
+- `SiteDetailPage` normalizes `:siteName` with `getSiteKey()` for lookups and displays the raw param in `DashboardHeader`; `bun run verify goto site:<key>` URI-encodes `<key>` automatically (pass raw `youtube.com`, `drive.google.com`, or `http://127.0.0.1:<port>`), whereas raw hash targets (`goto "#/site/<encoded>"`) must pass a URI-encoded origin for IP/`localhost` origins.
 - Seeded metadata intentionally leaves `thumbnailUrl: ""` so platform placeholders render deterministically even offline, and `seed full` includes a Kick VOD (`kick:kick-vod-98231`) without a Kick live stream.
 - `PlatformUsageContent` merges `watchHistory` with `videoMetaData` per `(day, videoKey)` row (separate rows across multiple days, sorted descending by bytes consumed); videos whose metadata failed to fetch fall back to displaying the lowercase platform name as title.
