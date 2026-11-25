@@ -176,7 +176,13 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
     let originalSendDescriptor: PropertyDescriptor | undefined;
     let NativeWorker: typeof Worker | undefined;
     let stopInterval: (() => void) | undefined;
-    const workerCleanups: Array<() => void> = [];
+    const workerRefs = new Set<WeakRef<Worker>>();
+    const workerRegistry =
+        typeof FinalizationRegistry === "function"
+            ? new FinalizationRegistry<WeakRef<Worker>>((ref) => {
+                  workerRefs.delete(ref);
+              })
+            : undefined;
 
     function flush() {
         if (total === 0) return;
@@ -207,7 +213,9 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
 
     function relayWorkerUsage(worker: Worker) {
         worker.addEventListener("message", onWorkerMessage);
-        workerCleanups.push(() => worker.removeEventListener("message", onWorkerMessage));
+        const ref = new WeakRef(worker);
+        workerRefs.add(ref);
+        workerRegistry?.register(worker, ref, ref);
     }
 
     function install() {
@@ -330,9 +338,11 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
         stopInterval?.();
         stopInterval = undefined;
 
-        while (workerCleanups.length > 0) {
-            workerCleanups.pop()?.();
+        for (const ref of workerRefs) {
+            workerRegistry?.unregister(ref);
+            ref.deref()?.removeEventListener("message", onWorkerMessage);
         }
+        workerRefs.clear();
 
         if (originalFetch) {
             globalObject.fetch = originalFetch;
