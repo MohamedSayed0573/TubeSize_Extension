@@ -33,7 +33,6 @@ export default defineContentScript({
 
     main() {
         addEventListener("message", (event) => {
-            // eslint-disable-next-line unicorn/prefer-global-this
             if (event.source !== window) return;
 
             relayWindowMessage(event.data);

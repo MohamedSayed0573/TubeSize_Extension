@@ -6,7 +6,6 @@ import { fakeBrowser } from "@webext-core/fake-browser";
 import { onMessage, sendMessage, type BackgroundResponse } from "@/messaging";
 
 const fakeChrome = fakeBrowser as unknown as typeof chrome;
-// eslint-disable-next-line unicorn/no-global-object-property-assignment
 globalThis.chrome = fakeChrome;
 
 const cleanups: Array<() => void> = [];
@@ -100,8 +99,6 @@ describe("sendMessage to a tab", () => {
     });
 
     test("rejects when the tab has no receiver", async () => {
-        // A tab without a content script leaves the callback without a response,
-        // which is what the browser reports as a missing receiving end.
         fakeChrome.tabs.sendMessage = ((
             _tabId: number,
             _message: unknown,

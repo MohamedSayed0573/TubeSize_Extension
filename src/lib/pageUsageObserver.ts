@@ -33,7 +33,7 @@ export function hasPositiveContentLength(value: string | null | undefined): bool
     return Number.isFinite(bytes) && bytes > 0;
 }
 
-function workerBootstrap(originalUrl: string, flushIntervalMs: number): string {
+function workerBootstrap(flushIntervalMs: number): string {
     return `
 (() => {
     if (self.__tsWorkerPatched) return;
@@ -41,19 +41,8 @@ function workerBootstrap(originalUrl: string, flushIntervalMs: number): string {
     self.postMessage({ type: "WORKER_READY" });
     let total = 0;
     const hasPositiveContentLength = ${hasPositiveContentLength.toString()};
-    // Code re-hosted in our blob resolves relative URLs against the blob,
-    // not the original script — re-base them against the original URL.
-    const __TS_BASE__ = ${JSON.stringify(originalUrl)};
-    const _importScripts = self.importScripts;
-    if (_importScripts) {
-        self.importScripts = (...urls) =>
-            _importScripts(...urls.map((u) => new URL(u, __TS_BASE__).href));
-    }
     const _fetch = self.fetch;
     self.fetch = (...args) => {
-        try {
-            if (typeof args[0] === "string") args[0] = new URL(args[0], __TS_BASE__).href;
-        } catch {}
         const response = _fetch.apply(self, args);
         return response.then((res) => {
             try {
@@ -82,20 +71,60 @@ function workerBootstrap(originalUrl: string, flushIntervalMs: number): string {
 `;
 }
 
+function invokeXhrSend(
+    sendMethod: unknown,
+    xhr: XMLHttpRequest,
+    body?: Document | XMLHttpRequestBodyInit | null,
+): void {
+    if (typeof sendMethod !== "function") return;
+    Reflect.apply(sendMethod, xhr, body === undefined ? [] : [body]);
+}
+
 function readWorkerSource(
     url: string,
     XhrCtor: typeof XMLHttpRequest,
-    nativeSend: typeof XMLHttpRequest.prototype.send,
+    nativeSend: unknown,
 ): string | undefined {
     try {
         const xhr = new XhrCtor();
         xhr.open("GET", url, false);
-        nativeSend.call(xhr);
+        invokeXhrSend(nativeSend, xhr);
         if (xhr.status === 200 && xhr.responseText.length > 0) return xhr.responseText;
+        return undefined;
     } catch {
-        // unreadable (e.g. cross-origin) — fall back to the native constructor
+        return undefined;
     }
-    return;
+}
+
+function wrapBlobWorkerUrl(
+    scriptURL: string | URL,
+    options: WorkerOptions | undefined,
+    getBaseURI: () => string,
+    XhrCtor: typeof XMLHttpRequest,
+    nativeSend: unknown,
+    urlApi: Pick<typeof URL, "createObjectURL">,
+    BlobCtor: typeof Blob,
+    flushIntervalMs: number,
+): string | undefined {
+    try {
+        const url = new URL(String(scriptURL), getBaseURI());
+        if (options?.type === "module" || url.protocol !== "blob:") return undefined;
+        // Only blob: workers are re-hosted (source inlined below).
+        // Same-origin http(s) workers stay native: pulling them in via
+        // importScripts inside our blob would subject them to the
+        // page's script rules instead of worker rules, and an import
+        // failure happens asynchronously — after Worker construction
+        // succeeded — so the native fallback below could never run.
+        const payload = readWorkerSource(url.href, XhrCtor, nativeSend);
+        if (!payload) return undefined;
+        return urlApi.createObjectURL(
+            new BlobCtor([workerBootstrap(flushIntervalMs), ";\n", payload], {
+                type: "application/javascript",
+            }),
+        );
+    } catch {
+        return undefined;
+    }
 }
 
 function revokeWorkerUrlWhenLoaded(
@@ -144,7 +173,7 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
     let installed = false;
     let total = 0;
     let originalFetch: FetchFn | undefined;
-    let originalSend: typeof XMLHttpRequest.prototype.send | undefined;
+    let originalSendDescriptor: PropertyDescriptor | undefined;
     let NativeWorker: typeof Worker | undefined;
     let stopInterval: (() => void) | undefined;
     const workerCleanups: Array<() => void> = [];
@@ -218,9 +247,9 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
         }, baseFetch);
 
         const xhrProto = XhrCtor.prototype;
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        const baseSend = xhrProto.send;
-        originalSend = baseSend;
+        const sendDescriptor = Object.getOwnPropertyDescriptor(xhrProto, "send");
+        const baseSend: unknown = sendDescriptor?.value;
+        originalSendDescriptor = sendDescriptor;
         xhrProto.send = function (body) {
             let loaded = 0;
             const countProgress = (event: ProgressEvent) => {
@@ -247,7 +276,7 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
             this.addEventListener("progress", countProgress);
             this.addEventListener("loadend", onLoadEnd);
             try {
-                return baseSend.call(this, body);
+                invokeXhrSend(baseSend, this, body);
             } catch (err) {
                 cleanup();
                 throw err;
@@ -259,30 +288,16 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
         globalObject.Worker = new Proxy(baseWorker, {
             construct(target, args: [string | URL, WorkerOptions?], newTarget) {
                 const [scriptURL, options] = args;
-                let wrappedUrl: string | undefined;
-                try {
-                    const url = new URL(String(scriptURL), getBaseURI());
-                    const isModule = options?.type === "module";
-                    if (!isModule && url.protocol === "blob:") {
-                        // Only blob: workers are re-hosted (source inlined below).
-                        // Same-origin http(s) workers stay native: pulling them in via
-                        // importScripts inside our blob would subject them to the
-                        // page's script rules instead of worker rules, and an import
-                        // failure happens asynchronously — after `super` succeeded —
-                        // so the native fallback below could never run.
-                        const payload = readWorkerSource(url.href, XhrCtor, baseSend);
-                        if (payload) {
-                            wrappedUrl = urlApi.createObjectURL(
-                                new BlobCtor(
-                                    [workerBootstrap(url.href, flushIntervalMs), ";\n", payload],
-                                    { type: "application/javascript" },
-                                ),
-                            );
-                        }
-                    }
-                } catch {
-                    // setup failure — construct the worker the normal way below
-                }
+                const wrappedUrl = wrapBlobWorkerUrl(
+                    scriptURL,
+                    options,
+                    getBaseURI,
+                    XhrCtor,
+                    baseSend,
+                    urlApi,
+                    BlobCtor,
+                    flushIntervalMs,
+                );
                 if (wrappedUrl) {
                     try {
                         const worker: unknown = Reflect.construct(
@@ -296,10 +311,6 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                             return worker;
                         }
                     } catch {
-                        // The page CSP (worker-src) may forbid blob: workers, making
-                        // the re-hosted constructor throw. The object URL was never
-                        // used — free it — and fall back to the original URL so the
-                        // site's worker still starts.
                         urlApi.revokeObjectURL(wrappedUrl);
                     }
                 }
@@ -327,9 +338,9 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
             globalObject.fetch = originalFetch;
             originalFetch = undefined;
         }
-        if (originalSend) {
-            XhrCtor.prototype.send = originalSend;
-            originalSend = undefined;
+        if (originalSendDescriptor) {
+            Object.defineProperty(XhrCtor.prototype, "send", originalSendDescriptor);
+            originalSendDescriptor = undefined;
         }
         if (NativeWorker) {
             globalObject.Worker = NativeWorker;
