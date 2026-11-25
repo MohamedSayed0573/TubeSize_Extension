@@ -1,4 +1,5 @@
 import type { AddUsageMessage } from "@app-types/types";
+import { isMediaEstimateError, type MediaEstimateErrorCode } from "@lib/mediaEstimateError";
 
 import { onBackgroundMessage, type BackgroundResponse } from "@/messaging";
 
@@ -18,15 +19,17 @@ function isValidUsageBytes(usage: unknown): usage is number {
 
 async function toBackgroundResponse<T>(
     resolve: () => Promise<T>,
-    options?: { logError?: boolean },
+    options?: { logError?: boolean; defaultErrorCode?: MediaEstimateErrorCode },
 ): Promise<BackgroundResponse<T>> {
     try {
         return { success: true, data: await resolve() };
     } catch (err) {
         if (options?.logError) console.error(err);
+        const errorCode = isMediaEstimateError(err) ? err.code : options?.defaultErrorCode;
         return {
             success: false,
             message: err instanceof Error ? err.message : String(err),
+            ...(errorCode !== undefined ? { errorCode } : {}),
         };
     }
 }
@@ -56,7 +59,7 @@ export function attachMessageHandler(
 ): () => void {
     const unsubscribers = [
         onBackgroundMessage("estimateMedia", ({ data }) =>
-            toBackgroundResponse(() => estimateMedia(data)),
+            toBackgroundResponse(() => estimateMedia(data), { defaultErrorCode: "unknown" }),
         ),
         onBackgroundMessage("addUsage", ({ data, sender }) =>
             toBackgroundResponse(() => recordUsageFromTab(ingestion, data, sender), {

@@ -3,6 +3,14 @@
         "message": "حدث خطأ ما",
         "description": "Generic error title"
     },
+    "common_retry": {
+        "message": "إعادة المحاولة",
+        "description": "Retry action button label"
+    },
+    "common_retrying": {
+        "message": "جارٍ إعادة المحاولة...",
+        "description": "Retry button label while a retry request is in progress"
+    },
     "common_backToDashboard": {
         "message": "العودة إلى لوحة الاستخدام",
         "description": "Link back to the dashboard"
@@ -192,6 +200,62 @@
     "popup_noRunningVideo": {
         "message": "لا يوجد فيديو قيد التشغيل. افتح فيديو أو بثًا لرؤية تقدير استهلاك البيانات.",
         "description": "Info shown when the page has no video or stream to load"
+    },
+    "popup_error_streamOffline_title": {
+        "message": "البث غير متصل",
+        "description": "Popup error title when a live channel or premiere is offline"
+    },
+    "popup_error_streamOffline_description": {
+        "message": "هذه القناة لا تبث حاليًا. حاول مجددًا عند بدء البث.",
+        "description": "Popup error description when a live channel or premiere is offline"
+    },
+    "popup_error_restrictedContent_title": {
+        "message": "محتوى مقيّد",
+        "description": "Popup error title when media is age-restricted, private, members-only, subscriber-only, or geo-blocked"
+    },
+    "popup_error_restrictedContent_description": {
+        "message": "يتطلب هذا الفيديو تسجيل الدخول أو عضوية، أو غير متاح في منطقتك.",
+        "description": "Popup error description when media is restricted"
+    },
+    "popup_error_unavailable_title": {
+        "message": "الفيديو غير متاح",
+        "description": "Popup error title when a video, VOD, or channel is unavailable or deleted"
+    },
+    "popup_error_unavailable_description": {
+        "message": "تم حذف هذا الفيديو أو القناة أو تعذّر العثور عليه.",
+        "description": "Popup error description when a video, VOD, or channel is unavailable or deleted"
+    },
+    "popup_error_networkError_title": {
+        "message": "مشكلة في الاتصال",
+        "description": "Popup error title when a network error, timeout, rate-limit, or server error occurs"
+    },
+    "popup_error_networkError_description": {
+        "message": "تعذّر الاتصال بالمنصة الآن. تحقّق من اتصالك وحاول مرة أخرى.",
+        "description": "Popup error description when a network or upstream server error occurs"
+    },
+    "popup_error_noFormats_title": {
+        "message": "لا تتوفر جودات للتقدير",
+        "description": "Popup error title when media has no estimable video formats"
+    },
+    "popup_error_noFormats_description": {
+        "message": "لم يتم العثور على جودات فيديو قابلة للتقدير لهذا المحتوى.",
+        "description": "Popup error description when media has no estimable video formats"
+    },
+    "popup_error_unsupportedUrl_title": {
+        "message": "صفحة غير مدعومة",
+        "description": "Popup error title when the URL is not a supported media page"
+    },
+    "popup_error_unsupportedUrl_description": {
+        "message": "افتح صفحة فيديو أو بث مباشر مدعوم لرؤية تقدير استهلاك البيانات.",
+        "description": "Popup error description when the URL is not a supported media page"
+    },
+    "popup_error_unknown_title": {
+        "message": "تعذّر تقدير الحجم",
+        "description": "Popup fallback error title when estimation fails for an unexpected reason"
+    },
+    "popup_error_unknown_description": {
+        "message": "حدث خطأ غير متوقع منع قراءة جودات هذا الفيديو.",
+        "description": "Popup fallback error description when estimation fails for an unexpected reason"
     },
     "popup_current": {
         "message": "الحالي",

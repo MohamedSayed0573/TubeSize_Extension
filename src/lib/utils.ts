@@ -13,15 +13,36 @@ export type PageHtmlFetcher = (url: string) => Promise<string | undefined>;
 
 const defaultFetch: FetchLike = (input, init) => fetch(input, init);
 
-type FetchResponse = { success: true; response: Response } | { success: false; error: Error };
+type FetchFailureKind = "http" | "aborted" | "timeout" | "network";
+
+export type FetchFailure = {
+    success: false;
+    error: Error;
+    kind: FetchFailureKind;
+    status?: number;
+};
+
+type FetchResponse = { success: true; response: Response } | FetchFailure;
+
+function getErrorName(value: unknown): string | undefined {
+    if (value instanceof Error) return value.name;
+    if (typeof value === "object" && value !== null && "name" in value) {
+        return typeof value.name === "string" ? value.name : undefined;
+    }
+    return undefined;
+}
+
 export async function fetchAndRetry(
     url: string | URL,
     options: RequestInit = {},
-    maxRetries = CONFIG.DEFAULT_MAX_RETRIES,
+    maxRetries: number = CONFIG.DEFAULT_MAX_RETRIES,
     sleep: (ms: number) => Promise<void> = delay,
     fetchFn: FetchLike = defaultFetch,
 ): Promise<FetchResponse> {
     let lastError: Error | undefined;
+    let lastKind: FetchFailureKind = "network";
+    let lastStatus: number | undefined;
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
             const response = await fetchFn(url, options);
@@ -30,27 +51,46 @@ export async function fetchAndRetry(
             if (response.status >= 400 && response.status < 500) {
                 return {
                     success: false,
+                    kind: "http",
+                    status: response.status,
                     error: new Error(`Client Error: ${response.status}, won't retry`),
                 };
             }
 
-            throw new Error(`Server Error: ${response.status}`);
+            lastKind = "http";
+            lastStatus = response.status;
+            lastError = new Error(`Server Error: ${response.status}`);
         } catch (err) {
-            lastError = err instanceof Error ? err : new Error(String(err));
+            const error = err instanceof Error ? err : new Error(String(err));
+            const reasonName = getErrorName(options.signal?.reason);
+            const isTimeout = error.name === "TimeoutError" || reasonName === "TimeoutError";
+            const isAborted =
+                isTimeout || options.signal?.aborted === true || error.name === "AbortError";
 
-            if (
-                options.signal?.aborted ||
-                lastError.name === "AbortError" ||
-                lastError.name === "TimeoutError"
-            ) {
-                return { success: false, error: new Error("Request aborted") };
+            if (isAborted) {
+                return {
+                    success: false,
+                    kind: isTimeout ? "timeout" : "aborted",
+                    error: new Error(isTimeout ? "Request timed out" : "Request aborted"),
+                };
             }
-            if (maxRetries > attempt) {
-                await sleep(Math.pow(2, attempt) * 1000);
-            }
+
+            lastKind = "network";
+            lastStatus = undefined;
+            lastError = error;
+        }
+
+        if (maxRetries > attempt) {
+            await sleep(Math.pow(2, attempt) * 1000);
         }
     }
-    return { success: false, error: lastError || new Error("Unknown error") };
+
+    return {
+        success: false,
+        kind: lastKind,
+        ...(lastStatus !== undefined ? { status: lastStatus } : {}),
+        error: lastError ?? new Error("Unknown error"),
+    };
 }
 
 async function delay(ms: number): Promise<void> {

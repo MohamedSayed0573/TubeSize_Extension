@@ -5,6 +5,7 @@ import type {
 } from "@app-types/platforms.types";
 import { resolveHlsStreams, toVodFormats } from "@lib/hls";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
+import { classifyFetchFailure, MediaEstimateError } from "@lib/mediaEstimateError";
 import type { ParsedTwitchMedia } from "@lib/platformUrl";
 import { fetchAndRetry, type PageHtmlFetcher } from "@lib/utils";
 import * as cheerio from "cheerio";
@@ -55,18 +56,24 @@ const TWITCH_GQL_GRAPHQL_QUERY = `
     }
 `;
 
+const twitchAuthorizationSchema = z.object({
+    isForbidden: z.boolean().nullish(),
+    forbiddenReasonCode: z.string().nullish(),
+});
+
 const twitchGqlResponseSchema = z.object({
     data: z.object({
         streamPlaybackAccessToken: z
             .object({
-                value: z.string(),
-                signature: z.string(),
+                value: z.string().nullish(),
+                signature: z.string().nullish(),
+                authorization: twitchAuthorizationSchema.nullish(),
             })
             .nullish(),
         videoPlaybackAccessToken: z
             .object({
-                value: z.string(),
-                signature: z.string(),
+                value: z.string().nullish(),
+                signature: z.string().nullish(),
             })
             .nullish(),
         video: z
@@ -107,14 +114,14 @@ type TwitchGqlVariables = {
 async function getTwitchClientId(url: string): Promise<string> {
     const res = await fetchAndRetry(url);
     if (!res.success) {
-        throw new Error("Failed to fetch Twitch page");
+        throw classifyFetchFailure(res, `Failed to fetch Twitch page: ${res.error.message}`);
     }
 
     const data = await res.response.text();
     const clientId = data.match(/clientId\s*=\s*"(.*?)"/);
 
     if (!clientId?.[1]) {
-        throw new Error("Failed to extract client ID from Twitch page");
+        throw new MediaEstimateError("unknown", "Failed to extract client ID from Twitch page");
     }
     return clientId[1];
 }
@@ -123,50 +130,57 @@ async function getTwitchToken(
     clientId: string,
     variables: TwitchGqlVariables,
 ): Promise<TwitchTokenData> {
-    try {
-        const headers = {
-            "Client-Id": clientId,
-            "Content-Type": "application/json",
-        };
-        const body = {
-            query: TWITCH_GQL_GRAPHQL_QUERY,
-            variables,
-        };
+    const headers = {
+        "Client-Id": clientId,
+        "Content-Type": "application/json",
+    };
+    const body = {
+        query: TWITCH_GQL_GRAPHQL_QUERY,
+        variables,
+    };
 
-        const res = await fetchAndRetry("https://gql.twitch.tv/gql", {
-            method: "POST",
-            headers,
-            body: JSON.stringify(body),
-        });
-        if (!res.success) {
-            throw new Error(`Failed to fetch Twitch token from GQL: ${res.error.message}`);
-        }
-        const data = (await res.response.json()) as unknown;
-        const parsedData = twitchGqlResponseSchema.parse(data);
-        if (
-            !parsedData.data.streamPlaybackAccessToken &&
-            !parsedData.data.videoPlaybackAccessToken
-        ) {
-            throw new Error("Failed to get stream playback access token");
-        }
-        const value =
-            parsedData.data.streamPlaybackAccessToken?.value ??
-            parsedData.data.videoPlaybackAccessToken?.value;
-        const signature =
-            parsedData.data.streamPlaybackAccessToken?.signature ??
-            parsedData.data.videoPlaybackAccessToken?.signature;
-        if (!value || !signature) {
-            throw new Error("Failed to retrieve Twitch token");
-        }
-        return {
-            value,
-            signature,
-            durationSeconds: parsedData.data.video?.lengthSeconds,
-        };
-    } catch (err) {
-        console.error("Failed to get Twitch token:", err);
-        throw err;
+    const res = await fetchAndRetry("https://gql.twitch.tv/gql", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+    });
+    if (!res.success) {
+        throw classifyFetchFailure(
+            res,
+            `Failed to fetch Twitch token from GQL: ${res.error.message}`,
+        );
     }
+
+    const data = (await res.response.json()) as unknown;
+    const parsedData = twitchGqlResponseSchema.parse(data);
+    const streamToken = parsedData.data.streamPlaybackAccessToken;
+    const videoToken = parsedData.data.videoPlaybackAccessToken;
+
+    if (streamToken?.authorization?.isForbidden) {
+        const reason = streamToken.authorization.forbiddenReasonCode?.trim();
+        throw new MediaEstimateError(
+            "restricted_content",
+            reason
+                ? `Twitch stream playback forbidden: ${reason}`
+                : "Twitch stream playback is forbidden",
+        );
+    }
+
+    if (!streamToken && !videoToken) {
+        throw new MediaEstimateError("unavailable", "Failed to get stream playback access token");
+    }
+
+    const value = streamToken?.value ?? videoToken?.value;
+    const signature = streamToken?.signature ?? videoToken?.signature;
+    if (!value || !signature) {
+        throw new MediaEstimateError("unavailable", "Failed to retrieve Twitch token");
+    }
+
+    return {
+        value,
+        signature,
+        durationSeconds: parsedData.data.video?.lengthSeconds,
+    };
 }
 
 function buildTwitchMasterUrl(tokenData: TwitchTokenData, baseUrl: string): URL {
@@ -196,6 +210,7 @@ async function estimateTwitchLive(
     );
     const formats = await resolveHlsStreams(masterUrl, {
         sampleSegments: isFromPopup,
+        notFoundCode: "stream_offline",
     });
 
     return {
@@ -223,7 +238,7 @@ async function estimateTwitchVod(mediaId: string): Promise<VodMediaEstimate> {
         platform: "web",
     });
     if (!twitchToken.durationSeconds) {
-        throw new Error("Failed to get Twitch VOD duration");
+        throw new MediaEstimateError("unavailable", "Failed to get Twitch VOD duration");
     }
     const masterUrl = buildTwitchMasterUrl(
         twitchToken,

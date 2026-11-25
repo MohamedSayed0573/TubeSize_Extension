@@ -145,7 +145,7 @@ describe("estimateKick (live)", () => {
         });
     });
 
-    test("throws when streamId cannot be extracted from channel HTML", async () => {
+    test("classifies offline live channels when streamId is absent from channel HTML", async () => {
         globalThis.fetch = jest.fn(async () => {
             return new Response("<html><body>Offline channel</body></html>", {
                 status: 200,
@@ -163,10 +163,14 @@ describe("estimateKick (live)", () => {
                 },
                 { isFromPopup: false },
             ),
-        ).rejects.toThrow("Failed to extract stream ID from the page");
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "stream_offline",
+            message: "Failed to extract stream ID from the page",
+        });
     });
 
-    test("throws when playback endpoint returns 4xx or omits playback_url.live", async () => {
+    test("classifies missing playback_url.live, 404 live playback, 403 restricted, and 5xx network errors", async () => {
         globalThis.fetch = jest.fn(async (input: string | URL) => {
             const url = input.toString();
             if (url === "https://kick.com/broken") {
@@ -186,7 +190,35 @@ describe("estimateKick (live)", () => {
                 },
                 { isFromPopup: false },
             ),
-        ).rejects.toThrow("Master M3U8 URL not found in playback response");
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "stream_offline",
+            message: "Master M3U8 URL not found in playback response",
+        });
+
+        globalThis.fetch = jest.fn(async (input: string | URL) => {
+            const url = input.toString();
+            if (url === "https://kick.com/broken") {
+                return new Response(`{"vod_id":"stream-1"}`, { status: 200 });
+            }
+            return new Response("Not Found", { status: 404 });
+        }) as unknown as typeof fetch;
+
+        await expect(
+            estimateKick(
+                {
+                    kind: "media",
+                    platform: "kick",
+                    contentType: "live",
+                    mediaId: "broken",
+                    channelName: "broken",
+                },
+                { isFromPopup: false },
+            ),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "stream_offline",
+        });
 
         const requestedUrls: string[] = [];
         globalThis.fetch = jest.fn(async (input: string | URL) => {
@@ -212,11 +244,35 @@ describe("estimateKick (live)", () => {
                 },
                 { isFromPopup: false },
             ),
-        ).rejects.toThrow("Error fetching playback info");
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "restricted_content",
+            message: expect.stringContaining("Error fetching playback info"),
+        });
         expect(requestedUrls).toEqual([
             "https://kick.com/broken",
             "https://web.kick.com/api/v1/stream/stream-1/playback",
         ]);
+
+        globalThis.fetch = jest.fn(
+            async () => new Response("Service Unavailable", { status: 503 }),
+        ) as unknown as typeof fetch;
+
+        await expect(
+            estimateKick(
+                {
+                    kind: "media",
+                    platform: "kick",
+                    contentType: "live",
+                    mediaId: "broken",
+                    channelName: "broken",
+                },
+                { isFromPopup: false },
+            ),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "network_error",
+        });
     });
 });
 
@@ -354,7 +410,7 @@ describe("estimateKick (vod)", () => {
         ]);
     });
 
-    test("throws when a slug VOD is absent from channel videos", async () => {
+    test("classifies absent slug VODs, 404 UUID VODs, 403 restricted VODs, and network errors", async () => {
         globalThis.fetch = jest.fn(async () => {
             return Response.json([
                 {
@@ -373,7 +429,60 @@ describe("estimateKick (vod)", () => {
                 mediaId: "missing-slug-vod",
                 channelName: "xqc",
             }),
-        ).rejects.toThrow("Kick VOD not found in channel videos");
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "unavailable",
+            message: "Kick VOD not found in channel videos",
+        });
+
+        const uuid = "22222222-2222-3333-4444-555555555555";
+        globalThis.fetch = jest.fn(
+            async () => new Response("Not Found", { status: 404 }),
+        ) as unknown as typeof fetch;
+        await expect(
+            estimateKick({
+                kind: "media",
+                platform: "kick",
+                contentType: "vod",
+                mediaId: uuid,
+                channelName: "xqc",
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "unavailable",
+        });
+
+        globalThis.fetch = jest.fn(
+            async () => new Response("Forbidden", { status: 403 }),
+        ) as unknown as typeof fetch;
+        await expect(
+            estimateKick({
+                kind: "media",
+                platform: "kick",
+                contentType: "vod",
+                mediaId: uuid,
+                channelName: "xqc",
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "restricted_content",
+        });
+
+        globalThis.fetch = jest.fn(async () => {
+            throw new Error("Connection reset");
+        }) as unknown as typeof fetch;
+        await expect(
+            estimateKick({
+                kind: "media",
+                platform: "kick",
+                contentType: "vod",
+                mediaId: uuid,
+                channelName: "xqc",
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "network_error",
+        });
     });
 
     test("throws when UUID VOD metadata has missing source, null livestream, or non-positive duration", async () => {

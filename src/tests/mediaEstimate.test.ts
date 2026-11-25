@@ -7,6 +7,7 @@ import {
     projectEstimateFormats,
     requestMediaEstimate,
 } from "@lib/mediaEstimate";
+import { MediaEstimateError, type MediaEstimateErrorCode } from "@lib/mediaEstimateError";
 
 import { setLanguage } from "@/i18n/language";
 import { onBackgroundMessage } from "@/messaging";
@@ -155,27 +156,52 @@ describe("requestMediaEstimate", () => {
         ]);
     });
 
-    test("rejects unsupported or non-media URLs and surfaces background errors", async () => {
-        await expect(requestMediaEstimate("https://www.youtube.com/")).rejects.toThrow(
-            "Unsupported or non-media URL",
+    test("rejects unsupported or non-media URLs and reconstructs structured MediaEstimateError from background responses", async () => {
+        await expect(requestMediaEstimate("https://www.youtube.com/")).rejects.toEqual(
+            new MediaEstimateError("unsupported_url", "Unsupported or non-media URL"),
         );
-        await expect(requestMediaEstimate("https://www.twitch.tv/directory")).rejects.toThrow(
-            "Unsupported or non-media URL",
+        await expect(requestMediaEstimate("https://www.twitch.tv/directory")).rejects.toEqual(
+            new MediaEstimateError("unsupported_url", "Unsupported or non-media URL"),
         );
-        await expect(requestMediaEstimate("https://kick.com/browse")).rejects.toThrow(
-            "Unsupported or non-media URL",
+        await expect(requestMediaEstimate("https://kick.com/browse")).rejects.toEqual(
+            new MediaEstimateError("unsupported_url", "Unsupported or non-media URL"),
         );
+
+        const codes: MediaEstimateErrorCode[] = [
+            "stream_offline",
+            "restricted_content",
+            "unavailable",
+            "network_error",
+            "no_formats",
+            "unsupported_url",
+            "unknown",
+        ];
+
+        for (const code of codes) {
+            const unsubscribe = onBackgroundMessage("estimateMedia", () => ({
+                success: false,
+                message: `Failure: ${code}`,
+                errorCode: code,
+            }));
+            try {
+                await expect(
+                    requestMediaEstimate("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+                ).rejects.toEqual(new MediaEstimateError(code, `Failure: ${code}`));
+            } finally {
+                unsubscribe();
+            }
+        }
 
         cleanups.push(
             onBackgroundMessage("estimateMedia", () => ({
                 success: false,
-                message: "Upstream failed",
+                message: "Legacy untyped failure",
             })),
         );
 
         await expect(
             requestMediaEstimate("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
-        ).rejects.toThrow("Upstream failed");
+        ).rejects.toEqual(new MediaEstimateError("unknown", "Legacy untyped failure"));
     });
 });
 

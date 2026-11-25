@@ -5,6 +5,7 @@ import type {
 } from "@app-types/platforms.types";
 import { resolveHlsStreams, toVodFormats } from "@lib/hls";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
+import { classifyFetchFailure, MediaEstimateError } from "@lib/mediaEstimateError";
 import { isKickVideoUuid, type ParsedKickMedia } from "@lib/platformUrl";
 import { fetchAndRetry, type PageHtmlFetcher } from "@lib/utils";
 import * as cheerio from "cheerio";
@@ -46,7 +47,7 @@ async function getKickHtml(url: string): Promise<string> {
     });
 
     if (!res.success) {
-        throw new Error(`Error fetching Kick page HTML: ${res.error.message}`);
+        throw classifyFetchFailure(res, `Error fetching Kick page HTML: ${res.error.message}`);
     }
     return await res.response.text();
 }
@@ -95,14 +96,21 @@ async function getKickLiveMasterM3u8Url(streamId: string): Promise<string> {
         },
     });
     if (!playbackRes.success) {
-        throw new Error(`Error fetching playback info: ${playbackRes.error.message}`);
+        throw classifyFetchFailure(
+            playbackRes,
+            `Error fetching playback info: ${playbackRes.error.message}`,
+            { notFoundCode: "stream_offline" },
+        );
     }
 
     const playback = (await playbackRes.response.json()) as unknown;
     const parsedPlayback = kickPlaybackResponseSchema.parse(playback);
     const m3u8Url = parsedPlayback.playback_url?.live;
     if (!m3u8Url) {
-        throw new Error("Master M3U8 URL not found in playback response");
+        throw new MediaEstimateError(
+            "stream_offline",
+            "Master M3U8 URL not found in playback response",
+        );
     }
 
     return m3u8Url;
@@ -115,12 +123,13 @@ async function estimateKickLive(
     const html = await getKickHtml(`https://kick.com/${channelName}`);
     const streamId = getKickStreamId(html);
     if (!streamId) {
-        throw new Error("Failed to extract stream ID from the page");
+        throw new MediaEstimateError("stream_offline", "Failed to extract stream ID from the page");
     }
 
     const masterM3u8Url = await getKickLiveMasterM3u8Url(streamId);
     const formats = await resolveHlsStreams(masterM3u8Url, {
         sampleSegments: isFromPopup,
+        notFoundCode: "stream_offline",
     });
 
     return {
@@ -141,15 +150,15 @@ async function getKickVodByUuid(mediaId: string): Promise<{ source: string; dura
         credentials: "include",
     });
     if (!res.success) {
-        throw new Error(`Error fetching Kick video: ${res.error.message}`);
+        throw classifyFetchFailure(res, `Error fetching Kick video: ${res.error.message}`);
     }
 
     const video = kickVideoResponseSchema.parse(await res.response.json());
     if (!video.source) {
-        throw new Error("Kick VOD source not found");
+        throw new MediaEstimateError("unavailable", "Kick VOD source not found");
     }
     if (video.livestream == null) {
-        throw new Error("Kick VOD duration not found");
+        throw new MediaEstimateError("unavailable", "Kick VOD duration not found");
     }
     return { source: video.source, durationMs: video.livestream.duration };
 }
@@ -163,13 +172,13 @@ async function findKickVodInChannelVideos(channelName: string, mediaId: string) 
         credentials: "include",
     });
     if (!res.success) {
-        throw new Error(`Error fetching Kick channel videos: ${res.error.message}`);
+        throw classifyFetchFailure(res, `Error fetching Kick channel videos: ${res.error.message}`);
     }
 
     const videos = kickChannelVideosResponseSchema.parse(await res.response.json());
     const video = videos.find((entry) => entry.slug === mediaId);
     if (!video?.source) {
-        throw new Error("Kick VOD not found in channel videos");
+        throw new MediaEstimateError("unavailable", "Kick VOD not found in channel videos");
     }
     return { source: video.source, durationMs: video.duration };
 }
@@ -185,7 +194,7 @@ async function estimateKickVod(mediaId: string, channelName: string): Promise<Vo
         : await findKickVodInChannelVideos(channelName, mediaId);
 
     if (!Number.isFinite(durationMs) || durationMs <= 0) {
-        throw new Error("Kick VOD duration not found");
+        throw new MediaEstimateError("unavailable", "Kick VOD duration not found");
     }
 
     const durationSeconds = Math.round(durationMs / 1000);

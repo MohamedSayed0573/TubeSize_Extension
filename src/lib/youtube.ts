@@ -11,6 +11,7 @@ import type {
 import { getCachedAv1Support } from "@lib/codecSupport";
 import CONFIG from "@lib/constants";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
+import { classifyFetchFailure, MediaEstimateError } from "@lib/mediaEstimateError";
 import { getPlatformDisplayName, type ParsedYoutubeMedia } from "@lib/platformUrl";
 import { fetchAndRetry } from "@lib/utils";
 import { z } from "zod";
@@ -21,6 +22,52 @@ const AUDIO_ITAG = 251;
 const LIVE_AUDIO_ITAG = 140;
 const YT_INITIAL_PLAYER_ASSIGNMENT_REGEX = /\bytInitialPlayerResponse\s*=\s*\{/g;
 const DEFAULT_YOUTUBE_THUMBNAIL = "https://www.youtube.com/img/desktop/yt_1200.png";
+
+const RESTRICTED_PLAYABILITY_STATUSES = new Set([
+    "LOGIN_REQUIRED",
+    "AGE_CHECK_REQUIRED",
+    "AGE_VERIFICATION_REQUIRED",
+    "CONTENT_CHECK_REQUIRED",
+]);
+
+const RESTRICTED_REASON_REGEX =
+    /\b(?:age[- ]?restricted|confirm your age|sign in|log in|login|members[- ]?only|join this channel|channel(?:'s)? members|channel membership|requires? membership|private video|video is private|in your country|in your region|not available in your|blocked it in your|geo[- ]?restrict|region[- ]?block|requires? payment|purchase|buy or rent|youtube premium|subscribers?[- ]?only|restricted mode)/i;
+
+const OFFLINE_REASON_REGEX =
+    /\b(?:live event will begin|premiere will begin|live stream is offline|stream is offline|upcoming)/i;
+
+const ytTextRunSchema = z.object({
+    simpleText: z.string().optional(),
+    runs: z.array(z.object({ text: z.string() })).optional(),
+});
+
+const ytPlayabilityStatusSchema = z.object({
+    status: z.string().optional(),
+    reason: z.string().optional(),
+    messages: z.array(z.string()).optional(),
+    errorScreen: z
+        .object({
+            playerErrorMessageRenderer: z
+                .object({
+                    reason: ytTextRunSchema.optional(),
+                    subreason: ytTextRunSchema.optional(),
+                })
+                .optional(),
+        })
+        .optional(),
+});
+
+const ytEnvelopeSchema = z.object({
+    playabilityStatus: ytPlayabilityStatusSchema.optional(),
+    videoDetails: z
+        .object({
+            videoId: z.string().optional(),
+        })
+        .optional(),
+    streamingData: z.unknown().optional(),
+});
+
+type YtPlayabilityStatus = z.infer<typeof ytPlayabilityStatusSchema>;
 
 const ytInitialSchema = z.object({
     videoDetails: z.object({
@@ -121,9 +168,66 @@ async function fetchYoutubeHtml(mediaId: string) {
         method: "GET",
         signal: AbortSignal.timeout(CONFIG.FETCH_HTML_TIMEOUT),
     });
-    if (!res.success) throw new Error(`HTTP ${res.error.message}`);
+    if (!res.success) {
+        throw classifyFetchFailure(res, `HTTP ${res.error.message}`);
+    }
     const fetchedHtml = await res.response.text();
     return fetchedHtml;
+}
+
+function extractTextRun(run: z.infer<typeof ytTextRunSchema> | undefined): string | undefined {
+    if (!run) return undefined;
+    if (run.simpleText) return run.simpleText;
+    if (run.runs && run.runs.length > 0) {
+        return run.runs.map((part) => part.text).join("");
+    }
+    return undefined;
+}
+
+function getPlayabilityDetail(playability: YtPlayabilityStatus): string {
+    const parts = [
+        playability.reason,
+        ...(playability.messages ?? []),
+        extractTextRun(playability.errorScreen?.playerErrorMessageRenderer?.reason),
+        extractTextRun(playability.errorScreen?.playerErrorMessageRenderer?.subreason),
+    ]
+        .map((part) => part?.trim())
+        .filter((part): part is string => Boolean(part));
+
+    return [...new Set(parts)].join(" — ");
+}
+
+function classifyYoutubePlayability(
+    playability: YtPlayabilityStatus,
+): MediaEstimateError | undefined {
+    const status = playability.status;
+    if (!status || status === "OK") return undefined;
+
+    const detail = getPlayabilityDetail(playability);
+
+    if (status === "LIVE_STREAM_OFFLINE") {
+        return new MediaEstimateError(
+            "stream_offline",
+            detail || "Live stream is currently offline",
+        );
+    }
+
+    if (RESTRICTED_PLAYABILITY_STATUSES.has(status)) {
+        return new MediaEstimateError(
+            "restricted_content",
+            detail || "This video requires sign-in or is restricted",
+        );
+    }
+
+    if (RESTRICTED_REASON_REGEX.test(detail)) {
+        return new MediaEstimateError("restricted_content", detail);
+    }
+
+    if (OFFLINE_REASON_REGEX.test(detail)) {
+        return new MediaEstimateError("stream_offline", detail);
+    }
+
+    return new MediaEstimateError("unavailable", detail || `Video unavailable (${status})`);
 }
 
 function extractJsonObject(source: string, openBraceIndex: number): string | undefined {
@@ -161,10 +265,11 @@ function extractJsonObject(source: string, openBraceIndex: number): string | und
 
 type ParseYtInitialResult =
     | { ok: true; data: ytInitialPlayerResponse }
-    | { ok: false; error: Error };
+    | { ok: false; error: Error; definitive: boolean };
 
 function tryParseYtInitialFromHtml(html: string, mediaId: string): ParseYtInitialResult {
     let lastError: Error | undefined;
+    let playabilityError: MediaEstimateError | undefined;
 
     for (const match of html.matchAll(YT_INITIAL_PLAYER_ASSIGNMENT_REGEX)) {
         const openBraceIndex = match.index + match[0].length - 1;
@@ -173,20 +278,59 @@ function tryParseYtInitialFromHtml(html: string, mediaId: string): ParseYtInitia
 
         try {
             const data = JSON.parse(jsonText) as unknown;
-            const ytInitial = ytInitialSchema.parse(data);
-            if (ytInitial.videoDetails.videoId !== mediaId) {
+            const envelope = ytEnvelopeSchema.safeParse(data);
+            if (envelope.success) {
+                const candidateVideoId = envelope.data.videoDetails?.videoId;
+                if (candidateVideoId && candidateVideoId !== mediaId) {
+                    lastError = new Error(
+                        "Video ID mismatch between extracted data and requested video",
+                    );
+                    continue;
+                }
+
+                if (envelope.data.playabilityStatus) {
+                    const classified = classifyYoutubePlayability(envelope.data.playabilityStatus);
+                    if (classified) {
+                        playabilityError = classified;
+                        continue;
+                    }
+                }
+            }
+
+            const ytInitial = ytInitialSchema.safeParse(data);
+            if (!ytInitial.success) {
+                if (
+                    envelope.success &&
+                    envelope.data.videoDetails?.videoId === mediaId &&
+                    envelope.data.streamingData == null
+                ) {
+                    lastError = new MediaEstimateError(
+                        "no_formats",
+                        "No streaming data found for this video",
+                    );
+                } else {
+                    lastError = ytInitial.error;
+                }
+                continue;
+            }
+
+            if (ytInitial.data.videoDetails.videoId !== mediaId) {
                 lastError = new Error(
                     "Video ID mismatch between extracted data and requested video",
                 );
                 continue;
             }
-            return { ok: true, data: ytInitial };
+            return { ok: true, data: ytInitial.data };
         } catch (err) {
             lastError = err instanceof Error ? err : new Error(String(err));
         }
     }
 
-    return { ok: false, error: lastError ?? new Error("No match found") };
+    if (playabilityError) {
+        return { ok: false, error: playabilityError, definitive: true };
+    }
+
+    return { ok: false, error: lastError ?? new Error("No match found"), definitive: false };
 }
 
 export async function extractYtInitialResponse(
@@ -196,6 +340,7 @@ export async function extractYtInitialResponse(
     if (html) {
         const parsed = tryParseYtInitialFromHtml(html, mediaId);
         if (parsed.ok) return parsed.data;
+        if (parsed.definitive) throw parsed.error;
     }
 
     const fetchedHtml = await fetchYoutubeHtml(mediaId);
@@ -432,7 +577,7 @@ export async function estimateYoutube(
 ): Promise<MediaEstimate> {
     const { mediaId } = media;
     if (!mediaId) {
-        throw new Error("No media ID provided");
+        throw new MediaEstimateError("unsupported_url", "No media ID provided");
     }
 
     const cached = await getMediaCache("youtube", mediaId);

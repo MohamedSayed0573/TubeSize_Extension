@@ -1,5 +1,10 @@
 import type { LiveMediaFormat, VodMediaFormat } from "@app-types/platforms.types";
 import CONFIG from "@lib/constants";
+import {
+    classifyFetchFailure,
+    MediaEstimateError,
+    type MediaEstimateErrorCode,
+} from "@lib/mediaEstimateError";
 import { fetchAndRetry, type FetchLike } from "@lib/utils";
 import { Parser, type Manifest, type PlaylistItem } from "m3u8-parser";
 
@@ -9,6 +14,7 @@ const MIN_SAMPLED_DURATION_SECONDS = 4;
 
 interface ResolveHlsOptions {
     sampleSegments?: boolean;
+    notFoundCode?: MediaEstimateErrorCode;
     fetch?: FetchLike;
     sleep?: (ms: number) => Promise<void>;
 }
@@ -58,7 +64,7 @@ async function fetchMediaPlaylist(
 ): Promise<Manifest> {
     const res = await fetchAndRetry(url, { cache: "no-store" }, undefined, sleep, fetchFn);
     if (!res.success) {
-        throw new Error(`Error fetching media playlist M3U8: ${res.error.message}`);
+        throw classifyFetchFailure(res, `Error fetching media playlist M3U8: ${res.error.message}`);
     }
     return parseM3u8(await res.response.text());
 }
@@ -202,12 +208,18 @@ export async function resolveHlsStreams(
     const fetchFn = options.fetch ?? defaultFetch;
     const masterRes = await fetchAndRetry(masterUrl, {}, undefined, options.sleep, fetchFn);
     if (!masterRes.success) {
-        throw new Error(`Error fetching master M3U8: ${masterRes.error.message}`);
+        throw classifyFetchFailure(
+            masterRes,
+            `Error fetching master M3U8: ${masterRes.error.message}`,
+            {
+                notFoundCode: options.notFoundCode,
+            },
+        );
     }
 
     const playlists = parseM3u8(await masterRes.response.text()).playlists;
     if (!playlists || playlists.length === 0) {
-        throw new Error("No playlists found in master M3U8");
+        throw new MediaEstimateError("no_formats", "No playlists found in master M3U8");
     }
 
     return options.sampleSegments

@@ -1,6 +1,7 @@
 import type { MediaEstimate } from "@app-types/platforms.types";
 import type { EstimateMediaMessage } from "@app-types/types";
 import { estimateKick } from "@lib/kick";
+import { MediaEstimateError } from "@lib/mediaEstimateError";
 import { parsePlatformUrl, type ParsedPlatformMedia } from "@lib/platformUrl";
 import { estimateTwitch } from "@lib/twitch";
 import { estimateYoutube } from "@lib/youtube";
@@ -32,7 +33,7 @@ function dispatchEstimate(
 export async function estimateMedia(message: EstimateMediaMessage): Promise<MediaEstimate> {
     const parsed = parsePlatformUrl(message.url);
     if (parsed?.kind !== "media") {
-        throw new Error("Unsupported or non-media URL");
+        throw new MediaEstimateError("unsupported_url", "Unsupported or non-media URL");
     }
 
     const estimate = await dispatchEstimate(parsed, {
@@ -42,7 +43,7 @@ export async function estimateMedia(message: EstimateMediaMessage): Promise<Medi
     });
 
     if (estimate.formats.length === 0) {
-        throw new Error("No video formats found for this video");
+        throw new MediaEstimateError("no_formats", "No video formats found for this video");
     }
 
     return estimate;
