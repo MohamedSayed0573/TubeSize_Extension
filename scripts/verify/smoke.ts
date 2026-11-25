@@ -127,10 +127,12 @@ async function navigateMainPage(
 export async function runSmoke(opts: { extDir: string; timeoutMs: number }): Promise<SmokeReport> {
     const suiteStartedAt = performance.now();
     let server: ReturnType<typeof Bun.serve> | null = null;
+    let launchPromise: Promise<Awaited<ReturnType<typeof launchExtension>>> | null = null;
     let browser: Awaited<ReturnType<typeof launchExtension>> | null = null;
     let closePopupFn: (() => Promise<void>) | null = null;
-    let cleanedUp = false;
+    let cleanupPromise: Promise<void> | null = null;
     let interrupted = false;
+    let signalExitScheduled = false;
 
     const closeActivePopup = async () => {
         if (!closePopupFn) return;
@@ -139,26 +141,38 @@ export async function runSmoke(opts: { extDir: string; timeoutMs: number }): Pro
         await close();
     };
 
-    const cleanup = async () => {
-        if (cleanedUp) return;
-        cleanedUp = true;
-        await closeActivePopup();
-        if (server) {
-            try {
-                await server.stop(true);
-            } catch {
-                // Server already stopped.
+    const cleanup = (): Promise<void> => {
+        if (cleanupPromise) return cleanupPromise;
+        cleanupPromise = (async () => {
+            await closeActivePopup();
+            if (server) {
+                try {
+                    await server.stop(true);
+                } catch {
+                    // Server already stopped.
+                }
+                server = null;
             }
-            server = null;
-        }
-        if (browser) {
-            await browser.close();
-            browser = null;
-        }
+            if (launchPromise) {
+                try {
+                    browser = await launchPromise;
+                } catch {
+                    // launchExtension cleans up its own ephemeral profile on failure.
+                }
+                launchPromise = null;
+            }
+            if (browser) {
+                await browser.close();
+                browser = null;
+            }
+        })();
+        return cleanupPromise;
     };
 
     const onSignal = (sig: NodeJS.Signals) => {
         interrupted = true;
+        if (signalExitScheduled) return;
+        signalExitScheduled = true;
         void cleanup().finally(() => {
             process.exit(sig === "SIGINT" ? 130 : 143);
         });
@@ -179,7 +193,9 @@ export async function runSmoke(opts: { extDir: string; timeoutMs: number }): Pro
             throw new Error("Smoke fixture server failed to bind a local port.");
         }
 
-        browser = await launchExtension(opts.extDir, opts.timeoutMs, { enableCdp: true });
+        launchPromise = launchExtension(opts.extDir, opts.timeoutMs, { enableCdp: true });
+        browser = await launchPromise;
+        launchPromise = null;
         if (interrupted) {
             await cleanup();
             process.exit(130);
@@ -389,27 +405,52 @@ export async function runSmoke(opts: { extDir: string; timeoutMs: number }): Pro
 
         // 3. Twitch & Kick live streams via real toolbar popup
         await runStep("twitch-and-kick-live", async () => {
-            const livePatterns = [
-                { label: "1080p resolution", pattern: /\b1080p\b/ },
-                { label: "720p resolution", pattern: /\b720p\b/ },
-                { label: "480p resolution", pattern: /\b480p\b/ },
-                { label: "SI rate/size unit", pattern: /\b(?:MB|GB)(?:\/hour|\/min|\/h)?\b/ },
-            ] as const;
+            const expectedResolutions = ["1080p", "720p", "480p"] as const;
+            const assertLivePopupRates = async (platform: string, popupPage: Page) => {
+                await assertPopupSettles({
+                    popupPage,
+                    requiredPatterns: [
+                        { label: "hourly SI rate", pattern: /\b(?:KB|MB|GB)\/hour\b/ },
+                        { label: "per-minute SI rate", pattern: /\b(?:KB|MB|GB)\/min\b/ },
+                    ],
+                });
+
+                const rows = await popupPage.evaluate(() =>
+                    Array.from(document.querySelectorAll<HTMLElement>('#root div[dir="ltr"]')).map(
+                        (el) => el.innerText.replaceAll(/\s+/g, " ").trim(),
+                    ),
+                );
+
+                for (const res of expectedResolutions) {
+                    const rowPattern = new RegExp(`\\b${res}\\b`);
+                    const row = rows.find((text) => rowPattern.test(text));
+                    if (!row) {
+                        throw new Error(
+                            `${platform} live popup missing ${res} format row. Rows: ${JSON.stringify(rows)}`,
+                        );
+                    }
+                    if (!/\b(?:KB|MB|GB)\/hour\b/.test(row) || !/\b(?:KB|MB|GB)\/min\b/.test(row)) {
+                        throw new Error(
+                            `${platform} live popup ${res} row missing required /hour and /min rates: ${JSON.stringify(row)}`,
+                        );
+                    }
+                }
+            };
 
             await navigateMainPage(
                 mainPage,
                 resolveFixtureTarget("fixture:twitch-live", serverPort),
             );
             await withToolbarPopup(async (popupPage) => {
-                await assertPopupSettles({ popupPage, requiredPatterns: livePatterns });
+                await assertLivePopupRates("Twitch", popupPage);
             });
 
             await navigateMainPage(mainPage, resolveFixtureTarget("fixture:kick-live", serverPort));
             await withToolbarPopup(async (popupPage) => {
-                await assertPopupSettles({ popupPage, requiredPatterns: livePatterns });
+                await assertLivePopupRates("Kick", popupPage);
             });
 
-            return "Twitch & Kick live popups settled with 1080p/720p/480p SI rates";
+            return "Twitch & Kick live popups settled with 1080p/720p/480p /hour and /min SI rates";
         });
 
         // 4. Settings persistence + Arabic RTL reload
