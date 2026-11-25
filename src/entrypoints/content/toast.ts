@@ -1,6 +1,6 @@
+import type { DisplayFormat } from "@app-types/platforms.types";
 import { formatBytes, formatRate } from "@lib/format";
 
-import type { DisplayFormat } from "@/adapters/types";
 import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
 

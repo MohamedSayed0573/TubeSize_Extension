@@ -29,5 +29,5 @@ Preconditions:
 ## Gotchas
 
 - `injectQualityMenu()` waits up to `5000 ms` (`SETTINGS_WAIT_TIMEOUT`) for `.ytp-settings-menu` to exist in the DOM; the container must be present shortly after navigation finishes.
-- `qualityMenuInjector` matches menu rows by `parseInt(span.textContent)` and reads primary size from the `DisplayFormat[]` projected by `adapter.formats(data)` (always including audio — `formatDisplaySizes(format).primary`).
+- `qualityMenuInjector` matches menu rows by `parseInt(span.textContent)` and reads primary size from the `DisplayFormat[]` projected by `projectEstimateFormats(estimate)` (always including audio — `formatDisplaySizes(format).primary`).
 - On live `youtube.com`, YouTube frequently changes player DOM classes or injects A/B premium labels; `fixture:youtube-*` proves TubeSize's injector against the expected `.ytp-settings-menu` → `.ytp-panel.ytp-quality-menu` → `.ytp-panel-menu` → `.ytp-menuitem` → `.ytp-menuitem-label` → `div > span` structure (and `scripts/verify/browser.ts` passes `--disable-gpu`, deterministically selecting VP9 itag `313` / `862.67 MB` at `2160p`).

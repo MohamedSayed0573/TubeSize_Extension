@@ -32,29 +32,11 @@ export type AddWatchHistoryMessage = {
     platform: PlatformId;
 };
 
-export type YoutubeMessage = {
-    mediaId: string;
+export type EstimateMediaMessage = {
+    url: string;
+    isFromPopup?: boolean;
     html?: string;
     av1Supported?: boolean;
-};
-
-export type TwitchVodMessage = {
-    mediaId: string;
-};
-
-export type TwitchLiveMessage = {
-    channelName: string;
-    isFromPopup: boolean;
-};
-
-export type KickVodMessage = {
-    mediaId: string;
-    channelName: string;
-};
-
-export type KickLiveMessage = {
-    channelName: string;
-    isFromPopup: boolean;
 };
 
 export type UsageMessage = { type: "TUBESIZE_SITE_USAGE"; bytes: number };

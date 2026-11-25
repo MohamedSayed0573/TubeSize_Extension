@@ -1,27 +1,22 @@
-import type { PlatformId } from "@app-types/types";
+import type { MediaEstimate } from "@app-types/platforms.types";
 import { chromeNavigate } from "@lib/browser";
+import { formatEstimateHeader, type HeaderViewData } from "@lib/mediaEstimate";
 import { POPUP_ROUTES } from "@lib/routes";
 import { ExternalLink, Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 
-import type { HeaderViewData, PlatformAdapter, PlatformDataMap } from "@/adapters/types";
 import { t } from "@/i18n/t";
 
-type Props<P extends PlatformId> =
-    | {
-          adapter: PlatformAdapter<P>;
-          data: PlatformDataMap[P];
-      }
-    | {
-          adapter?: undefined;
-          data?: undefined;
-      };
+type Props = {
+    estimate?: MediaEstimate;
+};
 
-export default function Header<P extends PlatformId>({ adapter, data }: Props<P>) {
+export default function Header({ estimate }: Props) {
     const navigate = useNavigate();
-    const isLive = data?.type === "live";
-    const { title, duration }: HeaderViewData =
-        adapter && data ? adapter.header(data) : { title: "TubeSize" };
+    const isLive = estimate?.contentType === "live";
+    const { title, duration }: HeaderViewData = estimate
+        ? formatEstimateHeader(estimate)
+        : { title: "TubeSize" };
 
     return (
         <div className="border-b-2 border-white/8 px-2.5 py-1.5">

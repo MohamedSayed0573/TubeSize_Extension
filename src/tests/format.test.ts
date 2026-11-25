@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import type { AudioStreamInfo, DisplayFormat } from "@app-types/platforms.types";
 import { toDateKey } from "@lib/dateUtils";
 import {
     audioDisplaySizes,
@@ -12,8 +13,6 @@ import {
     formatDisplaySizes,
     formatRate,
 } from "@lib/format";
-
-import type { AudioStreamInfo, DisplayFormat } from "@/adapters/types";
 
 // Intl.DateTimeFormat.formatRange uses narrow no-break spaces (U+2009) around
 // the range separator in Node.js, but regular spaces in Bun. Normalize so the

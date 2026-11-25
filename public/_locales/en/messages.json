@@ -155,17 +155,25 @@
         "message": "Live",
         "description": "Live badge"
     },
-    "popup_youtubeVideo": {
-        "message": "YouTube Video",
-        "description": "Fallback title for YouTube video"
+    "popup_platformVideo": {
+        "message": "$1 Video",
+        "description": "Fallback title for a platform video",
+        "placeholders": {
+            "platform": {
+                "content": "$1",
+                "example": "YouTube"
+            }
+        }
     },
-    "popup_youtubeLive": {
-        "message": "YouTube Live",
-        "description": "Fallback title for YouTube live"
-    },
-    "popup_twitchVideo": {
-        "message": "Twitch Video",
-        "description": "Fallback title for Twitch video"
+    "popup_platformLive": {
+        "message": "$1 Live",
+        "description": "Fallback title for a platform live stream",
+        "placeholders": {
+            "platform": {
+                "content": "$1",
+                "example": "YouTube"
+            }
+        }
     },
     "popup_usageTrackingEnabled": {
         "message": "Usage tracking is enabled.",

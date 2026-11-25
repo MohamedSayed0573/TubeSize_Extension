@@ -1,6 +1,9 @@
-import type { TwitchLiveData, TwitchVodData } from "@app-types/platforms.types";
-import type { TwitchLiveMessage, TwitchVodMessage } from "@app-types/types";
-import { resolveHlsStreams } from "@lib/hls";
+import type {
+    LiveMediaEstimate,
+    MediaEstimate,
+    VodMediaEstimate,
+} from "@app-types/platforms.types";
+import { resolveHlsStreams, toVodFormats } from "@lib/hls";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
 import type { ParsedTwitchMedia } from "@lib/platformUrl";
 import { fetchAndRetry, type PageHtmlFetcher } from "@lib/utils";
@@ -174,10 +177,13 @@ function buildTwitchMasterUrl(tokenData: TwitchTokenData, baseUrl: string): URL 
     return masterUrl;
 }
 
-export async function getTwitchLiveData(message: TwitchLiveMessage): Promise<TwitchLiveData> {
-    const clientId = await getTwitchClientId(`https://www.twitch.tv/${message.channelName}`);
+async function estimateTwitchLive(
+    channelName: string,
+    isFromPopup: boolean,
+): Promise<LiveMediaEstimate> {
+    const clientId = await getTwitchClientId(`https://www.twitch.tv/${channelName}`);
     const twitchToken = await getTwitchToken(clientId, {
-        login: message.channelName,
+        login: channelName,
         isLive: true,
         vodID: "",
         isVod: false,
@@ -186,32 +192,32 @@ export async function getTwitchLiveData(message: TwitchLiveMessage): Promise<Twi
     });
     const masterUrl = buildTwitchMasterUrl(
         twitchToken,
-        `https://usher.ttvnw.net/api/v2/channel/hls/${message.channelName}.m3u8`,
+        `https://usher.ttvnw.net/api/v2/channel/hls/${channelName}.m3u8`,
     );
-    const twitchData = await resolveHlsStreams(masterUrl, {
-        sampleSegments: message.isFromPopup,
+    const formats = await resolveHlsStreams(masterUrl, {
+        sampleSegments: isFromPopup,
     });
 
     return {
         platform: "twitch",
-        type: "live",
-        data: twitchData,
-        channelName: message.channelName,
-        channelUrl: `https://www.twitch.tv/${message.channelName}`,
+        contentType: "live",
+        formats,
+        channelName,
+        channelUrl: `https://www.twitch.tv/${channelName}`,
     };
 }
 
-export async function getTwitchVodData(message: TwitchVodMessage): Promise<TwitchVodData> {
-    const cached = await getMediaCache("twitch", message.mediaId);
-    if (cached?.type === "vod") {
+async function estimateTwitchVod(mediaId: string): Promise<VodMediaEstimate> {
+    const cached = await getMediaCache("twitch", mediaId);
+    if (cached?.contentType === "vod") {
         return cached;
     }
 
-    const clientId = await getTwitchClientId(`https://www.twitch.tv/videos/${message.mediaId}`);
+    const clientId = await getTwitchClientId(`https://www.twitch.tv/videos/${mediaId}`);
     const twitchToken = await getTwitchToken(clientId, {
         login: "",
         isLive: false,
-        vodID: message.mediaId,
+        vodID: mediaId,
         isVod: true,
         playerType: "site",
         platform: "web",
@@ -221,22 +227,28 @@ export async function getTwitchVodData(message: TwitchVodMessage): Promise<Twitc
     }
     const masterUrl = buildTwitchMasterUrl(
         twitchToken,
-        `https://usher.ttvnw.net/vod/v2/${message.mediaId}.m3u8`,
+        `https://usher.ttvnw.net/vod/v2/${mediaId}.m3u8`,
     );
-    const filteredM3U8Data = await resolveHlsStreams(masterUrl);
+    const streams = await resolveHlsStreams(masterUrl);
 
-    const data: TwitchVodData = {
+    const estimate: VodMediaEstimate = {
         platform: "twitch",
-        type: "vod",
-        data: filteredM3U8Data,
-        mediaId: message.mediaId,
+        contentType: "vod",
+        formats: toVodFormats(streams, twitchToken.durationSeconds),
         durationSeconds: twitchToken.durationSeconds,
-        channelName: undefined,
-        channelUrl: undefined,
     };
-    await saveMediaCache("twitch", message.mediaId, data);
+    await saveMediaCache("twitch", mediaId, estimate);
 
-    return data;
+    return estimate;
+}
+
+export function estimateTwitch(
+    media: ParsedTwitchMedia,
+    context: { isFromPopup?: boolean } = {},
+): Promise<MediaEstimate> {
+    return media.contentType === "vod"
+        ? estimateTwitchVod(media.mediaId)
+        : estimateTwitchLive(media.channelName, context.isFromPopup ?? true);
 }
 
 interface TwitchPageMetadata {

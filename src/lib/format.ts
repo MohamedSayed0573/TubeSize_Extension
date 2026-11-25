@@ -1,8 +1,12 @@
-import type { AudioCodec, VideoCodec } from "@app-types/platforms.types";
+import type {
+    AudioCodec,
+    AudioStreamInfo,
+    DisplayFormat,
+    VideoCodec,
+} from "@app-types/platforms.types";
 import type { DateKey } from "@app-types/types";
 import { filesize, type FilesizeOptions } from "filesize";
 
-import type { AudioStreamInfo, DisplayFormat } from "@/adapters/types";
 import { getLanguage } from "@/i18n/language";
 
 export function formatBytes(bytes: number, options?: FilesizeOptions) {

@@ -1,24 +1,19 @@
-import type { PlatformId } from "@app-types/types";
-
-import type { PlatformAdapter } from "@/adapters/types";
 import InfoCard from "@/components/infoCard";
 import Spinner from "@/components/spinner";
-import { usePlatformData } from "@/hooks/usePlatformData";
+import { useMediaEstimate } from "@/hooks/useMediaEstimate";
 import { t } from "@/i18n/t";
 
 import Header from "../header";
 import { PopupViewContainer } from "../popupViewContainer";
 import FormatView from "./formatView";
 
-type Props<P extends PlatformId> = {
-    adapter: PlatformAdapter<P>;
+type Props = {
     tabUrl: string;
-    tabId: number;
 };
 
-export function PlatformView<P extends PlatformId>({ adapter, tabUrl, tabId }: Props<P>) {
-    const { query, isRunningVideo } = usePlatformData(adapter, tabUrl, tabId);
-    const { isPending, isError, data: platformData, error } = query;
+export function PlatformView({ tabUrl }: Props) {
+    const { query, isRunningVideo } = useMediaEstimate(tabUrl);
+    const { isPending, isError, data: estimate, error } = query;
 
     if (!isRunningVideo) {
         return (
@@ -44,9 +39,9 @@ export function PlatformView<P extends PlatformId>({ adapter, tabUrl, tabId }: P
 
     return (
         <>
-            <Header adapter={adapter} data={platformData} />
+            <Header estimate={estimate} />
             <PopupViewContainer>
-                <FormatView adapter={adapter} data={platformData} />
+                <FormatView estimate={estimate} />
             </PopupViewContainer>
         </>
     );

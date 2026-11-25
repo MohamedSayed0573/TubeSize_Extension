@@ -2,16 +2,15 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 
-import type { AudioStreamInfo, YoutubeData } from "@app-types/platforms.types";
+import type { AudioStreamInfo } from "@app-types/platforms.types";
+import { clearMediaCache } from "@lib/mediaCache";
 import {
+    estimateYoutube,
     extractYtInitialResponse,
-    getYoutubeData,
     parseLiveFormats,
     parseVideoFormats,
     type ytInitialPlayerResponse,
 } from "@lib/youtube";
-
-import { youtubeAdapter } from "@/adapters/youtubeAdapter";
 
 function readAsset(name: string): string {
     return fs.readFileSync(path.join(process.cwd(), "src", "tests", "assets", name), "utf8").trim();
@@ -60,24 +59,49 @@ describe("extractYtInitialResponse", () => {
     });
 });
 
-describe("getYoutubeData", () => {
-    test("should return the video title and channel for a video", async () => {
+describe("estimateYoutube", () => {
+    test("returns normalized VOD metadata, audio, and keeps Shorts flag scoped to the request URL", async () => {
+        await clearMediaCache();
         const html = `<script>var ytInitialPlayerResponse = ${readAsset("ytInitialPlayerResponse.json")};</script>`;
 
-        const data = await getYoutubeData({ mediaId: "I82j7AzMU80", html });
+        const shorts = await estimateYoutube(
+            { kind: "media", platform: "youtube", mediaId: "I82j7AzMU80", isShorts: true },
+            { html },
+        );
 
-        expect(data.type).toBe("vod");
-        expect(data.title).toBe("How does Claude Code *actually* work?");
-        expect(data.channelName).toBe("Theo - t3․gg");
-        expect(data.audio).toEqual(audio);
+        expect(shorts.contentType).toBe("vod");
+        expect(shorts.title).toBe("How does Claude Code *actually* work?");
+        expect(shorts.channelName).toBe("Theo - t3․gg");
+        expect(shorts.audio).toEqual(audio);
+        expect(shorts.contentType === "vod" && shorts.isShorts).toBe(true);
+
+        const watchFromCache = await estimateYoutube({
+            kind: "media",
+            platform: "youtube",
+            mediaId: "I82j7AzMU80",
+            isShorts: false,
+        });
+        expect(watchFromCache.contentType === "vod" && watchFromCache.isShorts).toBeFalsy();
+
+        const shortsFromCache = await estimateYoutube({
+            kind: "media",
+            platform: "youtube",
+            mediaId: "I82j7AzMU80",
+            isShorts: true,
+        });
+        expect(shortsFromCache.contentType === "vod" && shortsFromCache.isShorts).toBe(true);
     });
 
-    test("should return the stream title and channel for a live stream", async () => {
+    test("returns normalized live metadata and audio for a live stream", async () => {
+        await clearMediaCache();
         const html = `<script>var ytInitialPlayerResponse = ${readAsset("ytInitialPlayerResponseLive.json")};</script>`;
 
-        const data = await getYoutubeData({ mediaId: "feSFplc7tMY", html });
+        const data = await estimateYoutube(
+            { kind: "media", platform: "youtube", mediaId: "feSFplc7tMY", isShorts: false },
+            { html },
+        );
 
-        expect(data.type).toBe("live");
+        expect(data.contentType).toBe("live");
         expect(data.title).toBe("🔴LIVE Manchester Airport Plane Spotting 🛫");
         expect(data.channelName).toBe("Think Planes");
         expect(data.audio).toEqual(liveAudio);
@@ -92,9 +116,9 @@ describe("parseVideoFormats", () => {
 
         expect(formats).toEqual([
             {
-                type: "vod",
+                kind: "vod",
                 formatId: 313,
-                height: 2160,
+                resolution: 2160,
                 sizeBytes: 822_865_098,
                 sizePerSecondBytes: 822_865_098 / 2363,
                 codec: "vp9",
@@ -105,9 +129,9 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "vod",
+                kind: "vod",
                 formatId: 271,
-                height: 1440,
+                resolution: 1440,
                 sizeBytes: 227_437_649,
                 sizePerSecondBytes: 227_437_649 / 2363,
                 codec: "vp9",
@@ -118,9 +142,9 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "vod",
+                kind: "vod",
                 formatId: 399,
-                height: 1080,
+                resolution: 1080,
                 sizeBytes: 61_110_728,
                 sizePerSecondBytes: 61_110_728 / 2363,
                 codec: "av01",
@@ -132,9 +156,9 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "vod",
+                kind: "vod",
                 formatId: 398,
-                height: 720,
+                resolution: 720,
                 sizeBytes: 37_711_462,
                 sizePerSecondBytes: 37_711_462 / 2363,
                 codec: "av01",
@@ -146,9 +170,9 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "vod",
+                kind: "vod",
                 formatId: 397,
-                height: 480,
+                resolution: 480,
                 sizeBytes: 23_619_463,
                 sizePerSecondBytes: 23_619_463 / 2363,
                 codec: "av01",
@@ -160,9 +184,9 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "vod",
+                kind: "vod",
                 formatId: 396,
-                height: 360,
+                resolution: 360,
                 sizeBytes: 14_971_393,
                 sizePerSecondBytes: 14_971_393 / 2363,
                 codec: "av01",
@@ -174,9 +198,9 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "vod",
+                kind: "vod",
                 formatId: 395,
-                height: 240,
+                resolution: 240,
                 sizeBytes: 8_876_312,
                 sizePerSecondBytes: 8_876_312 / 2363,
                 codec: "av01",
@@ -188,9 +212,9 @@ describe("parseVideoFormats", () => {
                 ],
             },
             {
-                type: "vod",
+                kind: "vod",
                 formatId: 394,
-                height: 144,
+                resolution: 144,
                 sizeBytes: 7_818_748,
                 sizePerSecondBytes: 7_818_748 / 2363,
                 codec: "av01",
@@ -240,7 +264,7 @@ describe("parseVideoFormats", () => {
         duplicated.streamingData.adaptiveFormats.push({ ...video });
 
         const format1080 = parseVideoFormats(duplicated).formats.find(
-            (format) => format.height === 1080,
+            (format) => format.resolution === 1080,
         );
 
         expect(format1080?.itags?.filter((itag) => itag.formatId === 137)).toHaveLength(1);
@@ -270,6 +294,7 @@ describe("parseLiveFormats", () => {
         ]);
         expect(formats[0]?.sizePerSecondBytes).toBe(2_252_000);
         expect(formats[0]).toMatchObject({
+            kind: "live",
             formatId: 315,
             codec: "vp9",
             fps: 60,
@@ -280,114 +305,5 @@ describe("parseLiveFormats", () => {
             { formatId: 303, codec: "vp9", fps: 60 },
         ]);
         expect(formats.find((format) => format.resolution === 144)?.fps).toBe(30);
-    });
-});
-
-describe("youtubeAdapter.formats", () => {
-    const vodData: YoutubeData = {
-        platform: "youtube",
-        type: "vod",
-        title: "Test video",
-        durationSeconds: 1000,
-        thumbnailUrl: undefined,
-        channelName: "Channel",
-        channelUrl: undefined,
-        formats: [
-            {
-                type: "vod",
-                formatId: 399,
-                height: 1080,
-                sizeBytes: 1_500_000,
-                sizePerSecondBytes: 1500,
-                codec: "av01",
-                fps: 30,
-            },
-        ],
-        audio: {
-            formatId: 251,
-            codec: "opus",
-            bitrate: 80_000,
-            sizeBytes: 500_000,
-            bytesPerSecond: 500,
-            itags: [],
-        },
-    };
-
-    const liveData: YoutubeData = {
-        platform: "youtube",
-        type: "live",
-        title: "Test live",
-        channelName: "Channel",
-        thumbnailUrl: undefined,
-        channelUrl: undefined,
-        formats: [
-            {
-                type: "live",
-                resolution: 1080,
-                sizePerSecondBytes: 1000,
-                formatId: 303,
-                codec: "vp9",
-                fps: 60,
-            },
-        ],
-        audio: {
-            formatId: 140,
-            codec: "aac",
-            bitrate: 8000,
-            sizeBytes: 3_600_000,
-            bytesPerSecond: 1000,
-            itags: [],
-        },
-    };
-
-    test("includes audio by default for VOD and live formats", () => {
-        const [vod] = youtubeAdapter.formats(vodData);
-        expect(vod).toMatchObject({
-            kind: "vod",
-            sizeBytes: 2_000_000,
-            sizePerSecondBytes: 2000,
-        });
-
-        const [live] = youtubeAdapter.formats(liveData);
-        expect(live).toMatchObject({
-            kind: "live",
-            sizePerSecondBytes: 2000,
-        });
-    });
-
-    test("returns video-only sizes when includeAudio is false", () => {
-        const [vod] = youtubeAdapter.formats(vodData, { includeAudio: false });
-        expect(vod).toMatchObject({
-            kind: "vod",
-            sizeBytes: 1_500_000,
-            sizePerSecondBytes: 1500,
-        });
-
-        const [live] = youtubeAdapter.formats(liveData, { includeAudio: false });
-        expect(live).toMatchObject({
-            kind: "live",
-            sizePerSecondBytes: 1000,
-        });
-    });
-
-    test("uses audio bytesPerSecond rather than reported bitrate", () => {
-        const [vod] = youtubeAdapter.formats(vodData, { includeAudio: true });
-        expect(vod?.sizePerSecondBytes).toBe(2000);
-    });
-
-    test("leaves video sizes unchanged when audio is missing", () => {
-        const withoutAudio: YoutubeData = { ...vodData, audio: undefined };
-        const [included] = youtubeAdapter.formats(withoutAudio, {
-            includeAudio: true,
-        });
-        const [excluded] = youtubeAdapter.formats(withoutAudio, {
-            includeAudio: false,
-        });
-
-        expect(included).toEqual(excluded);
-        expect(included).toMatchObject({
-            sizeBytes: 1_500_000,
-            sizePerSecondBytes: 1500,
-        });
     });
 });
