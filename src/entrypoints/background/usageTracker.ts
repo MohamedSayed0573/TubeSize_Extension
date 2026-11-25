@@ -2,6 +2,7 @@ import { isFirefox } from "@lib/browser";
 
 import { MAX_SAFE_BYTES } from "@/db";
 
+import { type DownloadDeduplicator, isAttachmentNavigation } from "./downloadTracker";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 const CONTENT_LENGTH_HEADER = "content-length";
@@ -14,10 +15,13 @@ export type CompletedRequestDetails = chrome.webRequest.OnCompletedDetails & {
     documentUrl?: string;
 };
 
-export function setupTrackUsage(ingestion: UsageIngestion = createUsageIngestion()) {
+export function setupTrackUsage(
+    ingestion: UsageIngestion = createUsageIngestion(),
+    deduplicator?: DownloadDeduplicator,
+) {
     // `extraHeaders` is Chromium-only; Firefox rejects it.
     chrome.webRequest.onCompleted.addListener(
-        (details) => void trackRequest(ingestion, details),
+        (details) => void trackRequest(ingestion, details, deduplicator),
         { urls: ["<all_urls>"] },
         isFirefox() ? ["responseHeaders"] : ["responseHeaders", "extraHeaders"],
     );
@@ -42,17 +46,25 @@ async function resolveRequestTabUrl(details: CompletedRequestDetails): Promise<s
     return tabUrl;
 }
 
-export async function trackRequest(ingestion: UsageIngestion, details: CompletedRequestDetails) {
+export async function trackRequest(
+    ingestion: UsageIngestion,
+    details: CompletedRequestDetails,
+    deduplicator?: DownloadDeduplicator,
+) {
     try {
         if (!isCountableRequest(details)) return;
+        if (deduplicator?.shouldSkipWebRequest(details)) return;
 
         const bytes = getContentLength(details);
         if (bytes === undefined) return;
 
         const tabUrl = await resolveRequestTabUrl(details);
         if (!tabUrl) return;
+        if (deduplicator?.shouldSkipWebRequest(details)) return;
 
-        ingestion.bufferTabUsage(tabUrl, bytes);
+        if (ingestion.bufferTabUsage(tabUrl, bytes)) {
+            deduplicator?.recordCountedWebRequest(details, bytes);
+        }
     } catch (err) {
         console.error("Failed to track request usage:", err);
     }
@@ -66,7 +78,8 @@ export function isCountableRequest(details: CompletedRequestDetails) {
         isExtensionUrl(details.originUrl) ||
         isExtensionUrl(details.documentUrl) ||
         details.fromCache ||
-        details.method === "HEAD"
+        details.method === "HEAD" ||
+        isAttachmentNavigation(details)
     );
 }
 

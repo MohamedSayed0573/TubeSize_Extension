@@ -25,6 +25,7 @@ export interface UsageIngestionDeps {
 export interface UsageIngestion {
     readonly hasPendingUsage: boolean;
     bufferTabUsage(tabUrl: string, bytes: number, frameUrl?: string): boolean;
+    bufferOriginUsage(origin: Origin, bytes: number): boolean;
     recordTabUsage(tabUrl: string, bytes: number, frameUrl?: string): Promise<boolean>;
     flush(): Promise<void>;
     startAutoFlush(): () => void;
@@ -113,6 +114,14 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
         }
     }
 
+    function bufferOriginUsage(origin: Origin, bytes: number): boolean {
+        if (!Number.isFinite(bytes) || bytes <= 0 || bytes > MAX_SAFE_BYTES) return false;
+        if (isExtensionUrl(origin)) return false;
+
+        origins[origin] = addSafeBytes(origins[origin] ?? 0, bytes);
+        return true;
+    }
+
     function bufferTabUsage(tabUrl: string, bytes: number, frameUrl?: string): boolean {
         if (!Number.isFinite(bytes) || bytes <= 0 || bytes > MAX_SAFE_BYTES) return false;
         if (isExtensionUrl(tabUrl) || isExtensionUrl(frameUrl)) return false;
@@ -169,6 +178,7 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
             return Object.keys(origins).length > 0 || Object.keys(videos).length > 0;
         },
         bufferTabUsage,
+        bufferOriginUsage,
         recordTabUsage,
         flush,
         startAutoFlush,
