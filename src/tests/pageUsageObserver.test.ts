@@ -6,6 +6,8 @@ import {
     createPageUsageObserver,
     hasPositiveContentLength,
     isCountableRequestUrl,
+    isUploadMethod,
+    measureBodyBytes,
     type FetchFn,
     type PageUsageObserverGlobal,
 } from "@lib/pageUsageObserver";
@@ -23,12 +25,21 @@ class FakeXMLHttpRequest extends EventTarget {
     responseURL = "";
     status = 0;
     responseText = "";
+    uploadListenerCount = 0;
+    upload = {
+        addEventListener: () => {
+            this.uploadListenerCount += 1;
+        },
+        removeEventListener: () => {},
+    };
     private headers = new Map<string, string>();
     private requestedUrl = "";
+    private isAsync = true;
 
-    open(_method: string, url: string | URL) {
+    open(_method: string, url: string | URL, async = true) {
         this.requestedUrl = String(url);
         this.responseURL = this.requestedUrl;
+        this.isAsync = async;
     }
 
     setResponseHeader(name: string, value: string) {
@@ -39,18 +50,28 @@ class FakeXMLHttpRequest extends EventTarget {
         return this.headers.get(name.toLowerCase()) ?? null;
     }
 
-    send() {
+    send(_body?: Document | XMLHttpRequestBodyInit | null) {
         const entry = FakeXMLHttpRequest.sources.get(this.requestedUrl);
         if (!entry) return;
         if (entry.throwOnSend) throw new Error("XHR send failed");
         this.status = entry.status;
         this.responseText = entry.responseText;
+        if (!this.isAsync) {
+            this.dispatchEvent(new Event("load"));
+            this.emitProgress(0, "loadend");
+        }
     }
 
     emitProgress(loaded: number, type: "progress" | "loadend" = "progress") {
         const event = new Event(type);
         Object.defineProperty(event, "loaded", { value: loaded });
         this.dispatchEvent(event);
+    }
+
+    emitLoad(status = 200) {
+        this.status = status;
+        this.dispatchEvent(new Event("load"));
+        this.emitProgress(0, "loadend");
     }
 }
 
@@ -99,7 +120,10 @@ function makeStreamResponse(chunks: number[], headers?: Record<string, string>):
     return new Response(stream, { headers });
 }
 
-function createHarness(baseFetch?: FetchFn) {
+function createHarness(
+    baseFetch?: FetchFn,
+    sendBeaconImpl?: (url: string | URL, data?: BodyInit | null) => boolean,
+) {
     FakeXMLHttpRequest.sources.clear();
     FakeWorker.constructed = [];
     FakeWorker.throwOnUrl = undefined;
@@ -118,10 +142,15 @@ function createHarness(baseFetch?: FetchFn) {
         fetch: defaultFetch,
         Worker: FakeWorker as unknown as typeof Worker,
     };
+    const defaultSendBeacon = sendBeaconImpl ?? (() => true);
+    const navigatorObj: Pick<Navigator, "sendBeacon"> = {
+        sendBeacon: defaultSendBeacon,
+    };
 
     const observer = createPageUsageObserver({
         globalObject,
         XMLHttpRequest: FakeXMLHttpRequest as unknown as typeof XMLHttpRequest,
+        navigator: navigatorObj,
         urlApi: {
             createObjectURL: (blob: Blob) => {
                 const id = `blob:https://example.com/wrapped-${++blobSeq}`;
@@ -148,7 +177,9 @@ function createHarness(baseFetch?: FetchFn) {
     return {
         observer,
         globalObject,
+        navigatorObj,
         defaultFetch,
+        defaultSendBeacon,
         posted,
         errors,
         createdBlobs,
@@ -585,6 +616,372 @@ describe("createPageUsageObserver", () => {
 
         await firstRes.body?.cancel();
         expect(firstStreamCanceled).toBe(true);
+
+        harness.observer.dispose();
+    });
+
+    test("measures UTF-8 strings, Blobs, ArrayBuffers, views, URLSearchParams, FormData, and filters methods", () => {
+        expect(isUploadMethod("POST")).toBe(true);
+        expect(isUploadMethod("put")).toBe(true);
+        expect(isUploadMethod("PATCH")).toBe(true);
+        expect(isUploadMethod("DELETE")).toBe(true);
+        expect(isUploadMethod("GET")).toBe(false);
+        expect(isUploadMethod("HEAD")).toBe(false);
+        expect(isUploadMethod("OPTIONS")).toBe(false);
+        expect(isUploadMethod(undefined)).toBe(false);
+
+        expect(measureBodyBytes(null)).toBe(0);
+        expect(measureBodyBytes(undefined)).toBe(0);
+        expect(measureBodyBytes("hello")).toBe(5);
+        // Multi-byte UTF-8: é (2B), 中 (3B), 🌍 (4B surrogate pair), lone surrogate (3B)
+        expect(measureBodyBytes("é中🌍")).toBe(2 + 3 + 4);
+        expect(measureBodyBytes("\uD800")).toBe(3);
+        expect(measureBodyBytes(new Blob([new Uint8Array(4_321)]))).toBe(4_321);
+        expect(measureBodyBytes(new ArrayBuffer(128))).toBe(128);
+        const full = new Uint8Array(100);
+        expect(measureBodyBytes(full.subarray(10, 35))).toBe(25);
+        expect(measureBodyBytes(new DataView(full.buffer, 5, 12))).toBe(12);
+
+        const params = new URLSearchParams({ msg: "hi 🌍" });
+        expect(measureBodyBytes(params)).toBe(
+            new TextEncoder().encode(params.toString()).byteLength,
+        );
+
+        const fd = new FormData();
+        fd.append("title", "é");
+        fd.append("file", new Blob([new Uint8Array(500)]), "clip.bin");
+        expect(measureBodyBytes(fd)).toBe(5 + 2 + 4 + 500);
+    });
+
+    test("counts fetch upload bodies across all BodyInit types, Request objects, and ReadableStreams without double-counting responses", async () => {
+        const harness = createHarness(async (input, init) => {
+            const url = toRequestUrl(input);
+            if (url.endsWith("/fail")) {
+                throw new TypeError("Failed to fetch");
+            }
+            if (url.endsWith("/fail-after-pull")) {
+                if (init?.body instanceof ReadableStream) {
+                    const reader = init.body.getReader();
+                    await reader.read();
+                    await reader.cancel();
+                }
+                throw new TypeError("ALPN failed");
+            }
+            if (init?.body instanceof ReadableStream) {
+                const reader = init.body.getReader();
+                for (;;) {
+                    const { done } = await reader.read();
+                    if (done) break;
+                }
+            }
+            if (url.endsWith("/with-chunked-resp")) {
+                return makeStreamResponse([400]);
+            }
+            return new Response(new Uint8Array(100), {
+                headers: { "content-length": "100" },
+            });
+        });
+
+        harness.observer.install();
+
+        // Fixed-response POSTs: only upload bytes counted by page observer (response has Content-Length).
+        await harness.globalObject.fetch("https://example.com/up-str", {
+            method: "POST",
+            body: "hello 🌍", // 6 + 4 = 10 bytes
+        });
+        await harness.globalObject.fetch("https://example.com/up-blob", {
+            method: "POST",
+            body: new Blob([new Uint8Array(1_000)]),
+        });
+        await harness.globalObject.fetch("https://example.com/up-ab", {
+            method: "PUT",
+            body: new ArrayBuffer(200),
+        });
+        await harness.globalObject.fetch("https://example.com/up-view", {
+            method: "PATCH",
+            body: new Uint8Array(300).subarray(50, 150), // 100 bytes
+        });
+        const usp = new URLSearchParams({ a: "1", b: "2" }); // "a=1&b=2" = 7 bytes
+        await harness.globalObject.fetch("https://example.com/up-usp", {
+            method: "POST",
+            body: usp,
+        });
+        const fd = new FormData();
+        fd.append("k", "v"); // 2 bytes
+        fd.append("f", new Blob([new Uint8Array(500)]), "f.bin"); // 1 + 500 = 501 bytes
+        await harness.globalObject.fetch("https://example.com/up-fd", {
+            method: "POST",
+            body: fd,
+        });
+
+        // Request object with body
+        await harness.globalObject.fetch(
+            new Request("https://example.com/up-req", {
+                method: "POST",
+                body: new Uint8Array(250),
+            }),
+        );
+
+        // ReadableStream body (counts chunks as pulled; does not mutate caller's init)
+        const streamBody = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(new Uint8Array(600));
+                controller.enqueue(new Uint8Array(400));
+                controller.close();
+            },
+        });
+        const callerInit: RequestInit = { method: "POST", body: streamBody };
+        await harness.globalObject.fetch("https://example.com/up-stream", callerInit);
+        expect(callerInit.body).toBe(streamBody);
+
+        // Upload + chunked response: counts BOTH upload (300) and chunked download (400)
+        const chunkedRes = await harness.globalObject.fetch(
+            "https://example.com/with-chunked-resp",
+            {
+                method: "POST",
+                body: new Uint8Array(300),
+            },
+        );
+        await chunkedRes.arrayBuffer();
+
+        // Ignored: failed fetch (including pre-pulled ReadableStream), non-http URL, HEAD/OPTIONS
+        await expect(
+            harness.globalObject.fetch("https://example.com/fail", {
+                method: "POST",
+                body: new Uint8Array(9_999),
+            }),
+        ).rejects.toThrow("Failed to fetch");
+        const failedStream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(new Uint8Array(4_000));
+                controller.close();
+            },
+        });
+        await expect(
+            harness.globalObject.fetch("https://example.com/fail-after-pull", {
+                method: "POST",
+                body: failedStream,
+            }),
+        ).rejects.toThrow("ALPN failed");
+        await harness.globalObject.fetch("blob:https://example.com/local", {
+            method: "POST",
+            body: new Uint8Array(8_888),
+        });
+        await harness.globalObject.fetch("https://example.com/preflight", {
+            method: "OPTIONS",
+            body: new Uint8Array(7_777),
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 15));
+        harness.observer.flush();
+
+        // 10 + 1000 + 200 + 100 + 7 + 503 + 250 + 1000 + (300 + 400) = 3770
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 3_770 }]);
+        expect(harness.errors).toEqual([]);
+
+        harness.observer.dispose();
+    });
+
+    test("counts XHR async/sync uploads on success without attaching xhr.upload listeners and skips failures/non-http", () => {
+        const harness = createHarness();
+        harness.observer.install();
+
+        // Async POST with fixed-CL response: counts upload only (1_500 B), zero xhr.upload listeners.
+        const postXhr = new FakeXMLHttpRequest();
+        postXhr.open("POST", "https://example.com/upload");
+        postXhr.setResponseHeader("Content-Length", "200");
+        postXhr.send(new Blob([new Uint8Array(1_500)]));
+        expect(postXhr.uploadListenerCount).toBe(0);
+        postXhr.emitLoad(200);
+
+        // Async POST with chunked response: counts upload (500) + chunked download (300).
+        const bothXhr = new FakeXMLHttpRequest();
+        bothXhr.open("POST", "https://example.com/upload-chunked");
+        bothXhr.send(new Uint8Array(500));
+        bothXhr.status = 200;
+        bothXhr.emitProgress(300, "loadend");
+
+        // Sync POST succeeds
+        FakeXMLHttpRequest.sources.set("https://example.com/sync-upload", {
+            status: 200,
+            responseText: "ok",
+        });
+        const syncXhr = new FakeXMLHttpRequest();
+        syncXhr.open("POST", "https://example.com/sync-upload", false);
+        syncXhr.setResponseHeader("Content-Length", "2");
+        syncXhr.send("sync 🌍"); // 5 + 4 = 9 bytes
+
+        // Failed async POST (status === 0): 0 bytes
+        const failXhr = new FakeXMLHttpRequest();
+        failXhr.open("POST", "https://example.com/fail");
+        failXhr.send(new Uint8Array(4_000));
+        failXhr.status = 0;
+        failXhr.emitProgress(0, "loadend");
+
+        // Ignored: GET with body, blob: URL
+        const getXhr = new FakeXMLHttpRequest();
+        getXhr.open("GET", "https://example.com/ignored");
+        getXhr.send("ignored");
+        getXhr.emitLoad(200);
+
+        const blobXhr = new FakeXMLHttpRequest();
+        blobXhr.open("POST", "blob:https://example.com/local");
+        blobXhr.send(new Uint8Array(2_000));
+        blobXhr.emitLoad(200);
+
+        harness.observer.flush();
+        // 1500 + (500 + 300) + 9 = 2309
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 2_309 }]);
+
+        harness.observer.dispose();
+    });
+
+    test("counts navigator.sendBeacon uploads only when queued for http(s) URLs and restores cleanly on dispose", () => {
+        const harness = createHarness(undefined, (url) => !String(url).includes("reject"));
+        const originalOpen = Object.getOwnPropertyDescriptor(FakeXMLHttpRequest.prototype, "open")
+            ?.value as unknown;
+
+        harness.observer.install();
+        expect(harness.navigatorObj.sendBeacon).not.toBe(harness.defaultSendBeacon);
+
+        expect(harness.navigatorObj.sendBeacon("https://example.com/beacon", "ping 🌍")).toBe(true); // 9 bytes
+        expect(
+            harness.navigatorObj.sendBeacon("https://example.com/beacon-bin", new Uint8Array(400)),
+        ).toBe(true);
+        expect(
+            harness.navigatorObj.sendBeacon("https://example.com/reject", new Uint8Array(9_000)),
+        ).toBe(false);
+        expect(
+            harness.navigatorObj.sendBeacon("chrome-extension://abcdef/b", new Uint8Array(500)),
+        ).toBe(true);
+        expect(harness.navigatorObj.sendBeacon("https://example.com/empty")).toBe(true);
+
+        harness.observer.flush();
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 409 }]);
+
+        harness.observer.dispose();
+        expect(harness.navigatorObj.sendBeacon).toBe(harness.defaultSendBeacon);
+        expect(Object.getOwnPropertyDescriptor(FakeXMLHttpRequest.prototype, "open")?.value).toBe(
+            originalOpen,
+        );
+
+        // Post-dispose sendBeacon is not counted.
+        harness.navigatorObj.sendBeacon("https://example.com/after-dispose", new Uint8Array(1_000));
+        harness.observer.flush();
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 409 }]);
+    });
+
+    test("restores prototype-inherited navigator.sendBeacon cleanly on dispose", () => {
+        const protoSendBeacon = jest.fn(() => true);
+        const navProto = { sendBeacon: protoSendBeacon };
+        const inheritedNav = Object.create(navProto) as Pick<Navigator, "sendBeacon">;
+
+        const posted: UsageMessage[] = [];
+        const observer = createPageUsageObserver({
+            globalObject: {
+                fetch: async () => makeStreamResponse([]),
+                Worker: FakeWorker as unknown as typeof Worker,
+            },
+            XMLHttpRequest: FakeXMLHttpRequest as unknown as typeof XMLHttpRequest,
+            navigator: inheritedNav,
+            getBaseURI: () => "https://example.com/",
+            postMessage: (m) => posted.push(m),
+            scheduleInterval: () => () => {},
+        });
+
+        observer.install();
+        expect(Object.prototype.hasOwnProperty.call(inheritedNav, "sendBeacon")).toBe(true);
+        inheritedNav.sendBeacon("https://example.com/b", new Uint8Array(50));
+        observer.flush();
+        expect(posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 50 }]);
+
+        observer.dispose();
+        expect(Object.prototype.hasOwnProperty.call(inheritedNav, "sendBeacon")).toBe(false);
+        expect(inheritedNav.sendBeacon).toBe(protoSendBeacon);
+    });
+
+    test("counts upload payloads inside classic blob: Worker fetch bootstrap", async () => {
+        const harness = createHarness();
+        harness.observer.install();
+
+        const origUrl = "blob:https://example.com/upload-worker";
+        FakeXMLHttpRequest.sources.set(origUrl, { status: 200, responseText: "1;" });
+        const worker = new harness.globalObject.Worker(origUrl);
+        expect(worker).toBeInstanceOf(FakeWorker);
+
+        const wrappedUrl = FakeWorker.constructed[0]?.url ?? "";
+        const bootstrapSource = await harness.createdBlobs.get(wrappedUrl)!.text();
+
+        const workerPosted: unknown[] = [];
+        let workerTick: (() => void) | undefined;
+        const fakeSelf: Record<string, unknown> = {
+            location: { href: "blob:https://example.com/wrapped-1" },
+            postMessage: (msg: unknown) => workerPosted.push(msg),
+            fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+                const url = toRequestUrl(input);
+                if (url.endsWith("/fail")) throw new TypeError("net error");
+                if (init?.body instanceof ReadableStream) {
+                    const reader = init.body.getReader();
+                    for (;;) {
+                        const { done } = await reader.read();
+                        if (done) break;
+                    }
+                }
+                return new Response(new Uint8Array(50), {
+                    headers: { "content-length": "50" },
+                });
+            },
+        };
+
+        vm.runInNewContext(bootstrapSource, {
+            self: fakeSelf,
+            URL,
+            Blob,
+            FormData,
+            URLSearchParams,
+            ReadableStream,
+            Request,
+            ArrayBuffer,
+            Uint8Array,
+            TextEncoder,
+            setInterval: (cb: () => void) => {
+                workerTick = cb;
+                return 1;
+            },
+        });
+
+        const workerFetch = fakeSelf.fetch as FetchFn;
+        await workerFetch("https://example.com/w-post", {
+            method: "POST",
+            body: new Uint8Array(1_200),
+        });
+        await workerFetch(
+            new Request("https://example.com/w-req", {
+                method: "POST",
+                body: new Uint8Array(300),
+            }),
+        );
+        const wStream = new ReadableStream<Uint8Array>({
+            start(c) {
+                c.enqueue(new Uint8Array(500));
+                c.close();
+            },
+        });
+        await workerFetch("https://example.com/w-stream", { method: "POST", body: wStream });
+        await expect(
+            workerFetch("https://example.com/fail", { method: "POST", body: new Uint8Array(999) }),
+        ).rejects.toThrow("net error");
+        await workerFetch("blob:https://example.com/local", {
+            method: "POST",
+            body: new Uint8Array(777),
+        });
+        await new Promise((resolve) => setTimeout(resolve, 15));
+
+        workerTick?.();
+        expect(workerPosted).toEqual([
+            { type: "WORKER_READY" },
+            { type: "WORKER_USAGE", bytes: 2_000 },
+        ]);
 
         harness.observer.dispose();
     });

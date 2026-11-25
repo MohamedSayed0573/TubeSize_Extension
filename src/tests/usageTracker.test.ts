@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 
+import * as browserModule from "@lib/browser";
 import { toOrigin } from "@lib/domain";
 import { toVideoKey } from "@lib/platformUrl";
 import { fakeBrowser } from "@webext-core/fake-browser";
@@ -7,8 +8,12 @@ import { fakeBrowser } from "@webext-core/fake-browser";
 import { addVideoMetadata, clearDatabaseData, getAllSiteUsage, getAllWatchHistory } from "@/db";
 import { createUsageIngestion } from "@/entrypoints/background/usageIngestion";
 import {
+    type BeforeSendHeadersDetails,
     type CompletedRequestDetails,
+    createRequestUsageTracker,
     isCountableRequest,
+    isCountableUploadRequest,
+    setupTrackUsage,
     trackRequest,
 } from "@/entrypoints/background/usageTracker";
 
@@ -33,6 +38,24 @@ function makeDetails(overrides: Partial<CompletedRequestDetails> = {}): Complete
         fromCache: false,
         statusCode: 200,
         statusLine: "HTTP/1.1 200 OK",
+        ...overrides,
+    };
+}
+
+function makeBeforeSendDetails(
+    overrides: Partial<BeforeSendHeadersDetails> = {},
+): BeforeSendHeadersDetails {
+    return {
+        documentLifecycle: "active",
+        frameId: 0,
+        frameType: "outermost_frame",
+        method: "POST",
+        parentFrameId: -1,
+        requestId: "req-upload-1",
+        tabId: 1,
+        timeStamp: 1_700_000_000_000,
+        type: "main_frame",
+        url: "https://example.com/submit",
         ...overrides,
     };
 }
@@ -383,5 +406,344 @@ describe("trackRequest", () => {
         expect(ingestion.hasPendingUsage).toBe(false);
         expect(await getAllSiteUsage()).toEqual([]);
         expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe("isCountableUploadRequest", () => {
+    test("accepts non-page-API outgoing requests such as form navigations and reports", () => {
+        expect(
+            isCountableUploadRequest(makeBeforeSendDetails({ type: "main_frame", method: "POST" })),
+        ).toBe(true);
+        expect(
+            isCountableUploadRequest(makeBeforeSendDetails({ type: "sub_frame", method: "POST" })),
+        ).toBe(true);
+        expect(
+            isCountableUploadRequest(makeBeforeSendDetails({ type: "csp_report", method: "POST" })),
+        ).toBe(true);
+    });
+
+    test("excludes page-observer-owned upload types, preflight OPTIONS, HEAD, tabless, and extension URLs", () => {
+        expect(isCountableUploadRequest(makeBeforeSendDetails({ type: "xmlhttprequest" }))).toBe(
+            false,
+        );
+        expect(isCountableUploadRequest(makeBeforeSendDetails({ type: "ping" }))).toBe(false);
+        expect(
+            isCountableUploadRequest(
+                makeBeforeSendDetails({
+                    type: "beacon" as chrome.webRequest.ResourceType,
+                }),
+            ),
+        ).toBe(false);
+        expect(isCountableUploadRequest(makeBeforeSendDetails({ method: "OPTIONS" }))).toBe(false);
+        expect(isCountableUploadRequest(makeBeforeSendDetails({ method: "HEAD" }))).toBe(false);
+        expect(isCountableUploadRequest(makeBeforeSendDetails({ tabId: -1 }))).toBe(false);
+        expect(
+            isCountableUploadRequest(
+                makeBeforeSendDetails({ url: "chrome-extension://abcdef/form" }),
+            ),
+        ).toBe(false);
+        expect(
+            isCountableUploadRequest(
+                makeBeforeSendDetails({ initiator: "chrome-extension://abcdef" }),
+            ),
+        ).toBe(false);
+        expect(
+            isCountableUploadRequest(
+                makeBeforeSendDetails({ originUrl: "moz-extension://1234/page.html" }),
+            ),
+        ).toBe(false);
+        expect(
+            isCountableUploadRequest(
+                makeBeforeSendDetails({ documentUrl: "moz-extension://1234/page.html" }),
+            ),
+        ).toBe(false);
+    });
+});
+
+describe("createRequestUsageTracker upload lifecycle", () => {
+    test("commits staged request Content-Length on completion with or without response Content-Length", async () => {
+        const ingestion = createUsageIngestion();
+        const tracker = createRequestUsageTracker(ingestion);
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/form" });
+
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "up-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                url: "https://example.com/upload",
+                requestHeaders: [{ name: "Content-Length", value: "15000" }],
+            }),
+        );
+        expect(tracker.pendingUploadCount).toBe(1);
+
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "up-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                method: "POST",
+                url: "https://example.com/upload",
+                responseHeaders: [{ name: "Content-Length", value: "2500" }],
+            }),
+        );
+        expect(tracker.pendingUploadCount).toBe(0);
+
+        // Response without Content-Length (e.g. 204 or chunked) still commits staged upload bytes.
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "up-2",
+                tabId: tab.id,
+                type: "sub_frame",
+                url: "https://example.com/upload-204",
+                requestHeaders: [{ name: "content-length", value: "8000" }],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "up-2",
+                tabId: tab.id,
+                type: "sub_frame",
+                method: "POST",
+                statusCode: 204,
+                url: "https://example.com/upload-204",
+                responseHeaders: [],
+            }),
+        );
+
+        await ingestion.flush();
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 25_500,
+        });
+    });
+
+    test("avoids overcounting on 307/308 and 302 redirects sharing a requestId", async () => {
+        const ingestion = createUsageIngestion();
+        const tracker = createRequestUsageTracker(ingestion);
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/form" });
+
+        // 307 redirect: onBeforeSendHeaders fires twice with the same requestId and Content-Length.
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "redir-307",
+                tabId: tab.id,
+                type: "sub_frame",
+                url: "https://example.com/step1",
+                requestHeaders: [{ name: "Content-Length", value: "5000" }],
+            }),
+        );
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "redir-307",
+                tabId: tab.id,
+                type: "sub_frame",
+                url: "https://example.com/step2",
+                requestHeaders: [{ name: "Content-Length", value: "5000" }],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "redir-307",
+                tabId: tab.id,
+                type: "sub_frame",
+                method: "POST",
+                url: "https://example.com/step2",
+                responseHeaders: [],
+            }),
+        );
+
+        // 302 redirect: POST -> GET drops request Content-Length on hop 2, keeping hop 1 upload bytes.
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "redir-302",
+                tabId: tab.id,
+                type: "sub_frame",
+                url: "https://example.com/post",
+                requestHeaders: [{ name: "Content-Length", value: "3000" }],
+            }),
+        );
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "redir-302",
+                tabId: tab.id,
+                type: "sub_frame",
+                method: "GET",
+                url: "https://example.com/done",
+                requestHeaders: [],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "redir-302",
+                tabId: tab.id,
+                type: "sub_frame",
+                method: "GET",
+                url: "https://example.com/done",
+                responseHeaders: [],
+            }),
+        );
+
+        await ingestion.flush();
+        expect(tracker.pendingUploadCount).toBe(0);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 8_000,
+        });
+    });
+
+    test("discards failed or cached requests and bounds pending upload map size", async () => {
+        const ingestion = createUsageIngestion();
+        const tracker = createRequestUsageTracker(ingestion, 2);
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/form" });
+
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "err-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                requestHeaders: [{ name: "Content-Length", value: "9000" }],
+            }),
+        );
+        tracker.handleErrorOccurred({ requestId: "err-1" });
+        expect(tracker.pendingUploadCount).toBe(0);
+
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "cached-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                requestHeaders: [{ name: "Content-Length", value: "4000" }],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "cached-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                fromCache: true,
+                responseHeaders: [],
+            }),
+        );
+        expect(tracker.pendingUploadCount).toBe(0);
+
+        // Evicts oldest entry when maxPendingUploads (2) is exceeded.
+        for (const id of ["leak-1", "leak-2", "leak-3"]) {
+            tracker.handleBeforeSendHeaders(
+                makeBeforeSendDetails({
+                    requestId: id,
+                    tabId: tab.id,
+                    type: "sub_frame",
+                    requestHeaders: [{ name: "Content-Length", value: "1000" }],
+                }),
+            );
+        }
+        expect(tracker.pendingUploadCount).toBe(2);
+
+        // leak-1 was evicted, leak-3 remains.
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "leak-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                responseHeaders: [],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "leak-3",
+                tabId: tab.id,
+                type: "sub_frame",
+                responseHeaders: [],
+            }),
+        );
+        await ingestion.flush();
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 1_000,
+        });
+    });
+
+    test("ignores xmlhttprequest/ping/beacon request headers so page-world observer never double-counts", async () => {
+        const ingestion = createUsageIngestion();
+        const tracker = createRequestUsageTracker(ingestion);
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/app" });
+
+        for (const type of ["xmlhttprequest", "ping", "beacon"] as const) {
+            tracker.handleBeforeSendHeaders(
+                makeBeforeSendDetails({
+                    requestId: `page-${type}`,
+                    tabId: tab.id,
+                    type: type as chrome.webRequest.ResourceType,
+                    requestHeaders: [{ name: "Content-Length", value: "50000" }],
+                }),
+            );
+            await tracker.handleCompleted(
+                makeDetails({
+                    requestId: `page-${type}`,
+                    tabId: tab.id,
+                    type: type as chrome.webRequest.ResourceType,
+                    method: "POST",
+                    responseHeaders: [],
+                }),
+            );
+        }
+
+        await ingestion.flush();
+        expect(tracker.pendingUploadCount).toBe(0);
+        expect(await getAllSiteUsage()).toEqual([]);
+    });
+});
+
+describe("setupTrackUsage listener options", () => {
+    test("registers Chromium extraHeaders and omits extraHeaders on Firefox", () => {
+        const beforeSendCalls: unknown[][] = [];
+        const completedCalls: unknown[][] = [];
+        const errorCalls: unknown[][] = [];
+
+        const webRequestMock = {
+            onBeforeSendHeaders: {
+                addListener: (...args: unknown[]) => beforeSendCalls.push(args),
+            },
+            onCompleted: {
+                addListener: (...args: unknown[]) => completedCalls.push(args),
+            },
+            onErrorOccurred: {
+                addListener: (...args: unknown[]) => errorCalls.push(args),
+            },
+        };
+        const originalWebRequest = chrome.webRequest;
+        Object.defineProperty(chrome, "webRequest", {
+            value: webRequestMock,
+            configurable: true,
+            writable: true,
+        });
+        cleanups.push(() => {
+            Object.defineProperty(chrome, "webRequest", {
+                value: originalWebRequest,
+                configurable: true,
+                writable: true,
+            });
+        });
+
+        const noopIngestion = {
+            hasPendingUsage: false,
+            bufferTabUsage: () => true,
+            recordTabUsage: async () => true,
+            flush: async () => {},
+            startAutoFlush: () => () => {},
+        };
+
+        const isFirefoxSpy = spyOn(browserModule, "isFirefox");
+        cleanups.push(() => isFirefoxSpy.mockRestore());
+
+        isFirefoxSpy.mockReturnValue(false);
+        setupTrackUsage(noopIngestion);
+        expect(beforeSendCalls[0]?.[2]).toEqual(["requestHeaders", "extraHeaders"]);
+        expect(completedCalls[0]?.[2]).toEqual(["responseHeaders", "extraHeaders"]);
+        expect(errorCalls).toHaveLength(1);
+
+        isFirefoxSpy.mockReturnValue(true);
+        setupTrackUsage(noopIngestion);
+        expect(beforeSendCalls[1]?.[2]).toEqual(["requestHeaders"]);
+        expect(completedCalls[1]?.[2]).toEqual(["responseHeaders"]);
+        expect(errorCalls).toHaveLength(2);
     });
 });
