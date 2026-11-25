@@ -1,6 +1,11 @@
-import type { UsageMessage } from "@app-types/types";
-
 const DEFAULT_FLUSH_INTERVAL_MS = 3000;
+
+// Window-level CustomEvent carrying a primitive byte count as `detail`. Unlike
+// window.postMessage (an async task), dispatchEvent runs the ISOLATED-world
+// usageBridge listener synchronously, so the final pagehide flush is relayed before
+// a closing tab tears down the document. A primitive `detail` crosses worlds and
+// Firefox Xrays unchanged.
+export const SITE_USAGE_EVENT = "TUBESIZE_SITE_USAGE";
 
 export type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -22,9 +27,8 @@ export interface PageUsageObserverPorts {
     urlApi?: Pick<typeof URL, "createObjectURL" | "revokeObjectURL">;
     Blob?: typeof Blob;
     getBaseURI?: () => string;
-    postMessage?: (message: UsageMessage) => void;
     scheduleInterval?: (callback: () => void, intervalMs: number) => () => void;
-    windowTarget?: Pick<EventTarget, "addEventListener" | "removeEventListener">;
+    windowTarget?: Pick<EventTarget, "addEventListener" | "removeEventListener" | "dispatchEvent">;
     documentTarget?: PageUsageObserverDocument;
     onError?: (err: unknown) => void;
     flushIntervalMs?: number;
@@ -74,13 +78,12 @@ export function isCountableRequestUrl(
     }
 }
 
-function workerBootstrap(flushIntervalMs: number): string {
+function workerBootstrap(): string {
     return `
 (() => {
     if (self.__tsWorkerPatched) return;
     self.__tsWorkerPatched = true;
     self.postMessage({ type: "WORKER_READY" });
-    let total = 0;
     const hasPositiveContentLength = ${hasPositiveContentLength.toString()};
     const isCountableRequestUrl = ${isCountableRequestUrl.toString()};
     const _fetch = self.fetch;
@@ -100,7 +103,11 @@ function workerBootstrap(flushIntervalMs: number): string {
                         for (;;) {
                             const { done, value } = await reader.read();
                             if (done) break;
-                            total += value.byteLength;
+                            // Forward each chunk immediately: a worker-side buffer would
+                            // lose its bytes if the tab closed before the next report.
+                            if (value.byteLength > 0) {
+                                self.postMessage({ type: "WORKER_USAGE", bytes: value.byteLength });
+                            }
                         }
                     })().catch(() => {});
                 }
@@ -108,11 +115,6 @@ function workerBootstrap(flushIntervalMs: number): string {
             return res;
         });
     };
-    setInterval(() => {
-        if (total === 0) return;
-        self.postMessage({ type: "WORKER_USAGE", bytes: total });
-        total = 0;
-    }, ${flushIntervalMs});
 })();
 `;
 }
@@ -150,7 +152,6 @@ function wrapBlobWorkerUrl(
     nativeSend: unknown,
     urlApi: Pick<typeof URL, "createObjectURL">,
     BlobCtor: typeof Blob,
-    flushIntervalMs: number,
 ): string | undefined {
     try {
         const url = new URL(String(scriptURL), getBaseURI());
@@ -164,7 +165,7 @@ function wrapBlobWorkerUrl(
         const payload = readWorkerSource(url.href, XhrCtor, nativeSend);
         if (!payload) return undefined;
         return urlApi.createObjectURL(
-            new BlobCtor([workerBootstrap(flushIntervalMs), ";\n", payload], {
+            new BlobCtor([workerBootstrap(), ";\n", payload], {
                 type: "application/javascript",
             }),
         );
@@ -210,8 +211,6 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
     const urlApi = ports.urlApi ?? URL;
     const BlobCtor = ports.Blob ?? Blob;
     const getBaseURI = ports.getBaseURI ?? (() => document.baseURI);
-    const postMessage =
-        ports.postMessage ?? ((message: UsageMessage) => globalThis.postMessage(message, "*"));
     const scheduleInterval = ports.scheduleInterval ?? defaultScheduleInterval;
     const windowTarget = ports.windowTarget ?? (typeof window !== "undefined" ? window : undefined);
     const documentTarget =
@@ -238,10 +237,7 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
         if (total === 0) return;
         const bytes = total;
         total = 0;
-        postMessage({
-            type: "TUBESIZE_SITE_USAGE",
-            bytes,
-        });
+        windowTarget?.dispatchEvent(new CustomEvent(SITE_USAGE_EVENT, { detail: bytes }));
     }
 
     function onPageHide() {
@@ -373,7 +369,6 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                     baseSend,
                     urlApi,
                     BlobCtor,
-                    flushIntervalMs,
                 );
                 if (wrappedUrl) {
                     try {
