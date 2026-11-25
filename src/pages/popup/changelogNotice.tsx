@@ -1,50 +1,14 @@
-import { storage } from "@wxt-dev/storage";
+import useChangelogNotice from "@hooks/useChangelogNotice";
 import { ExternalLink, Sparkles, X } from "lucide-react";
-import { useEffect, useState } from "react";
 
 import { t } from "@/i18n/t";
 
 const RELEASES_URL = "https://github.com/MohamedSayed0573/TubeSize_Extension/releases/latest";
-const lastSeenVersion = storage.defineItem<string>("local:lastSeenVersion");
 
 export default function ChangelogNotice() {
-    const version = chrome.runtime.getManifest().version;
-    const [isNewRelease, setIsNewRelease] = useState(false);
-
-    useEffect(() => {
-        let active = true;
-
-        async function checkVersion() {
-            try {
-                const seenVersion = await lastSeenVersion.getValue();
-                if (!active) return;
-
-                if (seenVersion === null) {
-                    await lastSeenVersion.setValue(version);
-                    return;
-                }
-
-                setIsNewRelease(seenVersion !== version);
-            } catch (err) {
-                console.error("Failed to check the last seen version", err);
-            }
-        }
-
-        void checkVersion();
-
-        return () => {
-            active = false;
-        };
-    }, [version]);
+    const { version, isNewRelease, dismiss } = useChangelogNotice();
 
     if (!isNewRelease) return null;
-
-    function dismiss() {
-        setIsNewRelease(false);
-        void lastSeenVersion
-            .setValue(version)
-            .catch((err: unknown) => console.error("Failed to save the last seen version", err));
-    }
 
     return (
         <output className="flex items-start gap-2 border-b-2 border-white/8 bg-blue-400/12 px-3 py-2 text-xs">
