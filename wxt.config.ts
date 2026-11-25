@@ -91,14 +91,14 @@ export default defineConfig({
                 description: "Open the TubeSize popup",
             },
         },
-        // Firefox-only settings. Firefox 121 is the first
-        // release with MV3 background service workers enabled by default;
-        // below that, background.service_worker in the manifest is invalid.
+        // Firefox-only settings. Firefox 128 is the first release
+        // supporting declarative content_scripts[].world: "MAIN"
+        // (used by genericObserver.content.ts).
         ...(browser === "firefox" && {
             browser_specific_settings: {
                 gecko: {
                     id: "tubesize@mohammedsayed.dev",
-                    strict_min_version: "121.0",
+                    strict_min_version: "128.0",
                     data_collection_permissions: {
                         required: ["none"],
                     },

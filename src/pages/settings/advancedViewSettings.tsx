@@ -35,8 +35,8 @@ export default function AdvancedViewSettings({ settingsState }: { settingsState:
                         className="cursor-pointer"
                         checked={isAdvancedView}
                         disabled={isPending}
-                        onClick={() => {
-                            updateSettings({ advancedView: !isAdvancedView });
+                        onCheckedChange={(checked) => {
+                            updateSettings({ advancedView: checked });
                         }}
                     />
                 </Field>
