@@ -19,7 +19,7 @@ import type { VideoMetadataInput } from "@/db";
 
 const AUDIO_ITAG = 251;
 const LIVE_AUDIO_ITAG = 140;
-const YT_INITIAL_PLAYER_REGEX = /ytInitialPlayerResponse\s*=\s*(\{.+?\});/s;
+const YT_INITIAL_PLAYER_ASSIGNMENT_REGEX = /\bytInitialPlayerResponse\s*=\s*\{/g;
 const DEFAULT_YOUTUBE_THUMBNAIL = "https://www.youtube.com/img/desktop/yt_1200.png";
 
 const ytInitialSchema = z.object({
@@ -126,21 +126,82 @@ async function fetchYoutubeHtml(mediaId: string) {
     return fetchedHtml;
 }
 
+function extractJsonObject(source: string, openBraceIndex: number): string | undefined {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = openBraceIndex; i < source.length; i++) {
+        const ch = source[i];
+        if (inString) {
+            if (escaped) {
+                escaped = false;
+            } else if (ch === "\\") {
+                escaped = true;
+            } else if (ch === '"') {
+                inString = false;
+            }
+            continue;
+        }
+
+        if (ch === '"') {
+            inString = true;
+        } else if (ch === "{") {
+            depth++;
+        } else if (ch === "}") {
+            depth--;
+            if (depth === 0) {
+                return source.slice(openBraceIndex, i + 1);
+            }
+        }
+    }
+
+    return undefined;
+}
+
+type ParseYtInitialResult =
+    | { ok: true; data: ytInitialPlayerResponse }
+    | { ok: false; error: Error };
+
+function tryParseYtInitialFromHtml(html: string, mediaId: string): ParseYtInitialResult {
+    let lastError: Error | undefined;
+
+    for (const match of html.matchAll(YT_INITIAL_PLAYER_ASSIGNMENT_REGEX)) {
+        const openBraceIndex = match.index + match[0].length - 1;
+        const jsonText = extractJsonObject(html, openBraceIndex);
+        if (!jsonText) continue;
+
+        try {
+            const data = JSON.parse(jsonText) as unknown;
+            const ytInitial = ytInitialSchema.parse(data);
+            if (ytInitial.videoDetails.videoId !== mediaId) {
+                lastError = new Error(
+                    "Video ID mismatch between extracted data and requested video",
+                );
+                continue;
+            }
+            return { ok: true, data: ytInitial };
+        } catch (err) {
+            lastError = err instanceof Error ? err : new Error(String(err));
+        }
+    }
+
+    return { ok: false, error: lastError ?? new Error("No match found") };
+}
+
 export async function extractYtInitialResponse(
     mediaId: string,
     html: string | undefined,
 ): Promise<ytInitialPlayerResponse> {
-    const validHtml = html || (await fetchYoutubeHtml(mediaId));
-    const match = validHtml.match(YT_INITIAL_PLAYER_REGEX);
-    if (!match?.[1]) throw new Error("No match found");
-
-    const data = JSON.parse(match[1]) as unknown;
-    const ytInitial = ytInitialSchema.parse(data);
-
-    if (ytInitial.videoDetails.videoId !== mediaId) {
-        throw new Error("Video ID mismatch between extracted data and requested video");
+    if (html) {
+        const parsed = tryParseYtInitialFromHtml(html, mediaId);
+        if (parsed.ok) return parsed.data;
     }
-    return ytInitial;
+
+    const fetchedHtml = await fetchYoutubeHtml(mediaId);
+    const parsed = tryParseYtInitialFromHtml(fetchedHtml, mediaId);
+    if (!parsed.ok) throw parsed.error;
+    return parsed.data;
 }
 
 type AdaptiveFormat = ytInitialPlayerResponse["streamingData"]["adaptiveFormats"][number];

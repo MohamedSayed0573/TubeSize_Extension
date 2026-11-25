@@ -62,18 +62,18 @@ const twitchGqlResponseSchema = z.object({
                 value: z.string(),
                 signature: z.string(),
             })
-            .optional(),
+            .nullish(),
         videoPlaybackAccessToken: z
             .object({
                 value: z.string(),
                 signature: z.string(),
             })
-            .optional(),
+            .nullish(),
         video: z
             .object({
                 lengthSeconds: z.number(),
             })
-            .optional(),
+            .nullish(),
     }),
 });
 

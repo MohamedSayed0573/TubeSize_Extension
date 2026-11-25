@@ -194,6 +194,31 @@ describe("createContentSession", () => {
         ).toEqual(["720 MB"]);
     });
 
+    test("ignores earlier scripts that only reference ytInitialPlayerResponse and scrapes the player assignment script", async () => {
+        await saveSettings({ toasterEnabled: false });
+        const requests: EstimateMediaMessage[] = [];
+        messageCleanups.push(
+            onMessage("estimateMedia", ({ data }) => {
+                requests.push(data);
+                return { success: true, data: HIGH_BITRATE_VOD };
+            }),
+        );
+
+        const referenceScript = document.createElement("script");
+        referenceScript.textContent = "if (window.ytInitialPlayerResponse) { boot(); }";
+        const nullAssignScript = document.createElement("script");
+        nullAssignScript.textContent = "window.ytInitialPlayerResponse = null;";
+        const playerScript = document.createElement("script");
+        playerScript.textContent =
+            'var ytInitialPlayerResponse = {"videoDetails":{"videoId":"I82j7AzMU80"}};';
+        document.body.append(referenceScript, nullAssignScript, playerScript);
+
+        await session!.navigate();
+
+        expect(requests).toHaveLength(1);
+        expect(requests[0]?.html).toBe(playerScript.textContent);
+    });
+
     test("skips toaster when toasterEnabled is false while still injecting YouTube quality menu", async () => {
         await saveSettings({ toasterEnabled: false });
         messageCleanups.push(

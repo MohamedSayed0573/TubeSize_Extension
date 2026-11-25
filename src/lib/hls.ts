@@ -155,7 +155,12 @@ async function sampleHlsStreams(
     }
 
     const [firstHeight, firstUrl] = firstEntry;
-    const firstManifest = await fetchMediaPlaylist(firstUrl, fetchFn, sleep);
+    let firstManifest: Manifest;
+    try {
+        firstManifest = await fetchMediaPlaylist(firstUrl, fetchFn, sleep);
+    } catch {
+        return extractBandwidthStreams(playlists);
+    }
     if (hasAdInterruption(firstManifest)) {
         return extractBandwidthStreams(playlists);
     }
