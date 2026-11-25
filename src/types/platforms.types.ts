@@ -1,9 +1,4 @@
-import type { ytInitialSchema } from "@lib/schema";
-import { z } from "zod";
-
 import type { PlatformId } from "./types";
-
-export type ytInitialPlayerResponse = z.infer<typeof ytInitialSchema>;
 
 export type VideoCodec = "av01" | "vp9" | "avc";
 
@@ -29,15 +24,6 @@ export type AudioStreamInfo = {
     sizeBytes: number;
     bytesPerSecond: number;
     itags: AudioItag[];
-};
-
-export type ChosenVideoFormat = {
-    formatId: number;
-    height: number;
-    sizeBytes: number;
-    codec?: VideoCodec;
-    fps?: number;
-    itags: VideoItag[];
 };
 
 export type YoutubeVideoFormat = {

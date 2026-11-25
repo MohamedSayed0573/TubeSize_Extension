@@ -1,11 +1,90 @@
 import type { TwitchLiveData, TwitchVodData } from "@app-types/platforms.types";
 import type { TwitchLiveMessage, TwitchVodMessage } from "@app-types/types";
-import CONFIG from "@lib/constants";
 import { resolveHlsStreams } from "@lib/hls";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
-import { twitchGqlResponseSchema, twitchPageLdJsonSchema } from "@lib/schema";
-import { fetchAndRetry } from "@lib/utils";
+import type { ParsedTwitchMedia } from "@lib/platformUrl";
+import { fetchAndRetry, type PageHtmlFetcher } from "@lib/utils";
 import * as cheerio from "cheerio";
+import { z } from "zod";
+
+import type { VideoMetadataInput } from "@/db";
+
+const TWITCH_GQL_GRAPHQL_QUERY = `
+        query PlaybackAccessToken_Template(
+        $login: String!,
+        $isLive: Boolean!,
+        $vodID: ID!,
+        $isVod: Boolean!,
+        $playerType: String!,
+        $platform: String!
+        ) {
+        streamPlaybackAccessToken(
+            channelName: $login,
+            params: {
+            platform: $platform,
+            playerBackend: "mediaplayer",
+            playerType: $playerType
+            }
+        ) @include(if: $isLive) {
+            value
+            signature
+            authorization {
+            isForbidden
+            forbiddenReasonCode
+            }
+            __typename
+        }
+        videoPlaybackAccessToken(
+            id: $vodID,
+            params: {
+            platform: $platform,
+            playerBackend: "mediaplayer",
+            playerType: $playerType
+            }
+        ) @include(if: $isVod) {
+            value
+            signature
+            __typename
+        }
+        video(id: $vodID) @include(if: $isVod) {
+            lengthSeconds
+        }
+    }
+`;
+
+const twitchGqlResponseSchema = z.object({
+    data: z.object({
+        streamPlaybackAccessToken: z
+            .object({
+                value: z.string(),
+                signature: z.string(),
+            })
+            .optional(),
+        videoPlaybackAccessToken: z
+            .object({
+                value: z.string(),
+                signature: z.string(),
+            })
+            .optional(),
+        video: z
+            .object({
+                lengthSeconds: z.number(),
+            })
+            .optional(),
+    }),
+});
+
+const twitchLdGraphNodeSchema = z.object({
+    "@type": z.string(),
+    name: z.string().nullish(),
+    description: z.string().nullish(),
+    alternateName: z.string().nullish(),
+    thumbnailUrl: z.union([z.string(), z.array(z.string())]).nullish(),
+});
+
+const twitchPageLdJsonSchema = z.object({
+    "@graph": z.array(twitchLdGraphNodeSchema),
+});
 
 type TwitchTokenData = {
     value: string;
@@ -47,7 +126,7 @@ async function getTwitchToken(
             "Content-Type": "application/json",
         };
         const body = {
-            query: CONFIG.TWITCH_GQL_GRAPHQL_QUERY,
+            query: TWITCH_GQL_GRAPHQL_QUERY,
             variables,
         };
 
@@ -160,7 +239,7 @@ export async function getTwitchVodData(message: TwitchVodMessage): Promise<Twitc
     return data;
 }
 
-export interface TwitchPageMetadata {
+interface TwitchPageMetadata {
     title: string;
     channelName: string;
     thumbnailUrl: string;
@@ -170,7 +249,7 @@ function isTwitchLogin(value: string | null | undefined): value is string {
     return typeof value === "string" && /^[a-zA-Z0-9_]{1,25}$/.test(value);
 }
 
-export function parseTwitchPageMetadata(
+function parseTwitchPageMetadata(
     html: string,
     contentType: "live" | "vod",
 ): TwitchPageMetadata | undefined {
@@ -205,4 +284,28 @@ export function parseTwitchPageMetadata(
         rawThumbnail && !rawThumbnail.includes("404_processing") ? rawThumbnail : "";
 
     return { title, channelName, thumbnailUrl };
+}
+
+export async function fetchTwitchMetadata(
+    media: ParsedTwitchMedia,
+    url: string,
+    fetchHtml: PageHtmlFetcher,
+): Promise<VideoMetadataInput | undefined> {
+    const html = await fetchHtml(url);
+    if (!html) return undefined;
+
+    const metadata = parseTwitchPageMetadata(html, media.contentType);
+    if (!metadata) return undefined;
+
+    const channelName = media.contentType === "live" ? media.channelName : metadata.channelName;
+
+    return {
+        ...metadata,
+        channelName,
+        channelUrl: `https://www.twitch.tv/${channelName}`,
+        type: "twitch",
+        contentType: media.contentType,
+        mediaId: media.mediaId,
+        url,
+    };
 }

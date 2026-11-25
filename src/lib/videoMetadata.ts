@@ -1,18 +1,12 @@
 import type { VideoKey } from "@app-types/types";
 import CONFIG from "@lib/constants";
-import {
-    type ParsedKickMedia,
-    type ParsedPlatformMedia,
-    type ParsedTwitchMedia,
-    type ParsedYoutubeMedia,
-    toVideoKey,
-} from "@lib/platformUrl";
-import { parseTwitchPageMetadata } from "@lib/twitch";
-import { getYoutubeData } from "@lib/youtube";
-import * as cheerio from "cheerio";
+import { fetchKickMetadata } from "@lib/kick";
+import { type ParsedPlatformMedia, toVideoKey } from "@lib/platformUrl";
+import { fetchTwitchMetadata } from "@lib/twitch";
+import type { PageHtmlFetcher } from "@lib/utils";
+import { fetchYoutubeMetadata } from "@lib/youtube";
 
-import { addVideoMetadata, getVideoMetadataByVideoKey } from "@/db";
-import { getCachedAv1Support } from "@/lib/codecSupport";
+import { addVideoMetadata, getVideoMetadataByVideoKey, type VideoMetadataInput } from "@/db";
 
 const inFlightMetadata = new Map<VideoKey, Promise<void>>();
 
@@ -45,6 +39,25 @@ async function fetchPageHtml(url: string, timeoutMs: number): Promise<string | u
     }
 }
 
+function fetchPlatformMetadata(
+    media: ParsedPlatformMedia,
+    url: string,
+    fetchHtml: PageHtmlFetcher,
+): Promise<VideoMetadataInput | undefined> {
+    switch (media.platform) {
+        case "youtube":
+            return fetchYoutubeMetadata(media);
+        case "twitch":
+            return fetchTwitchMetadata(media, url, fetchHtml);
+        case "kick":
+            return fetchKickMetadata(media, url, fetchHtml);
+        default: {
+            const exhaustive: never = media;
+            return exhaustive;
+        }
+    }
+}
+
 async function recordVideoMetadataOnce(
     videoKey: VideoKey,
     media: ParsedPlatformMedia,
@@ -55,94 +68,13 @@ async function recordVideoMetadataOnce(
         const existing = await getVideoMetadataByVideoKey(videoKey);
         if (existing) return;
 
-        switch (media.platform) {
-            case "youtube":
-                await recordYoutubeMetadata(media);
-                return;
-            case "twitch":
-                await recordTwitchMetadata(media, url, timeoutMs);
-                return;
-            case "kick":
-                await recordKickMetadata(media, url, timeoutMs);
-                return;
-            default: {
-                const exhaustive: never = media;
-                return exhaustive;
-            }
+        const metadata = await fetchPlatformMetadata(media, url, (targetUrl) =>
+            fetchPageHtml(targetUrl, timeoutMs),
+        );
+        if (metadata) {
+            await addVideoMetadata(metadata);
         }
     } catch (err) {
         console.error(`Failed to record ${media.platform} metadata:`, err);
     }
-}
-
-async function recordTwitchMetadata(media: ParsedTwitchMedia, url: string, timeoutMs: number) {
-    const html = await fetchPageHtml(url, timeoutMs);
-    if (!html) return;
-
-    const metadata = parseTwitchPageMetadata(html, media.contentType);
-    if (!metadata) return;
-
-    const channelName = media.contentType === "live" ? media.channelName : metadata.channelName;
-
-    await addVideoMetadata({
-        ...metadata,
-        channelName,
-        channelUrl: `https://www.twitch.tv/${channelName}`,
-        type: "twitch",
-        contentType: media.contentType,
-        mediaId: media.mediaId,
-        url,
-    });
-}
-
-async function fetchKickPageMeta(
-    url: string,
-    timeoutMs: number,
-): Promise<{ title: string; thumbnailUrl: string } | undefined> {
-    try {
-        const html = await fetchPageHtml(url, timeoutMs);
-        if (!html) return undefined;
-
-        const $ = cheerio.load(html);
-        return {
-            title:
-                $('meta[property="og:title"]').attr("content")?.trim() || $("title").text().trim(),
-            thumbnailUrl: $('meta[property="og:image"]').attr("content")?.trim() ?? "",
-        };
-    } catch {
-        return undefined;
-    }
-}
-
-async function recordKickMetadata(media: ParsedKickMedia, url: string, timeoutMs: number) {
-    const { channelName } = media;
-    const channelUrl = `https://kick.com/${channelName}`;
-    const pageMeta = await fetchKickPageMeta(url, timeoutMs);
-
-    await addVideoMetadata({
-        type: "kick",
-        contentType: media.contentType,
-        mediaId: media.mediaId,
-        url,
-        title: pageMeta?.title || channelName,
-        channelName,
-        channelUrl,
-        thumbnailUrl: pageMeta?.thumbnailUrl ?? "",
-    });
-}
-
-async function recordYoutubeMetadata(media: ParsedYoutubeMedia) {
-    const data = await getYoutubeData({
-        mediaId: media.mediaId,
-        av1Supported: await getCachedAv1Support(),
-    });
-
-    await addVideoMetadata({
-        type: "youtube",
-        mediaId: media.mediaId,
-        title: data.title || data.channelName || "Youtube",
-        channelName: data.channelName ?? "",
-        thumbnailUrl: data.thumbnailUrl ?? "https://www.youtube.com/img/desktop/yt_1200.png",
-        channelUrl: data.channelUrl ?? "",
-    });
 }

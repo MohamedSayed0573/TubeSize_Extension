@@ -70,6 +70,7 @@ const KICK_NON_STREAM_PATHS = new Set([
     "browse",
 ]);
 
+const YOUTUBE_VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
 const TWITCH_VOD_ID_REGEX = /^[0-9]+$/;
 const KICK_VIDEO_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -95,7 +96,7 @@ function parseYoutubeUrl(parsedUrl: URL, segments: string[]): ParsedPlatformUrl 
         mediaId = second;
     }
 
-    if (mediaId && CONFIG.VIDEO_ID_REGEX.test(mediaId)) {
+    if (mediaId && YOUTUBE_VIDEO_ID_REGEX.test(mediaId)) {
         return { kind: "media", platform: "youtube", mediaId, isShorts };
     }
 

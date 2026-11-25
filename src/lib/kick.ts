@@ -2,13 +2,39 @@ import type { KickLiveData, KickVodData } from "@app-types/platforms.types";
 import type { KickLiveMessage, KickVodMessage } from "@app-types/types";
 import { resolveHlsStreams } from "@lib/hls";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
-import { isKickVideoUuid } from "@lib/platformUrl";
-import {
-    kickChannelVideosResponseSchema,
-    kickPlaybackResponseSchema,
-    kickVideoResponseSchema,
-} from "@lib/schema";
-import { fetchAndRetry } from "@lib/utils";
+import { isKickVideoUuid, type ParsedKickMedia } from "@lib/platformUrl";
+import { fetchAndRetry, type PageHtmlFetcher } from "@lib/utils";
+import * as cheerio from "cheerio";
+import { z } from "zod";
+
+import type { VideoMetadataInput } from "@/db";
+
+const kickPlaybackResponseSchema = z.object({
+    playback_url: z
+        .object({
+            live: z.string().optional(),
+        })
+        .optional(),
+});
+
+// kick.com/api/v2/channels/{slug}/videos — duration is in milliseconds
+const kickChannelVideosResponseSchema = z.array(
+    z.object({
+        slug: z.string(),
+        source: z.string().nullable(),
+        duration: z.number(),
+    }),
+);
+
+// kick.com/api/v1/video/{uuid} — livestream duration is in milliseconds
+const kickVideoResponseSchema = z.object({
+    source: z.string().nullable(),
+    livestream: z
+        .object({
+            duration: z.number(),
+        })
+        .nullable(),
+});
 
 async function getKickHtml(url: string): Promise<string> {
     const res = await fetchAndRetry(url, {
@@ -168,4 +194,43 @@ export async function getKickVodData(message: KickVodMessage): Promise<KickVodDa
     await saveMediaCache("kick", message.mediaId, data);
 
     return data;
+}
+
+async function fetchKickPageMeta(
+    url: string,
+    fetchHtml: PageHtmlFetcher,
+): Promise<{ title: string; thumbnailUrl: string } | undefined> {
+    try {
+        const html = await fetchHtml(url);
+        if (!html) return undefined;
+
+        const $ = cheerio.load(html);
+        return {
+            title:
+                $('meta[property="og:title"]').attr("content")?.trim() || $("title").text().trim(),
+            thumbnailUrl: $('meta[property="og:image"]').attr("content")?.trim() ?? "",
+        };
+    } catch {
+        return undefined;
+    }
+}
+
+export async function fetchKickMetadata(
+    media: ParsedKickMedia,
+    url: string,
+    fetchHtml: PageHtmlFetcher,
+): Promise<VideoMetadataInput> {
+    const { channelName } = media;
+    const pageMeta = await fetchKickPageMeta(url, fetchHtml);
+
+    return {
+        type: "kick",
+        contentType: media.contentType,
+        mediaId: media.mediaId,
+        url,
+        title: pageMeta?.title || channelName,
+        channelName,
+        channelUrl: `https://kick.com/${channelName}`,
+        thumbnailUrl: pageMeta?.thumbnailUrl ?? "",
+    };
 }

@@ -9,6 +9,8 @@ export function typedEntries<K extends string, V>(record: Readonly<Record<K, V>>
 
 export type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
+export type PageHtmlFetcher = (url: string) => Promise<string | undefined>;
+
 const defaultFetch: FetchLike = (input, init) => fetch(input, init);
 
 type FetchResponse = { success: true; response: Response } | { success: false; error: Error };
