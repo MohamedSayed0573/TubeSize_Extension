@@ -84,6 +84,50 @@ describe("recordVideoMetadata", () => {
         });
     });
 
+    test("falls back to document title on Kick when og:title is missing and channelName on HTTP error", async () => {
+        stubFetch([
+            new Response(`<html><head><title>  Kick Title Fallback  </title></head></html>`, {
+                status: 200,
+            }),
+            new Response("Not found", { status: 404 }),
+        ]);
+
+        const vodUrl = "https://kick.com/xqc/videos/vod-title-fallback";
+        await recordVideoMetadata(requireMedia(vodUrl), vodUrl);
+        expect(
+            await getVideoMetadataByVideoKey(toVideoKey("kick", "vod-title-fallback")),
+        ).toMatchObject({
+            type: "kick",
+            contentType: "vod",
+            title: "Kick Title Fallback",
+            channelName: "xqc",
+            thumbnailUrl: "",
+            url: vodUrl,
+        });
+
+        const liveUrl = "https://kick.com/offlinekick";
+        await recordVideoMetadata(requireMedia(liveUrl), liveUrl);
+        expect(await getVideoMetadataByVideoKey(toVideoKey("kick", "offlinekick"))).toMatchObject({
+            type: "kick",
+            contentType: "live",
+            title: "offlinekick",
+            channelName: "offlinekick",
+            thumbnailUrl: "",
+            url: liveUrl,
+        });
+    });
+
+    test("skips persisting Twitch metadata when page fetch returns a non-OK status", async () => {
+        stubFetch([new Response("Not found", { status: 404 })]);
+
+        const liveUrl = "https://www.twitch.tv/missingchannel";
+        await recordVideoMetadata(requireMedia(liveUrl), liveUrl);
+
+        expect(
+            await getVideoMetadataByVideoKey(toVideoKey("twitch", "missingchannel")),
+        ).toBeUndefined();
+    });
+
     test("records Twitch live and VOD metadata using parsed media identity", async () => {
         const liveLdJson = JSON.stringify({
             "@graph": [

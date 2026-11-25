@@ -14,7 +14,6 @@ const CONFIG = {
     VIDEO_ID_REGEX: /^[a-zA-Z0-9_-]{11}$/,
     YT_INITIAL_PLAYER_REGEX: /ytInitialPlayerResponse\s*=\s*(\{.+?\});/s,
     DEFAULT_TOASTER_THRESHOLD: 500,
-    TOASTER_POLLING_INTERVAL: 5000,
     DEFAULT_TOASTER_ENABLED: true,
     DEFAULT_ADVANCED_VIEW: false,
     DEFAULT_INCLUDE_AUDIO: true,
