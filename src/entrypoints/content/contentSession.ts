@@ -6,7 +6,7 @@ import type { DisplayFormat, PlatformAdapter } from "@/adapters/types";
 
 import { clearQualityMenu, injectQualityMenu } from "./qualityMenuInjector";
 import { trackResolutionChanges } from "./resolution";
-import { showToast, unmountToast } from "./toaster";
+import { createToaster, unmountToast } from "./toaster";
 
 /**
  * YouTube only writes `ytInitialPlayerResponse` on a full page load. After an
@@ -97,9 +97,10 @@ export function createContentSession(): ContentSession {
             const thresholdMbph = await toasterThreshold.getValue();
             if (signal.aborted) return;
 
+            const toaster = createToaster(signal);
             await trackResolutionChanges((resolution) => {
                 if (signal.aborted) return;
-                void showToast({ formats, currentQuality: resolution, thresholdMbph, signal });
+                void toaster.show({ formats, currentQuality: resolution, thresholdMbph });
             }, signal);
         } catch (err) {
             if (signal.aborted) return;

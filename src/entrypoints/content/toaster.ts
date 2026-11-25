@@ -26,7 +26,7 @@ function mountToast(
         thresholdMbph: number;
         format: DisplayFormat;
     },
-    signal?: AbortSignal,
+    dismiss: () => void,
 ) {
     let host = document.querySelector<HTMLDivElement>(`#${HOST_ID}`);
     if (!host) {
@@ -34,13 +34,6 @@ function mountToast(
         host.id = HOST_ID;
         document.body.append(host);
     }
-
-    const dismiss = () => {
-        signal?.removeEventListener("abort", unmountToast);
-        unmountToast();
-    };
-
-    signal?.addEventListener("abort", unmountToast, { once: true });
 
     host.replaceChildren(
         createToast({
@@ -54,28 +47,51 @@ function mountToast(
     );
 }
 
-export type ShowToastOptions = {
+type ShowToastOptions = {
     formats: readonly DisplayFormat[];
     currentQuality: number;
     thresholdMbph: number;
-    signal?: AbortSignal;
 };
 
-export async function showToast({
-    formats,
-    currentQuality,
-    thresholdMbph,
-    signal,
-}: ShowToastOptions): Promise<void> {
-    if (signal?.aborted) return;
+type Toaster = {
+    show: (options: ShowToastOptions) => Promise<void>;
+    dismiss: () => void;
+};
 
-    const format = formats.find((candidate) => candidate.resolution === currentQuality);
-    if (!format) return;
+export function createToaster(signal?: AbortSignal): Toaster {
+    let pendingController: AbortController | undefined;
 
-    if (megabytesPerHour(format.sizePerSecondBytes) <= thresholdMbph) return;
+    const dismiss = () => {
+        pendingController?.abort();
+        pendingController = undefined;
+        unmountToast();
+    };
 
-    if (await isSuppressedForToday()) return;
-    if (signal?.aborted) return;
+    signal?.addEventListener("abort", dismiss, { once: true });
 
-    mountToast({ currentQuality, thresholdMbph, format }, signal);
+    const show = async ({ formats, currentQuality, thresholdMbph }: ShowToastOptions) => {
+        if (signal?.aborted) return;
+
+        pendingController?.abort();
+        const requestController = new AbortController();
+        pendingController = requestController;
+
+        try {
+            const format = formats.find((candidate) => candidate.resolution === currentQuality);
+            if (!format) return;
+
+            if (megabytesPerHour(format.sizePerSecondBytes) <= thresholdMbph) return;
+
+            if (await isSuppressedForToday()) return;
+            if (signal?.aborted || requestController.signal.aborted) return;
+
+            mountToast({ currentQuality, thresholdMbph, format }, dismiss);
+        } finally {
+            if (pendingController === requestController) {
+                pendingController = undefined;
+            }
+        }
+    };
+
+    return { show, dismiss };
 }

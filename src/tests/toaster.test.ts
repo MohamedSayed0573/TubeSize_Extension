@@ -4,7 +4,7 @@ import { toDateKey } from "@lib/dateUtils";
 import { toasterSuppressedDate } from "@lib/storage";
 
 import type { DisplayFormat } from "@/adapters/types";
-import { showToast, unmountToast } from "@/entrypoints/content/toaster";
+import { createToaster, unmountToast } from "@/entrypoints/content/toaster";
 import { setLanguage } from "@/i18n/language";
 
 import { installDomEnv } from "./domEnv";
@@ -50,15 +50,17 @@ const liveFormats: DisplayFormat[] = [
     },
 ];
 
-describe("showToast", () => {
+describe("createToaster", () => {
     test("mounts total and hourly usage for VOD exceeding threshold and skips below threshold", async () => {
-        await showToast({ formats: vodFormats, currentQuality: 720, thresholdMbph: 500 });
+        const toaster = createToaster();
+
+        await toaster.show({ formats: vodFormats, currentQuality: 720, thresholdMbph: 500 });
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
 
-        await showToast({ formats: vodFormats, currentQuality: 480, thresholdMbph: 500 });
+        await toaster.show({ formats: vodFormats, currentQuality: 480, thresholdMbph: 500 });
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
 
-        await showToast({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
         const host = document.querySelector("#TubeSize-Toast-Host");
         expect(host).not.toBeNull();
         expect(host?.textContent).toContain("Current Quality: 2160p");
@@ -69,8 +71,9 @@ describe("showToast", () => {
 
     test("renders hourly usage without total size on live streams and supports Arabic RTL", async () => {
         await setLanguage("ar");
+        const toaster = createToaster();
 
-        await showToast({ formats: liveFormats, currentQuality: 1080, thresholdMbph: 500 });
+        await toaster.show({ formats: liveFormats, currentQuality: 1080, thresholdMbph: 500 });
         const host = document.querySelector("#TubeSize-Toast-Host");
         expect(host).not.toBeNull();
         expect(host?.querySelector(".container")?.getAttribute("dir")).toBe("rtl");
@@ -80,12 +83,9 @@ describe("showToast", () => {
 
     test("OK button unmounts toast without suppressing future alerts on the same day", async () => {
         const controller = new AbortController();
-        await showToast({
-            formats: vodFormats,
-            currentQuality: 2160,
-            thresholdMbph: 500,
-            signal: controller.signal,
-        });
+        const toaster = createToaster(controller.signal);
+
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
         const okBtn = document.querySelector<HTMLButtonElement>(
             "#TubeSize-Toast-Host button.firstBtn",
         );
@@ -95,24 +95,43 @@ describe("showToast", () => {
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
         expect(await toasterSuppressedDate.getValue()).toBeNull();
 
-        await showToast({
-            formats: vodFormats,
-            currentQuality: 2160,
-            thresholdMbph: 500,
-            signal: controller.signal,
-        });
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
         expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
 
         controller.abort();
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
     });
 
+    test("clicking OK cancels a pending show call while keeping future resolution alerts active", async () => {
+        const controller = new AbortController();
+        const toaster = createToaster(controller.signal);
+
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
+        const okBtn = document.querySelector<HTMLButtonElement>(
+            "#TubeSize-Toast-Host button.firstBtn",
+        );
+
+        const pendingShow = toaster.show({
+            formats: vodFormats,
+            currentQuality: 2160,
+            thresholdMbph: 500,
+        });
+        okBtn?.click();
+        await pendingShow;
+
+        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
+        expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+    });
+
     test("Don't show again persists today's DateKey and suppresses further toasts for that day", async () => {
         const expectedDate = toDateKey("2026-06-04");
         expect(expectedDate).toBeDefined();
+        const toaster = createToaster();
 
         setSystemTime(new Date(2026, 5, 4, 12, 0, 0));
-        await showToast({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
         const buttons = document.querySelectorAll<HTMLButtonElement>("#TubeSize-Toast-Host button");
         const suppressBtn = buttons[1];
         expect(suppressBtn?.textContent).toBe("Don't show again for today");
@@ -123,24 +142,26 @@ describe("showToast", () => {
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
         expect(await toasterSuppressedDate.getValue()).toBe(expectedDate!);
 
-        await showToast({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
     });
 
     test("does not leak suppression state across tests on the same calendar day", async () => {
         setSystemTime(new Date(2026, 5, 4, 12, 0, 0));
+        const toaster = createToaster();
 
-        await showToast({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
         expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
     });
 
-    test("aborting signal cancels an in-flight showToast call", async () => {
+    test("aborting signal cancels an in-flight show call", async () => {
         const controller = new AbortController();
-        const pending = showToast({
+        const toaster = createToaster(controller.signal);
+
+        const pending = toaster.show({
             formats: vodFormats,
             currentQuality: 2160,
             thresholdMbph: 500,
-            signal: controller.signal,
         });
         controller.abort();
         await pending;
