@@ -2,19 +2,76 @@ import type {
     AudioCodec,
     AudioItag,
     AudioStreamInfo,
-    ChosenVideoFormat,
     StreamInfo,
     VideoCodec,
     VideoItag,
     YoutubeData,
     YoutubeVideoFormat,
-    ytInitialPlayerResponse,
 } from "@app-types/platforms.types";
 import type { YoutubeMessage } from "@app-types/types";
+import { getCachedAv1Support } from "@lib/codecSupport";
 import CONFIG from "@lib/constants";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
-import { ytInitialSchema } from "@lib/schema";
+import type { ParsedYoutubeMedia } from "@lib/platformUrl";
 import { fetchAndRetry } from "@lib/utils";
+import { z } from "zod";
+
+import type { VideoMetadataInput } from "@/db";
+
+const AUDIO_ITAG = 251;
+const LIVE_AUDIO_ITAG = 140;
+const YT_INITIAL_PLAYER_REGEX = /ytInitialPlayerResponse\s*=\s*(\{.+?\});/s;
+const DEFAULT_YOUTUBE_THUMBNAIL = "https://www.youtube.com/img/desktop/yt_1200.png";
+
+const ytInitialSchema = z.object({
+    videoDetails: z.object({
+        videoId: z.string(),
+        title: z.string(),
+        lengthSeconds: z.string(),
+        isLive: z.boolean().optional(),
+        author: z.string(),
+        thumbnail: z.object({
+            thumbnails: z.array(
+                z.object({
+                    url: z.string(),
+                    width: z.number(),
+                    height: z.number(),
+                }),
+            ),
+        }),
+    }),
+    microformat: z
+        .object({
+            playerMicroformatRenderer: z.object({
+                ownerProfileUrl: z.string().optional(),
+            }),
+        })
+        .optional(),
+    streamingData: z.object({
+        adaptiveFormats: z.array(
+            z.object({
+                itag: z.number(),
+                height: z.number().optional(),
+                fps: z.number().optional(),
+                qualityLabel: z.string().optional(),
+                contentLength: z.string().optional(),
+                bitrate: z.number().optional(),
+                mimeType: z.string().optional(),
+            }),
+        ),
+    }),
+});
+
+export type ytInitialPlayerResponse = z.infer<typeof ytInitialSchema>;
+
+type ChosenVideoFormat = {
+    formatId: number;
+    height: number;
+    sizeBytes: number;
+    codec?: VideoCodec;
+    fps?: number;
+    itags: VideoItag[];
+};
 
 export function parseVideoFormats(
     data: ytInitialPlayerResponse,
@@ -70,7 +127,7 @@ export async function extractYtInitialResponse(
     html: string | undefined,
 ): Promise<ytInitialPlayerResponse> {
     const validHtml = html || (await fetchYoutubeHtml(mediaId));
-    const match = validHtml.match(CONFIG.YT_INITIAL_PLAYER_REGEX);
+    const match = validHtml.match(YT_INITIAL_PLAYER_REGEX);
     if (!match?.[1]) throw new Error("No match found");
 
     const data = JSON.parse(match[1]) as unknown;
@@ -175,8 +232,7 @@ function parseAudioFormats(data: ytInitialPlayerResponse): AudioItag[] {
     for (const format of data.streamingData.adaptiveFormats) {
         // mimeType is optional in the schema; fall back to the known audio itags
         // so a preferred format is not dropped when YouTube omits it.
-        const isKnownAudioItag =
-            format.itag === CONFIG.AUDIO_ITAG || format.itag === CONFIG.LIVE_AUDIO_ITAG;
+        const isKnownAudioItag = format.itag === AUDIO_ITAG || format.itag === LIVE_AUDIO_ITAG;
         const isAudio = format.mimeType?.startsWith("audio/") ?? isKnownAudioItag;
         if (!isAudio) continue;
 
@@ -202,7 +258,7 @@ function parseAudioFormats(data: ytInitialPlayerResponse): AudioItag[] {
 function parseAudio(data: ytInitialPlayerResponse): AudioStreamInfo | undefined {
     const itags = parseAudioFormats(data);
     const isLive = data.videoDetails.isLive || false;
-    const preferredItag = isLive ? CONFIG.LIVE_AUDIO_ITAG : CONFIG.AUDIO_ITAG;
+    const preferredItag = isLive ? LIVE_AUDIO_ITAG : AUDIO_ITAG;
     const chosen = itags.find((itag) => itag.formatId === preferredItag);
     if (!chosen) return undefined;
 
@@ -343,4 +399,20 @@ export async function getYoutubeData(message: YoutubeMessage): Promise<YoutubeDa
 
     await saveMediaCache("youtube", mediaId, data, isLive ? CONFIG.LIVE_CACHE_TTL : undefined);
     return data;
+}
+
+export async function fetchYoutubeMetadata(media: ParsedYoutubeMedia): Promise<VideoMetadataInput> {
+    const data = await getYoutubeData({
+        mediaId: media.mediaId,
+        av1Supported: await getCachedAv1Support(),
+    });
+
+    return {
+        type: "youtube",
+        mediaId: media.mediaId,
+        title: data.title || data.channelName || "Youtube",
+        channelName: data.channelName ?? "",
+        thumbnailUrl: data.thumbnailUrl ?? DEFAULT_YOUTUBE_THUMBNAIL,
+        channelUrl: data.channelUrl ?? "",
+    };
 }

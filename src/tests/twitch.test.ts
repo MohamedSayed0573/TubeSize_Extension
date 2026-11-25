@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { getMediaCache } from "@lib/mediaCache";
-import { getTwitchLiveData, getTwitchVodData, parseTwitchPageMetadata } from "@lib/twitch";
+import type { ParsedTwitchMedia } from "@lib/platformUrl";
+import { fetchTwitchMetadata, getTwitchLiveData, getTwitchVodData } from "@lib/twitch";
 
 const cleanups: Array<() => void> = [];
 
@@ -300,7 +301,23 @@ function twitchPageHtml(ldJson: string, metaDescription?: string) {
 </html>`;
 }
 
-describe("parseTwitchPageMetadata", () => {
+describe("fetchTwitchMetadata", () => {
+    const vodMedia: ParsedTwitchMedia = {
+        kind: "media",
+        platform: "twitch",
+        contentType: "vod",
+        mediaId: "2748008198",
+    };
+    const vodUrl = "https://www.twitch.tv/videos/2748008198";
+    const liveMedia: ParsedTwitchMedia = {
+        kind: "media",
+        platform: "twitch",
+        contentType: "live",
+        mediaId: "summit1g",
+        channelName: "summit1g",
+    };
+    const liveUrl = "https://www.twitch.tv/summit1g";
+
     const vodGraph = JSON.stringify({
         "@graph": [
             {
@@ -346,40 +363,54 @@ describe("parseTwitchPageMetadata", () => {
         ],
     });
 
-    test("should parse vod title and channel from the meta description", () => {
-        const metadata = parseTwitchPageMetadata(
-            twitchPageHtml(vodGraph, "jynxzi went live on Twitch. Catch up on their VOD now."),
-            "vod",
+    test("should parse vod title and channel from the meta description", async () => {
+        const html = twitchPageHtml(
+            vodGraph,
+            "jynxzi went live on Twitch. Catch up on their VOD now.",
         );
+        const metadata = await fetchTwitchMetadata(vodMedia, vodUrl, async () => html);
 
         expect(metadata).toEqual({
+            type: "twitch",
+            contentType: "vod",
+            mediaId: "2748008198",
+            url: vodUrl,
             title: "[612/730] 🔴 NEW CLASH ROYALE SEASON 🔴",
             channelName: "jynxzi",
+            channelUrl: "https://www.twitch.tv/jynxzi",
             thumbnailUrl: "https://vod-secure.twitch.tv/thumb-80x45.jpg",
         });
     });
 
-    test("should parse the live title and the person alternate name while live", () => {
-        const metadata = parseTwitchPageMetadata(twitchPageHtml(liveGraph), "live");
+    test("should parse the live title and preserve channelName while live", async () => {
+        const metadata = await fetchTwitchMetadata(liveMedia, liveUrl, async () =>
+            twitchPageHtml(liveGraph),
+        );
 
         expect(metadata).toEqual({
+            type: "twitch",
+            contentType: "live",
+            mediaId: "summit1g",
+            url: liveUrl,
             title: "chillin vanilla Extinction difficulty - !starforge",
             channelName: "summit1g",
+            channelUrl: "https://www.twitch.tv/summit1g",
             thumbnailUrl: "https://static-cdn.jtvnw.net/previews-ttv/live_user_summit1g-80x45.jpg",
         });
     });
 
-    test("should accept a plain string thumbnailUrl", () => {
+    test("should accept a plain string thumbnailUrl", async () => {
         const graph = JSON.stringify({
             "@graph": [{ "@type": "VideoObject", name: "title", thumbnailUrl: "thumb.jpg" }],
         });
 
-        expect(parseTwitchPageMetadata(twitchPageHtml(graph), "vod")?.thumbnailUrl).toBe(
-            "thumb.jpg",
+        const metadata = await fetchTwitchMetadata(vodMedia, vodUrl, async () =>
+            twitchPageHtml(graph),
         );
+        expect(metadata?.thumbnailUrl).toBe("thumb.jpg");
     });
 
-    test("should return an empty thumbnail while the vod is still processing", () => {
+    test("should return an empty thumbnail while the vod is still processing", async () => {
         const graph = JSON.stringify({
             "@graph": [
                 {
@@ -390,30 +421,42 @@ describe("parseTwitchPageMetadata", () => {
             ],
         });
 
-        expect(parseTwitchPageMetadata(twitchPageHtml(graph), "vod")?.thumbnailUrl).toBe("");
+        const metadata = await fetchTwitchMetadata(vodMedia, vodUrl, async () =>
+            twitchPageHtml(graph),
+        );
+        expect(metadata?.thumbnailUrl).toBe("");
     });
 
-    test("should fall back to an empty thumbnail when thumbnailUrl is missing", () => {
+    test("should fall back to an empty thumbnail when thumbnailUrl is missing", async () => {
         const graph = JSON.stringify({
             "@graph": [{ "@type": "VideoObject", name: "title" }],
         });
 
-        expect(parseTwitchPageMetadata(twitchPageHtml(graph), "vod")?.thumbnailUrl).toBe("");
+        const metadata = await fetchTwitchMetadata(vodMedia, vodUrl, async () =>
+            twitchPageHtml(graph),
+        );
+        expect(metadata?.thumbnailUrl).toBe("");
     });
 
-    test("should return undefined when the page has no ld+json script", () => {
-        expect(parseTwitchPageMetadata("<html><head></head></html>", "vod")).toBeUndefined();
+    test("should return undefined when HTML is missing, lacks ld+json, or lacks top-level VideoObject", async () => {
+        expect(await fetchTwitchMetadata(vodMedia, vodUrl, async () => undefined)).toBeUndefined();
+        expect(
+            await fetchTwitchMetadata(vodMedia, vodUrl, async () => "<html><head></head></html>"),
+        ).toBeUndefined();
+        expect(
+            await fetchTwitchMetadata(liveMedia, liveUrl, async () =>
+                twitchPageHtml(offlineLiveGraph),
+            ),
+        ).toBeUndefined();
     });
 
-    test("should return undefined when the graph has no top-level VideoObject", () => {
-        expect(parseTwitchPageMetadata(twitchPageHtml(offlineLiveGraph), "live")).toBeUndefined();
-    });
-
-    test("should throw when the ld+json does not match the schema", () => {
+    test("should reject when the ld+json does not match the schema", async () => {
         const graph = JSON.stringify({
             "@graph": [{ "@type": "VideoObject", name: 42 }],
         });
 
-        expect(() => parseTwitchPageMetadata(twitchPageHtml(graph), "vod")).toThrow();
+        await expect(
+            fetchTwitchMetadata(vodMedia, vodUrl, async () => twitchPageHtml(graph)),
+        ).rejects.toThrow();
     });
 });

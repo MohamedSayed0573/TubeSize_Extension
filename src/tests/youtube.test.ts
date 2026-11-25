@@ -2,17 +2,13 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 
-import type {
-    AudioStreamInfo,
-    YoutubeData,
-    ytInitialPlayerResponse,
-} from "@app-types/platforms.types";
-import { ytInitialSchema } from "@lib/schema";
+import type { AudioStreamInfo, YoutubeData } from "@app-types/platforms.types";
 import {
     extractYtInitialResponse,
     getYoutubeData,
     parseLiveFormats,
     parseVideoFormats,
+    type ytInitialPlayerResponse,
 } from "@lib/youtube";
 
 import { youtubeAdapter } from "@/adapters/youtubeAdapter";
@@ -54,7 +50,13 @@ describe("extractYtInitialResponse", () => {
         const html = `<script>var ytInitialPlayerResponse = ${ytInitialPlayerResponse};</script>`;
 
         const result = await extractYtInitialResponse("I82j7AzMU80", html);
-        expect(result).toEqual(ytInitialSchema.parse(JSON.parse(ytInitialPlayerResponse)));
+        expect(result.videoDetails).toMatchObject({
+            videoId: "I82j7AzMU80",
+            title: "How does Claude Code *actually* work?",
+            author: "Theo - t3․gg",
+            lengthSeconds: "2363",
+        });
+        expect(result.streamingData.adaptiveFormats.length).toBeGreaterThan(0);
     });
 });
 
