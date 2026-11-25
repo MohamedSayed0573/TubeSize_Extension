@@ -115,6 +115,7 @@ export default defineConfig({
             ".verify-evidence/**",
             "Notes.md",
             "stats/**",
+            "archive/**",
         ],
     },
     vite: (env) => ({
