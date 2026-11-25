@@ -435,8 +435,8 @@ describe("attachMessageHandler RPC seam", () => {
             message: "Invalid usage bytes",
         });
 
-        const usageOverflowFirst = await sendMessage("addUsage", { bytes: 1e308 });
-        const usageOverflowSecond = await sendMessage("addUsage", { bytes: 1e308 });
+        const usageOverflowFirst = await sendBackgroundMessage("addUsage", { bytes: 1e308 });
+        const usageOverflowSecond = await sendBackgroundMessage("addUsage", { bytes: 1e308 });
         expect(usageOverflowFirst).toEqual({
             success: false,
             message: "Invalid usage bytes",
@@ -447,7 +447,7 @@ describe("attachMessageHandler RPC seam", () => {
         });
         expect((await getAllSiteUsage())[0]?.usage[toOrigin("https://example.com")!]).toBe(6144);
 
-        const usageAboveCap = await sendMessage("addUsage", { bytes: 1_000_000_000_001 });
+        const usageAboveCap = await sendBackgroundMessage("addUsage", { bytes: 1_000_000_000_001 });
         expect(usageAboveCap).toEqual({
             success: false,
             message: "Invalid usage bytes",
@@ -519,7 +519,7 @@ describe("attachMessageHandler RPC seam", () => {
 
         senderTabUrl = "";
         senderFrameUrl = "https://www.twitch.tv/shroud";
-        expect(await sendMessage("addUsage", { bytes: 750 })).toEqual({
+        expect(await sendBackgroundMessage("addUsage", { bytes: 750 })).toEqual({
             success: true,
             data: null,
         });
