@@ -16,7 +16,7 @@ import {
 } from "@/entrypoints/content/contentSession";
 import contentScript from "@/entrypoints/content/index";
 import { setLanguage } from "@/i18n/language";
-import { onMessage } from "@/messaging";
+import { onBackgroundMessage } from "@/messaging";
 
 import { installDomEnv } from "./domEnv";
 
@@ -149,7 +149,7 @@ describe("createContentSession", () => {
     test("scrapes ytInitialPlayerResponse only on initial load, injects quality menu badges, and mounts toast", async () => {
         const requests: EstimateMediaMessage[] = [];
         messageCleanups.push(
-            onMessage("estimateMedia", ({ data }) => {
+            onBackgroundMessage("estimateMedia", ({ data }) => {
                 requests.push(data);
                 return {
                     success: true,
@@ -197,7 +197,7 @@ describe("createContentSession", () => {
     test("skips toaster when toasterEnabled is false while still injecting YouTube quality menu", async () => {
         await saveSettings({ toasterEnabled: false });
         messageCleanups.push(
-            onMessage("estimateMedia", () => ({
+            onBackgroundMessage("estimateMedia", () => ({
                 success: true,
                 data: HIGH_BITRATE_VOD,
             })),
@@ -218,7 +218,7 @@ describe("createContentSession", () => {
     test("clears toast, quality menu badges, and resize tracking when navigating to a non-video page", async () => {
         let requestCount = 0;
         messageCleanups.push(
-            onMessage("estimateMedia", () => {
+            onBackgroundMessage("estimateMedia", () => {
                 requestCount++;
                 return { success: true, data: HIGH_BITRATE_VOD };
             }),
@@ -249,7 +249,7 @@ describe("createContentSession", () => {
         let resolveFirst: ((value: { success: true; data: MediaEstimate }) => void) | undefined;
 
         messageCleanups.push(
-            onMessage("estimateMedia", () => {
+            onBackgroundMessage("estimateMedia", () => {
                 return new Promise((resolve) => {
                     resolveFirst = resolve;
                 });
@@ -275,7 +275,7 @@ describe("createContentSession", () => {
     test("passes isFromPopup=false for Twitch and Kick live pages and shows live toasts without quality menu injection", async () => {
         const requests: EstimateMediaMessage[] = [];
         messageCleanups.push(
-            onMessage("estimateMedia", ({ data }) => {
+            onBackgroundMessage("estimateMedia", ({ data }) => {
                 requests.push(data);
                 return {
                     success: true,
@@ -317,7 +317,7 @@ describe("createContentSession", () => {
     test("handles SPA transitions across non-media and media routes on Twitch and Kick", async () => {
         const requests: EstimateMediaMessage[] = [];
         messageCleanups.push(
-            onMessage("estimateMedia", ({ data }) => {
+            onBackgroundMessage("estimateMedia", ({ data }) => {
                 requests.push(data);
                 return {
                     success: true,
@@ -434,7 +434,7 @@ describe("content script entrypoint", () => {
     test("forwards path/search wxt:locationchange events, skips hash-only changes, and cleans up on invalidation", async () => {
         const requests: EstimateMediaMessage[] = [];
         messageCleanups.push(
-            onMessage("estimateMedia", ({ data }) => {
+            onBackgroundMessage("estimateMedia", ({ data }) => {
                 requests.push(data);
                 if (data.url.includes("twitch.tv")) {
                     return { success: true, data: SAMPLE_TWITCH_LIVE };

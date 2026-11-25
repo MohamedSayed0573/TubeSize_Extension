@@ -9,7 +9,7 @@ import {
 } from "@lib/mediaEstimate";
 
 import { setLanguage } from "@/i18n/language";
-import { onMessage } from "@/messaging";
+import { onBackgroundMessage } from "@/messaging";
 
 const cleanups: Array<() => void> = [];
 
@@ -121,7 +121,7 @@ describe("requestMediaEstimate", () => {
     test("sends one estimateMedia RPC with normalized options across platforms", async () => {
         const received: EstimateMediaMessage[] = [];
         cleanups.push(
-            onMessage("estimateMedia", ({ data }) => {
+            onBackgroundMessage("estimateMedia", ({ data }) => {
                 received.push(data);
                 return { success: true, data: SAMPLE_YOUTUBE_VOD };
             }),
@@ -167,7 +167,7 @@ describe("requestMediaEstimate", () => {
         );
 
         cleanups.push(
-            onMessage("estimateMedia", () => ({
+            onBackgroundMessage("estimateMedia", () => ({
                 success: false,
                 message: "Upstream failed",
             })),

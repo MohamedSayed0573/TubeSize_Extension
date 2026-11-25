@@ -1,6 +1,6 @@
 import type { AddUsageMessage } from "@app-types/types";
 
-import { onMessage, type BackgroundResponse } from "@/messaging";
+import { onBackgroundMessage, type BackgroundResponse } from "@/messaging";
 
 import { estimateMedia } from "./estimateMedia";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
@@ -48,8 +48,10 @@ export function attachMessageHandler(
     ingestion: UsageIngestion = createUsageIngestion(),
 ): () => void {
     const unsubscribers = [
-        onMessage("estimateMedia", ({ data }) => toBackgroundResponse(() => estimateMedia(data))),
-        onMessage("addUsage", ({ data, sender }) =>
+        onBackgroundMessage("estimateMedia", ({ data }) =>
+            toBackgroundResponse(() => estimateMedia(data)),
+        ),
+        onBackgroundMessage("addUsage", ({ data, sender }) =>
             toBackgroundResponse(() => recordUsageFromTab(ingestion, data, sender), {
                 logError: true,
             }),

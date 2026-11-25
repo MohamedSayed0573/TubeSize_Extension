@@ -14,7 +14,7 @@ import {
     getVideoMetadataByVideoKey,
 } from "@/db";
 import { attachMessageHandler } from "@/entrypoints/background/messageHandler";
-import { sendMessage } from "@/messaging";
+import { sendBackgroundMessage } from "@/messaging";
 
 const cleanups: Array<() => void> = [];
 let attached = false;
@@ -104,7 +104,7 @@ describe("attachMessageHandler RPC seam", () => {
         ensureMessageHandlersAttached();
         const html = `<script>var ytInitialPlayerResponse = ${readAsset("ytInitialPlayerResponse.json")};</script>`;
 
-        const ok = await sendMessage("estimateMedia", {
+        const ok = await sendBackgroundMessage("estimateMedia", {
             url: "https://www.youtube.com/watch?v=I82j7AzMU80",
             html,
         });
@@ -116,7 +116,7 @@ describe("attachMessageHandler RPC seam", () => {
             expect(ok.data.contentType === "vod" && ok.data.isShorts).toBeFalsy();
         }
 
-        const shorts = await sendMessage("estimateMedia", {
+        const shorts = await sendBackgroundMessage("estimateMedia", {
             url: "https://www.youtube.com/shorts/I82j7AzMU80",
         });
         expect(shorts.success).toBe(true);
@@ -124,7 +124,7 @@ describe("attachMessageHandler RPC seam", () => {
             expect(shorts.data.contentType === "vod" && shorts.data.isShorts).toBe(true);
         }
 
-        const bad = await sendMessage("estimateMedia", {
+        const bad = await sendBackgroundMessage("estimateMedia", {
             url: "https://www.youtube.com/",
             html,
         });
@@ -144,7 +144,7 @@ describe("attachMessageHandler RPC seam", () => {
                 thumbnail: { thumbnails: [] },
             },
         })};</script>`;
-        const emptyFormats = await sendMessage("estimateMedia", {
+        const emptyFormats = await sendBackgroundMessage("estimateMedia", {
             url: "https://www.youtube.com/watch?v=empty123456",
             html: emptyHtml,
         });
@@ -192,7 +192,7 @@ describe("attachMessageHandler RPC seam", () => {
             return new Response("Not found", { status: 404 });
         });
 
-        const bandwidthRes = await sendMessage("estimateMedia", {
+        const bandwidthRes = await sendBackgroundMessage("estimateMedia", {
             url: "https://www.twitch.tv/shroud",
             isFromPopup: false,
         });
@@ -211,7 +211,7 @@ describe("attachMessageHandler RPC seam", () => {
         });
         expect(requestedUrls.some((url) => url.endsWith(".ts"))).toBe(false);
 
-        const sampledRes = await sendMessage("estimateMedia", {
+        const sampledRes = await sendBackgroundMessage("estimateMedia", {
             url: "https://www.twitch.tv/shroud",
             isFromPopup: true,
         });
@@ -230,7 +230,7 @@ describe("attachMessageHandler RPC seam", () => {
         });
 
         stubFetch(async () => new Response("<html>no client id</html>", { status: 200 }));
-        const errRes = await sendMessage("estimateMedia", {
+        const errRes = await sendBackgroundMessage("estimateMedia", {
             url: "https://www.twitch.tv/offline",
             isFromPopup: false,
         });
@@ -265,7 +265,7 @@ describe("attachMessageHandler RPC seam", () => {
             return new Response("Not found", { status: 404 });
         });
 
-        const first = await sendMessage("estimateMedia", {
+        const first = await sendBackgroundMessage("estimateMedia", {
             url: "https://www.twitch.tv/videos/2748008198",
         });
         expect(first).toEqual({
@@ -293,7 +293,7 @@ describe("attachMessageHandler RPC seam", () => {
         expect(await getMediaCache("twitch", "2748008198")).not.toBeNull();
 
         fetchSpy.mockClear();
-        const second = await sendMessage("estimateMedia", {
+        const second = await sendBackgroundMessage("estimateMedia", {
             url: "https://www.twitch.tv/videos/2748008198",
         });
         expect(second.success).toBe(true);
@@ -313,7 +313,7 @@ describe("attachMessageHandler RPC seam", () => {
                 },
             });
         });
-        const missingDuration = await sendMessage("estimateMedia", {
+        const missingDuration = await sendBackgroundMessage("estimateMedia", {
             url: "https://www.twitch.tv/videos/9999",
         });
         expect(missingDuration).toEqual({
@@ -347,7 +347,7 @@ describe("attachMessageHandler RPC seam", () => {
             return new Response("Not found", { status: 404 });
         });
 
-        const live = await sendMessage("estimateMedia", {
+        const live = await sendBackgroundMessage("estimateMedia", {
             url: "https://kick.com/xqc",
             isFromPopup: false,
         });
@@ -360,7 +360,7 @@ describe("attachMessageHandler RPC seam", () => {
             });
         }
 
-        const vod = await sendMessage("estimateMedia", {
+        const vod = await sendBackgroundMessage("estimateMedia", {
             url: "https://kick.com/xqc/videos/12345678-1234-1234-1234-123456789abc",
         });
         expect(vod.success).toBe(true);
@@ -373,7 +373,7 @@ describe("attachMessageHandler RPC seam", () => {
         }
 
         stubFetch(async () => new Response("<html>offline</html>", { status: 200 }));
-        const liveErr = await sendMessage("estimateMedia", {
+        const liveErr = await sendBackgroundMessage("estimateMedia", {
             url: "https://kick.com/offline",
             isFromPopup: false,
         });
@@ -389,7 +389,7 @@ describe("attachMessageHandler RPC seam", () => {
         const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
         cleanups.push(() => consoleErrorSpy.mockRestore());
 
-        const missingOrigin = await sendMessage("addUsage", { bytes: 500 });
+        const missingOrigin = await sendBackgroundMessage("addUsage", { bytes: 500 });
         expect(missingOrigin).toEqual({
             success: false,
             message: "No origin in handleAddUsage",
@@ -397,7 +397,7 @@ describe("attachMessageHandler RPC seam", () => {
 
         senderTabUrl = "https://example.com/watch";
 
-        const usageOk = await sendMessage("addUsage", { bytes: 4096 });
+        const usageOk = await sendBackgroundMessage("addUsage", { bytes: 4096 });
         expect(usageOk).toEqual({ success: true, data: null });
 
         const siteRows = await getAllSiteUsage();
@@ -410,31 +410,31 @@ describe("attachMessageHandler RPC seam", () => {
             platform: "youtube",
             mediaId: "dQw4w9WgXcQ",
         };
-        const spoofedResult = await sendMessage("addUsage", spoofedPayload);
+        const spoofedResult = await sendBackgroundMessage("addUsage", spoofedPayload);
         expect(spoofedResult).toEqual({ success: true, data: null });
         expect((await getAllSiteUsage())[0]?.usage[toOrigin("https://example.com")!]).toBe(6144);
         expect(await getAllWatchHistory()).toEqual([]);
 
-        const usageInvalidBytes = await sendMessage("addUsage", { bytes: Number.NaN });
+        const usageInvalidBytes = await sendBackgroundMessage("addUsage", { bytes: Number.NaN });
         expect(usageInvalidBytes).toEqual({
             success: false,
             message: "Invalid usage bytes",
         });
 
-        const usageZeroBytes = await sendMessage("addUsage", { bytes: 0 });
+        const usageZeroBytes = await sendBackgroundMessage("addUsage", { bytes: 0 });
         expect(usageZeroBytes).toEqual({
             success: false,
             message: "Invalid usage bytes",
         });
 
-        const usageNegativeBytes = await sendMessage("addUsage", { bytes: -5 });
+        const usageNegativeBytes = await sendBackgroundMessage("addUsage", { bytes: -5 });
         expect(usageNegativeBytes).toEqual({
             success: false,
             message: "Invalid usage bytes",
         });
 
         senderTabUrl = "not-a-valid-url";
-        const usageInvalidOrigin = await sendMessage("addUsage", { bytes: 100 });
+        const usageInvalidOrigin = await sendBackgroundMessage("addUsage", { bytes: 100 });
         expect(usageInvalidOrigin).toEqual({
             success: false,
             message: "Invalid origin in handleAddUsage",
@@ -465,8 +465,8 @@ describe("attachMessageHandler RPC seam", () => {
         senderTabUrl = "https://www.twitch.tv/shroud";
 
         const [first, second] = await Promise.all([
-            sendMessage("addUsage", { bytes: 1_500 }),
-            sendMessage("addUsage", { bytes: 2_500 }),
+            sendBackgroundMessage("addUsage", { bytes: 1_500 }),
+            sendBackgroundMessage("addUsage", { bytes: 2_500 }),
         ]);
         expect(first).toEqual({ success: true, data: null });
         expect(second).toEqual({ success: true, data: null });
@@ -489,7 +489,7 @@ describe("attachMessageHandler RPC seam", () => {
 
         senderTabUrl = undefined;
         senderFrameUrl = "https://www.twitch.tv/shroud";
-        expect(await sendMessage("addUsage", { bytes: 500 })).toEqual({
+        expect(await sendBackgroundMessage("addUsage", { bytes: 500 })).toEqual({
             success: true,
             data: null,
         });
@@ -502,21 +502,21 @@ describe("attachMessageHandler RPC seam", () => {
         ensureMessageHandlersAttached();
 
         senderTabUrl = "chrome-extension://abcdef/dashboard.html#/daily";
-        expect(await sendMessage("addUsage", { bytes: 2_048 })).toEqual({
+        expect(await sendBackgroundMessage("addUsage", { bytes: 2_048 })).toEqual({
             success: true,
             data: null,
         });
 
         senderTabUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
         senderFrameUrl = "moz-extension://1234-5678/panel.html";
-        expect(await sendMessage("addUsage", { bytes: 2_048 })).toEqual({
+        expect(await sendBackgroundMessage("addUsage", { bytes: 2_048 })).toEqual({
             success: true,
             data: null,
         });
 
         senderTabUrl = undefined;
         senderFrameUrl = "chrome-extension://abcdef/popup.html";
-        expect(await sendMessage("addUsage", { bytes: 2_048 })).toEqual({
+        expect(await sendBackgroundMessage("addUsage", { bytes: 2_048 })).toEqual({
             success: true,
             data: null,
         });
