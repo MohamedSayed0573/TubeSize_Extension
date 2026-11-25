@@ -39,17 +39,13 @@ export async function requestMediaEstimate(
 
     const response = await sendMessage("estimateMedia", {
         url,
-        isFromPopup: options?.isFromPopup ?? true,
+        isFromPopup: options?.isFromPopup,
         html: options?.html,
         av1Supported,
     });
 
     if (!response.success) {
         throw new Error(response.message);
-    }
-
-    if (response.data.formats.length === 0) {
-        throw new Error("No video formats found for this video");
     }
 
     return response.data;

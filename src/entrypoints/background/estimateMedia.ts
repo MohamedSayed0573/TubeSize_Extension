@@ -1,5 +1,5 @@
 import type { MediaEstimate } from "@app-types/platforms.types";
-import type { EstimateMediaMessage, PlatformId } from "@app-types/types";
+import type { EstimateMediaMessage } from "@app-types/types";
 import { estimateKick } from "@lib/kick";
 import { parsePlatformUrl, type ParsedPlatformMedia } from "@lib/platformUrl";
 import { estimateTwitch } from "@lib/twitch";
@@ -11,28 +11,17 @@ type EstimateContext = {
     av1Supported?: boolean;
 };
 
-type PlatformEstimator<P extends PlatformId> = (
-    media: Extract<ParsedPlatformMedia, { platform: P }>,
-    context: EstimateContext,
-) => Promise<MediaEstimate>;
-
-const PLATFORM_ESTIMATORS: { readonly [P in PlatformId]: PlatformEstimator<P> } = {
-    youtube: estimateYoutube,
-    twitch: estimateTwitch,
-    kick: estimateKick,
-};
-
 function dispatchEstimate(
     media: ParsedPlatformMedia,
     context: EstimateContext,
 ): Promise<MediaEstimate> {
     switch (media.platform) {
         case "youtube":
-            return PLATFORM_ESTIMATORS.youtube(media, context);
+            return estimateYoutube(media, context);
         case "twitch":
-            return PLATFORM_ESTIMATORS.twitch(media, context);
+            return estimateTwitch(media, context);
         case "kick":
-            return PLATFORM_ESTIMATORS.kick(media, context);
+            return estimateKick(media, context);
         default: {
             const exhaustive: never = media;
             return exhaustive;

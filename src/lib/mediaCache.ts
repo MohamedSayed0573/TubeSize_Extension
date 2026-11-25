@@ -63,26 +63,6 @@ function isValidCachedEstimate(target: PlatformId, data: unknown): data is Media
     return data.formats.every((format) => isValidFormat(format, contentType));
 }
 
-function isCacheable(estimate: MediaEstimate): boolean {
-    if (estimate.formats.length === 0) return false;
-    if (estimate.contentType === "vod") {
-        return (
-            isPositiveFinite(estimate.durationSeconds) &&
-            estimate.formats.every(
-                (format) =>
-                    isPositiveFinite(format.resolution) &&
-                    isPositiveFinite(format.sizeBytes) &&
-                    isPositiveFinite(format.sizePerSecondBytes),
-            )
-        );
-    }
-
-    return estimate.formats.every(
-        (format) =>
-            isPositiveFinite(format.resolution) && isPositiveFinite(format.sizePerSecondBytes),
-    );
-}
-
 export async function getMediaCache(target: PlatformId, id: string): Promise<MediaEstimate | null> {
     const item = mediaCacheItem(target, id);
     const cached = await item.getValue();
@@ -103,7 +83,7 @@ export async function saveMediaCache(
     data: MediaEstimate,
     ttlSeconds?: number,
 ): Promise<void> {
-    if (!isCacheable(data)) return;
+    if (!isValidCachedEstimate(target, data)) return;
 
     const ttl = ttlSeconds ?? (await getSettings()).cacheTTL;
     if (!isPositiveFinite(ttl)) return;

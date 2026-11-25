@@ -126,6 +126,26 @@ describe("attachMessageHandler RPC seam", () => {
             success: false,
             message: "Unsupported or non-media URL",
         });
+
+        const emptyHtml = `<script>var ytInitialPlayerResponse = ${JSON.stringify({
+            streamingData: { adaptiveFormats: [] },
+            videoDetails: {
+                videoId: "empty123456",
+                title: "Empty",
+                author: "Channel",
+                lengthSeconds: "60",
+                isLive: false,
+                thumbnail: { thumbnails: [] },
+            },
+        })};</script>`;
+        const emptyFormats = await sendMessage("estimateMedia", {
+            url: "https://www.youtube.com/watch?v=empty123456",
+            html: emptyHtml,
+        });
+        expect(emptyFormats).toEqual({
+            success: false,
+            message: "No video formats found for this video",
+        });
     });
 
     test("routes Twitch live URLs through estimateMedia for BANDWIDTH and popup HLS sampling and wraps errors", async () => {

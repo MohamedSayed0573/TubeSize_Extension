@@ -136,7 +136,7 @@ describe("requestMediaEstimate", () => {
         expect(received).toEqual([
             {
                 url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                isFromPopup: true,
+                isFromPopup: undefined,
                 html: "<script>var ytInitialPlayerResponse = {};</script>",
                 av1Supported: undefined,
             },
@@ -148,14 +148,14 @@ describe("requestMediaEstimate", () => {
             },
             {
                 url: "https://kick.com/xqc/videos/vod-123",
-                isFromPopup: true,
+                isFromPopup: undefined,
                 html: undefined,
                 av1Supported: undefined,
             },
         ]);
     });
 
-    test("rejects unsupported or non-media URLs, background errors, and empty formats", async () => {
+    test("rejects unsupported or non-media URLs and surfaces background errors", async () => {
         await expect(requestMediaEstimate("https://www.youtube.com/")).rejects.toThrow(
             "Unsupported or non-media URL",
         );
@@ -167,17 +167,12 @@ describe("requestMediaEstimate", () => {
         );
 
         cleanups.push(
-            onMessage("estimateMedia", ({ data }) => {
-                if (data.url.includes("empty")) {
-                    return { success: true, data: { ...SAMPLE_YOUTUBE_VOD, formats: [] } };
-                }
-                return { success: false, message: "Upstream failed" };
-            }),
+            onMessage("estimateMedia", () => ({
+                success: false,
+                message: "Upstream failed",
+            })),
         );
 
-        await expect(
-            requestMediaEstimate("https://www.youtube.com/watch?v=empty123456"),
-        ).rejects.toThrow("No video formats found for this video");
         await expect(
             requestMediaEstimate("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
         ).rejects.toThrow("Upstream failed");

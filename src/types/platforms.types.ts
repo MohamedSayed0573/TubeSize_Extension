@@ -44,15 +44,10 @@ export type LiveMediaFormat = MediaFormatBase & {
     kind: "live";
 };
 
-export type DisplayFormat =
-    | (VodMediaFormat & {
-          key: string | number;
-          hideRate?: boolean;
-      })
-    | (LiveMediaFormat & {
-          key: string | number;
-          hideRate?: boolean;
-      });
+export type DisplayFormat = (VodMediaFormat | LiveMediaFormat) & {
+    key: string | number;
+    hideRate?: boolean;
+};
 
 type MediaEstimateBase = {
     platform: PlatformId;
