@@ -162,12 +162,14 @@ function printMemoryPerf(rep: MemoryPerfReport): void {
     }
 }
 
-function maybeSaveJson(savePath: string | undefined, payload: unknown): void {
+function maybeSaveJson(savePath: string | undefined, payload: unknown, toStderr = false): void {
     if (!savePath) return;
     const dest = resolve(savePath);
     mkdirSync(dirname(dest), { recursive: true });
     writeFileSync(dest, `${JSON.stringify(payload, null, 2)}\n`);
-    out(`Saved perf report → ${relative(ROOT, dest)}`);
+    const msg = `Saved perf report → ${relative(ROOT, dest)}\n`;
+    if (toStderr) process.stderr.write(msg);
+    else out(msg);
 }
 
 const readSession = (): {
@@ -700,7 +702,7 @@ async function main(): Promise<number> {
                 }
                 if (values.json) out(JSON.stringify(bundleReport, null, 2));
                 else printBundlePerf(bundleReport);
-                maybeSaveJson(values.save, bundleReport);
+                maybeSaveJson(values.save, bundleReport, values.json);
                 return 0;
             }
 
@@ -714,7 +716,7 @@ async function main(): Promise<number> {
                 const perfReport = data.report as PopupPerfReport;
                 if (values.json) out(JSON.stringify(perfReport, null, 2));
                 else printPopupPerf(perfReport);
-                maybeSaveJson(values.save, perfReport);
+                maybeSaveJson(values.save, perfReport, values.json);
                 return report(data);
             }
 
@@ -728,7 +730,7 @@ async function main(): Promise<number> {
                 const perfReport = data.report as DashboardPerfReport;
                 if (values.json) out(JSON.stringify(perfReport, null, 2));
                 else printDashboardPerf(perfReport);
-                maybeSaveJson(values.save, perfReport);
+                maybeSaveJson(values.save, perfReport, values.json);
                 return report(data);
             }
 
@@ -737,7 +739,7 @@ async function main(): Promise<number> {
                 const perfReport = data.report as MemoryPerfReport;
                 if (values.json) out(JSON.stringify(perfReport, null, 2));
                 else printMemoryPerf(perfReport);
-                maybeSaveJson(values.save, perfReport);
+                maybeSaveJson(values.save, perfReport, values.json);
                 return report(data);
             }
 
@@ -799,7 +801,7 @@ async function main(): Promise<number> {
                     out("");
                     printMemoryPerf(combined.memory);
                 }
-                maybeSaveJson(values.save, combined);
+                maybeSaveJson(values.save, combined, values.json);
                 const allIssues = [ytCold, ytWarm, twCold, dashDaily, dashSites, mem].flatMap(
                     (r) => r.newIssues ?? [],
                 );
