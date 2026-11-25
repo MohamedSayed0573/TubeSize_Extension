@@ -31,7 +31,15 @@ const RESTRICTED_PLAYABILITY_STATUSES = new Set([
 ]);
 
 const RESTRICTED_REASON_REGEX =
-    /\b(?:age[- ]?restricted|confirm your age|sign in|log in|login|members[- ]?only|join this channel|channel(?:'s)? members|channel membership|requires? membership|private video|video is private|in your country|in your region|not available in your|blocked it in your|geo[- ]?restrict|region[- ]?block|requires? payment|purchase|buy or rent|youtube premium|subscribers?[- ]?only|restricted mode)/i;
+    /\b(?:age[- ]?restricted|confirm your age|sign in|log in|login|members[- ]?only|join this channel|channel(?:'s)? members|channel membership|requires? membership|private video|video is private|in your country|in your region|not available in your|blocked it in your|geo[- ]?restrict|region[- ]?block|requires? payment|purchase|buy or rent|youtube premium|subscribers?[- ]?only|restricted mode)|(?:فيديو خاص|للمنتسبين|المنتسبين|الانتساب إلى هذه القناة|في بلدك|في منطقتك|تسجيل الدخول|تأكيد عمرك|وضع تقييد المحتوى)/i;
+
+const RESTRICTED_ICON_TYPES = new Set([
+    "LOCK",
+    "PRIVATE",
+    "PRIVACY_PRIVATE",
+    "MONETIZATION_ON",
+    "PAID",
+]);
 
 const OFFLINE_REASON_REGEX =
     /\b(?:live event will begin|premiere will begin|live stream is offline|stream is offline|upcoming)/i;
@@ -45,12 +53,18 @@ const ytPlayabilityStatusSchema = z.object({
     status: z.string().optional(),
     reason: z.string().optional(),
     messages: z.array(z.string()).optional(),
+    desktopLegacyAgeGateReason: z.number().optional(),
     errorScreen: z
         .object({
+            playerLegacyDesktopYpcOfferRenderer: z.unknown().optional(),
+            playerLegacyDesktopYpcTrailerRenderer: z.unknown().optional(),
+            ypcTrailerRenderer: z.unknown().optional(),
             playerErrorMessageRenderer: z
                 .object({
                     reason: ytTextRunSchema.optional(),
                     subreason: ytTextRunSchema.optional(),
+                    icon: z.object({ iconType: z.string().optional() }).optional(),
+                    proceedButton: z.unknown().optional(),
                 })
                 .optional(),
         })
@@ -166,13 +180,18 @@ export function parseLiveFormats(
 async function fetchYoutubeHtml(mediaId: string) {
     const res = await fetchAndRetry(`https://www.youtube.com/watch?v=${mediaId}`, {
         method: "GET",
+        headers: { "Accept-Language": "en-US,en;q=0.9" },
         signal: AbortSignal.timeout(CONFIG.FETCH_HTML_TIMEOUT),
     });
     if (!res.success) {
         throw classifyFetchFailure(res, `HTTP ${res.error.message}`);
     }
-    const fetchedHtml = await res.response.text();
-    return fetchedHtml;
+    try {
+        return await res.response.text();
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new MediaEstimateError("network_error", `HTTP ${message}`, { cause: err });
+    }
 }
 
 function extractTextRun(run: z.infer<typeof ytTextRunSchema> | undefined): string | undefined {
@@ -197,6 +216,24 @@ function getPlayabilityDetail(playability: YtPlayabilityStatus): string {
     return [...new Set(parts)].join(" — ");
 }
 
+function hasRestrictedPlayabilityMarkers(playability: YtPlayabilityStatus): boolean {
+    if (playability.desktopLegacyAgeGateReason !== undefined) return true;
+    const screen = playability.errorScreen;
+    if (!screen) return false;
+    if (
+        screen.playerLegacyDesktopYpcOfferRenderer !== undefined ||
+        screen.playerLegacyDesktopYpcTrailerRenderer !== undefined ||
+        screen.ypcTrailerRenderer !== undefined
+    ) {
+        return true;
+    }
+    const renderer = screen.playerErrorMessageRenderer;
+    if (!renderer) return false;
+    if (renderer.proceedButton !== undefined) return true;
+    const iconType = renderer.icon?.iconType;
+    return iconType !== undefined && RESTRICTED_ICON_TYPES.has(iconType);
+}
+
 function classifyYoutubePlayability(
     playability: YtPlayabilityStatus,
 ): MediaEstimateError | undefined {
@@ -212,7 +249,10 @@ function classifyYoutubePlayability(
         );
     }
 
-    if (RESTRICTED_PLAYABILITY_STATUSES.has(status)) {
+    if (
+        RESTRICTED_PLAYABILITY_STATUSES.has(status) ||
+        hasRestrictedPlayabilityMarkers(playability)
+    ) {
         return new MediaEstimateError(
             "restricted_content",
             detail || "This video requires sign-in or is restricted",

@@ -342,6 +342,67 @@ describe("estimateYoutube", () => {
             code: "network_error",
         });
 
+        await expect(
+            estimateYoutube(
+                { kind: "media", platform: "youtube", mediaId: "arb12345678", isShorts: false },
+                {
+                    html: wrapPlayer({
+                        playabilityStatus: {
+                            status: "ERROR",
+                            reason: "الفيديو غير متاح",
+                            errorScreen: {
+                                playerErrorMessageRenderer: {
+                                    subreason: { simpleText: "هذا الفيديو خاص" },
+                                },
+                            },
+                        },
+                    }),
+                },
+            ),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "restricted_content",
+        });
+
+        await expect(
+            estimateYoutube(
+                { kind: "media", platform: "youtube", mediaId: "ypc12345678", isShorts: false },
+                {
+                    html: wrapPlayer({
+                        playabilityStatus: {
+                            status: "UNPLAYABLE",
+                            reason: "Localized payment prompt",
+                            errorScreen: {
+                                playerLegacyDesktopYpcOfferRenderer: { offerId: "offer_1" },
+                            },
+                        },
+                    }),
+                },
+            ),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "restricted_content",
+        });
+
+        stubFetch(async () => {
+            const response = new Response("", { status: 200 });
+            response.text = async () => {
+                throw new DOMException("The operation timed out.", "TimeoutError");
+            };
+            return response;
+        });
+        await expect(
+            estimateYoutube({
+                kind: "media",
+                platform: "youtube",
+                mediaId: "bdy12345678",
+                isShorts: false,
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "network_error",
+        });
+
         const validWatchHtml = `<script>var ytInitialPlayerResponse = ${readAsset("ytInitialPlayerResponse.json")};</script>`;
         const staleFetchSpy = stubFetch(async () => new Response(validWatchHtml, { status: 200 }));
         staleFetchSpy.mockClear();
