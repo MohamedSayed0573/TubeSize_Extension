@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 
 import {
     BUNDLE_BUDGETS,
     type BundleBuildReport,
     type BundlePerfReport,
     evaluateBundleBudgets,
+    measureBundle,
 } from "../../scripts/verify/perf";
 
 function makeBuild(
@@ -179,5 +183,54 @@ describe("evaluateBundleBudgets", () => {
                 reason: "missing-file",
             },
         ]);
+    });
+
+    test("measures small budgeted scripts from disk even when crowded out of largestFiles", () => {
+        const tmpRoot = mkdtempSync(join(tmpdir(), "tubesize-bundle-"));
+        try {
+            const writeSizedFile = (relPath: string, bytes: number) => {
+                const absPath = join(tmpRoot, relPath);
+                mkdirSync(dirname(absPath), { recursive: true });
+                writeFileSync(absPath, Buffer.alloc(bytes));
+            };
+
+            for (const target of ["chrome-mv3", "firefox-mv3"] as const) {
+                const base = `.output/${target}`;
+                for (let i = 0; i < 9; i++) {
+                    writeSizedFile(`${base}/chunks/large-${i}.js`, 30_000 + i * 100);
+                }
+                writeSizedFile(`${base}/background.js`, 40_000);
+                writeSizedFile(`${base}/content-scripts/content.js`, 25_000);
+                writeSizedFile(`${base}/content-scripts/usageBridge.js`, 7_000);
+                writeSizedFile(
+                    `${base}/content-scripts/genericObserver.js`,
+                    target === "chrome-mv3" ? 11_000 : 5_000,
+                );
+            }
+
+            const report = measureBundle(tmpRoot);
+            expect(
+                report.chrome?.largestFiles.some(
+                    (entry) => entry.path === "content-scripts/genericObserver.js",
+                ),
+            ).toBe(false);
+            expect(report.chrome?.fileBytes["content-scripts/genericObserver.js"]).toBe(11_000);
+            expect(report.firefox?.fileBytes["content-scripts/genericObserver.js"]).toBe(5_000);
+
+            const result = evaluateBundleBudgets(report);
+            expect(result.passed).toBe(false);
+            expect(result.failures).toEqual([
+                {
+                    target: "chrome-mv3",
+                    metric: "content-scripts/genericObserver.js",
+                    actualBytes: 11_000,
+                    budgetBytes: BUNDLE_BUDGETS.files["content-scripts/genericObserver.js"],
+                    passed: false,
+                    reason: "over-budget",
+                },
+            ]);
+        } finally {
+            rmSync(tmpRoot, { recursive: true, force: true });
+        }
     });
 });
