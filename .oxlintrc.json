@@ -214,8 +214,8 @@
                         "paths": [
                             {
                                 "name": "react",
-                                "importNames": ["useEffect"],
-                                "message": "Avoid useEffect in UI components; use useLiveDbQuery, TanStack Query, or an explicit primitive in src/hooks/."
+                                "importNames": ["default", "useEffect"],
+                                "message": "Avoid useEffect (and default/namespace React imports) in UI components; use named imports with useLiveDbQuery, TanStack Query, or an explicit primitive in src/hooks/."
                             }
                         ],
                         "patterns": [
