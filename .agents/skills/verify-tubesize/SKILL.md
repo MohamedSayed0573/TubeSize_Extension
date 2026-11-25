@@ -79,7 +79,7 @@ bun run verify download [out.json] --role button --name "Export To JSON" # Trigg
 bun run verify reload                                         # Reload active surface and wait for UI settle
 bun run verify seed <full|heavy|empty> [--lang en|ar]         # Re-seed IndexedDB (full=14d, heavy=90d, empty=0d) / language
 bun run verify state [--json]                                 # URL, surface, badge, dir, IndexedDB, chrome.storage, errors
-bun run verify perf <bundle|popup|dashboard|memory|all> [opts] # Measure bundle size, popup uncached/cached latency, dashboard load, and memory (--target, --runs, --cached, --seed, --json, --save)
+bun run verify perf <bundle|popup|dashboard|memory|all> [opts] # Measure bundle size (enforce caps with `perf bundle --check`), popup latency, dashboard load, and memory (--target, --runs, --cached, --seed, --check, --json, --save)
 bun run verify screenshot .verify-evidence/<name>.png         # Capture 2x PNG proof of active surface (popup or tab)
 ```
 

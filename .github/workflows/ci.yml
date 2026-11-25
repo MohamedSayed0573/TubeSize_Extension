@@ -48,6 +48,9 @@ jobs:
             - name: Build Firefox
               run: bun run build:firefox
 
+            - name: Bundle Size Budgets
+              run: bun run verify perf bundle --check
+
             - name: Get Playwright version
               id: playwright-version
               run: echo "version=$(node -p "require('./node_modules/playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
