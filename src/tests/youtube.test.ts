@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -11,6 +11,25 @@ import {
     parseVideoFormats,
     type ytInitialPlayerResponse,
 } from "@lib/youtube";
+
+const cleanups: Array<() => void> = [];
+
+afterEach(() => {
+    while (cleanups.length > 0) cleanups.pop()?.();
+});
+
+function stubFetch(handler: (input: string | URL, init?: RequestInit) => Promise<Response>) {
+    const mockFetch: typeof fetch = Object.assign(
+        (input: string | URL | Request, init?: RequestInit) => {
+            const target = input instanceof Request ? input.url : input;
+            return handler(target, init);
+        },
+        { preconnect: globalThis.fetch.preconnect },
+    );
+    const spy = spyOn(globalThis, "fetch").mockImplementation(mockFetch);
+    cleanups.push(() => spy.mockRestore());
+    return spy;
+}
 
 function readAsset(name: string): string {
     return fs.readFileSync(path.join(process.cwd(), "src", "tests", "assets", name), "utf8").trim();
@@ -56,6 +75,63 @@ describe("extractYtInitialResponse", () => {
             lengthSeconds: "2363",
         });
         expect(result.streamingData.adaptiveFormats.length).toBeGreaterThan(0);
+    });
+
+    test("extracts ytInitialPlayerResponse when title and shortDescription contain '};' and escaped quotes", async () => {
+        const base = readJsonAsset("ytInitialPlayerResponse.json");
+        const title = 'Fix "};" parsing \\"bug\\"}; done';
+        const payload = {
+            ...base,
+            videoDetails: {
+                ...base.videoDetails,
+                title,
+                shortDescription: 'function demo() { return "};"; }; // \\\\"};',
+            },
+        };
+        const html = `<script>var ytInitialPlayerResponse = ${JSON.stringify(payload)};</script>`;
+
+        const result = await extractYtInitialResponse("I82j7AzMU80", html);
+
+        expect(result.videoDetails.videoId).toBe("I82j7AzMU80");
+        expect(result.videoDetails.title).toBe(title);
+        expect(result.streamingData.adaptiveFormats.length).toBeGreaterThan(0);
+    });
+
+    test("falls back to fetching YouTube watch HTML when caller HTML fails to extract, parse, or match mediaId", async () => {
+        const validJson = readAsset("ytInitialPlayerResponse.json");
+        const validWatchHtml = `<script>var ytInitialPlayerResponse = ${validJson};</script>`;
+        const requestedUrls: string[] = [];
+
+        stubFetch(async (input) => {
+            requestedUrls.push(input.toString());
+            return new Response(validWatchHtml, { status: 200 });
+        });
+
+        const noAssignment = await extractYtInitialResponse(
+            "I82j7AzMU80",
+            "<script>if (window.ytInitialPlayerResponse) {}</script>",
+        );
+        expect(noAssignment.videoDetails.videoId).toBe("I82j7AzMU80");
+
+        const invalidJson = await extractYtInitialResponse(
+            "I82j7AzMU80",
+            '<script>var ytInitialPlayerResponse = {"videoDetails": {;</script>',
+        );
+        expect(invalidJson.videoDetails.videoId).toBe("I82j7AzMU80");
+
+        const mismatched = readJsonAsset("ytInitialPlayerResponse.json");
+        mismatched.videoDetails.videoId = "staleVideoId";
+        const wrongVideoId = await extractYtInitialResponse(
+            "I82j7AzMU80",
+            `<script>var ytInitialPlayerResponse = ${JSON.stringify(mismatched)};</script>`,
+        );
+        expect(wrongVideoId.videoDetails.videoId).toBe("I82j7AzMU80");
+
+        expect(requestedUrls).toEqual([
+            "https://www.youtube.com/watch?v=I82j7AzMU80",
+            "https://www.youtube.com/watch?v=I82j7AzMU80",
+            "https://www.youtube.com/watch?v=I82j7AzMU80",
+        ]);
     });
 });
 

@@ -282,6 +282,48 @@ describe("resolveHlsStreams", () => {
             { kind: "live", resolution: 480, sizePerSecondBytes: 200_000 },
         ]);
     });
+
+    test("falls back to Master M3U8 BANDWIDTH when the first media playlist fetch fails", async () => {
+        const master = buildMasterM3u8([
+            { height: 1080, bandwidth: 6_400_000, uri: "https://cdn.example.com/1080p.m3u8" },
+            { height: 720, bandwidth: 3_200_000, uri: "https://cdn.example.com/720p.m3u8" },
+        ]);
+
+        const requestedUrls: string[] = [];
+        const forbiddenFetch: FetchLike = async (input) => {
+            const url = input.toString();
+            requestedUrls.push(url);
+            if (url === MASTER_URL) return new Response(master, { status: 200 });
+            if (url.endsWith("1080p.m3u8")) return new Response("Forbidden", { status: 403 });
+            return new Response("Not found", { status: 404 });
+        };
+
+        const forbiddenResult = await resolveHlsStreams(MASTER_URL, {
+            sampleSegments: true,
+            fetch: forbiddenFetch,
+            sleep: instantSleep,
+        });
+
+        expect(forbiddenResult).toEqual([
+            { kind: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
+            { kind: "live", resolution: 720, sizePerSecondBytes: 400_000 },
+        ]);
+        expect(requestedUrls.some((url) => url.endsWith(".ts"))).toBe(false);
+
+        const networkErrorResult = await resolveHlsStreams(MASTER_URL, {
+            sampleSegments: true,
+            fetch: async (input) => {
+                if (input.toString() === MASTER_URL) return new Response(master, { status: 200 });
+                throw new Error("Network failure");
+            },
+            sleep: instantSleep,
+        });
+
+        expect(networkErrorResult).toEqual([
+            { kind: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
+            { kind: "live", resolution: 720, sizePerSecondBytes: 400_000 },
+        ]);
+    });
 });
 
 describe("toVodFormats", () => {

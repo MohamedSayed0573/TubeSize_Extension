@@ -142,6 +142,60 @@ describe("fetchAndRetry", () => {
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(delays).toEqual([]);
     });
+
+    test("should not retry or sleep when AbortSignal.timeout() fires", async () => {
+        const fetchMock = jest.fn(
+            (_input: string | URL, init?: RequestInit) =>
+                new Promise<Response>((_resolve, reject) => {
+                    const signal = init?.signal;
+                    if (!signal) return;
+                    const rejectOnAbort = () => reject(signal.reason);
+                    if (signal.aborted) {
+                        rejectOnAbort();
+                        return;
+                    }
+                    signal.addEventListener("abort", rejectOnAbort, { once: true });
+                }),
+        );
+        const delays: number[] = [];
+
+        const result = await fetchAndRetry(
+            "https://www.youtube.com/watch?v=yaodD79Q4iE",
+            { signal: AbortSignal.timeout(15) },
+            CONFIG.DEFAULT_MAX_RETRIES,
+            async (ms) => {
+                delays.push(ms);
+            },
+            fetchMock,
+        );
+
+        expect(result.success).toBe(false);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(delays).toEqual([]);
+    });
+
+    test("should not retry when options.signal is aborted with a custom reason", async () => {
+        const controller = new AbortController();
+        const fetchMock = jest.fn(async () => {
+            controller.abort(new Error("cancelled by caller"));
+            throw new Error("cancelled by caller");
+        });
+        const delays: number[] = [];
+
+        const result = await fetchAndRetry(
+            "https://www.youtube.com/watch?v=yaodD79Q4iE",
+            { signal: controller.signal },
+            CONFIG.DEFAULT_MAX_RETRIES,
+            async (ms) => {
+                delays.push(ms);
+            },
+            fetchMock,
+        );
+
+        expect(result.success).toBe(false);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(delays).toEqual([]);
+    });
 });
 
 describe("domain key helpers", () => {

@@ -38,7 +38,11 @@ export async function fetchAndRetry(
         } catch (err) {
             lastError = err instanceof Error ? err : new Error(String(err));
 
-            if (lastError.name === "AbortError") {
+            if (
+                options.signal?.aborted ||
+                lastError.name === "AbortError" ||
+                lastError.name === "TimeoutError"
+            ) {
                 return { success: false, error: new Error("Request aborted") };
             }
             if (maxRetries > attempt) {

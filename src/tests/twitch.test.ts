@@ -206,6 +206,16 @@ describe("estimateTwitch (live)", () => {
         await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toThrow(
             "Failed to get stream playback access token",
         );
+
+        stubFetch(async (input) => {
+            if (input.toString() === "https://www.twitch.tv/offline") {
+                return new Response('clientId = "cid"', { status: 200 });
+            }
+            return Response.json({ data: { streamPlaybackAccessToken: null } });
+        });
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toThrow(
+            "Failed to get stream playback access token",
+        );
     });
 });
 
@@ -331,6 +341,51 @@ describe("estimateTwitch (vod)", () => {
                 mediaId: "2222",
             }),
         ).rejects.toThrow("No playlists found in master M3U8");
+    });
+
+    test("rejects with domain errors when GQL returns null video or null videoPlaybackAccessToken", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        stubFetch(async (input) => {
+            if (input.toString() === "https://www.twitch.tv/videos/3333") {
+                return new Response('clientId = "vod-client-id"', { status: 200 });
+            }
+            return Response.json({
+                data: {
+                    videoPlaybackAccessToken: { value: "tok", signature: "sig" },
+                    video: null,
+                },
+            });
+        });
+        await expect(
+            estimateTwitch({
+                kind: "media",
+                platform: "twitch",
+                contentType: "vod",
+                mediaId: "3333",
+            }),
+        ).rejects.toThrow("Failed to get Twitch VOD duration");
+
+        stubFetch(async (input) => {
+            if (input.toString() === "https://www.twitch.tv/videos/4444") {
+                return new Response('clientId = "vod-client-id"', { status: 200 });
+            }
+            return Response.json({
+                data: {
+                    videoPlaybackAccessToken: null,
+                    video: null,
+                },
+            });
+        });
+        await expect(
+            estimateTwitch({
+                kind: "media",
+                platform: "twitch",
+                contentType: "vod",
+                mediaId: "4444",
+            }),
+        ).rejects.toThrow("Failed to get stream playback access token");
     });
 });
 

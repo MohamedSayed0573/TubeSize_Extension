@@ -10,6 +10,8 @@ export type ContentPlatformHooks = {
     onDispose?: () => void;
 };
 
+const YT_INITIAL_PLAYER_ASSIGNMENT_REGEX = /\bytInitialPlayerResponse\s*=\s*\{/;
+
 /**
  * YouTube only writes `ytInitialPlayerResponse` on a full page load. After an
  * SPA navigation it still describes the previous video, so it can only be
@@ -18,7 +20,7 @@ export type ContentPlatformHooks = {
 function scrapeYoutubeInitialHtml(isInitialLoad: boolean): string | undefined {
     if (!isInitialLoad) return undefined;
     return [...document.scripts].find((script) =>
-        script.textContent.includes("ytInitialPlayerResponse"),
+        YT_INITIAL_PLAYER_ASSIGNMENT_REGEX.test(script.textContent),
     )?.textContent;
 }
 
