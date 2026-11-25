@@ -20,8 +20,10 @@ import {
     waitForSettle,
 } from "./verify/browser";
 import {
+    type BundleBudgetEvaluation,
     type BundlePerfReport,
     type DashboardPerfReport,
+    evaluateBundleBudgets,
     measureBundle,
     type MemoryPerfReport,
     type MetricSummary,
@@ -58,7 +60,7 @@ Commands:
   seed <full|heavy|empty> [--lang] Re-seed IndexedDB (full=14d, heavy=90d, empty=0d) and reload extension pages
   state [--json]                Inspect URL, surface, badge, IndexedDB counts, chrome.storage & errors
   perf <subcmd> [opts]          Benchmark performance: bundle | popup | dashboard | memory | all
-                                  Options: --target, --runs <n>, --cached, --seed, --json, --save <file>
+                                  Options: --target, --runs <n>, --cached, --seed, --check, --json, --save <file>
   screenshot [path.png]         Capture 2x PNG screenshot (default: .verify-evidence/<timestamp>.png)
 
 Exit codes: 0 verified | 1 failed | 2 inconclusive (missing Chromium, build, or active session)
@@ -99,6 +101,36 @@ function printBundlePerf(rep: BundlePerfReport): void {
             .map((f) => `${f.path} (${formatSiBytes(f.bytes)})`)
             .join(", ");
         out(`    Largest:    ${top}`);
+    }
+}
+
+function printBundleBudgets(evaluation: BundleBudgetEvaluation): void {
+    out("Bundle Size Budgets (decimal SI)");
+    const metricWidth = Math.max(...evaluation.checks.map((c) => c.metric.length), 5);
+    for (const check of evaluation.checks) {
+        const mark = check.passed ? "✓" : "✗";
+        const targetLabel = check.target.padEnd(11);
+        const metricLabel = check.metric.padEnd(metricWidth);
+        if (check.actualBytes === null) {
+            const detail = check.reason === "missing-build" ? "missing build" : "missing file";
+            out(
+                `  [${mark}] ${targetLabel}  ${metricLabel}  missing / ${formatSiBytes(check.budgetBytes)} (${detail})`,
+            );
+            continue;
+        }
+        const delta = check.passed
+            ? ""
+            : ` (+${formatSiBytes(check.actualBytes - check.budgetBytes)} over)`;
+        out(
+            `  [${mark}] ${targetLabel}  ${metricLabel}  ${formatSiBytes(check.actualBytes)} / ${formatSiBytes(check.budgetBytes)}${delta}`,
+        );
+    }
+    if (evaluation.passed) {
+        out(`All ${evaluation.checks.length} bundle size budgets passed.`);
+    } else {
+        out(
+            `FAIL: ${evaluation.failures.length} of ${evaluation.checks.length} bundle size budget check(s) failed.`,
+        );
     }
 }
 
@@ -408,6 +440,7 @@ async function main(): Promise<number> {
             "prev-version": { type: "string" },
             runs: { type: "string" },
             cached: { type: "boolean", default: false },
+            check: { type: "boolean", default: false },
             save: { type: "string" },
             timeout: { type: "string" },
             ms: { type: "string" },
@@ -696,6 +729,31 @@ async function main(): Promise<number> {
 
             if (sub === "bundle") {
                 const bundleReport = measureBundle(ROOT);
+                if (values.check) {
+                    const budgets = evaluateBundleBudgets(bundleReport);
+                    const payload = { ...bundleReport, budgets };
+                    if (budgets.missingBuilds.length > 0) {
+                        const missing = budgets.missingBuilds.map((t) => `.output/${t}`).join(", ");
+                        const hint = `INCONCLUSIVE: Missing build(s): ${missing}. Run "bun run build && bun run build:firefox" first.`;
+                        if (values.json) {
+                            out(JSON.stringify(payload, null, 2));
+                            process.stderr.write(`${hint}\n`);
+                        } else {
+                            out(hint);
+                        }
+                        maybeSaveJson(values.save, payload, values.json);
+                        return 2;
+                    }
+                    if (values.json) {
+                        out(JSON.stringify(payload, null, 2));
+                    } else {
+                        printBundlePerf(bundleReport);
+                        out("");
+                        printBundleBudgets(budgets);
+                    }
+                    maybeSaveJson(values.save, payload, values.json);
+                    return budgets.passed ? 0 : 1;
+                }
                 if (!bundleReport.chrome && !bundleReport.firefox) {
                     out('INCONCLUSIVE: No build found under .output/. Run "bun run build" first.');
                     return 2;
