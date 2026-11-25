@@ -1,4 +1,4 @@
-import type { DateKey, PlatformId } from "@app-types/types";
+import type { PlatformId } from "@app-types/types";
 import { getDateKey } from "@lib/dateUtils";
 import { megabytesPerHour } from "@lib/format";
 import { toasterSuppressedDate } from "@lib/storage";
@@ -9,20 +9,14 @@ import { createToast } from "./toast";
 
 const HOST_ID = "TubeSize-Toast-Host";
 
-let suppressedDateCache: DateKey | undefined;
 let toastGeneration = 0;
 
 async function isSuppressedForToday(): Promise<boolean> {
-    const today = getDateKey();
-    if (suppressedDateCache === today) return true;
-    suppressedDateCache = (await toasterSuppressedDate.getValue()) ?? undefined;
-    return suppressedDateCache === today;
+    return (await toasterSuppressedDate.getValue()) === getDateKey();
 }
 
 async function suppressForToday(): Promise<void> {
-    const today = getDateKey();
-    suppressedDateCache = today;
-    await toasterSuppressedDate.setValue(today);
+    await toasterSuppressedDate.setValue(getDateKey());
 }
 
 function mountToast(options: {

@@ -11,14 +11,8 @@ import type { YoutubeData } from "@/types/platforms.types";
 import { installDomEnv } from "./domEnv";
 
 let cleanupDom: (() => Promise<void>) | undefined;
-let testDay = 1;
-
-function nextTestDay(): Date {
-    return new Date(2026, 5, testDay++, 12, 0, 0);
-}
 
 beforeEach(async () => {
-    setSystemTime(nextTestDay());
     cleanupDom = installDomEnv();
     await setLanguage("en");
 });

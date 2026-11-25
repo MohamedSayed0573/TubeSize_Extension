@@ -31,7 +31,9 @@ export async function injectMenu<P extends PlatformId>(
     clearQualityMenu();
     const requestId = menuRequestId;
 
-    const settingsMenu = await waitForElement(SETTINGS_MENU_SELECTOR, SETTINGS_WAIT_TIMEOUT);
+    const settingsMenu = await waitForElement<HTMLElement>(SETTINGS_MENU_SELECTOR, {
+        timeoutMs: SETTINGS_WAIT_TIMEOUT,
+    });
     if (!settingsMenu || requestId !== menuRequestId) return;
 
     activeObserver?.disconnect();

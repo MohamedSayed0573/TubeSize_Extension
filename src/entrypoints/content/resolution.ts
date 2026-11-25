@@ -1,31 +1,11 @@
-export async function getCurrentResolution() {
-    return new Promise<number | undefined>((resolve) => {
-        const video = document.querySelector("video");
-        if (video && video.videoHeight > 0) {
-            return resolve(video.videoHeight);
-        }
+import { waitForElement } from "@lib/dom";
 
-        const observer = new MutationObserver(() => {
-            const observedVideo = document.querySelector("video");
-            if (!(observedVideo && observedVideo.videoHeight > 0)) {
-                return;
-            }
-
-            observer.disconnect();
-            clearTimeout(timeout);
-            return resolve(observedVideo.videoHeight);
-        });
-
-        observer.observe(document.documentElement, {
-            childList: true,
-            subtree: true,
-        });
-
-        const timeout = setTimeout(() => {
-            observer.disconnect();
-            return resolve(undefined);
-        }, 10_000);
+export async function getCurrentResolution(signal?: AbortSignal): Promise<number | undefined> {
+    const video = await waitForElement<HTMLVideoElement>("video", {
+        signal,
+        predicate: (element) => element.videoHeight > 0,
     });
+    return video?.videoHeight;
 }
 
 let currentQuality: number | undefined;

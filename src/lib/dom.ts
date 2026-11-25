@@ -1,42 +1,65 @@
-type ElementSelectorMap = {
-    video: HTMLVideoElement;
-    ".ytp-panel-menu": HTMLDivElement;
-    ".ytp-button.ytp-settings-button": HTMLButtonElement;
-    ".ytp-settings-menu": HTMLDivElement;
-    ".ytp-panel.ytp-quality-menu": HTMLDivElement;
+export type WaitForElementOptions<E extends Element> = {
+    timeoutMs?: number;
+    signal?: AbortSignal;
+    root?: Node;
+    predicate?: (element: E) => boolean;
 };
 
-export async function waitForElement<T extends keyof ElementSelectorMap>(
-    selector: T,
-    timeout: number = 10_000,
-): Promise<ElementSelectorMap[T] | undefined> {
-    const findElement = () => document.querySelector<ElementSelectorMap[T]>(selector);
+export function waitForElement<E extends Element = Element>(
+    selector: string,
+    options: WaitForElementOptions<E> = {},
+): Promise<E | undefined> {
+    const { timeoutMs = 10_000, signal, root, predicate } = options;
 
-    return new Promise<ElementSelectorMap[T] | undefined>((resolve) => {
-        const element = findElement();
-        if (element) {
-            return resolve(element);
-        }
+    if (signal?.aborted) {
+        return Promise.resolve(undefined);
+    }
+
+    const findElement = (): E | undefined => {
+        const element = document.querySelector<E>(selector);
+        if (!element) return undefined;
+        if (predicate && !predicate(element)) return undefined;
+        return element;
+    };
+
+    const initial = findElement();
+    if (initial) {
+        return Promise.resolve(initial);
+    }
+
+    const observeRoot = root ?? document.documentElement;
+    if (!observeRoot) {
+        return Promise.resolve(undefined);
+    }
+
+    return new Promise<E | undefined>((resolve) => {
+        const cleanup = () => {
+            observer.disconnect();
+            clearTimeout(timeoutId);
+            signal?.removeEventListener("abort", onAbort);
+        };
+
+        const onAbort = () => {
+            cleanup();
+            resolve(undefined);
+        };
 
         const observer = new MutationObserver(() => {
             const observedElement = findElement();
-            if (!observedElement) {
-                return;
-            }
-
-            observer.disconnect();
-            clearTimeout(timeoutId);
-            return resolve(observedElement);
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
+            if (!observedElement) return;
+            cleanup();
+            resolve(observedElement);
         });
 
         const timeoutId = setTimeout(() => {
-            observer.disconnect();
-            return resolve(findElement() ?? undefined);
-        }, timeout);
+            cleanup();
+            resolve(findElement());
+        }, timeoutMs);
+
+        signal?.addEventListener("abort", onAbort, { once: true });
+        observer.observe(observeRoot, {
+            childList: true,
+            subtree: true,
+        });
     });
 }

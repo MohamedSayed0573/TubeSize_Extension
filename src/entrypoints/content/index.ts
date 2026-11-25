@@ -1,9 +1,10 @@
 import { defineContentScript } from "wxt/utils/define-content-script";
 
 import { initializeLanguage } from "@/i18n/language";
+import { onMessage } from "@/messaging";
 
-import { setupMessageHandler } from "./messageHandler";
 import { handlePageNavigation } from "./pageNavigation";
+import { getCurrentResolution } from "./resolution";
 
 export default defineContentScript({
     matches: [
@@ -30,6 +31,6 @@ export default defineContentScript({
 
         addEventListener("yt-navigate-finish", () => void handlePageNavigation());
 
-        setupMessageHandler();
+        onMessage("getCurrentResolution", () => getCurrentResolution());
     },
 });
