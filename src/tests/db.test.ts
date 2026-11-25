@@ -13,7 +13,6 @@ import {
     getAllWatchHistory,
     getSiteUsage,
     getSiteUsageByDate,
-    getVideoMetadata,
     getVideoMetadataByVideoKey,
     getWatchHistoryByDate,
     setAllSiteUsage,
@@ -184,7 +183,7 @@ describe("videoMetaData table", () => {
         url: "https://kick.com/xqc/videos/kick-vod-42",
     };
 
-    test("stores, overwrites, and retrieves video metadata by media ID and type and by VideoKey", async () => {
+    test("stores, overwrites, and retrieves video metadata by VideoKey", async () => {
         const ytKey = toVideoKey("youtube", ytInput.mediaId);
         const twitchKey = toVideoKey("twitch", twitchInput.mediaId);
         const kickKey = toVideoKey("kick", kickInput.mediaId);
@@ -195,7 +194,7 @@ describe("videoMetaData table", () => {
         await addVideoMetadata(twitchInput);
         await addVideoMetadata(kickInput);
 
-        expect(await getVideoMetadata(ytInput.mediaId, "youtube")).toEqual({
+        expect(await getVideoMetadataByVideoKey(ytKey)).toEqual({
             ...ytStored,
             videoKey: ytKey,
         });
@@ -205,7 +204,7 @@ describe("videoMetaData table", () => {
         });
 
         await addVideoMetadata({ ...ytInput, title: "Updated Title" });
-        expect((await getVideoMetadata(ytInput.mediaId, "youtube"))?.title).toBe("Updated Title");
+        expect((await getVideoMetadataByVideoKey(ytKey))?.title).toBe("Updated Title");
 
         const batch = await getVideoMetadataByVideoKey([ytKey, kickKey]);
         expect(batch).toHaveLength(2);
@@ -214,7 +213,6 @@ describe("videoMetaData table", () => {
 
     test("returns undefined for unknown video keys", async () => {
         const missingKey = toVideoKey("youtube", "missing1234");
-        expect(await getVideoMetadata("missing1234", "youtube")).toBeUndefined();
         expect(await getVideoMetadataByVideoKey(missingKey)).toBeUndefined();
         expect(await getVideoMetadataByVideoKey([missingKey])).toEqual([]);
     });
@@ -240,6 +238,6 @@ describe("clearDatabaseData", () => {
 
         expect(await getAllSiteUsage()).toEqual([]);
         expect(await getAllWatchHistory()).toEqual([]);
-        expect(await getVideoMetadata("dQw4w9WgXcQ", "youtube")).toBeUndefined();
+        expect(await getVideoMetadataByVideoKey(ytKey)).toBeUndefined();
     });
 });

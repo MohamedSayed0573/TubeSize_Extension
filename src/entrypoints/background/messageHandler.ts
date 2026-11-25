@@ -1,13 +1,12 @@
-import type { AddUsageMessage, AddWatchHistoryMessage, Origin, VideoKey } from "@app-types/types";
+import type { AddUsageMessage, AddWatchHistoryMessage } from "@app-types/types";
 import { toOrigin } from "@lib/domain";
 import { getKickLiveData, getKickVodData } from "@lib/kick";
-import { toVideoKey } from "@lib/platformUrl";
 import { getTwitchLiveData, getTwitchVodData } from "@lib/twitch";
 import { getYoutubeData } from "@lib/youtube";
 
-import { refreshUsageBadge } from "@/badge";
-import { addSiteUsage, addWatchHistory } from "@/db";
 import { onMessage, type BackgroundResponse } from "@/messaging";
+
+import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 function isValidUsageBytes(usage: unknown): usage is number {
     return typeof usage === "number" && Number.isFinite(usage) && usage >= 0;
@@ -29,11 +28,13 @@ async function toBackgroundResponse<T>(
 }
 
 async function recordUsageFromTab(
+    ingestion: UsageIngestion,
     message: AddUsageMessage,
     sender: chrome.runtime.MessageSender,
 ): Promise<null> {
     const tabUrl = sender.tab?.url;
     if (!tabUrl) throw new Error("No origin in handleAddUsage");
+    if (isExtensionUrl(tabUrl)) return null;
 
     const origin = toOrigin(tabUrl);
     if (!origin) throw new Error("Invalid origin in handleAddUsage");
@@ -41,39 +42,48 @@ async function recordUsageFromTab(
     const { bytes } = message;
     if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
 
-    const siteUsage: Record<Origin, number> = {};
-    siteUsage[origin] = bytes;
-    await addSiteUsage(siteUsage);
-    await refreshUsageBadge();
-
+    await ingestion.recordOriginUsage(origin, bytes);
     return null;
 }
 
-async function recordWatchHistoryFromTab(message: AddWatchHistoryMessage): Promise<null> {
+async function recordWatchHistoryFromTab(
+    ingestion: UsageIngestion,
+    message: AddWatchHistoryMessage,
+    sender: chrome.runtime.MessageSender,
+): Promise<null> {
     const { bytes, platform, mediaId } = message;
     if (!isValidUsageBytes(bytes)) throw new Error("Invalid usage bytes");
 
-    const videoKey = toVideoKey(platform, mediaId);
-    const watchHistory: Record<VideoKey, number> = {};
-    watchHistory[videoKey] = bytes;
-    await addWatchHistory(watchHistory);
+    const tabUrl = sender.tab?.url;
+    const frameUrl = sender.url;
+    if (isExtensionUrl(tabUrl) || isExtensionUrl(frameUrl)) return null;
 
+    await ingestion.recordVideoUsage(platform, mediaId, bytes, [tabUrl, frameUrl]);
     return null;
 }
 
-export function attachMessageHandler() {
-    onMessage("youtubeVideo", ({ data }) => toBackgroundResponse(() => getYoutubeData(data)));
+export function attachMessageHandler(
+    ingestion: UsageIngestion = createUsageIngestion(),
+): () => void {
+    const unsubscribers = [
+        onMessage("youtubeVideo", ({ data }) => toBackgroundResponse(() => getYoutubeData(data))),
+        onMessage("twitchVod", ({ data }) => toBackgroundResponse(() => getTwitchVodData(data))),
+        onMessage("twitchLive", ({ data }) => toBackgroundResponse(() => getTwitchLiveData(data))),
+        onMessage("kickVod", ({ data }) => toBackgroundResponse(() => getKickVodData(data))),
+        onMessage("kickLive", ({ data }) => toBackgroundResponse(() => getKickLiveData(data))),
+        onMessage("addUsage", ({ data, sender }) =>
+            toBackgroundResponse(() => recordUsageFromTab(ingestion, data, sender), {
+                logError: true,
+            }),
+        ),
+        onMessage("addWatchHistory", ({ data, sender }) =>
+            toBackgroundResponse(() => recordWatchHistoryFromTab(ingestion, data, sender), {
+                logError: true,
+            }),
+        ),
+    ];
 
-    onMessage("twitchVod", ({ data }) => toBackgroundResponse(() => getTwitchVodData(data)));
-    onMessage("twitchLive", ({ data }) => toBackgroundResponse(() => getTwitchLiveData(data)));
-
-    onMessage("kickVod", ({ data }) => toBackgroundResponse(() => getKickVodData(data)));
-    onMessage("kickLive", ({ data }) => toBackgroundResponse(() => getKickLiveData(data)));
-
-    onMessage("addUsage", ({ data, sender }) =>
-        toBackgroundResponse(() => recordUsageFromTab(data, sender), { logError: true }),
-    );
-    onMessage("addWatchHistory", ({ data }) =>
-        toBackgroundResponse(() => recordWatchHistoryFromTab(data), { logError: true }),
-    );
+    return () => {
+        for (const unsubscribe of unsubscribers) unsubscribe();
+    };
 }

@@ -4,8 +4,8 @@ import { toOrigin } from "@lib/domain";
 import { toVideoKey } from "@lib/platformUrl";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
-import { addVideoMetadata, clearDatabaseData } from "@/db";
-import { UsageBuffer } from "@/entrypoints/background/usageBuffer";
+import { addVideoMetadata, clearDatabaseData, getAllSiteUsage, getAllWatchHistory } from "@/db";
+import { createUsageIngestion } from "@/entrypoints/background/usageIngestion";
 import {
     type CompletedRequestDetails,
     isCountableRequest,
@@ -120,13 +120,13 @@ describe("trackRequest", () => {
     test("skips extension page navigations without recording usage or logging errors", async () => {
         const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
         cleanups.push(() => consoleErrorSpy.mockRestore());
-        const buffer = new UsageBuffer();
+        const ingestion = createUsageIngestion();
         const tab = await fakeBrowser.tabs.create({
             url: "chrome-extension://abcdef/dashboard.html#/daily",
         });
 
         await trackRequest(
-            buffer,
+            ingestion,
             makeDetails({
                 tabId: tab.id,
                 type: "main_frame",
@@ -135,16 +135,18 @@ describe("trackRequest", () => {
                 responseHeaders: [{ name: "Content-Length", value: "41809" }],
             }),
         );
+        await ingestion.flush();
 
-        expect(buffer.hasPendingUsage).toBe(false);
-        expect(buffer.drain()).toEqual({ origins: {}, videos: {} });
+        expect(ingestion.hasPendingUsage).toBe(false);
+        expect(await getAllSiteUsage()).toEqual([]);
+        expect(await getAllWatchHistory()).toEqual([]);
         expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     test("skips third-party subresources loaded inside chrome-extension and moz-extension tabs", async () => {
         const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
         cleanups.push(() => consoleErrorSpy.mockRestore());
-        const buffer = new UsageBuffer();
+        const ingestion = createUsageIngestion();
         const chromeTab = await fakeBrowser.tabs.create({
             url: "chrome-extension://abcdef/dashboard.html#/platform/youtube",
         });
@@ -153,7 +155,7 @@ describe("trackRequest", () => {
         });
 
         await trackRequest(
-            buffer,
+            ingestion,
             makeDetails({
                 tabId: chromeTab.id,
                 type: "image",
@@ -163,7 +165,7 @@ describe("trackRequest", () => {
             }),
         );
         await trackRequest(
-            buffer,
+            ingestion,
             makeDetails({
                 tabId: firefoxTab.id,
                 type: "image",
@@ -172,22 +174,24 @@ describe("trackRequest", () => {
                 responseHeaders: [{ name: "Content-Length", value: "4096" }],
             }),
         );
+        await ingestion.flush();
 
-        expect(buffer.hasPendingUsage).toBe(false);
-        expect(buffer.drain()).toEqual({ origins: {}, videos: {} });
+        expect(ingestion.hasPendingUsage).toBe(false);
+        expect(await getAllSiteUsage()).toEqual([]);
+        expect(await getAllWatchHistory()).toEqual([]);
         expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
-    test("buffers Content-Length bytes under the tab origin for normal web requests", async () => {
+    test("buffers Content-Length bytes under the tab origin and persists on flush", async () => {
         const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
         cleanups.push(() => consoleErrorSpy.mockRestore());
-        const buffer = new UsageBuffer();
+        const ingestion = createUsageIngestion();
         const tab = await fakeBrowser.tabs.create({
             url: "https://example.com/article",
         });
 
         await trackRequest(
-            buffer,
+            ingestion,
             makeDetails({
                 tabId: tab.id,
                 url: "https://cdn.example.net/app.js",
@@ -196,11 +200,14 @@ describe("trackRequest", () => {
             }),
         );
 
-        expect(buffer.hasPendingUsage).toBe(true);
-        expect(buffer.drain()).toEqual({
-            origins: { [origin("https://example.com")]: 25_000 },
-            videos: {},
+        expect(ingestion.hasPendingUsage).toBe(true);
+        await ingestion.flush();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 25_000,
         });
+        expect(await getAllWatchHistory()).toEqual([]);
+        expect(await fakeBrowser.action.getBadgeText({})).toBe("25K");
         expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
@@ -237,7 +244,7 @@ describe("trackRequest", () => {
             thumbnailUrl: "",
         });
 
-        const buffer = new UsageBuffer();
+        const ingestion = createUsageIngestion();
         const tabs = await Promise.all([
             fakeBrowser.tabs.create({ url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }),
             fakeBrowser.tabs.create({ url: "https://www.twitch.tv/shroud" }),
@@ -249,7 +256,7 @@ describe("trackRequest", () => {
 
         for (const tab of tabs) {
             await trackRequest(
-                buffer,
+                ingestion,
                 makeDetails({
                     tabId: tab.id,
                     url: "https://cdn.example.net/segment.ts",
@@ -259,7 +266,9 @@ describe("trackRequest", () => {
             );
         }
 
-        expect(buffer.drain().videos).toEqual({
+        await ingestion.flush();
+
+        expect((await getAllWatchHistory())[0]?.videos).toEqual({
             [toVideoKey("youtube", "dQw4w9WgXcQ")]: 1000,
             [toVideoKey("twitch", "shroud")]: 1000,
             [toVideoKey("kick", "vod-123")]: 1000,

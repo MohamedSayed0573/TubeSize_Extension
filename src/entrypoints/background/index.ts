@@ -2,12 +2,15 @@ import { defineBackground } from "wxt/utils/define-background";
 
 import { setupInstallCleanup } from "./installCleanup";
 import { attachMessageHandler } from "./messageHandler";
+import { createUsageIngestion } from "./usageIngestion";
 import { setupTrackUsage } from "./usageTracker";
 
 export default defineBackground(() => {
-    attachMessageHandler();
+    const usageIngestion = createUsageIngestion();
 
-    setupTrackUsage();
+    attachMessageHandler(usageIngestion);
+
+    setupTrackUsage(usageIngestion);
 
     setupInstallCleanup();
 });
