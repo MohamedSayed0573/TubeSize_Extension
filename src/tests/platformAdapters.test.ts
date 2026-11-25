@@ -233,4 +233,113 @@ describe("adapter.load URL dispatch", () => {
             "Open a Kick stream or video",
         );
     });
+
+    test("youtubeAdapter.load rejects when background returns zero formats", async () => {
+        cleanups.push(
+            onMessage("youtubeVideo", () => ({
+                success: true,
+                data: { ...SAMPLE_YOUTUBE_VOD, formats: [] },
+            })),
+        );
+
+        await expect(
+            youtubeAdapter.load("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+        ).rejects.toThrow("No video formats found for this video");
+    });
+});
+
+describe("adapter.formats and adapter.header behavior pins", () => {
+    test("projects YouTube Shorts with hideRate and formats VOD/Live headers", () => {
+        const shortsFormats = youtubeAdapter.formats({ ...SAMPLE_YOUTUBE_VOD, isShorts: true });
+        expect(shortsFormats).toEqual([
+            {
+                kind: "vod",
+                key: 248,
+                resolution: 1080,
+                sizeBytes: 10_000_000,
+                sizePerSecondBytes: 83_333,
+                hideRate: true,
+                codec: undefined,
+                formatId: 248,
+                fps: undefined,
+                itags: undefined,
+            },
+        ]);
+
+        expect(youtubeAdapter.header(SAMPLE_YOUTUBE_VOD)).toEqual({
+            title: "Sample video",
+            duration: "2m",
+        });
+        expect(youtubeAdapter.header({ ...SAMPLE_YOUTUBE_VOD, title: "" })).toEqual({
+            title: "YouTube Video",
+            duration: "2m",
+        });
+        expect(
+            youtubeAdapter.header({
+                platform: "youtube",
+                type: "live",
+                title: "Live stream title",
+                channelName: "Think Planes",
+                thumbnailUrl: undefined,
+                channelUrl: undefined,
+                formats: [{ type: "live", resolution: 1080, sizePerSecondBytes: 250_000 }],
+            }),
+        ).toEqual({
+            title: "Think Planes",
+            duration: undefined,
+        });
+    });
+
+    test("projects Twitch and Kick VOD total sizes, live rates, and headers", () => {
+        expect(twitchAdapter.formats(SAMPLE_TWITCH_VOD)).toEqual([
+            {
+                kind: "vod",
+                key: 1080,
+                resolution: 1080,
+                sizeBytes: 150_000_000,
+                sizePerSecondBytes: 500_000,
+            },
+        ]);
+        expect(twitchAdapter.formats(SAMPLE_TWITCH_LIVE)).toEqual([
+            {
+                kind: "live",
+                key: 1080,
+                resolution: 1080,
+                sizePerSecondBytes: 600_000,
+            },
+        ]);
+        expect(twitchAdapter.header(SAMPLE_TWITCH_VOD)).toEqual({
+            title: "Twitch Video",
+            duration: "5m",
+        });
+        expect(twitchAdapter.header(SAMPLE_TWITCH_LIVE)).toEqual({
+            title: "shroud",
+        });
+
+        expect(kickAdapter.formats(SAMPLE_KICK_VOD)).toEqual([
+            {
+                kind: "vod",
+                key: 1080,
+                resolution: 1080,
+                sizeBytes: 330_000_000,
+                sizePerSecondBytes: 550_000,
+            },
+        ]);
+        expect(kickAdapter.formats(SAMPLE_KICK_LIVE)).toEqual([
+            {
+                kind: "live",
+                key: 1080,
+                resolution: 1080,
+                sizePerSecondBytes: 650_000,
+            },
+        ]);
+        expect(kickAdapter.header(SAMPLE_KICK_VOD)).toEqual({
+            title: "xqc",
+            duration: "10m",
+        });
+        expect(kickAdapter.header(SAMPLE_KICK_LIVE)).toEqual({
+            title: "xqc",
+            duration: undefined,
+        });
+    });
 });
