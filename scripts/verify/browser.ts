@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -199,6 +199,17 @@ async function getFreePort(): Promise<number> {
 }
 
 const attachedPages = new WeakSet<Page>();
+const contextRestoreDownloads = new WeakMap<BrowserContext, () => Promise<void>>();
+
+/**
+ * Restores Chromium's download directory on the persistent browser CDP session.
+ * `chromium.connectOverCDP()` registers its own `Browser.setDownloadBehavior` on its secondary
+ * CDP session and deletes that temp directory on disconnect, which resets Chromium's download
+ * behavior and would cause subsequent `download.saveAs()` calls on the main context to fail.
+ */
+async function restoreDownloadBehavior(context: BrowserContext): Promise<void> {
+    await contextRestoreDownloads.get(context)?.();
+}
 
 function attachPageListeners(p: Page, extId: string, issues: RuntimeIssue[]): void {
     if (attachedPages.has(p)) return;
@@ -305,6 +316,7 @@ function formatCdpConsoleArgs(args: CdpRemoteObject[] | undefined): string {
 
 interface ServiceWorkerMonitor {
     attachExisting: () => Promise<void>;
+    setDownloadBehavior: (downloadPath: string) => Promise<void>;
     detach: () => Promise<void>;
 }
 
@@ -340,6 +352,7 @@ async function createServiceWorkerMonitor(
             attachExisting: async () => {
                 for (const w of context.serviceWorkers()) attachFallback(w);
             },
+            setDownloadBehavior: async () => {},
             detach: async () => {},
         };
     }
@@ -524,6 +537,15 @@ async function createServiceWorkerMonitor(
         await Promise.all(matches.map((t) => attachTarget(t.targetId)));
     };
 
+    const setDownloadBehavior = async (downloadPath: string) => {
+        if (detached) return;
+        await cdp.send("Browser.setDownloadBehavior", {
+            behavior: "allowAndName",
+            downloadPath,
+            eventsEnabled: true,
+        });
+    };
+
     const detach = async () => {
         if (detached) return;
         detached = true;
@@ -536,7 +558,7 @@ async function createServiceWorkerMonitor(
         await cdp.detach().catch(() => {});
     };
 
-    return { attachExisting, detach };
+    return { attachExisting, setDownloadBehavior, detach };
 }
 
 /**
@@ -557,9 +579,12 @@ export async function openToolbarPopup(opts: {
     cdpBrowser: Browser;
     openToTargetMs: number;
     startedAt: number;
+    close: () => Promise<void>;
 }> {
+    const context = opts.mainPage.context();
     const cdpUrl = `http://127.0.0.1:${opts.cdpPort}`;
     const existingTargetIds = await collectPageTargetIds(cdpUrl);
+    await restoreDownloadBehavior(context).catch(() => {});
 
     await opts.mainPage.bringToFront();
     const startedAt = performance.now();
@@ -574,14 +599,28 @@ export async function openToolbarPopup(opts: {
             if (!page.url().startsWith(popupUrlPrefix)) continue;
             if (existingTargetIds.has(await readPageTargetId(page))) continue;
             attachPageListeners(page, opts.extId, opts.issues);
+            let closed = false;
+            const restoreOnce = () => restoreDownloadBehavior(context).catch(() => {});
+            candidate.once("disconnected", () => {
+                if (!closed) void restoreOnce();
+            });
+            const close = async () => {
+                if (closed) return;
+                closed = true;
+                if (!page.isClosed()) await page.close().catch(() => {});
+                await candidate.close().catch(() => {});
+                await restoreOnce();
+            };
             return {
                 popupPage: page,
                 cdpBrowser: candidate,
                 openToTargetMs: performance.now() - startedAt,
                 startedAt,
+                close,
             };
         }
         await candidate.close().catch(() => {});
+        await restoreDownloadBehavior(context).catch(() => {});
     }
     throw new Error("Timed out waiting for extension popup target.");
 }
@@ -637,6 +676,8 @@ export async function launchExtension(
             ? "/tmp"
             : tmpdir();
     const profileDir = mkdtempSync(join(safeTmp, "ts-verify-"));
+    const downloadsDir = join(profileDir, "downloads");
+    mkdirSync(downloadsDir, { recursive: true });
     const cdpPort = options?.enableCdp ? await getFreePort() : undefined;
 
     const context = await chromium.launchPersistentContext(profileDir, {
@@ -655,6 +696,7 @@ export async function launchExtension(
         viewport: { width: 1280, height: 800 },
         deviceScaleFactor: 2,
         acceptDownloads: true,
+        downloadsPath: downloadsDir,
     });
 
     let closed = false;
@@ -681,6 +723,8 @@ export async function launchExtension(
         const workerUrl = `chrome-extension://${extId}/background.js`;
         const issues: RuntimeIssue[] = [];
         serviceWorkerMonitor = await createServiceWorkerMonitor(context, workerUrl, issues);
+        const monitor = serviceWorkerMonitor;
+        contextRestoreDownloads.set(context, () => monitor.setDownloadBehavior(downloadsDir));
 
         const serviceWorker =
             context.serviceWorkers().find((w) => w.url() === workerUrl) ??

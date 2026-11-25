@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
-import { type Browser, type Locator, type Page } from "playwright-core";
+import { type Locator, type Page } from "playwright-core";
 
 import {
     launchExtension,
@@ -78,7 +78,7 @@ async function main() {
     const { extId, issues, context, serviceWorker, cdpPort } = browser;
 
     let mainPage: Page = browser.page;
-    let popupState: { page: Page; cdpBrowser: Browser } | null = null;
+    let popupState: { page: Page; close: () => Promise<void> } | null = null;
     let platformRoutesInstalled = false;
     let initialReady = false;
     let lastActivity = Date.now();
@@ -91,8 +91,7 @@ async function main() {
         if (!popupState) return;
         const current = popupState;
         popupState = null;
-        if (!current.page.isClosed()) await current.page.close().catch(() => {});
-        await current.cdpBrowser.close().catch(() => {});
+        await current.close();
     };
 
     const ensurePlatformRoutes = async () => {
@@ -209,7 +208,7 @@ async function main() {
                     });
                     popupState = {
                         page: opened.popupPage,
-                        cdpBrowser: opened.cdpBrowser,
+                        close: opened.close,
                     };
                     const ready = await waitForSettle(opened.popupPage, 6000);
                     return Response.json({
