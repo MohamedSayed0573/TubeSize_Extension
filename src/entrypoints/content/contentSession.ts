@@ -1,50 +1,35 @@
-import type { PlatformId } from "@app-types/types";
+import { parsePlatformUrl } from "@lib/platformUrl";
 import { getSettings } from "@lib/settings";
 
-import { findPlatformAdapter } from "@/adapters/registry";
-import type { DisplayFormat, PlatformAdapter } from "@/adapters/types";
+import { loadPlatformFormats } from "@/adapters/registry";
 
-import { clearQualityMenu, injectQualityMenu } from "./qualityMenuInjector";
+import { CONTENT_PLATFORM_HOOKS, type ContentPlatformHooks } from "./platformHooks";
 import { trackResolutionChanges } from "./resolution";
 import { createToaster, unmountToast } from "./toaster";
-
-/**
- * YouTube only writes `ytInitialPlayerResponse` on a full page load. After an
- * SPA navigation it still describes the previous video, so it can only be
- * trusted on the initial navigation (`isInitialLoad === true`).
- */
-function scrapeYoutubeInitialHtml(isInitialLoad: boolean): string | undefined {
-    if (!isInitialLoad) return undefined;
-    return [...document.scripts].find((script) =>
-        script.textContent.includes("ytInitialPlayerResponse"),
-    )?.textContent;
-}
-
-async function loadPageFormats<P extends PlatformId>(
-    adapter: PlatformAdapter<P>,
-    url: string,
-    html?: string,
-): Promise<DisplayFormat[]> {
-    const data = await adapter.load(url, undefined, {
-        isFromPopup: false,
-        html,
-    });
-    return adapter.formats(data);
-}
 
 export type ContentSession = {
     navigate: (url?: string) => Promise<void>;
     dispose: () => void;
 };
 
+export function isSamePageNavigation(previous: URL, next: URL): boolean {
+    return (
+        previous.origin === next.origin &&
+        previous.pathname === next.pathname &&
+        previous.search === next.search
+    );
+}
+
 export function createContentSession(): ContentSession {
     let activeController: AbortController | undefined;
+    let activeHooks: ContentPlatformHooks | undefined;
     let hasNavigated = false;
 
     const dispose = () => {
         activeController?.abort();
         activeController = undefined;
-        clearQualityMenu();
+        activeHooks?.onDispose?.();
+        activeHooks = undefined;
         unmountToast();
     };
 
@@ -59,38 +44,20 @@ export function createContentSession(): ContentSession {
         hasNavigated = true;
 
         try {
-            const adapter = findPlatformAdapter(url);
-            if (!adapter || !adapter.isRunningVideo(url)) return;
+            const parsed = parsePlatformUrl(url);
+            if (parsed?.kind !== "media") return;
 
-            let formats: DisplayFormat[];
-            switch (adapter.platform) {
-                case "youtube": {
-                    formats = await loadPageFormats(
-                        adapter,
-                        url,
-                        scrapeYoutubeInitialHtml(isInitialLoad),
-                    );
-                    break;
-                }
-                case "twitch": {
-                    formats = await loadPageFormats(adapter, url);
-                    break;
-                }
-                case "kick": {
-                    formats = await loadPageFormats(adapter, url);
-                    break;
-                }
-                default: {
-                    const exhaustive: never = adapter;
-                    return exhaustive;
-                }
-            }
+            const hooks = CONTENT_PLATFORM_HOOKS[parsed.platform];
+            activeHooks = hooks;
+
+            const formats = await loadPlatformFormats(parsed.platform, url, {
+                isFromPopup: false,
+                ...hooks?.getLoadOptions?.({ isInitialLoad }),
+            });
 
             if (signal.aborted) return;
 
-            if (adapter.platform === "youtube") {
-                void injectQualityMenu(formats, signal);
-            }
+            hooks?.onFormatsLoaded?.(formats, signal);
 
             const { toasterEnabled, toasterThreshold } = await getSettings();
             if (!toasterEnabled || signal.aborted) return;
