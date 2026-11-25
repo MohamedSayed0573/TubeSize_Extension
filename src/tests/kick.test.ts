@@ -28,7 +28,6 @@ https://cdn.kick.example/seg-3.ts
 `;
 
 beforeEach(() => {
-    // eslint-disable-next-line unicorn/no-global-object-property-assignment
     globalThis.setTimeout = ((
         callback: (...args: unknown[]) => void,
         _ms?: number,
@@ -37,9 +36,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    // eslint-disable-next-line unicorn/no-global-object-property-assignment
     globalThis.fetch = originalFetch;
-    // eslint-disable-next-line unicorn/no-global-object-property-assignment
     globalThis.setTimeout = originalSetTimeout;
 });
 
@@ -67,7 +64,6 @@ describe("estimateKick (live)", () => {
             }
             return new Response("Not found", { status: 404 });
         });
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
         const data = await estimateKick(
@@ -127,7 +123,6 @@ describe("estimateKick (live)", () => {
             }
             return new Response("Not found", { status: 404 });
         });
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
         const data = await estimateKick(
@@ -151,7 +146,6 @@ describe("estimateKick (live)", () => {
     });
 
     test("throws when streamId cannot be extracted from channel HTML", async () => {
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async () => {
             return new Response("<html><body>Offline channel</body></html>", {
                 status: 200,
@@ -173,7 +167,6 @@ describe("estimateKick (live)", () => {
     });
 
     test("throws when playback endpoint returns 4xx or omits playback_url.live", async () => {
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async (input: string | URL) => {
             const url = input.toString();
             if (url === "https://kick.com/broken") {
@@ -196,7 +189,6 @@ describe("estimateKick (live)", () => {
         ).rejects.toThrow("Master M3U8 URL not found in playback response");
 
         const requestedUrls: string[] = [];
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async (input: string | URL) => {
             const url = input.toString();
             requestedUrls.push(url);
@@ -247,7 +239,6 @@ describe("estimateKick (vod)", () => {
             }
             return new Response("Not found", { status: 404 });
         });
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
         const first = await estimateKick({
@@ -325,7 +316,6 @@ describe("estimateKick (vod)", () => {
             }
             return new Response("Not found", { status: 404 });
         });
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
         const data = await estimateKick({
@@ -365,7 +355,6 @@ describe("estimateKick (vod)", () => {
     });
 
     test("throws when a slug VOD is absent from channel videos", async () => {
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async () => {
             return Response.json([
                 {
@@ -390,7 +379,6 @@ describe("estimateKick (vod)", () => {
     test("throws when UUID VOD metadata has missing source, null livestream, or non-positive duration", async () => {
         const uuid = "abcdefab-1234-5678-90ab-abcdefabcdef";
 
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async () =>
             Response.json({ source: null, livestream: { duration: 10_000 } }),
         ) as unknown as typeof fetch;
@@ -404,7 +392,6 @@ describe("estimateKick (vod)", () => {
             }),
         ).rejects.toThrow("Kick VOD source not found");
 
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async () =>
             Response.json({
                 source: "https://cdn.kick.example/vod-master.m3u8",
@@ -421,7 +408,6 @@ describe("estimateKick (vod)", () => {
             }),
         ).rejects.toThrow("Kick VOD duration not found");
 
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async (input: string | URL) => {
             if (input.toString().includes("/api/v1/video/")) {
                 return Response.json({
@@ -445,7 +431,6 @@ describe("estimateKick (vod)", () => {
     test("throws when master M3U8 has no playlists", async () => {
         const uuid = "11111111-2222-3333-4444-555555555555";
 
-        // eslint-disable-next-line unicorn/no-global-object-property-assignment
         globalThis.fetch = jest.fn(async (input: string | URL) => {
             if (input.toString().includes("/api/v1/video/")) {
                 return Response.json({

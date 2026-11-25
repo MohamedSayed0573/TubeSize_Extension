@@ -159,9 +159,6 @@ function getFormatHeight(format: AdaptiveFormat): number {
     return Number.isNaN(labelHeight) ? (format.height ?? 0) : labelHeight;
 }
 
-// Known SDR itags, ordered from most to least preferred within each codec.
-// The first entries are 30fps; later entries cover 60fps/streaming variants.
-// New/unknown itags fall back to codec detection below.
 const VIDEO_ITAGS: Record<VideoCodec, Partial<Record<number, number[]>>> = {
     av01: {
         144: [394],
@@ -227,7 +224,6 @@ type AudioItagEntry = {
     sizes: number[];
 };
 
-// Collapses duplicate entries for the same itag into one averaged format.
 // YouTube can return the same itag several times with different bitrates/sizes.
 function parseAudioFormats(data: ytInitialPlayerResponse): AudioItag[] {
     const isLive = data.videoDetails.isLive || false;
