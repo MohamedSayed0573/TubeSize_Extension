@@ -48,7 +48,7 @@ export default function FormatView({ estimate }: { estimate: MediaEstimate }) {
                             className="cursor-pointer"
                             checked={includeAudio}
                             disabled={isPending}
-                            onClick={() => updateSettings({ includeAudio: !includeAudio })}
+                            onCheckedChange={(checked) => updateSettings({ includeAudio: checked })}
                         />
                     </Field>
                 </FieldGroup>

@@ -20,7 +20,7 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
     const [threshold, setThreshold] = useState(toasterThreshold);
 
     const { updateSettingsMutation } = useSettings();
-    const { mutate: updateSettings } = updateSettingsMutation;
+    const { mutate: updateSettings, isPending } = updateSettingsMutation;
 
     return (
         <FieldSet>
@@ -43,8 +43,9 @@ export default function ToasterSettings({ settingsState }: { settingsState: Sett
                         id="toasterThresholdToggle"
                         className="cursor-pointer"
                         checked={isToasterEnabled}
-                        onClick={() => {
-                            updateSettings({ toasterEnabled: !isToasterEnabled });
+                        disabled={isPending}
+                        onCheckedChange={(checked) => {
+                            updateSettings({ toasterEnabled: checked });
                         }}
                     />
                 </Field>

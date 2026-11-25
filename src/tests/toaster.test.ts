@@ -154,6 +154,30 @@ describe("createToaster", () => {
         expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
     });
 
+    test("unmounts an existing toast when quality drops at or below threshold or becomes unmapped", async () => {
+        const toaster = createToaster();
+
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
+        expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+
+        await toaster.show({ formats: vodFormats, currentQuality: 720, thresholdMbph: 500 });
+        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
+        expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+
+        // Exact threshold boundary (250_000 B/s * 3600 = 900 MB/h <= 900)
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 900 });
+        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
+        expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+
+        // Unmapped resolution (not present in vodFormats)
+        await toaster.show({ formats: vodFormats, currentQuality: 480, thresholdMbph: 500 });
+        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+    });
+
     test("aborting signal cancels an in-flight show call", async () => {
         const controller = new AbortController();
         const toaster = createToaster(controller.signal);

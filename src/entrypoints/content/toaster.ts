@@ -79,9 +79,10 @@ export function createToaster(signal?: AbortSignal): Toaster {
 
         try {
             const format = formats.find((candidate) => candidate.resolution === currentQuality);
-            if (!format) return;
-
-            if (megabytesPerHour(format.sizePerSecondBytes) <= thresholdMbph) return;
+            if (!format || megabytesPerHour(format.sizePerSecondBytes) <= thresholdMbph) {
+                unmountToast();
+                return;
+            }
 
             if (await isSuppressedForToday()) return;
             if (signal?.aborted || requestController.signal.aborted) return;
