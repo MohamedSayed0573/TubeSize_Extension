@@ -70,6 +70,8 @@ export type WindowMessage = Prettify<UsageMessage | WatchHistoryMessage>;
 
 export type PlatformId = (typeof CONFIG.PLATFORMS)[number];
 
+export type VideoContentType = "live" | "vod";
+
 export type UsageRange = (typeof CONFIG.RANGES)[number];
 
 export type UsageScope = { type: "date"; date: DateKey } | { type: "range"; range: UsageRange };

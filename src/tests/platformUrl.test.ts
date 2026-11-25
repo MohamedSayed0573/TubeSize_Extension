@@ -2,12 +2,18 @@ import { describe, expect, test } from "bun:test";
 
 import type { VideoKey } from "@app-types/types";
 import {
+    buildPlatformVideoUrl,
+    formatSupportedPlatforms,
+    getPlatformDisplayName,
     isKickVideoUuid,
     isPlatformId,
     parsePlatformUrl,
     parseVideoKey,
+    PLATFORM_MATCH_PATTERNS,
     toVideoKey,
 } from "@lib/platformUrl";
+
+import contentScript from "@/entrypoints/content/index";
 
 describe("parsePlatformUrl", () => {
     test("returns undefined for empty, invalid, non-HTTP, and unsupported URLs", () => {
@@ -165,5 +171,65 @@ describe("platform identity and VideoKey helpers", () => {
         expect(() => parseVideoKey("unknown:abc" as VideoKey)).toThrow("Invalid video key");
         expect(() => parseVideoKey("youtube:" as VideoKey)).toThrow("Invalid video key");
         expect(() => parseVideoKey("no-colon" as VideoKey)).toThrow("Invalid video key");
+    });
+
+    test("keeps content script match patterns aligned with supported platform hosts", () => {
+        expect(PLATFORM_MATCH_PATTERNS).toEqual([
+            "*://www.youtube.com/*",
+            "*://youtube.com/*",
+            "*://www.twitch.tv/*",
+            "*://twitch.tv/*",
+            "*://www.twitch.com/*",
+            "*://twitch.com/*",
+            "*://www.kick.com/*",
+            "*://kick.com/*",
+        ]);
+        expect(contentScript.matches).toEqual(PLATFORM_MATCH_PATTERNS);
+    });
+
+    test("exposes canonical display names and locale-formatted supported platform lists", () => {
+        expect(getPlatformDisplayName("youtube")).toBe("YouTube");
+        expect(getPlatformDisplayName("twitch")).toBe("Twitch");
+        expect(getPlatformDisplayName("kick")).toBe("Kick");
+
+        expect(formatSupportedPlatforms("en")).toBe("YouTube, Twitch, or Kick");
+        expect(formatSupportedPlatforms("ar")).toContain("YouTube");
+        expect(formatSupportedPlatforms("ar")).toContain("Twitch");
+        expect(formatSupportedPlatforms("ar")).toContain("Kick");
+    });
+
+    test("builds canonical watch URLs for YouTube, Twitch, and Kick", () => {
+        expect(buildPlatformVideoUrl("youtube", "dQw4w9WgXcQ")).toBe(
+            "https://youtube.com/watch?v=dQw4w9WgXcQ",
+        );
+
+        expect(buildPlatformVideoUrl("twitch", "2748008198", "vod")).toBe(
+            "https://www.twitch.tv/videos/2748008198",
+        );
+        expect(buildPlatformVideoUrl("twitch", "shroud", "live")).toBe(
+            "https://www.twitch.tv/shroud",
+        );
+        expect(buildPlatformVideoUrl("twitch", "2748008198")).toBe(
+            "https://www.twitch.tv/videos/2748008198",
+        );
+        expect(buildPlatformVideoUrl("twitch", "shroud")).toBe("https://www.twitch.tv/shroud");
+
+        expect(buildPlatformVideoUrl("kick", "xqc", "live")).toBe("https://kick.com/xqc");
+        expect(buildPlatformVideoUrl("kick", "kick-vod-98231", "vod", "xqc")).toBe(
+            "https://kick.com/xqc/videos/kick-vod-98231",
+        );
+        expect(
+            buildPlatformVideoUrl("kick", "11111111-2222-3333-4444-555555555555", "vod", "xqc"),
+        ).toBe("https://kick.com/xqc/videos/11111111-2222-3333-4444-555555555555");
+        expect(buildPlatformVideoUrl("kick", "11111111-2222-3333-4444-555555555555", "vod")).toBe(
+            "https://kick.com/video/11111111-2222-3333-4444-555555555555",
+        );
+        expect(buildPlatformVideoUrl("kick", "xqc")).toBe("https://kick.com/xqc");
+        expect(buildPlatformVideoUrl("kick", "11111111-2222-3333-4444-555555555555")).toBe(
+            "https://kick.com/video/11111111-2222-3333-4444-555555555555",
+        );
+        expect(buildPlatformVideoUrl("kick", "c7093a5c-demo-vod", undefined, "xqc")).toBe(
+            "https://kick.com/xqc/videos/c7093a5c-demo-vod",
+        );
     });
 });

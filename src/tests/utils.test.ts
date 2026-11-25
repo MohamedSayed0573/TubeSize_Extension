@@ -4,8 +4,6 @@ import CONFIG from "@lib/constants";
 import { isValidDateKey, toDateKey } from "@lib/dateUtils";
 import { fetchAndRetry } from "@lib/utils";
 
-import { kickAdapter } from "@/adapters/kickAdapter";
-
 describe("fetchAndRetry", () => {
     const originalFetch = globalThis.fetch;
 
@@ -153,25 +151,5 @@ describe("domain key helpers", () => {
         expect(isValidDateKey("not-a-date")).toBe(false);
         expect(toDateKey("2026-02-28")).toBe(toDateKey("2026-02-28"));
         expect(toDateKey("2026-13-01")).toBeUndefined();
-    });
-
-    test("kickAdapter.videoUrl builds live and vod URLs cleanly", () => {
-        expect(kickAdapter.videoUrl("xqc", "live")).toBe("https://kick.com/xqc");
-        expect(kickAdapter.videoUrl("kick-vod-98231", "vod", "xqc")).toBe(
-            "https://kick.com/xqc/videos/kick-vod-98231",
-        );
-        expect(kickAdapter.videoUrl("11111111-2222-3333-4444-555555555555", "vod", "xqc")).toBe(
-            "https://kick.com/xqc/videos/11111111-2222-3333-4444-555555555555",
-        );
-        expect(kickAdapter.videoUrl("11111111-2222-3333-4444-555555555555", "vod")).toBe(
-            "https://kick.com/video/11111111-2222-3333-4444-555555555555",
-        );
-        expect(kickAdapter.videoUrl("xqc")).toBe("https://kick.com/xqc");
-        expect(kickAdapter.videoUrl("11111111-2222-3333-4444-555555555555")).toBe(
-            "https://kick.com/video/11111111-2222-3333-4444-555555555555",
-        );
-        expect(kickAdapter.videoUrl("c7093a5c-demo-vod", undefined, "xqc")).toBe(
-            "https://kick.com/xqc/videos/c7093a5c-demo-vod",
-        );
     });
 });

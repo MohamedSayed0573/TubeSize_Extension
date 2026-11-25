@@ -1,17 +1,11 @@
-import { isKickVideoUuid, parsePlatformUrl } from "@lib/platformUrl";
+import { parsePlatformUrl } from "@lib/platformUrl";
 
 import { getLanguage } from "@/i18n/language";
 import { humanizeDuration } from "@/lib/humanize";
 import { sendMessage } from "@/messaging";
 import type { KickData } from "@/types/platforms.types";
 
-import type {
-    DisplayFormat,
-    HeaderViewData,
-    LoadPlatformOptions,
-    PlatformAdapter,
-    VideoContentType,
-} from "./types";
+import type { DisplayFormat, HeaderViewData, LoadPlatformOptions, PlatformAdapter } from "./types";
 
 async function loadKickData(
     tabUrl: string,
@@ -78,35 +72,10 @@ function kickHeader(kick: KickData): HeaderViewData {
     };
 }
 
-function kickVideoUrl(
-    mediaId: string,
-    contentType?: VideoContentType,
-    channelName?: string,
-): string {
-    if (contentType === "live") {
-        return `https://kick.com/${mediaId}`;
-    }
-
-    if (contentType === "vod") {
-        return channelName
-            ? `https://kick.com/${channelName}/videos/${mediaId}`
-            : `https://kick.com/video/${mediaId}`;
-    }
-
-    if (channelName && channelName !== mediaId) {
-        return `https://kick.com/${channelName}/videos/${mediaId}`;
-    }
-
-    return isKickVideoUuid(mediaId)
-        ? `https://kick.com/video/${mediaId}`
-        : `https://kick.com/${mediaId}`;
-}
-
 export const kickAdapter = {
     platform: "kick",
     load: loadKickData,
     isRunningVideo,
     formats: kickFormats,
     header: kickHeader,
-    videoUrl: kickVideoUrl,
 } satisfies PlatformAdapter<"kick">;

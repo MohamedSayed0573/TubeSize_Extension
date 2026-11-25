@@ -12,7 +12,7 @@ import type { YoutubeMessage } from "@app-types/types";
 import { getCachedAv1Support } from "@lib/codecSupport";
 import CONFIG from "@lib/constants";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
-import type { ParsedYoutubeMedia } from "@lib/platformUrl";
+import { getPlatformDisplayName, type ParsedYoutubeMedia } from "@lib/platformUrl";
 import { fetchAndRetry } from "@lib/utils";
 import { z } from "zod";
 
@@ -410,7 +410,7 @@ export async function fetchYoutubeMetadata(media: ParsedYoutubeMedia): Promise<V
     return {
         type: "youtube",
         mediaId: media.mediaId,
-        title: data.title || data.channelName || "Youtube",
+        title: data.title || data.channelName || getPlatformDisplayName("youtube"),
         channelName: data.channelName ?? "",
         thumbnailUrl: data.thumbnailUrl ?? DEFAULT_YOUTUBE_THUMBNAIL,
         channelUrl: data.channelUrl ?? "",

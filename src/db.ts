@@ -1,11 +1,9 @@
-import type { DateKey, Origin, PlatformId, VideoKey } from "@app-types/types";
+import type { DateKey, Origin, PlatformId, VideoContentType, VideoKey } from "@app-types/types";
 import { getDateKey } from "@lib/dateUtils";
 import { toVideoKey } from "@lib/platformUrl";
 import type { SiteUsage } from "@lib/schema";
 import { typedEntries } from "@lib/utils";
 import { Dexie, type Table } from "dexie";
-
-import type { VideoContentType } from "@/adapters/types";
 
 export type { SiteUsage };
 

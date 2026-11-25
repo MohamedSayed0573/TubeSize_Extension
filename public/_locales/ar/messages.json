@@ -172,8 +172,14 @@
         "description": "Info shown when usage tracking is enabled"
     },
     "popup_unsupportedPage": {
-        "message": "افتح فيديو على يوتيوب أو تويتش أو كيك لرؤية تقدير استهلاك البيانات.",
-        "description": "Info shown on unsupported pages"
+        "message": "افتح فيديو على $1 لرؤية تقدير استهلاك البيانات.",
+        "description": "Info shown on unsupported pages",
+        "placeholders": {
+            "platforms": {
+                "content": "$1",
+                "example": "YouTube أو Twitch أو Kick"
+            }
+        }
     },
     "popup_noRunningVideo": {
         "message": "لا يوجد فيديو قيد التشغيل. افتح فيديو أو بثًا لرؤية تقدير استهلاك البيانات.",

@@ -3,8 +3,14 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { KickLiveData, TwitchLiveData, YoutubeData } from "@app-types/platforms.types";
 import type { KickLiveMessage, TwitchLiveMessage, YoutubeMessage } from "@app-types/types";
 import { saveSettings } from "@lib/settings";
+import type { ContentScriptContext } from "wxt/utils/content-script-context";
 
-import { type ContentSession, createContentSession } from "@/entrypoints/content/contentSession";
+import {
+    type ContentSession,
+    createContentSession,
+    isSamePageNavigation,
+} from "@/entrypoints/content/contentSession";
+import contentScript from "@/entrypoints/content/index";
 import { setLanguage } from "@/i18n/language";
 import { onMessage } from "@/messaging";
 
@@ -302,5 +308,178 @@ describe("createContentSession", () => {
             "1.8 GB/hour",
         );
         expect(document.querySelectorAll(".tubesize-quality-menu-panel")).toHaveLength(0);
+    });
+
+    test("handles SPA transitions across non-media and media routes on Twitch and Kick", async () => {
+        const twitchRequests: TwitchLiveMessage[] = [];
+        const kickRequests: KickLiveMessage[] = [];
+        messageCleanups.push(
+            onMessage("twitchLive", ({ data }) => {
+                twitchRequests.push(data);
+                return { success: true, data: SAMPLE_TWITCH_LIVE };
+            }),
+            onMessage("kickLive", ({ data }) => {
+                kickRequests.push(data);
+                return { success: true, data: SAMPLE_KICK_LIVE };
+            }),
+        );
+
+        document.body.append(createVideo(1080));
+
+        await session!.navigate("https://www.twitch.tv/directory");
+        expect(twitchRequests).toHaveLength(0);
+        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+
+        await session!.navigate("https://www.twitch.tv/shroud");
+        await waitForCondition(() => document.querySelector("#TubeSize-Toast-Host") !== null);
+        expect(twitchRequests).toEqual([{ channelName: "shroud", isFromPopup: false }]);
+
+        await session!.navigate("https://www.twitch.tv/directory");
+        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+
+        await session!.navigate("https://kick.com/browse");
+        expect(kickRequests).toHaveLength(0);
+
+        await session!.navigate("https://kick.com/xqc");
+        await waitForCondition(() => document.querySelector("#TubeSize-Toast-Host") !== null);
+        expect(kickRequests).toEqual([{ channelName: "xqc", isFromPopup: false }]);
+    });
+});
+
+describe("isSamePageNavigation", () => {
+    test("treats hash-only changes as the same page and detects path, search, or origin changes", () => {
+        expect(
+            isSamePageNavigation(
+                new URL("https://www.youtube.com/watch?v=I82j7AzMU80"),
+                new URL("https://www.youtube.com/watch?v=I82j7AzMU80#comments"),
+            ),
+        ).toBe(true);
+        expect(
+            isSamePageNavigation(
+                new URL("https://www.youtube.com/watch?v=I82j7AzMU80"),
+                new URL("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+            ),
+        ).toBe(false);
+        expect(
+            isSamePageNavigation(
+                new URL("https://www.twitch.tv/directory"),
+                new URL("https://www.twitch.tv/shroud"),
+            ),
+        ).toBe(false);
+        expect(
+            isSamePageNavigation(
+                new URL("https://www.twitch.tv/shroud"),
+                new URL("https://kick.com/shroud"),
+            ),
+        ).toBe(false);
+    });
+});
+
+function dispatchLocationChange(oldHref: string, newHref: string) {
+    const event = Object.assign(new Event("wxt:locationchange"), {
+        oldUrl: new URL(oldHref),
+        newUrl: new URL(newHref),
+    });
+    window.dispatchEvent(event);
+}
+
+function createFakeContentScriptContext() {
+    const controller = new AbortController();
+    const invalidatedCallbacks: Array<() => void> = [];
+
+    const ctx = {
+        get signal() {
+            return controller.signal;
+        },
+        get isInvalid() {
+            return controller.signal.aborted;
+        },
+        onInvalidated(cb: () => void) {
+            invalidatedCallbacks.push(cb);
+            return () => {
+                const idx = invalidatedCallbacks.indexOf(cb);
+                if (idx !== -1) invalidatedCallbacks.splice(idx, 1);
+            };
+        },
+        addEventListener(
+            target: EventTarget,
+            type: string,
+            handler: EventListenerOrEventListenerObject,
+            options?: AddEventListenerOptions,
+        ) {
+            target.addEventListener(type, handler, { ...options, signal: controller.signal });
+        },
+    } as unknown as ContentScriptContext;
+
+    const invalidate = () => {
+        if (controller.signal.aborted) return;
+        controller.abort();
+        for (const cb of invalidatedCallbacks.splice(0)) cb();
+    };
+
+    return { ctx, invalidate };
+}
+
+describe("content script entrypoint", () => {
+    test("forwards path/search wxt:locationchange events, skips hash-only changes, and cleans up on invalidation", async () => {
+        const twitchRequests: TwitchLiveMessage[] = [];
+        const youtubeRequests: YoutubeMessage[] = [];
+        messageCleanups.push(
+            onMessage("twitchLive", ({ data }) => {
+                twitchRequests.push(data);
+                return { success: true, data: SAMPLE_TWITCH_LIVE };
+            }),
+            onMessage("youtubeVideo", ({ data }) => {
+                youtubeRequests.push(data);
+                return {
+                    success: true,
+                    data: youtubeRequests.length === 1 ? HIGH_BITRATE_VOD : SECOND_YOUTUBE_VOD,
+                };
+            }),
+        );
+
+        document.body.append(createVideo(1080));
+        window.history.replaceState({}, "", "/");
+
+        const { ctx, invalidate } = createFakeContentScriptContext();
+        try {
+            await contentScript.main(ctx);
+            expect(youtubeRequests).toHaveLength(0);
+            expect(twitchRequests).toHaveLength(0);
+
+            dispatchLocationChange(
+                "https://www.twitch.tv/directory",
+                "https://www.twitch.tv/shroud",
+            );
+            await waitForCondition(() => document.querySelector("#TubeSize-Toast-Host") !== null);
+            expect(twitchRequests).toEqual([{ channelName: "shroud", isFromPopup: false }]);
+
+            dispatchLocationChange(
+                "https://www.twitch.tv/shroud",
+                "https://www.twitch.tv/shroud#chat",
+            );
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            expect(twitchRequests).toHaveLength(1);
+            expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+
+            dispatchLocationChange(
+                "https://www.youtube.com/watch?v=I82j7AzMU80",
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            );
+            await waitForCondition(() => youtubeRequests.length === 1);
+            expect(youtubeRequests[0]?.mediaId).toBe("dQw4w9WgXcQ");
+
+            invalidate();
+            expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+
+            dispatchLocationChange(
+                "https://www.twitch.tv/directory",
+                "https://www.twitch.tv/shroud",
+            );
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            expect(twitchRequests).toHaveLength(1);
+        } finally {
+            invalidate();
+        }
     });
 });

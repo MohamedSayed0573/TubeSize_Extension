@@ -1,4 +1,4 @@
-import type { PlatformId, VideoKey } from "@app-types/types";
+import type { PlatformId, VideoContentType, VideoKey } from "@app-types/types";
 import CONFIG from "@lib/constants";
 
 export type ParsedYoutubeMedia = {
@@ -38,11 +38,19 @@ export type ParsedPlatformMedia = ParsedYoutubeMedia | ParsedTwitchMedia | Parse
 
 export type ParsedPlatformUrl = { kind: "page"; platform: PlatformId } | ParsedPlatformMedia;
 
-const PLATFORM_IDS: ReadonlySet<string> = new Set(CONFIG.PLATFORMS);
+type PlatformDescriptor<P extends PlatformId = PlatformId> = {
+    readonly id: P;
+    readonly displayName: string;
+    readonly hosts: readonly string[];
+    readonly parseUrl: (url: URL, segments: readonly string[]) => ParsedPlatformUrl;
+    readonly buildVideoUrl: (
+        mediaId: string,
+        contentType?: VideoContentType,
+        channelName?: string,
+    ) => string;
+};
 
-const YOUTUBE_HOSTS = new Set(["www.youtube.com", "youtube.com"]);
-const TWITCH_HOSTS = new Set(["www.twitch.tv", "twitch.tv", "www.twitch.com", "twitch.com"]);
-const KICK_HOSTS = new Set(["www.kick.com", "kick.com"]);
+const PLATFORM_IDS: ReadonlySet<string> = new Set(CONFIG.PLATFORMS);
 
 const TWITCH_NON_STREAM_PATHS = new Set([
     "videos",
@@ -82,7 +90,7 @@ export function isKickVideoUuid(value: string): boolean {
     return KICK_VIDEO_UUID_REGEX.test(value);
 }
 
-function parseYoutubeUrl(parsedUrl: URL, segments: string[]): ParsedPlatformUrl {
+function parseYoutubeUrl(parsedUrl: URL, segments: readonly string[]): ParsedPlatformUrl {
     const [first, second] = segments;
     let mediaId: string | null | undefined;
     let isShorts = false;
@@ -103,7 +111,7 @@ function parseYoutubeUrl(parsedUrl: URL, segments: string[]): ParsedPlatformUrl 
     return { kind: "page", platform: "youtube" };
 }
 
-function parseTwitchUrl(segments: string[]): ParsedPlatformUrl {
+function parseTwitchUrl(segments: readonly string[]): ParsedPlatformUrl {
     const [first, second] = segments;
 
     if (segments.length === 2 && first === "videos" && second && TWITCH_VOD_ID_REGEX.test(second)) {
@@ -123,7 +131,7 @@ function parseTwitchUrl(segments: string[]): ParsedPlatformUrl {
     return { kind: "page", platform: "twitch" };
 }
 
-function parseKickUrl(segments: string[]): ParsedPlatformUrl {
+function parseKickUrl(segments: readonly string[]): ParsedPlatformUrl {
     const [first, second, third] = segments;
 
     if (segments.length === 3 && second === "videos" && first && third) {
@@ -149,6 +157,95 @@ function parseKickUrl(segments: string[]): ParsedPlatformUrl {
     return { kind: "page", platform: "kick" };
 }
 
+function buildYoutubeVideoUrl(mediaId: string): string {
+    return `https://youtube.com/watch?v=${mediaId}`;
+}
+
+function buildTwitchVideoUrl(mediaId: string, contentType?: VideoContentType): string {
+    const isVod =
+        contentType === undefined ? TWITCH_VOD_ID_REGEX.test(mediaId) : contentType === "vod";
+
+    return isVod ? `https://www.twitch.tv/videos/${mediaId}` : `https://www.twitch.tv/${mediaId}`;
+}
+
+function buildKickVideoUrl(
+    mediaId: string,
+    contentType?: VideoContentType,
+    channelName?: string,
+): string {
+    if (contentType === "live") {
+        return `https://kick.com/${mediaId}`;
+    }
+
+    if (contentType === "vod") {
+        return channelName
+            ? `https://kick.com/${channelName}/videos/${mediaId}`
+            : `https://kick.com/video/${mediaId}`;
+    }
+
+    if (channelName && channelName !== mediaId) {
+        return `https://kick.com/${channelName}/videos/${mediaId}`;
+    }
+
+    return isKickVideoUuid(mediaId)
+        ? `https://kick.com/video/${mediaId}`
+        : `https://kick.com/${mediaId}`;
+}
+
+const PLATFORM_DESCRIPTORS: { readonly [P in PlatformId]: PlatformDescriptor<P> } = {
+    youtube: {
+        id: "youtube",
+        displayName: "YouTube",
+        hosts: ["www.youtube.com", "youtube.com"],
+        parseUrl: parseYoutubeUrl,
+        buildVideoUrl: buildYoutubeVideoUrl,
+    },
+    twitch: {
+        id: "twitch",
+        displayName: "Twitch",
+        hosts: ["www.twitch.tv", "twitch.tv", "www.twitch.com", "twitch.com"],
+        parseUrl: (_url, segments) => parseTwitchUrl(segments),
+        buildVideoUrl: buildTwitchVideoUrl,
+    },
+    kick: {
+        id: "kick",
+        displayName: "Kick",
+        hosts: ["www.kick.com", "kick.com"],
+        parseUrl: (_url, segments) => parseKickUrl(segments),
+        buildVideoUrl: buildKickVideoUrl,
+    },
+};
+
+const HOST_TO_DESCRIPTOR = new Map<string, PlatformDescriptor>();
+for (const platform of CONFIG.PLATFORMS) {
+    const descriptor = PLATFORM_DESCRIPTORS[platform];
+    for (const host of descriptor.hosts) {
+        HOST_TO_DESCRIPTOR.set(host, descriptor);
+    }
+}
+
+export const PLATFORM_MATCH_PATTERNS: string[] = CONFIG.PLATFORMS.flatMap((platform) =>
+    PLATFORM_DESCRIPTORS[platform].hosts.map((host) => `*://${host}/*`),
+);
+
+export function getPlatformDisplayName(platform: PlatformId): string {
+    return PLATFORM_DESCRIPTORS[platform].displayName;
+}
+
+export function formatSupportedPlatforms(locale: string): string {
+    const names = CONFIG.PLATFORMS.map(getPlatformDisplayName);
+    return new Intl.ListFormat(locale, { style: "long", type: "disjunction" }).format(names);
+}
+
+export function buildPlatformVideoUrl(
+    platform: PlatformId,
+    mediaId: string,
+    contentType?: VideoContentType,
+    channelName?: string,
+): string {
+    return PLATFORM_DESCRIPTORS[platform].buildVideoUrl(mediaId, contentType, channelName);
+}
+
 export function parsePlatformUrl(url: string): ParsedPlatformUrl | undefined {
     let parsedUrl: URL;
     try {
@@ -161,22 +258,11 @@ export function parsePlatformUrl(url: string): ParsedPlatformUrl | undefined {
         return undefined;
     }
 
-    const { hostname, pathname } = parsedUrl;
-    const segments = pathname.split("/").filter(Boolean);
+    const descriptor = HOST_TO_DESCRIPTOR.get(parsedUrl.hostname);
+    if (!descriptor) return undefined;
 
-    if (YOUTUBE_HOSTS.has(hostname)) {
-        return parseYoutubeUrl(parsedUrl, segments);
-    }
-
-    if (TWITCH_HOSTS.has(hostname)) {
-        return parseTwitchUrl(segments);
-    }
-
-    if (KICK_HOSTS.has(hostname)) {
-        return parseKickUrl(segments);
-    }
-
-    return undefined;
+    const segments = parsedUrl.pathname.split("/").filter(Boolean);
+    return descriptor.parseUrl(parsedUrl, segments);
 }
 
 function isVideoKey(value: string): value is VideoKey {

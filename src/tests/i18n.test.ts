@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 
+import { formatSupportedPlatforms } from "@lib/platformUrl";
+
 import { setLanguage } from "@/i18n/language";
 import { t, tPlural } from "@/i18n/t";
 
@@ -33,6 +35,9 @@ describe("i18n t() and tPlural()", () => {
         );
         expect(t("toast_body", [1080])).toBe(
             "High Data Usage Detected for 1080p. It crosses your  MB/hour threshold.",
+        );
+        expect(t("popup_unsupportedPage", [formatSupportedPlatforms("en")])).toBe(
+            "Open a YouTube, Twitch, or Kick video to see estimated data usage.",
         );
     });
 

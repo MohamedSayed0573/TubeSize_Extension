@@ -106,10 +106,6 @@ function youtubeHeader(youtube: YoutubeData): HeaderViewData {
     };
 }
 
-function youtubeVideoUrl(mediaId: string): string {
-    return `https://youtube.com/watch?v=${mediaId}`;
-}
-
 export const youtubeAdapter = {
     platform: "youtube",
     load: loadYoutubeData,
@@ -117,5 +113,4 @@ export const youtubeAdapter = {
     formats: youtubeFormats,
     header: youtubeHeader,
     audio: youtubeAudio,
-    videoUrl: youtubeVideoUrl,
 } satisfies PlatformAdapter<"youtube">;
