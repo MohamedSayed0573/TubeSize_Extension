@@ -4,5 +4,9 @@
         "types": ["vite/client", "chrome"]
     },
     "include": ["./src", "./.wxt/wxt.d.ts"],
-    "exclude": ["./src/tests", "./src/entrypoints/genericObserver.content.ts"]
+    "exclude": [
+        "./src/tests",
+        "./src/entrypoints/genericObserver.content.ts",
+        "./src/lib/pageUsageObserver.ts"
+    ]
 }
