@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "all": "bun run tsc && bun run lint --max-warnings=0 && bun run prettier:check && bun run knip && bun run test && bun run build && bun run build:firefox",
+        "all": "bun run tsc && bun run lint --max-warnings=0 && bun run prettier:check && bun run knip && bun run test && bun run build && bun run build:firefox && bun run verify perf bundle --check",
         "build": "wxt build",
         "build:firefox": "wxt build -b firefox",
         "dev": "wxt",
