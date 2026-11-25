@@ -103,6 +103,64 @@
                         "checkGlobalObject": true
                     }
                 ],
+                "no-restricted-properties": [
+                    "error",
+                    {
+                        "object": "chrome",
+                        "property": "storage",
+                        "message": "Direct chrome.storage access is forbidden; use @wxt-dev/storage inside dedicated storage-owning modules."
+                    },
+                    {
+                        "object": "browser",
+                        "property": "storage",
+                        "message": "Direct browser.storage access is forbidden; use @wxt-dev/storage inside dedicated storage-owning modules."
+                    },
+                    {
+                        "object": "runtime",
+                        "property": "sendMessage",
+                        "message": "Direct runtime.sendMessage calls are forbidden; use typed context-scoped helpers from @/messaging."
+                    },
+                    {
+                        "object": "runtime",
+                        "property": "onMessage",
+                        "message": "Direct runtime.onMessage access is forbidden; use typed context-scoped helpers from @/messaging."
+                    },
+                    {
+                        "object": "runtime",
+                        "property": "connect",
+                        "message": "Direct runtime.connect calls are forbidden; use typed context-scoped helpers from @/messaging."
+                    },
+                    {
+                        "object": "runtime",
+                        "property": "onConnect",
+                        "message": "Direct runtime.onConnect access is forbidden; use typed context-scoped helpers from @/messaging."
+                    },
+                    {
+                        "object": "tabs",
+                        "property": "sendMessage",
+                        "message": "Direct tabs.sendMessage calls are forbidden; use sendTabMessage from @/messaging."
+                    },
+                    {
+                        "object": "tabs",
+                        "property": "connect",
+                        "message": "Direct tabs.connect calls are forbidden; use typed context-scoped helpers from @/messaging."
+                    }
+                ],
+                "no-restricted-syntax": [
+                    "error",
+                    {
+                        "selector": "MemberExpression[object.property.name=/^(chrome|browser)$/][property.name='storage']",
+                        "message": "Direct chrome.storage / browser.storage access is forbidden; use @wxt-dev/storage inside dedicated storage-owning modules."
+                    },
+                    {
+                        "selector": "MemberExpression[object.property.name='runtime'][property.name=/^(sendMessage|onMessage|connect|onConnect)$/]",
+                        "message": "Direct runtime messaging APIs are forbidden; use typed context-scoped helpers from @/messaging."
+                    },
+                    {
+                        "selector": "MemberExpression[object.property.name='tabs'][property.name=/^(sendMessage|connect)$/]",
+                        "message": "Direct tabs messaging APIs are forbidden; use sendTabMessage from @/messaging."
+                    }
+                ],
                 "no-restricted-imports": [
                     "error",
                     {
@@ -110,6 +168,199 @@
                             {
                                 "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
                                 "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            },
+                            {
+                                "regex": "^@wxt-dev/storage(?:/|$)",
+                                "message": "Only dedicated storage-owning modules may import @wxt-dev/storage."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/messaging.ts"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^@wxt-dev/storage(?:/|$)",
+                                "message": "Only dedicated storage-owning modules may import @wxt-dev/storage."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/i18n/language.ts"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/entrypoints/background/**/*.{ts,tsx}"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            },
+                            {
+                                "regex": "^@wxt-dev/storage(?:/|$)",
+                                "message": "Only dedicated storage-owning modules may import @wxt-dev/storage."
+                            },
+                            {
+                                "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
+                                "importNames": ["sendBackgroundMessage", "onTabMessage"],
+                                "message": "Background code cannot import sendBackgroundMessage or onTabMessage from @/messaging; use onBackgroundMessage or sendTabMessage."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/entrypoints/background/migrations.ts"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            },
+                            {
+                                "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
+                                "importNames": ["sendBackgroundMessage", "onTabMessage"],
+                                "message": "Background code cannot import sendBackgroundMessage or onTabMessage from @/messaging; use onBackgroundMessage or sendTabMessage."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/entrypoints/content/**/*.{ts,tsx}"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            },
+                            {
+                                "regex": "^@wxt-dev/storage(?:/|$)",
+                                "message": "Only dedicated storage-owning modules may import @wxt-dev/storage."
+                            },
+                            {
+                                "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
+                                "importNames": ["onBackgroundMessage", "sendTabMessage"],
+                                "message": "Content scripts cannot import onBackgroundMessage or sendTabMessage from @/messaging; use sendBackgroundMessage or onTabMessage."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/entrypoints/content/toaster.ts"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            },
+                            {
+                                "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
+                                "importNames": ["onBackgroundMessage", "sendTabMessage"],
+                                "message": "Content scripts cannot import onBackgroundMessage or sendTabMessage from @/messaging; use sendBackgroundMessage or onTabMessage."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/entrypoints/usageBridge.content.ts"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            },
+                            {
+                                "regex": "^@wxt-dev/storage(?:/|$)",
+                                "message": "Only dedicated storage-owning modules may import @wxt-dev/storage."
+                            },
+                            {
+                                "regex": "^(?:@lib|@/lib|(?:\\.\\./)+lib)/platformUrl(?:\\.[cm]?[jt]sx?)?$",
+                                "message": "usageBridge.content.ts must not import platformUrl; URL parsing belongs in background usageIngestion."
+                            },
+                            {
+                                "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
+                                "importNames": [
+                                    "onBackgroundMessage",
+                                    "onTabMessage",
+                                    "sendTabMessage"
+                                ],
+                                "message": "usageBridge.content.ts may only import sendBackgroundMessage from @/messaging."
                             }
                         ]
                     }
@@ -128,8 +379,58 @@
                                 "message": "Node and Bun built-in modules cannot be imported in browser extension code."
                             },
                             {
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            },
+                            {
+                                "regex": "^@wxt-dev/storage(?:/|$)",
+                                "message": "Only dedicated storage-owning modules may import @wxt-dev/storage."
+                            },
+                            {
                                 "regex": "^(?:@(?:pages|layouts|hooks)|@/(?:pages|layouts|hooks|entrypoints)|(?:\\.\\./)+(?:pages|layouts|hooks))(?:/|$)|(?:^|/)entrypoints(?:/|$)",
                                 "message": "src/lib/ cannot import from pages, layouts, hooks, or entrypoints."
+                            },
+                            {
+                                "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
+                                "importNames": [
+                                    "onBackgroundMessage",
+                                    "onTabMessage",
+                                    "sendTabMessage"
+                                ],
+                                "message": "src/lib/ runs in shared contexts and may only import sendBackgroundMessage from @/messaging."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/lib/settings.ts", "src/lib/mediaCache.ts", "src/lib/codecSupport.ts"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            },
+                            {
+                                "regex": "^(?:@(?:pages|layouts|hooks)|@/(?:pages|layouts|hooks|entrypoints)|(?:\\.\\./)+(?:pages|layouts|hooks))(?:/|$)|(?:^|/)entrypoints(?:/|$)",
+                                "message": "src/lib/ cannot import from pages, layouts, hooks, or entrypoints."
+                            },
+                            {
+                                "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
+                                "importNames": [
+                                    "onBackgroundMessage",
+                                    "onTabMessage",
+                                    "sendTabMessage"
+                                ],
+                                "message": "src/lib/ runs in shared contexts and may only import sendBackgroundMessage from @/messaging."
                             }
                         ]
                     }
@@ -186,7 +487,7 @@
             }
         },
         {
-            "files": ["src/entrypoints/usageBridge.content.ts"],
+            "files": ["src/hooks/**/*.{ts,tsx}"],
             "rules": {
                 "no-restricted-imports": [
                     "error",
@@ -197,8 +498,70 @@
                                 "message": "Node and Bun built-in modules cannot be imported in browser extension code."
                             },
                             {
-                                "regex": "^(?:@lib|@/lib|(?:\\.\\./)+lib)/platformUrl(?:\\.[cm]?[jt]sx?)?$",
-                                "message": "usageBridge.content.ts must not import platformUrl; URL parsing belongs in background usageIngestion."
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            },
+                            {
+                                "regex": "^@wxt-dev/storage(?:/|$)",
+                                "message": "Only dedicated storage-owning modules may import @wxt-dev/storage."
+                            },
+                            {
+                                "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
+                                "importNames": ["onBackgroundMessage", "onTabMessage"],
+                                "message": "UI hooks cannot register extension message listeners; use sendBackgroundMessage or sendTabMessage."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/hooks/useChangelogNotice.ts"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            },
+                            {
+                                "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
+                                "importNames": ["onBackgroundMessage", "onTabMessage"],
+                                "message": "UI hooks cannot register extension message listeners; use sendBackgroundMessage or sendTabMessage."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/layouts/**/*.{ts,tsx}"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            },
+                            {
+                                "regex": "^@wxt-dev/storage(?:/|$)",
+                                "message": "UI layouts must not import directly from @wxt-dev/storage; go through @hooks/* or @lib/*."
+                            },
+                            {
+                                "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
+                                "message": "UI layouts must not import directly from @/messaging; go through @hooks/* or @lib/*."
                             }
                         ]
                     }
@@ -224,6 +587,10 @@
                                 "message": "Node and Bun built-in modules cannot be imported in browser extension code."
                             },
                             {
+                                "regex": "^@webext-core/messaging(?:/|$)",
+                                "message": "Do not import @webext-core/messaging directly; use the typed context-scoped helpers from @/messaging."
+                            },
+                            {
                                 "regex": "^(?:@/db|(?:\\.\\./)+db)(?:\\.[cm]?[jt]sx?)?$",
                                 "allowTypeImports": true,
                                 "message": "UI code must not import values directly from db; go through @hooks/* or @lib/*."
@@ -231,12 +598,56 @@
                             {
                                 "regex": "^@wxt-dev/storage(?:/|$)",
                                 "message": "UI code must not import directly from @wxt-dev/storage; go through @hooks/* or @lib/*."
+                            },
+                            {
+                                "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
+                                "message": "UI code must not import directly from @/messaging; go through @hooks/* or @lib/*."
                             }
                         ]
                     }
                 ],
                 "no-restricted-properties": [
                     "error",
+                    {
+                        "object": "chrome",
+                        "property": "storage",
+                        "message": "Direct chrome.storage access is forbidden; use @wxt-dev/storage inside dedicated storage-owning modules."
+                    },
+                    {
+                        "object": "browser",
+                        "property": "storage",
+                        "message": "Direct browser.storage access is forbidden; use @wxt-dev/storage inside dedicated storage-owning modules."
+                    },
+                    {
+                        "object": "runtime",
+                        "property": "sendMessage",
+                        "message": "Direct runtime.sendMessage calls are forbidden; use typed context-scoped helpers from @/messaging."
+                    },
+                    {
+                        "object": "runtime",
+                        "property": "onMessage",
+                        "message": "Direct runtime.onMessage access is forbidden; use typed context-scoped helpers from @/messaging."
+                    },
+                    {
+                        "object": "runtime",
+                        "property": "connect",
+                        "message": "Direct runtime.connect calls are forbidden; use typed context-scoped helpers from @/messaging."
+                    },
+                    {
+                        "object": "runtime",
+                        "property": "onConnect",
+                        "message": "Direct runtime.onConnect access is forbidden; use typed context-scoped helpers from @/messaging."
+                    },
+                    {
+                        "object": "tabs",
+                        "property": "sendMessage",
+                        "message": "Direct tabs.sendMessage calls are forbidden; use sendTabMessage from @/messaging."
+                    },
+                    {
+                        "object": "tabs",
+                        "property": "connect",
+                        "message": "Direct tabs.connect calls are forbidden; use typed context-scoped helpers from @/messaging."
+                    },
                     {
                         "object": "React",
                         "property": "useEffect",
@@ -260,7 +671,9 @@
                 ],
                 "typescript/no-unsafe-type-assertion": "off",
                 "no-restricted-globals": "off",
-                "no-restricted-imports": "off"
+                "no-restricted-imports": "off",
+                "no-restricted-properties": "off",
+                "no-restricted-syntax": "off"
             }
         },
         {

@@ -2,8 +2,12 @@ import type { MediaEstimate } from "@app-types/platforms.types";
 import type { AddUsageMessage, EstimateMediaMessage } from "@app-types/types";
 import {
     defineExtensionMessaging,
+    type ExtensionMessage,
     type GetDataType,
     type GetReturnType,
+    type MaybePromise,
+    type Message,
+    type RemoveListenerCallback,
     type SendMessageOptions,
 } from "@webext-core/messaging";
 
@@ -25,23 +29,35 @@ type TabTarget = number | SendMessageOptions;
 
 const messenger = defineExtensionMessaging<ProtocolMap>();
 
-export function sendMessage<K extends keyof BackgroundProtocolMap>(
-    type: K,
-    data: GetDataType<BackgroundProtocolMap[K]>,
-): Promise<GetReturnType<BackgroundProtocolMap[K]>>;
-export function sendMessage<K extends keyof TabProtocolMap>(
-    type: K,
-    data: GetDataType<TabProtocolMap[K]>,
-    target: TabTarget,
-): Promise<GetReturnType<TabProtocolMap[K]>>;
-export function sendMessage<K extends keyof ProtocolMap>(
+export function sendBackgroundMessage<K extends keyof BackgroundProtocolMap>(
     type: K,
     data: GetDataType<ProtocolMap[K]>,
-    target?: TabTarget,
 ): Promise<GetReturnType<ProtocolMap[K]>> {
-    return target === undefined
-        ? messenger.sendMessage(type, data)
-        : messenger.sendMessage(type, data, target);
+    return messenger.sendMessage(type, data);
 }
 
-export const { onMessage } = messenger;
+export function onBackgroundMessage<K extends keyof BackgroundProtocolMap>(
+    type: K,
+    onReceived: (
+        message: Message<ProtocolMap, K> & ExtensionMessage,
+    ) => void | MaybePromise<GetReturnType<ProtocolMap[K]>>,
+): RemoveListenerCallback {
+    return messenger.onMessage(type, onReceived);
+}
+
+export function sendTabMessage<K extends keyof TabProtocolMap>(
+    type: K,
+    data: GetDataType<ProtocolMap[K]>,
+    target: TabTarget,
+): Promise<GetReturnType<ProtocolMap[K]>> {
+    return messenger.sendMessage(type, data, target);
+}
+
+export function onTabMessage<K extends keyof TabProtocolMap>(
+    type: K,
+    onReceived: (
+        message: Message<ProtocolMap, K> & ExtensionMessage,
+    ) => void | MaybePromise<GetReturnType<ProtocolMap[K]>>,
+): RemoveListenerCallback {
+    return messenger.onMessage(type, onReceived);
+}

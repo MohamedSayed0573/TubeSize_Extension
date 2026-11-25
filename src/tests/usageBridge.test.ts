@@ -3,7 +3,7 @@ import { afterEach, describe, expect, jest, test } from "bun:test";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
 import { parseWindowMessage, relayWindowMessage } from "@/entrypoints/usageBridge.content";
-import { onMessage } from "@/messaging";
+import { onBackgroundMessage } from "@/messaging";
 
 const cleanups: Array<() => void> = [];
 
@@ -68,7 +68,7 @@ describe("parseWindowMessage", () => {
 describe("relayWindowMessage", () => {
     test("does not throw or send messages on non-object or legacy watch-history payloads", async () => {
         const addUsageHandler = jest.fn(() => ({ success: true as const, data: null }));
-        cleanups.push(onMessage("addUsage", addUsageHandler));
+        cleanups.push(onBackgroundMessage("addUsage", addUsageHandler));
 
         expect(() => relayWindowMessage(null)).not.toThrow();
         expect(() => relayWindowMessage(undefined)).not.toThrow();
@@ -95,7 +95,7 @@ describe("relayWindowMessage", () => {
         const usageReceived: unknown[] = [];
 
         cleanups.push(
-            onMessage("addUsage", ({ data }) => {
+            onBackgroundMessage("addUsage", ({ data }) => {
                 usageReceived.push(data);
                 return { success: true, data: null };
             }),

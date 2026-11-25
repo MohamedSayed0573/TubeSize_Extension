@@ -21,18 +21,52 @@ interface BundleFileEntry {
     bytes: number;
 }
 
-interface BundleBuildReport {
+export interface BundleBuildReport {
     dir: string;
     totalBytes: number;
     fileCount: number;
     categories: Record<string, number>;
     largestFiles: BundleFileEntry[];
+    fileBytes: Record<string, number>;
 }
 
 export interface BundlePerfReport {
     chrome: BundleBuildReport | null;
     firefox: BundleBuildReport | null;
 }
+
+type BundleTarget = "chrome-mv3" | "firefox-mv3";
+
+interface BundleBudgetConfig {
+    readonly totalBytes: number;
+    readonly files: Readonly<Record<string, number>>;
+}
+
+interface BundleBudgetCheck {
+    target: BundleTarget;
+    metric: string;
+    actualBytes: number | null;
+    budgetBytes: number;
+    passed: boolean;
+    reason?: "missing-build" | "missing-file" | "over-budget";
+}
+
+export interface BundleBudgetEvaluation {
+    passed: boolean;
+    missingBuilds: BundleTarget[];
+    checks: BundleBudgetCheck[];
+    failures: BundleBudgetCheck[];
+}
+
+export const BUNDLE_BUDGETS = {
+    totalBytes: 3_200_000,
+    files: {
+        "background.js": 800_000,
+        "content-scripts/genericObserver.js": 10_000,
+        "content-scripts/usageBridge.js": 15_000,
+        "content-scripts/content.js": 75_000,
+    },
+} as const satisfies BundleBudgetConfig;
 
 interface PopupPerfSample {
     run: number;
@@ -181,12 +215,17 @@ function scanBuildDir(rootDir: string, buildDir: string): BundleBuildReport | nu
         categories[cat] = (categories[cat] ?? 0) + f.bytes;
     }
     const largestFiles = [...files].toSorted((a, b) => b.bytes - a.bytes).slice(0, 8);
+    const fileBytes: Record<string, number> = {};
+    for (const f of [...files].toSorted((a, b) => a.path.localeCompare(b.path))) {
+        fileBytes[f.path] = f.bytes;
+    }
     return {
         dir: relative(rootDir, buildDir).replaceAll("\\", "/"),
         totalBytes,
         fileCount: files.length,
         categories,
         largestFiles,
+        fileBytes,
     };
 }
 
@@ -194,6 +233,76 @@ export function measureBundle(rootDir: string): BundlePerfReport {
     return {
         chrome: scanBuildDir(rootDir, resolve(rootDir, ".output", "chrome-mv3")),
         firefox: scanBuildDir(rootDir, resolve(rootDir, ".output", "firefox-mv3")),
+    };
+}
+
+export function evaluateBundleBudgets(
+    report: BundlePerfReport,
+    budgets: BundleBudgetConfig = BUNDLE_BUDGETS,
+): BundleBudgetEvaluation {
+    const targets: ReadonlyArray<readonly [BundleTarget, BundleBuildReport | null]> = [
+        ["chrome-mv3", report.chrome],
+        ["firefox-mv3", report.firefox],
+    ];
+    const missingBuilds: BundleTarget[] = [];
+    const checks: BundleBudgetCheck[] = [];
+
+    for (const [target, build] of targets) {
+        if (!build) {
+            missingBuilds.push(target);
+            checks.push({
+                target,
+                metric: "total",
+                actualBytes: null,
+                budgetBytes: budgets.totalBytes,
+                passed: false,
+                reason: "missing-build",
+            });
+            continue;
+        }
+
+        const totalPassed = build.totalBytes <= budgets.totalBytes;
+        checks.push({
+            target,
+            metric: "total",
+            actualBytes: build.totalBytes,
+            budgetBytes: budgets.totalBytes,
+            passed: totalPassed,
+            ...(totalPassed ? {} : { reason: "over-budget" as const }),
+        });
+
+        for (const [filePath, budgetBytes] of Object.entries(budgets.files)) {
+            const actual = build.fileBytes[filePath];
+            if (typeof actual !== "number" || !Number.isFinite(actual)) {
+                checks.push({
+                    target,
+                    metric: filePath,
+                    actualBytes: null,
+                    budgetBytes,
+                    passed: false,
+                    reason: "missing-file",
+                });
+                continue;
+            }
+
+            const filePassed = actual <= budgetBytes;
+            checks.push({
+                target,
+                metric: filePath,
+                actualBytes: actual,
+                budgetBytes,
+                passed: filePassed,
+                ...(filePassed ? {} : { reason: "over-budget" as const }),
+            });
+        }
+    }
+
+    const failures = checks.filter((c) => !c.passed);
+    return {
+        passed: missingBuilds.length === 0 && failures.length === 0,
+        missingBuilds,
+        checks,
+        failures,
     };
 }
 

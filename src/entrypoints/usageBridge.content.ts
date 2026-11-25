@@ -1,7 +1,7 @@
 import type { UsageMessage } from "@app-types/types";
 import { defineContentScript } from "wxt/utils/define-content-script";
 
-import { sendMessage } from "@/messaging";
+import { sendBackgroundMessage } from "@/messaging";
 
 const MAX_USAGE_REPORT_BYTES = 1_000_000_000_000;
 
@@ -26,7 +26,7 @@ export function relayWindowMessage(data: unknown): void {
     const message = parseWindowMessage(data);
     if (!message) return;
 
-    void sendMessage("addUsage", {
+    void sendBackgroundMessage("addUsage", {
         bytes: message.bytes,
     }).catch((err: unknown) => {
         console.error("[usageBridge] Failed to record site usage", err);

@@ -5,7 +5,7 @@ import { getPlatformDisplayName, parsePlatformUrl } from "@lib/platformUrl";
 
 import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
-import { sendMessage } from "@/messaging";
+import { sendBackgroundMessage } from "@/messaging";
 
 export type EstimateMediaOptions = {
     html?: string;
@@ -37,7 +37,7 @@ export async function requestMediaEstimate(
         console.error("Failed to detect AV1 support", err);
     }
 
-    const response = await sendMessage("estimateMedia", {
+    const response = await sendBackgroundMessage("estimateMedia", {
         url,
         isFromPopup: options?.isFromPopup,
         html: options?.html,
