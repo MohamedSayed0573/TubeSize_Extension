@@ -3,10 +3,9 @@ import { afterEach, beforeEach, describe, expect, setSystemTime, test } from "bu
 import { toDateKey } from "@lib/dateUtils";
 import { toasterSuppressedDate } from "@lib/storage";
 
-import { youtubeAdapter } from "@/adapters/youtubeAdapter";
-import { showPlatformToast, unmountToast } from "@/entrypoints/content/toaster";
+import type { DisplayFormat } from "@/adapters/types";
+import { showToast, unmountToast } from "@/entrypoints/content/toaster";
 import { setLanguage } from "@/i18n/language";
-import type { YoutubeData } from "@/types/platforms.types";
 
 import { installDomEnv } from "./domEnv";
 
@@ -25,57 +24,41 @@ afterEach(async () => {
     cleanupDom = undefined;
 });
 
-const vodData: YoutubeData = {
-    platform: "youtube",
-    type: "vod",
-    title: "High Bitrate VOD",
-    durationSeconds: 3600,
-    thumbnailUrl: undefined,
-    channelName: "Creator",
-    channelUrl: undefined,
-    formats: [
-        {
-            type: "vod",
-            formatId: 313,
-            height: 2160,
-            sizeBytes: 900_000_000,
-            sizePerSecondBytes: 250_000,
-        },
-        {
-            type: "vod",
-            formatId: 136,
-            height: 720,
-            sizeBytes: 300_000_000,
-            sizePerSecondBytes: 83_333,
-        },
-    ],
-};
+const vodFormats: DisplayFormat[] = [
+    {
+        kind: "vod",
+        key: 313,
+        resolution: 2160,
+        sizeBytes: 900_000_000,
+        sizePerSecondBytes: 250_000,
+    },
+    {
+        kind: "vod",
+        key: 136,
+        resolution: 720,
+        sizeBytes: 300_000_000,
+        sizePerSecondBytes: 83_333,
+    },
+];
 
-const liveData: YoutubeData = {
-    platform: "youtube",
-    type: "live",
-    title: "High Bitrate Live",
-    channelName: "Streamer",
-    thumbnailUrl: undefined,
-    channelUrl: undefined,
-    formats: [
-        {
-            type: "live",
-            resolution: 1080,
-            sizePerSecondBytes: 250_000,
-        },
-    ],
-};
+const liveFormats: DisplayFormat[] = [
+    {
+        kind: "live",
+        key: 1080,
+        resolution: 1080,
+        sizePerSecondBytes: 250_000,
+    },
+];
 
-describe("showPlatformToast", () => {
+describe("showToast", () => {
     test("mounts total and hourly usage for VOD exceeding threshold and skips below threshold", async () => {
-        await showPlatformToast(youtubeAdapter, vodData, 720, 500);
+        await showToast({ formats: vodFormats, currentQuality: 720, thresholdMbph: 500 });
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
 
-        await showPlatformToast(youtubeAdapter, vodData, 480, 500);
+        await showToast({ formats: vodFormats, currentQuality: 480, thresholdMbph: 500 });
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
 
-        await showPlatformToast(youtubeAdapter, vodData, 2160, 500);
+        await showToast({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
         const host = document.querySelector("#TubeSize-Toast-Host");
         expect(host).not.toBeNull();
         expect(host?.textContent).toContain("Current Quality: 2160p");
@@ -87,7 +70,7 @@ describe("showPlatformToast", () => {
     test("renders hourly usage without total size on live streams and supports Arabic RTL", async () => {
         await setLanguage("ar");
 
-        await showPlatformToast(youtubeAdapter, liveData, 1080, 500);
+        await showToast({ formats: liveFormats, currentQuality: 1080, thresholdMbph: 500 });
         const host = document.querySelector("#TubeSize-Toast-Host");
         expect(host).not.toBeNull();
         expect(host?.querySelector(".container")?.getAttribute("dir")).toBe("rtl");
@@ -96,7 +79,13 @@ describe("showPlatformToast", () => {
     });
 
     test("OK button unmounts toast without suppressing future alerts on the same day", async () => {
-        await showPlatformToast(youtubeAdapter, vodData, 2160, 500);
+        const controller = new AbortController();
+        await showToast({
+            formats: vodFormats,
+            currentQuality: 2160,
+            thresholdMbph: 500,
+            signal: controller.signal,
+        });
         const okBtn = document.querySelector<HTMLButtonElement>(
             "#TubeSize-Toast-Host button.firstBtn",
         );
@@ -106,8 +95,16 @@ describe("showPlatformToast", () => {
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
         expect(await toasterSuppressedDate.getValue()).toBeNull();
 
-        await showPlatformToast(youtubeAdapter, vodData, 2160, 500);
+        await showToast({
+            formats: vodFormats,
+            currentQuality: 2160,
+            thresholdMbph: 500,
+            signal: controller.signal,
+        });
         expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+
+        controller.abort();
+        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
     });
 
     test("Don't show again persists today's DateKey and suppresses further toasts for that day", async () => {
@@ -115,7 +112,7 @@ describe("showPlatformToast", () => {
         expect(expectedDate).toBeDefined();
 
         setSystemTime(new Date(2026, 5, 4, 12, 0, 0));
-        await showPlatformToast(youtubeAdapter, vodData, 2160, 500);
+        await showToast({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
         const buttons = document.querySelectorAll<HTMLButtonElement>("#TubeSize-Toast-Host button");
         const suppressBtn = buttons[1];
         expect(suppressBtn?.textContent).toBe("Don't show again for today");
@@ -126,13 +123,26 @@ describe("showPlatformToast", () => {
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
         expect(await toasterSuppressedDate.getValue()).toBe(expectedDate!);
 
-        await showPlatformToast(youtubeAdapter, vodData, 2160, 500);
+        await showToast({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
     });
 
-    test("unmountToast cancels an in-flight showPlatformToast call", async () => {
-        const pending = showPlatformToast(youtubeAdapter, vodData, 2160, 500);
-        unmountToast();
+    test("does not leak suppression state across tests on the same calendar day", async () => {
+        setSystemTime(new Date(2026, 5, 4, 12, 0, 0));
+
+        await showToast({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
+        expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+    });
+
+    test("aborting signal cancels an in-flight showToast call", async () => {
+        const controller = new AbortController();
+        const pending = showToast({
+            formats: vodFormats,
+            currentQuality: 2160,
+            thresholdMbph: 500,
+            signal: controller.signal,
+        });
+        controller.abort();
         await pending;
 
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();

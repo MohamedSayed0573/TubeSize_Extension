@@ -3,7 +3,7 @@ import { defineContentScript } from "wxt/utils/define-content-script";
 import { initializeLanguage } from "@/i18n/language";
 import { onMessage } from "@/messaging";
 
-import { handlePageNavigation } from "./pageNavigation";
+import { createContentSession } from "./contentSession";
 import { getCurrentResolution } from "./resolution";
 
 export default defineContentScript({
@@ -27,9 +27,10 @@ export default defineContentScript({
             console.error("[content] Failed to initialize language; using browser default", err);
         }
 
-        void handlePageNavigation();
+        const session = createContentSession();
+        void session.navigate();
 
-        addEventListener("yt-navigate-finish", () => void handlePageNavigation());
+        addEventListener("yt-navigate-finish", () => void session.navigate());
 
         onMessage("getCurrentResolution", () => getCurrentResolution());
     },

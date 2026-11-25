@@ -1,8 +1,7 @@
-import type { PlatformId } from "@app-types/types";
 import { waitForElement } from "@lib/dom";
 import { formatDisplaySizes } from "@lib/format";
 
-import type { DisplayFormat, PlatformDataMap, ToastAdapter } from "@/adapters/types";
+import type { DisplayFormat } from "@/adapters/types";
 
 const SETTINGS_MENU_SELECTOR = ".ytp-settings-menu";
 const PANEL_MENU_SELECTOR = ".ytp-panel-menu";
@@ -11,43 +10,43 @@ const MENU_ITEM_LABEL_SELECTOR = ".ytp-menuitem-label";
 const TUBESIZE_QUALITY_MENU_CLASS = "tubesize-quality-menu-panel";
 const SETTINGS_WAIT_TIMEOUT = 5_000;
 
-let activeObserver: MutationObserver | undefined;
-let menuRequestId = 0;
-
 export function clearQualityMenu() {
-    menuRequestId++;
-    activeObserver?.disconnect();
-    activeObserver = undefined;
-
     for (const badge of document.querySelectorAll(`.${TUBESIZE_QUALITY_MENU_CLASS}`)) {
         badge.remove();
     }
 }
 
-export async function injectMenu<P extends PlatformId>(
-    adapter: ToastAdapter<P>,
-    data: PlatformDataMap[P],
-) {
-    clearQualityMenu();
-    const requestId = menuRequestId;
+export async function injectQualityMenu(
+    formats: readonly DisplayFormat[],
+    signal: AbortSignal,
+): Promise<void> {
+    if (signal.aborted) return;
 
     const settingsMenu = await waitForElement<HTMLElement>(SETTINGS_MENU_SELECTOR, {
         timeoutMs: SETTINGS_WAIT_TIMEOUT,
+        signal,
     });
-    if (!settingsMenu || requestId !== menuRequestId) return;
+    if (!settingsMenu || signal.aborted) return;
 
-    activeObserver?.disconnect();
-
-    const lookup = createQualitySizeLookup(adapter.formats(data));
+    const lookup = createQualitySizeLookup(formats);
 
     const observer = new MutationObserver(() => {
+        if (signal.aborted) return;
         const qualityMenu = settingsMenu.querySelector<HTMLElement>(QUALITY_MENU_BTN_SELECTOR);
         if (!qualityMenu) return;
 
         injectBadges(qualityMenu, lookup);
     });
 
-    activeObserver = observer;
+    signal.addEventListener(
+        "abort",
+        () => {
+            observer.disconnect();
+            clearQualityMenu();
+        },
+        { once: true },
+    );
+
     observer.observe(settingsMenu, { childList: true, subtree: true });
 
     const qualityMenu = settingsMenu.querySelector<HTMLElement>(QUALITY_MENU_BTN_SELECTOR);
@@ -93,7 +92,7 @@ function injectBadges(qualityMenu: HTMLElement, lookup: Map<number, string>) {
     }
 }
 
-function createQualitySizeLookup(formats: DisplayFormat[]) {
+function createQualitySizeLookup(formats: readonly DisplayFormat[]) {
     const lookup = new Map<number, string>();
     for (const format of formats) {
         const size = formatDisplaySizes(format).primary;

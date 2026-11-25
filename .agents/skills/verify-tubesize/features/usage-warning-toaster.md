@@ -34,7 +34,7 @@ Preconditions:
 
 ## Gotchas
 
-- `showPlatformToast` resolves the current video format strictly by matching `video.videoHeight === format.resolution`. Non-standard cropped aspect ratios whose HTML5 `videoHeight` differs from YouTube's nominal `qualityLabel` height (for example `546` vs `720`) will not match a format row; the fixture uses standard 16:9 heights (`360`, `480`, `720`, `1080`, `2160`).
-- Remember `src/entrypoints/content/toaster.ts` caches `suppressedDateCache` in module memory for the page lifetime AND reads `local:toasterSuppressedDate` — start a fresh session (`verify start`) when testing un-suppressed toast paths after clicking `Don't show again for today`.
-- On `fixture:twitch-live` and `fixture:kick-live`, `runPlatformPage` (`src/entrypoints/content/pageNavigation.ts`) passes `isFromPopup: false`, so the content-script toaster compares against Master M3U8 `BANDWIDTH` (`180 MB/hour` at `480p`, `1.8 GB/hour` at `1080p`) rather than segment sampling.
+- `showToast` resolves the current video format strictly by matching `video.videoHeight === format.resolution`. Non-standard cropped aspect ratios whose HTML5 `videoHeight` differs from YouTube's nominal `qualityLabel` height (for example `546` vs `720`) will not match a format row; the fixture uses standard 16:9 heights (`360`, `480`, `720`, `1080`, `2160`).
+- `local:toasterSuppressedDate` persists across page reloads in the same browser session — start a fresh session (`verify start`) when testing un-suppressed toast paths after clicking `Don't show again for today`.
+- On `fixture:twitch-live` and `fixture:kick-live`, `createContentSession` (`src/entrypoints/content/contentSession.ts`) passes `isFromPopup: false`, so the content-script toaster compares against Master M3U8 `BANDWIDTH` (`180 MB/hour` at `480p`, `1.8 GB/hour` at `1080p`) rather than segment sampling.
 - On YouTube, clicking `SPA navigate to Live` while the fixture video stays at `2160p` unmounts the old VOD toast and immediately mounts a new Live toast (`8.17 GB/hour`); navigate to `SPA navigate to Home` to assert `#TubeSize-Toast-Host --gone`.
