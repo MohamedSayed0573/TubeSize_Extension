@@ -1,9 +1,11 @@
-import type { DateKey, Origin, VideoKey } from "@app-types/types";
+import type { DateKey, Origin, PlatformId, VideoKey } from "@app-types/types";
 import { getDateKey } from "@lib/dateUtils";
 import { toVideoKey } from "@lib/platformUrl";
 import type { SiteUsage } from "@lib/schema";
 import { typedEntries } from "@lib/utils";
 import { Dexie, type Table } from "dexie";
+
+import type { VideoContentType } from "@/adapters/types";
 
 export type { SiteUsage };
 
@@ -12,36 +14,20 @@ export interface WatchHistory {
     videos: Record<VideoKey, number>;
 }
 
-interface BaseVideoMetadata {
+export interface VideoMetadata {
     videoKey: VideoKey;
+    type: PlatformId;
     title: string;
     channelName: string;
     channelUrl: string;
     thumbnailUrl: string;
+    contentType?: VideoContentType;
+    url?: string;
 }
 
-interface YoutubeMetadata extends BaseVideoMetadata {
-    type: "youtube";
-}
-
-interface TwitchMetadata extends BaseVideoMetadata {
-    type: "twitch";
-    contentType: "live" | "vod";
-    url: string;
-}
-
-interface KickMetadata extends BaseVideoMetadata {
-    type: "kick";
-    contentType: "live" | "vod";
-    url: string;
-}
-
-export type VideoMetadata = YoutubeMetadata | TwitchMetadata | KickMetadata;
-
-export type VideoMetadataInput =
-    | (Omit<YoutubeMetadata, "videoKey"> & { mediaId: string })
-    | (Omit<TwitchMetadata, "videoKey"> & { mediaId: string })
-    | (Omit<KickMetadata, "videoKey"> & { mediaId: string });
+export type VideoMetadataInput = Omit<VideoMetadata, "videoKey"> & {
+    mediaId: string;
+};
 
 class TubeSizeDatabase extends Dexie {
     siteUsage!: Table<SiteUsage, DateKey>;

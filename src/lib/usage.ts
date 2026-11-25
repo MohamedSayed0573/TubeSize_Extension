@@ -83,14 +83,6 @@ function sumOriginBytes(origins: Readonly<Record<Origin, number>>): number {
     return total;
 }
 
-function getVideoContentType(metadata: VideoMetadata | undefined): VideoContentType | undefined {
-    return metadata && "contentType" in metadata ? metadata.contentType : undefined;
-}
-
-function getVideoUrl(metadata: VideoMetadata | undefined): string | undefined {
-    return metadata && "url" in metadata && metadata.url ? metadata.url : undefined;
-}
-
 export function getUsageNumber(usage: readonly SiteUsage[] | undefined): number {
     if (!usage) return 0;
 
@@ -259,8 +251,8 @@ export async function getPlatformWatchReport(
                 channelName: videoMetadata?.channelName,
                 channelUrl: videoMetadata?.channelUrl,
                 thumbnailUrl: videoMetadata?.thumbnailUrl,
-                contentType: getVideoContentType(videoMetadata),
-                url: getVideoUrl(videoMetadata),
+                contentType: videoMetadata?.contentType,
+                url: videoMetadata?.url || undefined,
             };
         })
         .toSorted((a, b) => b.usage - a.usage);
