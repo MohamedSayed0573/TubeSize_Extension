@@ -1,11 +1,9 @@
 import type { AddUsageMessage, AddWatchHistoryMessage } from "@app-types/types";
 import { toOrigin } from "@lib/domain";
-import { getKickLiveData, getKickVodData } from "@lib/kick";
-import { getTwitchLiveData, getTwitchVodData } from "@lib/twitch";
-import { getYoutubeData } from "@lib/youtube";
 
 import { onMessage, type BackgroundResponse } from "@/messaging";
 
+import { estimateMedia } from "./estimateMedia";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 function isValidUsageBytes(usage: unknown): usage is number {
@@ -66,11 +64,7 @@ export function attachMessageHandler(
     ingestion: UsageIngestion = createUsageIngestion(),
 ): () => void {
     const unsubscribers = [
-        onMessage("youtubeVideo", ({ data }) => toBackgroundResponse(() => getYoutubeData(data))),
-        onMessage("twitchVod", ({ data }) => toBackgroundResponse(() => getTwitchVodData(data))),
-        onMessage("twitchLive", ({ data }) => toBackgroundResponse(() => getTwitchLiveData(data))),
-        onMessage("kickVod", ({ data }) => toBackgroundResponse(() => getKickVodData(data))),
-        onMessage("kickLive", ({ data }) => toBackgroundResponse(() => getKickLiveData(data))),
+        onMessage("estimateMedia", ({ data }) => toBackgroundResponse(() => estimateMedia(data))),
         onMessage("addUsage", ({ data, sender }) =>
             toBackgroundResponse(() => recordUsageFromTab(ingestion, data, sender), {
                 logError: true,

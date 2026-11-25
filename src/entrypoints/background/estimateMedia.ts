@@ -1,0 +1,60 @@
+import type { MediaEstimate } from "@app-types/platforms.types";
+import type { EstimateMediaMessage, PlatformId } from "@app-types/types";
+import { estimateKick } from "@lib/kick";
+import { parsePlatformUrl, type ParsedPlatformMedia } from "@lib/platformUrl";
+import { estimateTwitch } from "@lib/twitch";
+import { estimateYoutube } from "@lib/youtube";
+
+type EstimateContext = {
+    isFromPopup: boolean;
+    html?: string;
+    av1Supported?: boolean;
+};
+
+type PlatformEstimator<P extends PlatformId> = (
+    media: Extract<ParsedPlatformMedia, { platform: P }>,
+    context: EstimateContext,
+) => Promise<MediaEstimate>;
+
+const PLATFORM_ESTIMATORS: { readonly [P in PlatformId]: PlatformEstimator<P> } = {
+    youtube: estimateYoutube,
+    twitch: estimateTwitch,
+    kick: estimateKick,
+};
+
+function dispatchEstimate(
+    media: ParsedPlatformMedia,
+    context: EstimateContext,
+): Promise<MediaEstimate> {
+    switch (media.platform) {
+        case "youtube":
+            return PLATFORM_ESTIMATORS.youtube(media, context);
+        case "twitch":
+            return PLATFORM_ESTIMATORS.twitch(media, context);
+        case "kick":
+            return PLATFORM_ESTIMATORS.kick(media, context);
+        default: {
+            const exhaustive: never = media;
+            return exhaustive;
+        }
+    }
+}
+
+export async function estimateMedia(message: EstimateMediaMessage): Promise<MediaEstimate> {
+    const parsed = parsePlatformUrl(message.url);
+    if (parsed?.kind !== "media") {
+        throw new Error("Unsupported or non-media URL");
+    }
+
+    const estimate = await dispatchEstimate(parsed, {
+        isFromPopup: message.isFromPopup ?? true,
+        html: message.html,
+        av1Supported: message.av1Supported,
+    });
+
+    if (estimate.formats.length === 0) {
+        throw new Error("No video formats found for this video");
+    }
+
+    return estimate;
+}

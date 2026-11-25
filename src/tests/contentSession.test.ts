@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { KickLiveData, TwitchLiveData, YoutubeData } from "@app-types/platforms.types";
-import type { KickLiveMessage, TwitchLiveMessage, YoutubeMessage } from "@app-types/types";
+import type {
+    LiveMediaEstimate,
+    MediaEstimate,
+    VodMediaEstimate,
+} from "@app-types/platforms.types";
+import type { EstimateMediaMessage } from "@app-types/types";
 import { saveSettings } from "@lib/settings";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 
@@ -67,65 +71,61 @@ async function waitForCondition(predicate: () => boolean, maxAttempts = 100): Pr
     expect(predicate()).toBe(true);
 }
 
-const HIGH_BITRATE_VOD: YoutubeData = {
+const HIGH_BITRATE_VOD: VodMediaEstimate = {
     platform: "youtube",
-    type: "vod",
+    contentType: "vod",
     title: "High Bitrate VOD",
     durationSeconds: 3600,
-    thumbnailUrl: undefined,
     channelName: "Creator",
-    channelUrl: undefined,
     formats: [
         {
-            type: "vod",
+            kind: "vod",
             formatId: 313,
-            height: 2160,
+            resolution: 2160,
             sizeBytes: 900_000_000,
             sizePerSecondBytes: 250_000,
         },
         {
-            type: "vod",
+            kind: "vod",
             formatId: 137,
-            height: 1080,
+            resolution: 1080,
             sizeBytes: 180_000_000,
             sizePerSecondBytes: 50_000,
         },
     ],
 };
 
-const SECOND_YOUTUBE_VOD: YoutubeData = {
+const SECOND_YOUTUBE_VOD: VodMediaEstimate = {
     platform: "youtube",
-    type: "vod",
+    contentType: "vod",
     title: "Second VOD",
     durationSeconds: 3600,
-    thumbnailUrl: undefined,
     channelName: "Creator 2",
-    channelUrl: undefined,
     formats: [
         {
-            type: "vod",
+            kind: "vod",
             formatId: 313,
-            height: 2160,
+            resolution: 2160,
             sizeBytes: 720_000_000,
             sizePerSecondBytes: 200_000,
         },
     ],
 };
 
-const SAMPLE_TWITCH_LIVE: TwitchLiveData = {
+const SAMPLE_TWITCH_LIVE: LiveMediaEstimate = {
     platform: "twitch",
-    type: "live",
+    contentType: "live",
     channelName: "shroud",
     channelUrl: "https://www.twitch.tv/shroud",
-    data: [{ type: "live", resolution: 1080, sizePerSecondBytes: 500_000 }],
+    formats: [{ kind: "live", resolution: 1080, sizePerSecondBytes: 500_000 }],
 };
 
-const SAMPLE_KICK_LIVE: KickLiveData = {
+const SAMPLE_KICK_LIVE: LiveMediaEstimate = {
     platform: "kick",
-    type: "live",
+    contentType: "live",
     channelName: "xqc",
     channelUrl: "https://kick.com/xqc",
-    data: [{ type: "live", resolution: 1080, sizePerSecondBytes: 500_000 }],
+    formats: [{ kind: "live", resolution: 1080, sizePerSecondBytes: 500_000 }],
 };
 
 beforeEach(async () => {
@@ -147,9 +147,9 @@ afterEach(async () => {
 
 describe("createContentSession", () => {
     test("scrapes ytInitialPlayerResponse only on initial load, injects quality menu badges, and mounts toast", async () => {
-        const requests: YoutubeMessage[] = [];
+        const requests: EstimateMediaMessage[] = [];
         messageCleanups.push(
-            onMessage("youtubeVideo", ({ data }) => {
+            onMessage("estimateMedia", ({ data }) => {
                 requests.push(data);
                 return {
                     success: true,
@@ -168,7 +168,7 @@ describe("createContentSession", () => {
         await waitForCondition(() => document.querySelector("#TubeSize-Toast-Host") !== null);
 
         expect(requests).toHaveLength(1);
-        expect(requests[0]?.mediaId).toBe("I82j7AzMU80");
+        expect(requests[0]?.url).toBe("https://www.youtube.com/watch?v=I82j7AzMU80");
         expect(requests[0]?.html).toContain("ytInitialPlayerResponse");
         expect(
             [...document.querySelectorAll(".tubesize-quality-menu-panel")].map(
@@ -185,7 +185,7 @@ describe("createContentSession", () => {
         );
 
         expect(requests).toHaveLength(2);
-        expect(requests[1]?.mediaId).toBe("dQw4w9WgXcQ");
+        expect(requests[1]?.url).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
         expect(requests[1]?.html).toBeUndefined();
         expect(
             [...document.querySelectorAll(".tubesize-quality-menu-panel")].map(
@@ -197,7 +197,7 @@ describe("createContentSession", () => {
     test("skips toaster when toasterEnabled is false while still injecting YouTube quality menu", async () => {
         await saveSettings({ toasterEnabled: false });
         messageCleanups.push(
-            onMessage("youtubeVideo", () => ({
+            onMessage("estimateMedia", () => ({
                 success: true,
                 data: HIGH_BITRATE_VOD,
             })),
@@ -218,7 +218,7 @@ describe("createContentSession", () => {
     test("clears toast, quality menu badges, and resize tracking when navigating to a non-video page", async () => {
         let requestCount = 0;
         messageCleanups.push(
-            onMessage("youtubeVideo", () => {
+            onMessage("estimateMedia", () => {
                 requestCount++;
                 return { success: true, data: HIGH_BITRATE_VOD };
             }),
@@ -246,10 +246,10 @@ describe("createContentSession", () => {
     });
 
     test("cancels stale in-flight navigation when a newer navigation supersedes it", async () => {
-        let resolveFirst: ((value: { success: true; data: YoutubeData }) => void) | undefined;
+        let resolveFirst: ((value: { success: true; data: MediaEstimate }) => void) | undefined;
 
         messageCleanups.push(
-            onMessage("youtubeVideo", () => {
+            onMessage("estimateMedia", () => {
                 return new Promise((resolve) => {
                     resolveFirst = resolve;
                 });
@@ -273,16 +273,14 @@ describe("createContentSession", () => {
     });
 
     test("passes isFromPopup=false for Twitch and Kick live pages and shows live toasts without quality menu injection", async () => {
-        const twitchRequests: TwitchLiveMessage[] = [];
-        const kickRequests: KickLiveMessage[] = [];
+        const requests: EstimateMediaMessage[] = [];
         messageCleanups.push(
-            onMessage("twitchLive", ({ data }) => {
-                twitchRequests.push(data);
-                return { success: true, data: SAMPLE_TWITCH_LIVE };
-            }),
-            onMessage("kickLive", ({ data }) => {
-                kickRequests.push(data);
-                return { success: true, data: SAMPLE_KICK_LIVE };
+            onMessage("estimateMedia", ({ data }) => {
+                requests.push(data);
+                return {
+                    success: true,
+                    data: data.url.includes("twitch.tv") ? SAMPLE_TWITCH_LIVE : SAMPLE_KICK_LIVE,
+                };
             }),
         );
 
@@ -291,7 +289,10 @@ describe("createContentSession", () => {
         await session!.navigate("https://www.twitch.tv/shroud");
         await waitForCondition(() => document.querySelector("#TubeSize-Toast-Host") !== null);
 
-        expect(twitchRequests).toEqual([{ channelName: "shroud", isFromPopup: false }]);
+        expect(requests[0]).toMatchObject({
+            url: "https://www.twitch.tv/shroud",
+            isFromPopup: false,
+        });
         expect(document.querySelector("#TubeSize-Toast-Host")?.textContent).toContain(
             "1.8 GB/hour",
         );
@@ -303,7 +304,10 @@ describe("createContentSession", () => {
         await session!.navigate("https://kick.com/xqc");
         await waitForCondition(() => document.querySelector("#TubeSize-Toast-Host") !== null);
 
-        expect(kickRequests).toEqual([{ channelName: "xqc", isFromPopup: false }]);
+        expect(requests[1]).toMatchObject({
+            url: "https://kick.com/xqc",
+            isFromPopup: false,
+        });
         expect(document.querySelector("#TubeSize-Toast-Host")?.textContent).toContain(
             "1.8 GB/hour",
         );
@@ -311,38 +315,44 @@ describe("createContentSession", () => {
     });
 
     test("handles SPA transitions across non-media and media routes on Twitch and Kick", async () => {
-        const twitchRequests: TwitchLiveMessage[] = [];
-        const kickRequests: KickLiveMessage[] = [];
+        const requests: EstimateMediaMessage[] = [];
         messageCleanups.push(
-            onMessage("twitchLive", ({ data }) => {
-                twitchRequests.push(data);
-                return { success: true, data: SAMPLE_TWITCH_LIVE };
-            }),
-            onMessage("kickLive", ({ data }) => {
-                kickRequests.push(data);
-                return { success: true, data: SAMPLE_KICK_LIVE };
+            onMessage("estimateMedia", ({ data }) => {
+                requests.push(data);
+                return {
+                    success: true,
+                    data: data.url.includes("twitch.tv") ? SAMPLE_TWITCH_LIVE : SAMPLE_KICK_LIVE,
+                };
             }),
         );
 
         document.body.append(createVideo(1080));
 
         await session!.navigate("https://www.twitch.tv/directory");
-        expect(twitchRequests).toHaveLength(0);
+        expect(requests).toHaveLength(0);
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
 
         await session!.navigate("https://www.twitch.tv/shroud");
         await waitForCondition(() => document.querySelector("#TubeSize-Toast-Host") !== null);
-        expect(twitchRequests).toEqual([{ channelName: "shroud", isFromPopup: false }]);
+        expect(requests).toHaveLength(1);
+        expect(requests[0]).toMatchObject({
+            url: "https://www.twitch.tv/shroud",
+            isFromPopup: false,
+        });
 
         await session!.navigate("https://www.twitch.tv/directory");
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
 
         await session!.navigate("https://kick.com/browse");
-        expect(kickRequests).toHaveLength(0);
+        expect(requests).toHaveLength(1);
 
         await session!.navigate("https://kick.com/xqc");
         await waitForCondition(() => document.querySelector("#TubeSize-Toast-Host") !== null);
-        expect(kickRequests).toEqual([{ channelName: "xqc", isFromPopup: false }]);
+        expect(requests).toHaveLength(2);
+        expect(requests[1]).toMatchObject({
+            url: "https://kick.com/xqc",
+            isFromPopup: false,
+        });
     });
 });
 
@@ -422,19 +432,14 @@ function createFakeContentScriptContext() {
 
 describe("content script entrypoint", () => {
     test("forwards path/search wxt:locationchange events, skips hash-only changes, and cleans up on invalidation", async () => {
-        const twitchRequests: TwitchLiveMessage[] = [];
-        const youtubeRequests: YoutubeMessage[] = [];
+        const requests: EstimateMediaMessage[] = [];
         messageCleanups.push(
-            onMessage("twitchLive", ({ data }) => {
-                twitchRequests.push(data);
-                return { success: true, data: SAMPLE_TWITCH_LIVE };
-            }),
-            onMessage("youtubeVideo", ({ data }) => {
-                youtubeRequests.push(data);
-                return {
-                    success: true,
-                    data: youtubeRequests.length === 1 ? HIGH_BITRATE_VOD : SECOND_YOUTUBE_VOD,
-                };
+            onMessage("estimateMedia", ({ data }) => {
+                requests.push(data);
+                if (data.url.includes("twitch.tv")) {
+                    return { success: true, data: SAMPLE_TWITCH_LIVE };
+                }
+                return { success: true, data: HIGH_BITRATE_VOD };
             }),
         );
 
@@ -444,30 +449,33 @@ describe("content script entrypoint", () => {
         const { ctx, invalidate } = createFakeContentScriptContext();
         try {
             await contentScript.main(ctx);
-            expect(youtubeRequests).toHaveLength(0);
-            expect(twitchRequests).toHaveLength(0);
+            expect(requests).toHaveLength(0);
 
             dispatchLocationChange(
                 "https://www.twitch.tv/directory",
                 "https://www.twitch.tv/shroud",
             );
             await waitForCondition(() => document.querySelector("#TubeSize-Toast-Host") !== null);
-            expect(twitchRequests).toEqual([{ channelName: "shroud", isFromPopup: false }]);
+            expect(requests).toHaveLength(1);
+            expect(requests[0]).toMatchObject({
+                url: "https://www.twitch.tv/shroud",
+                isFromPopup: false,
+            });
 
             dispatchLocationChange(
                 "https://www.twitch.tv/shroud",
                 "https://www.twitch.tv/shroud#chat",
             );
             await new Promise((resolve) => setTimeout(resolve, 20));
-            expect(twitchRequests).toHaveLength(1);
+            expect(requests).toHaveLength(1);
             expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
 
             dispatchLocationChange(
                 "https://www.youtube.com/watch?v=I82j7AzMU80",
                 "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             );
-            await waitForCondition(() => youtubeRequests.length === 1);
-            expect(youtubeRequests[0]?.mediaId).toBe("dQw4w9WgXcQ");
+            await waitForCondition(() => requests.length === 2);
+            expect(requests[1]?.url).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
 
             invalidate();
             expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
@@ -477,7 +485,7 @@ describe("content script entrypoint", () => {
                 "https://www.twitch.tv/shroud",
             );
             await new Promise((resolve) => setTimeout(resolve, 20));
-            expect(twitchRequests).toHaveLength(1);
+            expect(requests).toHaveLength(2);
         } finally {
             invalidate();
         }

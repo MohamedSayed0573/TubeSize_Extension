@@ -155,17 +155,25 @@
         "message": "مباشر",
         "description": "Live badge"
     },
-    "popup_youtubeVideo": {
-        "message": "فيديو يوتيوب",
-        "description": "Fallback title for YouTube video"
+    "popup_platformVideo": {
+        "message": "فيديو $1",
+        "description": "Fallback title for a platform video",
+        "placeholders": {
+            "platform": {
+                "content": "$1",
+                "example": "YouTube"
+            }
+        }
     },
-    "popup_youtubeLive": {
-        "message": "بث يوتيوب مباشر",
-        "description": "Fallback title for YouTube live"
-    },
-    "popup_twitchVideo": {
-        "message": "فيديو تويتش",
-        "description": "Fallback title for Twitch video"
+    "popup_platformLive": {
+        "message": "بث $1 مباشر",
+        "description": "Fallback title for a platform live stream",
+        "placeholders": {
+            "platform": {
+                "content": "$1",
+                "example": "YouTube"
+            }
+        }
     },
     "popup_usageTrackingEnabled": {
         "message": "تتبع الاستهلاك مفعّل.",

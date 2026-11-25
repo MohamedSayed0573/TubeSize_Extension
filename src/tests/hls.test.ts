@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { resolveHlsStreams } from "@lib/hls";
+import { resolveHlsStreams, toVodFormats } from "@lib/hls";
 import type { FetchLike } from "@lib/utils";
 
 const MASTER_URL = "https://cdn.example.com/master.m3u8";
@@ -56,8 +56,8 @@ describe("resolveHlsStreams", () => {
         });
 
         expect(streams).toEqual([
-            { type: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
-            { type: "live", resolution: 480, sizePerSecondBytes: 200_000 },
+            { kind: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
+            { kind: "live", resolution: 480, sizePerSecondBytes: 200_000 },
         ]);
         expect(requestedUrls).toEqual([MASTER_URL]);
     });
@@ -136,8 +136,8 @@ describe("resolveHlsStreams", () => {
         });
 
         expect(result).toEqual([
-            { type: "live", resolution: 1080, sizePerSecondBytes: 600_000 },
-            { type: "live", resolution: 480, sizePerSecondBytes: 200_000 },
+            { kind: "live", resolution: 1080, sizePerSecondBytes: 600_000 },
+            { kind: "live", resolution: 480, sizePerSecondBytes: 200_000 },
         ]);
         expect(playlistFetches).toEqual([
             "https://cdn.example.com/480p.m3u8",
@@ -175,7 +175,7 @@ describe("resolveHlsStreams", () => {
             sleep: instantSleep,
         });
 
-        expect(result).toEqual([{ type: "live", resolution: 720, sizePerSecondBytes: 400_000 }]);
+        expect(result).toEqual([{ kind: "live", resolution: 720, sizePerSecondBytes: 400_000 }]);
         expect(probedUrls).toHaveLength(10);
         expect(probedUrls.some((url) => url.includes("ad-0"))).toBe(false);
         expect(probedUrls.some((url) => url.includes("seg-10"))).toBe(false);
@@ -207,8 +207,8 @@ describe("resolveHlsStreams", () => {
         });
 
         expect(result).toEqual([
-            { type: "live", resolution: 1080, sizePerSecondBytes: 600_000 },
-            { type: "live", resolution: 720, sizePerSecondBytes: 300_000 },
+            { kind: "live", resolution: 1080, sizePerSecondBytes: 600_000 },
+            { kind: "live", resolution: 720, sizePerSecondBytes: 300_000 },
         ]);
         expect(requestedUrls.some((url) => url.endsWith(".ts"))).toBe(false);
     });
@@ -245,8 +245,8 @@ describe("resolveHlsStreams", () => {
         });
 
         expect(result).toEqual([
-            { type: "live", resolution: 1080, sizePerSecondBytes: 1_000_000 },
-            { type: "live", resolution: 720, sizePerSecondBytes: 350_000 },
+            { kind: "live", resolution: 1080, sizePerSecondBytes: 1_000_000 },
+            { kind: "live", resolution: 720, sizePerSecondBytes: 350_000 },
         ]);
     });
 
@@ -278,8 +278,35 @@ describe("resolveHlsStreams", () => {
         });
 
         expect(result).toEqual([
-            { type: "live", resolution: 720, sizePerSecondBytes: 500_000 },
-            { type: "live", resolution: 480, sizePerSecondBytes: 200_000 },
+            { kind: "live", resolution: 720, sizePerSecondBytes: 500_000 },
+            { kind: "live", resolution: 480, sizePerSecondBytes: 200_000 },
+        ]);
+    });
+});
+
+describe("toVodFormats", () => {
+    test("computes rounded total VOD byte sizes from live HLS rates and duration", () => {
+        expect(
+            toVodFormats(
+                [
+                    { kind: "live", resolution: 1080, sizePerSecondBytes: 500_000.4 },
+                    { kind: "live", resolution: 720, sizePerSecondBytes: 250_000 },
+                ],
+                300,
+            ),
+        ).toEqual([
+            {
+                kind: "vod",
+                resolution: 1080,
+                sizeBytes: 150_000_120,
+                sizePerSecondBytes: 500_000.4,
+            },
+            {
+                kind: "vod",
+                resolution: 720,
+                sizeBytes: 75_000_000,
+                sizePerSecondBytes: 250_000,
+            },
         ]);
     });
 });

@@ -1,9 +1,8 @@
+import type { DisplayFormat } from "@app-types/platforms.types";
 import type { DateKey } from "@app-types/types";
 import { getDateKey } from "@lib/dateUtils";
 import { megabytesPerHour } from "@lib/format";
 import { storage } from "@wxt-dev/storage";
-
-import type { DisplayFormat } from "@/adapters/types";
 
 import { createToast } from "./toast";
 

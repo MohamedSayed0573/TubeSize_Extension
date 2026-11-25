@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, setSystemTime, test } from "bun:test";
 
+import type { DisplayFormat } from "@app-types/platforms.types";
 import { toDateKey } from "@lib/dateUtils";
 import { storage } from "@wxt-dev/storage";
 
-import type { DisplayFormat } from "@/adapters/types";
 import { createToaster, unmountToast } from "@/entrypoints/content/toaster";
 import { setLanguage } from "@/i18n/language";
 

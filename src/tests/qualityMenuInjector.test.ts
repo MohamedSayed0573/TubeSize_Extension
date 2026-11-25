@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { DisplayFormat } from "@/adapters/types";
+import type { DisplayFormat } from "@app-types/platforms.types";
+
 import { clearQualityMenu, injectQualityMenu } from "@/entrypoints/content/qualityMenuInjector";
 
 import { installDomEnv } from "./domEnv";

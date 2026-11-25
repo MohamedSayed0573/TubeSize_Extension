@@ -26,96 +26,53 @@ export type AudioStreamInfo = {
     itags: AudioItag[];
 };
 
-export type YoutubeVideoFormat = {
-    type: "vod";
-    formatId: number;
-    height: number;
-    sizeBytes: number;
+type MediaFormatBase = {
+    resolution: number;
     sizePerSecondBytes: number;
     codec?: VideoCodec;
+    formatId?: number;
     fps?: number;
     itags?: VideoItag[];
 };
 
-type YoutubeVodData = {
-    platform: "youtube";
-    type: "vod";
-    formats: YoutubeVideoFormat[];
-    title: string;
+export type VodMediaFormat = MediaFormatBase & {
+    kind: "vod";
+    sizeBytes: number;
+};
+
+export type LiveMediaFormat = MediaFormatBase & {
+    kind: "live";
+};
+
+export type DisplayFormat =
+    | (VodMediaFormat & {
+          key: string | number;
+          hideRate?: boolean;
+      })
+    | (LiveMediaFormat & {
+          key: string | number;
+          hideRate?: boolean;
+      });
+
+type MediaEstimateBase = {
+    platform: PlatformId;
+    title?: string;
+    channelName?: string;
+    channelUrl?: string;
+    thumbnailUrl?: string;
+    audio?: AudioStreamInfo;
+};
+
+export type VodMediaEstimate = MediaEstimateBase & {
+    contentType: "vod";
+    formats: VodMediaFormat[];
     durationSeconds: number;
     isShorts?: boolean;
-    thumbnailUrl: string | undefined;
-    channelName: string | undefined;
-    channelUrl: string | undefined;
-    audio?: AudioStreamInfo;
 };
 
-type YoutubeLiveData = {
-    platform: "youtube";
-    type: "live";
-    formats: StreamInfo[];
-    title: string;
-    channelName: string;
-    thumbnailUrl: string | undefined;
-    channelUrl: string | undefined;
-    audio?: AudioStreamInfo;
+export type LiveMediaEstimate = MediaEstimateBase & {
+    contentType: "live";
+    formats: LiveMediaFormat[];
 };
 
-export type YoutubeData = YoutubeVodData | YoutubeLiveData;
-
-export type StreamInfo = {
-    type: "live";
-    sizePerSecondBytes: number;
-    resolution: number;
-    formatId?: number;
-    codec?: VideoCodec;
-    fps?: number;
-    itags?: VideoItag[];
-};
-
-export type TwitchLiveData = {
-    platform: "twitch";
-    type: "live";
-    data: StreamInfo[];
-    channelName: string;
-    channelUrl: string;
-};
-export type TwitchVodData = {
-    platform: "twitch";
-    type: "vod";
-    data: StreamInfo[];
-    mediaId: string;
-    durationSeconds: number;
-    channelName: string | undefined;
-    channelUrl: string | undefined;
-};
-
-export type TwitchData = TwitchLiveData | TwitchVodData;
-
-export type KickLiveData = {
-    platform: "kick";
-    type: "live";
-    data: StreamInfo[];
-    channelName: string;
-    channelUrl: string;
-};
-
-export type KickVodData = {
-    platform: "kick";
-    type: "vod";
-    data: StreamInfo[];
-    mediaId: string;
-    channelName: string | undefined;
-    durationSeconds: number;
-    channelUrl: string | undefined;
-};
-
-export type KickData = KickLiveData | KickVodData;
-
-export type PlatformDataMap = {
-    youtube: YoutubeData;
-    twitch: TwitchData;
-    kick: KickData;
-};
-
-export type PlatformData = PlatformDataMap[PlatformId];
+export type MediaEstimate = VodMediaEstimate | LiveMediaEstimate;

@@ -2,13 +2,12 @@ import type {
     AudioCodec,
     AudioItag,
     AudioStreamInfo,
-    StreamInfo,
+    LiveMediaFormat,
+    MediaEstimate,
     VideoCodec,
     VideoItag,
-    YoutubeData,
-    YoutubeVideoFormat,
+    VodMediaFormat,
 } from "@app-types/platforms.types";
-import type { YoutubeMessage } from "@app-types/types";
 import { getCachedAv1Support } from "@lib/codecSupport";
 import CONFIG from "@lib/constants";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
@@ -76,17 +75,22 @@ type ChosenVideoFormat = {
 export function parseVideoFormats(
     data: ytInitialPlayerResponse,
     av1Supported?: boolean,
-): { formats: YoutubeVideoFormat[]; audio?: AudioStreamInfo } {
+): { formats: VodMediaFormat[]; audio?: AudioStreamInfo } {
     const audio = parseAudio(data);
     const durationSeconds = Number(data.videoDetails.lengthSeconds || "0");
 
-    const formats = chooseVideoFormats(data, av1Supported)
+    const formats: VodMediaFormat[] = chooseVideoFormats(data, av1Supported)
         .map((format) => ({
-            type: "vod" as const,
-            ...format,
+            kind: "vod" as const,
+            resolution: format.height,
+            formatId: format.formatId,
+            sizeBytes: format.sizeBytes,
             sizePerSecondBytes: durationSeconds > 0 ? format.sizeBytes / durationSeconds : 0,
+            codec: format.codec,
+            fps: format.fps,
+            itags: format.itags,
         }))
-        .toSorted((a, b) => b.height - a.height);
+        .toSorted((a, b) => b.resolution - a.resolution);
 
     return { formats, audio };
 }
@@ -94,12 +98,12 @@ export function parseVideoFormats(
 export function parseLiveFormats(
     data: ytInitialPlayerResponse,
     av1Supported?: boolean,
-): { formats: StreamInfo[]; audio?: AudioStreamInfo } {
+): { formats: LiveMediaFormat[]; audio?: AudioStreamInfo } {
     const audio = parseAudio(data);
 
-    const formats = chooseVideoFormats(data, av1Supported)
+    const formats: LiveMediaFormat[] = chooseVideoFormats(data, av1Supported)
         .map((format) => ({
-            type: "live" as const,
+            kind: "live" as const,
             resolution: format.height,
             sizePerSecondBytes: format.sizeBytes / 3600,
             formatId: format.formatId,
@@ -358,23 +362,33 @@ function getThumbnailUrl(data: ytInitialPlayerResponse): string | undefined {
     return data.videoDetails.thumbnail.thumbnails.toSorted((a, b) => b.width - a.width)[0]?.url;
 }
 
-export async function getYoutubeData(message: YoutubeMessage): Promise<YoutubeData> {
-    const { mediaId, html } = message;
+function applyYoutubeShortsFlag(estimate: MediaEstimate, isShorts: boolean): MediaEstimate {
+    if (estimate.contentType === "vod" && isShorts) {
+        return { ...estimate, isShorts: true };
+    }
+    return estimate;
+}
+
+export async function estimateYoutube(
+    media: ParsedYoutubeMedia,
+    context: { html?: string; av1Supported?: boolean } = {},
+): Promise<MediaEstimate> {
+    const { mediaId } = media;
     if (!mediaId) {
         throw new Error("No media ID provided");
     }
 
     const cached = await getMediaCache("youtube", mediaId);
     if (cached) {
-        return cached;
+        return applyYoutubeShortsFlag(cached, media.isShorts);
     }
 
-    const ytInitialPlayerResponse = await extractYtInitialResponse(mediaId, html);
+    const ytInitialPlayerResponse = await extractYtInitialResponse(mediaId, context.html);
     const { videoDetails, microformat } = ytInitialPlayerResponse;
     const { author: channelName, title, isLive } = videoDetails;
     const channelUrl = microformat?.playerMicroformatRenderer.ownerProfileUrl;
 
-    const baseData = {
+    const baseEstimate = {
         platform: "youtube" as const,
         title,
         channelName,
@@ -382,28 +396,27 @@ export async function getYoutubeData(message: YoutubeMessage): Promise<YoutubeDa
         channelUrl,
     };
 
-    let data: YoutubeData;
+    let estimate: MediaEstimate;
     if (isLive) {
-        const { formats, audio } = parseLiveFormats(ytInitialPlayerResponse, message.av1Supported);
-        data = { ...baseData, type: "live", formats, audio };
+        const { formats, audio } = parseLiveFormats(ytInitialPlayerResponse, context.av1Supported);
+        estimate = { ...baseEstimate, contentType: "live", formats, audio };
     } else {
-        const { formats, audio } = parseVideoFormats(ytInitialPlayerResponse, message.av1Supported);
-        data = {
-            ...baseData,
-            type: "vod" as const,
+        const { formats, audio } = parseVideoFormats(ytInitialPlayerResponse, context.av1Supported);
+        estimate = {
+            ...baseEstimate,
+            contentType: "vod",
             durationSeconds: Number(videoDetails.lengthSeconds),
             formats,
             audio,
         };
     }
 
-    await saveMediaCache("youtube", mediaId, data, isLive ? CONFIG.LIVE_CACHE_TTL : undefined);
-    return data;
+    await saveMediaCache("youtube", mediaId, estimate, isLive ? CONFIG.LIVE_CACHE_TTL : undefined);
+    return applyYoutubeShortsFlag(estimate, media.isShorts);
 }
 
 export async function fetchYoutubeMetadata(media: ParsedYoutubeMedia): Promise<VideoMetadataInput> {
-    const data = await getYoutubeData({
-        mediaId: media.mediaId,
+    const data = await estimateYoutube(media, {
         av1Supported: await getCachedAv1Support(),
     });
 

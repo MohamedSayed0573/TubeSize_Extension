@@ -1,18 +1,8 @@
-import type {
-    KickLiveData,
-    KickVodData,
-    TwitchLiveData,
-    TwitchVodData,
-    YoutubeData,
-} from "@app-types/platforms.types";
+import type { MediaEstimate } from "@app-types/platforms.types";
 import type {
     AddUsageMessage,
     AddWatchHistoryMessage,
-    KickLiveMessage,
-    KickVodMessage,
-    TwitchLiveMessage,
-    TwitchVodMessage,
-    YoutubeMessage,
+    EstimateMediaMessage,
 } from "@app-types/types";
 import {
     defineExtensionMessaging,
@@ -26,11 +16,7 @@ export type BackgroundResponse<T> =
     | { success: false; message: string };
 
 interface BackgroundProtocolMap {
-    youtubeVideo(data: YoutubeMessage): BackgroundResponse<YoutubeData>;
-    twitchVod(data: TwitchVodMessage): BackgroundResponse<TwitchVodData>;
-    twitchLive(data: TwitchLiveMessage): BackgroundResponse<TwitchLiveData>;
-    kickVod(data: KickVodMessage): BackgroundResponse<KickVodData>;
-    kickLive(data: KickLiveMessage): BackgroundResponse<KickLiveData>;
+    estimateMedia(data: EstimateMediaMessage): BackgroundResponse<MediaEstimate>;
     addUsage(data: AddUsageMessage): BackgroundResponse<null>;
     addWatchHistory(data: AddWatchHistoryMessage): BackgroundResponse<null>;
 }

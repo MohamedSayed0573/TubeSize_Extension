@@ -1,7 +1,7 @@
+import type { DisplayFormat } from "@app-types/platforms.types";
 import { formatDisplaySizes } from "@lib/format";
 import { cn } from "@lib/utils";
 
-import type { DisplayFormat } from "@/adapters/types";
 import { t } from "@/i18n/t";
 
 import SizeColumn from "./sizeColumn";

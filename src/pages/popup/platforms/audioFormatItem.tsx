@@ -1,3 +1,4 @@
+import type { AudioStreamInfo, DisplayFormat } from "@app-types/platforms.types";
 import {
     audioDisplaySizes,
     formatAudioCodec,
@@ -8,7 +9,6 @@ import {
 import { cn } from "@lib/utils";
 import { AudioLines } from "lucide-react";
 
-import type { AudioStreamInfo, DisplayFormat } from "@/adapters/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { t } from "@/i18n/t";
 

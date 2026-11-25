@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { getMediaCache } from "@lib/mediaCache";
 import type { ParsedTwitchMedia } from "@lib/platformUrl";
-import { fetchTwitchMetadata, getTwitchLiveData, getTwitchVodData } from "@lib/twitch";
+import { estimateTwitch, fetchTwitchMetadata } from "@lib/twitch";
 
 const cleanups: Array<() => void> = [];
 
@@ -52,7 +52,7 @@ afterEach(() => {
     while (cleanups.length > 0) cleanups.pop()?.();
 });
 
-describe("getTwitchLiveData", () => {
+describe("estimateTwitch (live)", () => {
     test("extracts client ID from Twitch HTML, posts live GQL variables, and uses BANDWIDTH for non-popup requests", async () => {
         const twitchHtml = readAsset("twitch.html");
         let gqlHeaders: HeadersInit | undefined;
@@ -87,19 +87,25 @@ describe("getTwitchLiveData", () => {
             return new Response("Not found", { status: 404 });
         });
 
-        const data = await getTwitchLiveData({
-            channelName: "hivise",
-            isFromPopup: false,
-        });
+        const data = await estimateTwitch(
+            {
+                kind: "media",
+                platform: "twitch",
+                contentType: "live",
+                mediaId: "hivise",
+                channelName: "hivise",
+            },
+            { isFromPopup: false },
+        );
 
         expect(data).toEqual({
             platform: "twitch",
-            type: "live",
+            contentType: "live",
             channelName: "hivise",
             channelUrl: "https://www.twitch.tv/hivise",
-            data: [
-                { type: "live", resolution: 720, sizePerSecondBytes: 325_302.25 },
-                { type: "live", resolution: 480, sizePerSecondBytes: 203_427.25 },
+            formats: [
+                { kind: "live", resolution: 720, sizePerSecondBytes: 325_302.25 },
+                { kind: "live", resolution: 480, sizePerSecondBytes: 203_427.25 },
             ],
         });
         expect(gqlHeaders).toEqual({
@@ -154,17 +160,23 @@ describe("getTwitchLiveData", () => {
             return new Response("Not found", { status: 404 });
         });
 
-        const data = await getTwitchLiveData({
-            channelName: "hivise",
-            isFromPopup: true,
-        });
+        const data = await estimateTwitch(
+            {
+                kind: "media",
+                platform: "twitch",
+                contentType: "live",
+                mediaId: "hivise",
+                channelName: "hivise",
+            },
+            { isFromPopup: true },
+        );
 
         expect(data).toEqual({
             platform: "twitch",
-            type: "live",
+            contentType: "live",
             channelName: "hivise",
             channelUrl: "https://www.twitch.tv/hivise",
-            data: [{ type: "live", resolution: 720, sizePerSecondBytes: 500_000 }],
+            formats: [{ kind: "live", resolution: 720, sizePerSecondBytes: 500_000 }],
         });
     });
 
@@ -172,10 +184,18 @@ describe("getTwitchLiveData", () => {
         const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
         cleanups.push(() => consoleErrorSpy.mockRestore());
 
+        const offlineMedia: ParsedTwitchMedia = {
+            kind: "media",
+            platform: "twitch",
+            contentType: "live",
+            mediaId: "offline",
+            channelName: "offline",
+        };
+
         stubFetch(async () => new Response("<html>offline</html>", { status: 200 }));
-        await expect(
-            getTwitchLiveData({ channelName: "offline", isFromPopup: false }),
-        ).rejects.toThrow("Failed to extract client ID from Twitch page");
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toThrow(
+            "Failed to extract client ID from Twitch page",
+        );
 
         stubFetch(async (input) => {
             if (input.toString() === "https://www.twitch.tv/offline") {
@@ -183,13 +203,13 @@ describe("getTwitchLiveData", () => {
             }
             return Response.json({ data: {} });
         });
-        await expect(
-            getTwitchLiveData({ channelName: "offline", isFromPopup: false }),
-        ).rejects.toThrow("Failed to get stream playback access token");
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toThrow(
+            "Failed to get stream playback access token",
+        );
     });
 });
 
-describe("getTwitchVodData", () => {
+describe("estimateTwitch (vod)", () => {
     test("fetches VOD token and master M3U8, caches the result, and serves cache hits without fetching", async () => {
         let gqlVariables: Record<string, unknown> | undefined;
         let usherUrl: string | undefined;
@@ -222,18 +242,32 @@ describe("getTwitchVodData", () => {
             return new Response("Not found", { status: 404 });
         });
 
-        const first = await getTwitchVodData({ mediaId: "2748008198" });
+        const vodMedia: ParsedTwitchMedia = {
+            kind: "media",
+            platform: "twitch",
+            contentType: "vod",
+            mediaId: "2748008198",
+        };
+
+        const first = await estimateTwitch(vodMedia);
 
         expect(first).toEqual({
             platform: "twitch",
-            type: "vod",
-            mediaId: "2748008198",
+            contentType: "vod",
             durationSeconds: 3600,
-            channelName: undefined,
-            channelUrl: undefined,
-            data: [
-                { type: "live", resolution: 720, sizePerSecondBytes: 325_302.25 },
-                { type: "live", resolution: 480, sizePerSecondBytes: 203_427.25 },
+            formats: [
+                {
+                    kind: "vod",
+                    resolution: 720,
+                    sizeBytes: Math.round(325_302.25 * 3600),
+                    sizePerSecondBytes: 325_302.25,
+                },
+                {
+                    kind: "vod",
+                    resolution: 480,
+                    sizeBytes: Math.round(203_427.25 * 3600),
+                    sizePerSecondBytes: 203_427.25,
+                },
             ],
         });
         expect(gqlVariables).toEqual({
@@ -249,7 +283,7 @@ describe("getTwitchVodData", () => {
         );
 
         fetchSpy.mockClear();
-        const second = await getTwitchVodData({ mediaId: "2748008198" });
+        const second = await estimateTwitch(vodMedia);
         expect(second).toEqual(first);
         expect(fetchSpy).not.toHaveBeenCalled();
     });
@@ -265,9 +299,14 @@ describe("getTwitchVodData", () => {
                 },
             });
         });
-        await expect(getTwitchVodData({ mediaId: "1111" })).rejects.toThrow(
-            "Failed to get Twitch VOD duration",
-        );
+        await expect(
+            estimateTwitch({
+                kind: "media",
+                platform: "twitch",
+                contentType: "vod",
+                mediaId: "1111",
+            }),
+        ).rejects.toThrow("Failed to get Twitch VOD duration");
 
         stubFetch(async (input) => {
             const url = input.toString();
@@ -284,9 +323,14 @@ describe("getTwitchVodData", () => {
             }
             return new Response("#EXTM3U\n", { status: 200 });
         });
-        await expect(getTwitchVodData({ mediaId: "2222" })).rejects.toThrow(
-            "No playlists found in master M3U8",
-        );
+        await expect(
+            estimateTwitch({
+                kind: "media",
+                platform: "twitch",
+                contentType: "vod",
+                mediaId: "2222",
+            }),
+        ).rejects.toThrow("No playlists found in master M3U8");
     });
 });
 

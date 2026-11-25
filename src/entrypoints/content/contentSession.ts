@@ -1,7 +1,6 @@
+import { projectEstimateFormats, requestMediaEstimate } from "@lib/mediaEstimate";
 import { parsePlatformUrl } from "@lib/platformUrl";
 import { getSettings } from "@lib/settings";
-
-import { loadPlatformFormats } from "@/adapters/registry";
 
 import { CONTENT_PLATFORM_HOOKS, type ContentPlatformHooks } from "./platformHooks";
 import { trackResolutionChanges } from "./resolution";
@@ -50,13 +49,14 @@ export function createContentSession(): ContentSession {
             const hooks = CONTENT_PLATFORM_HOOKS[parsed.platform];
             activeHooks = hooks;
 
-            const formats = await loadPlatformFormats(parsed.platform, url, {
+            const estimate = await requestMediaEstimate(url, {
                 isFromPopup: false,
                 ...hooks?.getLoadOptions?.({ isInitialLoad }),
             });
 
             if (signal.aborted) return;
 
+            const formats = projectEstimateFormats(estimate);
             hooks?.onFormatsLoaded?.(formats, signal);
 
             const { toasterEnabled, toasterThreshold } = await getSettings();

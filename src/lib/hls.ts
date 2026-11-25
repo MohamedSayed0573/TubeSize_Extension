@@ -1,4 +1,4 @@
-import type { StreamInfo } from "@app-types/platforms.types";
+import type { LiveMediaFormat, VodMediaFormat } from "@app-types/platforms.types";
 import CONFIG from "@lib/constants";
 import { fetchAndRetry, type FetchLike } from "@lib/utils";
 import { Parser, type Manifest, type PlaylistItem } from "m3u8-parser";
@@ -22,8 +22,8 @@ function parseM3u8(m3u8Text: string): Manifest {
     return parser.manifest;
 }
 
-function extractBandwidthStreams(playlists: PlaylistItem[]): StreamInfo[] {
-    const streams: StreamInfo[] = [];
+function extractBandwidthStreams(playlists: PlaylistItem[]): LiveMediaFormat[] {
+    const streams: LiveMediaFormat[] = [];
 
     for (const item of playlists) {
         const height = item.attributes.RESOLUTION?.height;
@@ -31,7 +31,7 @@ function extractBandwidthStreams(playlists: PlaylistItem[]): StreamInfo[] {
         if (!height || !bandwidth) continue;
 
         streams.push({
-            type: "live",
+            kind: "live",
             resolution: height,
             sizePerSecondBytes: bandwidth / 8,
         });
@@ -147,7 +147,7 @@ async function sampleHlsStreams(
     playlists: PlaylistItem[],
     fetchFn: FetchLike,
     sleep?: (ms: number) => Promise<void>,
-): Promise<StreamInfo[]> {
+): Promise<LiveMediaFormat[]> {
     const mediaUrls = mediaPlaylistUrlByHeight(playlists);
     const firstEntry = mediaUrls.entries().next().value;
     if (!firstEntry) {
@@ -161,7 +161,7 @@ async function sampleHlsStreams(
     }
 
     const streams = await Promise.all(
-        [...mediaUrls].map(async ([height, url]): Promise<StreamInfo> => {
+        [...mediaUrls].map(async ([height, url]): Promise<LiveMediaFormat> => {
             try {
                 const manifest =
                     height === firstHeight
@@ -170,7 +170,7 @@ async function sampleHlsStreams(
                 const sampledRate = await sampleVariantBytesPerSecond(manifest, fetchFn);
 
                 return {
-                    type: "live",
+                    kind: "live",
                     resolution: height,
                     sizePerSecondBytes:
                         sampledRate > 0
@@ -179,7 +179,7 @@ async function sampleHlsStreams(
                 };
             } catch {
                 return {
-                    type: "live",
+                    kind: "live",
                     resolution: height,
                     sizePerSecondBytes: bandwidthFallbackForHeight(playlists, height),
                 };
@@ -193,7 +193,7 @@ async function sampleHlsStreams(
 export async function resolveHlsStreams(
     masterUrl: string | URL,
     options: ResolveHlsOptions = {},
-): Promise<StreamInfo[]> {
+): Promise<LiveMediaFormat[]> {
     const fetchFn = options.fetch ?? defaultFetch;
     const masterRes = await fetchAndRetry(masterUrl, {}, undefined, options.sleep, fetchFn);
     if (!masterRes.success) {
@@ -208,4 +208,16 @@ export async function resolveHlsStreams(
     return options.sampleSegments
         ? sampleHlsStreams(playlists, fetchFn, options.sleep)
         : extractBandwidthStreams(playlists);
+}
+
+export function toVodFormats(
+    streams: readonly LiveMediaFormat[],
+    durationSeconds: number,
+): VodMediaFormat[] {
+    return streams.map((stream) => ({
+        kind: "vod",
+        resolution: stream.resolution,
+        sizeBytes: Math.round(stream.sizePerSecondBytes * durationSeconds),
+        sizePerSecondBytes: stream.sizePerSecondBytes,
+    }));
 }

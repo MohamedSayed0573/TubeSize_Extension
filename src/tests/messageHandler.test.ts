@@ -94,26 +94,41 @@ afterEach(async () => {
 });
 
 describe("attachMessageHandler RPC seam", () => {
-    test("routes youtubeVideo through the RPC envelope for success and errors", async () => {
+    test("routes YouTube URLs through estimateMedia for success, Shorts, and invalid URLs", async () => {
         ensureMessageHandlersAttached();
         const html = `<script>var ytInitialPlayerResponse = ${readAsset("ytInitialPlayerResponse.json")};</script>`;
 
-        const ok = await sendMessage("youtubeVideo", { mediaId: "I82j7AzMU80", html });
+        const ok = await sendMessage("estimateMedia", {
+            url: "https://www.youtube.com/watch?v=I82j7AzMU80",
+            html,
+        });
         expect(ok.success).toBe(true);
         if (ok.success) {
             expect(ok.data.platform).toBe("youtube");
-            expect(ok.data.type).toBe("vod");
+            expect(ok.data.contentType).toBe("vod");
             expect(ok.data.title).toBe("How does Claude Code *actually* work?");
+            expect(ok.data.contentType === "vod" && ok.data.isShorts).toBeFalsy();
         }
 
-        const bad = await sendMessage("youtubeVideo", { mediaId: "", html });
+        const shorts = await sendMessage("estimateMedia", {
+            url: "https://www.youtube.com/shorts/I82j7AzMU80",
+        });
+        expect(shorts.success).toBe(true);
+        if (shorts.success) {
+            expect(shorts.data.contentType === "vod" && shorts.data.isShorts).toBe(true);
+        }
+
+        const bad = await sendMessage("estimateMedia", {
+            url: "https://www.youtube.com/",
+            html,
+        });
         expect(bad).toEqual({
             success: false,
-            message: "No media ID provided",
+            message: "Unsupported or non-media URL",
         });
     });
 
-    test("routes twitchLive end-to-end for BANDWIDTH and popup HLS sampling and wraps errors", async () => {
+    test("routes Twitch live URLs through estimateMedia for BANDWIDTH and popup HLS sampling and wraps errors", async () => {
         ensureMessageHandlersAttached();
 
         const requestedUrls: string[] = [];
@@ -151,46 +166,46 @@ describe("attachMessageHandler RPC seam", () => {
             return new Response("Not found", { status: 404 });
         });
 
-        const bandwidthRes = await sendMessage("twitchLive", {
-            channelName: "shroud",
+        const bandwidthRes = await sendMessage("estimateMedia", {
+            url: "https://www.twitch.tv/shroud",
             isFromPopup: false,
         });
         expect(bandwidthRes).toEqual({
             success: true,
             data: {
                 platform: "twitch",
-                type: "live",
+                contentType: "live",
                 channelName: "shroud",
                 channelUrl: "https://www.twitch.tv/shroud",
-                data: [
-                    { type: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
-                    { type: "live", resolution: 720, sizePerSecondBytes: 300_000 },
+                formats: [
+                    { kind: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
+                    { kind: "live", resolution: 720, sizePerSecondBytes: 300_000 },
                 ],
             },
         });
         expect(requestedUrls.some((url) => url.endsWith(".ts"))).toBe(false);
 
-        const sampledRes = await sendMessage("twitchLive", {
-            channelName: "shroud",
+        const sampledRes = await sendMessage("estimateMedia", {
+            url: "https://www.twitch.tv/shroud",
             isFromPopup: true,
         });
         expect(sampledRes).toEqual({
             success: true,
             data: {
                 platform: "twitch",
-                type: "live",
+                contentType: "live",
                 channelName: "shroud",
                 channelUrl: "https://www.twitch.tv/shroud",
-                data: [
-                    { type: "live", resolution: 1080, sizePerSecondBytes: 500_000 },
-                    { type: "live", resolution: 720, sizePerSecondBytes: 500_000 },
+                formats: [
+                    { kind: "live", resolution: 1080, sizePerSecondBytes: 500_000 },
+                    { kind: "live", resolution: 720, sizePerSecondBytes: 500_000 },
                 ],
             },
         });
 
         stubFetch(async () => new Response("<html>no client id</html>", { status: 200 }));
-        const errRes = await sendMessage("twitchLive", {
-            channelName: "offline",
+        const errRes = await sendMessage("estimateMedia", {
+            url: "https://www.twitch.tv/offline",
             isFromPopup: false,
         });
         expect(errRes).toEqual({
@@ -199,7 +214,7 @@ describe("attachMessageHandler RPC seam", () => {
         });
     });
 
-    test("routes twitchVod end-to-end with caching and error wrapping", async () => {
+    test("routes Twitch VOD URLs through estimateMedia with caching and error wrapping", async () => {
         ensureMessageHandlersAttached();
 
         const fetchSpy = stubFetch(async (input) => {
@@ -224,26 +239,37 @@ describe("attachMessageHandler RPC seam", () => {
             return new Response("Not found", { status: 404 });
         });
 
-        const first = await sendMessage("twitchVod", { mediaId: "2748008198" });
+        const first = await sendMessage("estimateMedia", {
+            url: "https://www.twitch.tv/videos/2748008198",
+        });
         expect(first).toEqual({
             success: true,
             data: {
                 platform: "twitch",
-                type: "vod",
-                mediaId: "2748008198",
+                contentType: "vod",
                 durationSeconds: 1800,
-                channelName: undefined,
-                channelUrl: undefined,
-                data: [
-                    { type: "live", resolution: 1080, sizePerSecondBytes: 800_000 },
-                    { type: "live", resolution: 720, sizePerSecondBytes: 300_000 },
+                formats: [
+                    {
+                        kind: "vod",
+                        resolution: 1080,
+                        sizeBytes: 1_440_000_000,
+                        sizePerSecondBytes: 800_000,
+                    },
+                    {
+                        kind: "vod",
+                        resolution: 720,
+                        sizeBytes: 540_000_000,
+                        sizePerSecondBytes: 300_000,
+                    },
                 ],
             },
         });
         expect(await getMediaCache("twitch", "2748008198")).not.toBeNull();
 
         fetchSpy.mockClear();
-        const second = await sendMessage("twitchVod", { mediaId: "2748008198" });
+        const second = await sendMessage("estimateMedia", {
+            url: "https://www.twitch.tv/videos/2748008198",
+        });
         expect(second.success).toBe(true);
         if (first.success && second.success) {
             expect(second.data).toEqual(first.data);
@@ -261,14 +287,16 @@ describe("attachMessageHandler RPC seam", () => {
                 },
             });
         });
-        const missingDuration = await sendMessage("twitchVod", { mediaId: "9999" });
+        const missingDuration = await sendMessage("estimateMedia", {
+            url: "https://www.twitch.tv/videos/9999",
+        });
         expect(missingDuration).toEqual({
             success: false,
             message: "Failed to get Twitch VOD duration",
         });
     });
 
-    test("routes kickLive and kickVod through the RPC envelope for success and errors", async () => {
+    test("routes Kick live and VOD URLs through estimateMedia for success and errors", async () => {
         ensureMessageHandlersAttached();
 
         stubFetch(async (input) => {
@@ -293,28 +321,34 @@ describe("attachMessageHandler RPC seam", () => {
             return new Response("Not found", { status: 404 });
         });
 
-        const live = await sendMessage("kickLive", { channelName: "xqc", isFromPopup: false });
+        const live = await sendMessage("estimateMedia", {
+            url: "https://kick.com/xqc",
+            isFromPopup: false,
+        });
         expect(live.success).toBe(true);
         if (live.success) {
-            expect(live.data).toMatchObject({ platform: "kick", type: "live", channelName: "xqc" });
+            expect(live.data).toMatchObject({
+                platform: "kick",
+                contentType: "live",
+                channelName: "xqc",
+            });
         }
 
-        const vod = await sendMessage("kickVod", {
-            mediaId: "12345678-1234-1234-1234-123456789abc",
-            channelName: "xqc",
+        const vod = await sendMessage("estimateMedia", {
+            url: "https://kick.com/xqc/videos/12345678-1234-1234-1234-123456789abc",
         });
         expect(vod.success).toBe(true);
         if (vod.success) {
             expect(vod.data).toMatchObject({
                 platform: "kick",
-                type: "vod",
+                contentType: "vod",
                 durationSeconds: 120,
             });
         }
 
         stubFetch(async () => new Response("<html>offline</html>", { status: 200 }));
-        const liveErr = await sendMessage("kickLive", {
-            channelName: "offline",
+        const liveErr = await sendMessage("estimateMedia", {
+            url: "https://kick.com/offline",
             isFromPopup: false,
         });
         expect(liveErr).toEqual({

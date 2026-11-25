@@ -1,8 +1,8 @@
-import type { PlatformId } from "@app-types/types";
+import type { MediaEstimate } from "@app-types/platforms.types";
 import Spinner from "@components/spinner";
 import useSettings from "@hooks/useSettings";
+import { projectEstimateFormats } from "@lib/mediaEstimate";
 
-import type { PlatformAdapter, PlatformDataMap } from "@/adapters/types";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,13 +14,7 @@ import AdvancedFormatItem from "./advancedFormatItem";
 import AudioFormatItem from "./audioFormatItem";
 import FormatItem from "./formatItem";
 
-export default function FormatView<P extends PlatformId>({
-    adapter,
-    data,
-}: {
-    adapter: PlatformAdapter<P>;
-    data: PlatformDataMap[P];
-}) {
+export default function FormatView({ estimate }: { estimate: MediaEstimate }) {
     const { data: tabData } = useTab();
     const { currentQuality } = useCurrentQuality(tabData?.tabId);
     const { query, updateSettingsMutation } = useSettings();
@@ -31,9 +25,9 @@ export default function FormatView<P extends PlatformId>({
 
     const { advancedView, includeAudio } = query.data;
 
-    const audio = adapter.audio?.(data);
+    const { audio } = estimate;
     const showAudioControls = advancedView && audio !== undefined;
-    const formats = adapter.formats(data, {
+    const formats = projectEstimateFormats(estimate, {
         includeAudio: advancedView ? includeAudio : true,
     });
 

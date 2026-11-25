@@ -1,11 +1,11 @@
+import type { DisplayFormat } from "@app-types/platforms.types";
 import type { PlatformId } from "@app-types/types";
-
-import type { DisplayFormat, LoadPlatformOptions } from "@/adapters/types";
+import type { EstimateMediaOptions } from "@lib/mediaEstimate";
 
 import { clearQualityMenu, injectQualityMenu } from "./qualityMenuInjector";
 
 export type ContentPlatformHooks = {
-    getLoadOptions?: (context: { isInitialLoad: boolean }) => Pick<LoadPlatformOptions, "html">;
+    getLoadOptions?: (context: { isInitialLoad: boolean }) => Pick<EstimateMediaOptions, "html">;
     onFormatsLoaded?: (formats: readonly DisplayFormat[], signal: AbortSignal) => void;
     onDispose?: () => void;
 };

@@ -1,7 +1,6 @@
+import type { DisplayFormat } from "@app-types/platforms.types";
 import { waitForElement } from "@lib/dom";
 import { formatDisplaySizes } from "@lib/format";
-
-import type { DisplayFormat } from "@/adapters/types";
 
 const SETTINGS_MENU_SELECTOR = ".ytp-settings-menu";
 const PANEL_MENU_SELECTOR = ".ytp-panel-menu";

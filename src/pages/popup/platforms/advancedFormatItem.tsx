@@ -1,7 +1,7 @@
+import type { DisplayFormat } from "@app-types/platforms.types";
 import { formatCodec, formatDisplaySizes } from "@lib/format";
 import { cn } from "@lib/utils";
 
-import type { DisplayFormat } from "@/adapters/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { t } from "@/i18n/t";
 

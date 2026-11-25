@@ -1,6 +1,9 @@
-import type { KickLiveData, KickVodData } from "@app-types/platforms.types";
-import type { KickLiveMessage, KickVodMessage } from "@app-types/types";
-import { resolveHlsStreams } from "@lib/hls";
+import type {
+    LiveMediaEstimate,
+    MediaEstimate,
+    VodMediaEstimate,
+} from "@app-types/platforms.types";
+import { resolveHlsStreams, toVodFormats } from "@lib/hls";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
 import { isKickVideoUuid, type ParsedKickMedia } from "@lib/platformUrl";
 import { fetchAndRetry, type PageHtmlFetcher } from "@lib/utils";
@@ -105,24 +108,27 @@ async function getKickLiveMasterM3u8Url(streamId: string): Promise<string> {
     return m3u8Url;
 }
 
-export async function getKickLiveData(message: KickLiveMessage): Promise<KickLiveData> {
-    const html = await getKickHtml(`https://kick.com/${message.channelName}`);
+async function estimateKickLive(
+    channelName: string,
+    isFromPopup: boolean,
+): Promise<LiveMediaEstimate> {
+    const html = await getKickHtml(`https://kick.com/${channelName}`);
     const streamId = getKickStreamId(html);
     if (!streamId) {
         throw new Error("Failed to extract stream ID from the page");
     }
 
     const masterM3u8Url = await getKickLiveMasterM3u8Url(streamId);
-    const kickData = await resolveHlsStreams(masterM3u8Url, {
-        sampleSegments: message.isFromPopup,
+    const formats = await resolveHlsStreams(masterM3u8Url, {
+        sampleSegments: isFromPopup,
     });
 
     return {
         platform: "kick",
-        type: "live",
-        data: kickData,
-        channelName: message.channelName,
-        channelUrl: `https://kick.com/${message.channelName}`,
+        contentType: "live",
+        formats,
+        channelName,
+        channelUrl: `https://kick.com/${channelName}`,
     };
 }
 
@@ -168,32 +174,44 @@ async function findKickVodInChannelVideos(channelName: string, mediaId: string) 
     return { source: video.source, durationMs: video.duration };
 }
 
-export async function getKickVodData(message: KickVodMessage): Promise<KickVodData> {
-    const cached = await getMediaCache("kick", message.mediaId);
-    if (cached?.type === "vod") {
+async function estimateKickVod(mediaId: string, channelName: string): Promise<VodMediaEstimate> {
+    const cached = await getMediaCache("kick", mediaId);
+    if (cached?.contentType === "vod") {
         return cached;
     }
 
-    const { source, durationMs } = isKickVideoUuid(message.mediaId)
-        ? await getKickVodByUuid(message.mediaId)
-        : await findKickVodInChannelVideos(message.channelName, message.mediaId);
+    const { source, durationMs } = isKickVideoUuid(mediaId)
+        ? await getKickVodByUuid(mediaId)
+        : await findKickVodInChannelVideos(channelName, mediaId);
 
     if (!Number.isFinite(durationMs) || durationMs <= 0) {
         throw new Error("Kick VOD duration not found");
     }
 
-    const data: KickVodData = {
-        platform: "kick",
-        type: "vod",
-        data: await resolveHlsStreams(source),
-        mediaId: message.mediaId,
-        channelName: message.channelName,
-        channelUrl: `https://kick.com/${message.channelName}`,
-        durationSeconds: Math.round(durationMs / 1000),
-    };
-    await saveMediaCache("kick", message.mediaId, data);
+    const durationSeconds = Math.round(durationMs / 1000);
+    const streams = await resolveHlsStreams(source);
 
-    return data;
+    const estimate: VodMediaEstimate = {
+        platform: "kick",
+        contentType: "vod",
+        title: channelName,
+        channelName,
+        channelUrl: `https://kick.com/${channelName}`,
+        durationSeconds,
+        formats: toVodFormats(streams, durationSeconds),
+    };
+    await saveMediaCache("kick", mediaId, estimate);
+
+    return estimate;
+}
+
+export function estimateKick(
+    media: ParsedKickMedia,
+    context: { isFromPopup?: boolean } = {},
+): Promise<MediaEstimate> {
+    return media.contentType === "vod"
+        ? estimateKickVod(media.mediaId, media.channelName)
+        : estimateKickLive(media.channelName, context.isFromPopup ?? true);
 }
 
 async function fetchKickPageMeta(
