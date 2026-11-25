@@ -9,6 +9,7 @@ import { createUsageIngestion } from "@/entrypoints/background/usageIngestion";
 import {
     type CompletedRequestDetails,
     isCountableRequest,
+    setupTrackUsage,
     trackRequest,
 } from "@/entrypoints/background/usageTracker";
 
@@ -383,5 +384,111 @@ describe("trackRequest", () => {
         expect(ingestion.hasPendingUsage).toBe(false);
         expect(await getAllSiteUsage()).toEqual([]);
         expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+});
+
+function stubWebRequestCompleted() {
+    const listeners = new Set<(details: CompletedRequestDetails) => void>();
+    const addSpy = spyOn(chrome.webRequest.onCompleted, "addListener").mockImplementation(
+        (listener) => {
+            listeners.add(listener);
+        },
+    );
+    const removeSpy = spyOn(chrome.webRequest.onCompleted, "removeListener").mockImplementation(
+        (listener) => {
+            listeners.delete(listener);
+        },
+    );
+    cleanups.push(() => {
+        addSpy.mockRestore();
+        removeSpy.mockRestore();
+    });
+    return {
+        emit: (details: CompletedRequestDetails) => {
+            for (const listener of listeners) listener(details);
+        },
+        listenerCount: () => listeners.size,
+    };
+}
+
+describe("setupTrackUsage", () => {
+    test("flushes pending buffered usage immediately when a tab closes", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+        const webRequest = stubWebRequestCompleted();
+
+        const ingestion = createUsageIngestion({ flushIntervalMs: 60_000 });
+        const teardown = setupTrackUsage(ingestion);
+        cleanups.push(teardown);
+
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/closing" });
+        webRequest.emit(
+            makeDetails({
+                tabId: tab.id,
+                url: "https://cdn.example.net/bundle.js",
+                initiator: "https://example.com",
+                responseHeaders: [{ name: "Content-Length", value: "15000" }],
+            }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(ingestion.hasPendingUsage).toBe(true);
+
+        await fakeBrowser.tabs.onRemoved.trigger(tab.id!, {
+            windowId: tab.windowId ?? 1,
+            isWindowClosing: false,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(ingestion.hasPendingUsage).toBe(false);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 15_000,
+        });
+        expect(await fakeBrowser.action.getBadgeText({})).toBe("15K");
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    test("skips flush on tab close when nothing is buffered and logs flush failures", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+        const webRequest = stubWebRequestCompleted();
+
+        const writeSiteUsage = spyOn({ write: async () => {} }, "write").mockRejectedValue(
+            new Error("idb unavailable"),
+        );
+        const ingestion = createUsageIngestion({
+            flushIntervalMs: 60_000,
+            writeSiteUsage,
+        });
+        const teardown = setupTrackUsage(ingestion);
+        cleanups.push(teardown);
+
+        await fakeBrowser.tabs.onRemoved.trigger(1, {
+            windowId: 1,
+            isWindowClosing: false,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(writeSiteUsage).not.toHaveBeenCalled();
+
+        ingestion.bufferTabUsage("https://example.com/page", 4_000);
+        await fakeBrowser.tabs.onRemoved.trigger(1, {
+            windowId: 1,
+            isWindowClosing: false,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(writeSiteUsage).toHaveBeenCalledTimes(1);
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+            "Failed to flush usage on tab close:",
+            expect.any(Error),
+        );
+
+        teardown();
+        expect(webRequest.listenerCount()).toBe(0);
+        await fakeBrowser.tabs.onRemoved.trigger(2, {
+            windowId: 1,
+            isWindowClosing: false,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(writeSiteUsage).toHaveBeenCalledTimes(1);
     });
 });

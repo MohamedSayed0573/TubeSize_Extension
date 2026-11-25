@@ -1,11 +1,11 @@
 import { describe, expect, jest, test } from "bun:test";
 import vm from "node:vm";
 
-import type { UsageMessage } from "@app-types/types";
 import {
     createPageUsageObserver,
     hasPositiveContentLength,
     isCountableRequestUrl,
+    SITE_USAGE_EVENT,
     type FetchFn,
     type PageUsageObserverGlobal,
 } from "@lib/pageUsageObserver";
@@ -99,12 +99,20 @@ function makeStreamResponse(chunks: number[], headers?: Record<string, string>):
     return new Response(stream, { headers });
 }
 
+function collectUsageEvents(target: EventTarget): number[] {
+    const posted: number[] = [];
+    target.addEventListener(SITE_USAGE_EVENT, (event) => {
+        expect(event).toBeInstanceOf(CustomEvent);
+        posted.push((event as CustomEvent<number>).detail);
+    });
+    return posted;
+}
+
 function createHarness(baseFetch?: FetchFn) {
     FakeXMLHttpRequest.sources.clear();
     FakeWorker.constructed = [];
     FakeWorker.throwOnUrl = undefined;
 
-    const posted: UsageMessage[] = [];
     const errors: unknown[] = [];
     const createdBlobs = new Map<string, Blob>();
     const revokedUrls: string[] = [];
@@ -118,6 +126,13 @@ function createHarness(baseFetch?: FetchFn) {
         fetch: defaultFetch,
         Worker: FakeWorker as unknown as typeof Worker,
     };
+
+    const windowTarget = new EventTarget();
+    const documentTarget: EventTarget & { visibilityState: DocumentVisibilityState } =
+        Object.assign(new EventTarget(), {
+            visibilityState: "visible" as const,
+        });
+    const posted = collectUsageEvents(windowTarget);
 
     const observer = createPageUsageObserver({
         globalObject,
@@ -133,7 +148,6 @@ function createHarness(baseFetch?: FetchFn) {
             },
         },
         getBaseURI: () => "https://example.com/app/",
-        postMessage: (message) => posted.push(message),
         scheduleInterval: (cb, ms) => {
             intervalTick = cb;
             intervalMs = ms;
@@ -141,6 +155,8 @@ function createHarness(baseFetch?: FetchFn) {
                 intervalCleared = true;
             };
         },
+        windowTarget,
+        documentTarget,
         onError: (err) => errors.push(err),
         flushIntervalMs: 3000,
     });
@@ -154,6 +170,11 @@ function createHarness(baseFetch?: FetchFn) {
         createdBlobs,
         revokedUrls,
         triggerTick: () => intervalTick?.(),
+        triggerPageHide: () => windowTarget.dispatchEvent(new Event("pagehide")),
+        triggerVisibilityChange: (state: DocumentVisibilityState) => {
+            documentTarget.visibilityState = state;
+            documentTarget.dispatchEvent(new Event("visibilitychange"));
+        },
         getIntervalMs: () => intervalMs,
         isIntervalCleared: () => intervalCleared,
     };
@@ -247,7 +268,7 @@ describe("createPageUsageObserver", () => {
         harness.triggerTick();
         harness.triggerTick();
 
-        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 2_600 }]);
+        expect(harness.posted).toEqual([2_600]);
         expect(harness.errors).toEqual([]);
 
         harness.observer.dispose();
@@ -275,7 +296,7 @@ describe("createPageUsageObserver", () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
 
         harness.observer.flush();
-        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 1_200 }]);
+        expect(harness.posted).toEqual([1_200]);
         expect(harness.errors).toEqual([]);
 
         harness.observer.dispose();
@@ -309,7 +330,7 @@ describe("createPageUsageObserver", () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
 
         harness.observer.flush();
-        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 1_500 }]);
+        expect(harness.posted).toEqual([1_500]);
 
         streamController.enqueue(new Uint8Array(900));
         streamController.close();
@@ -317,10 +338,7 @@ describe("createPageUsageObserver", () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
 
         harness.observer.flush();
-        expect(harness.posted).toEqual([
-            { type: "TUBESIZE_SITE_USAGE", bytes: 1_500 },
-            { type: "TUBESIZE_SITE_USAGE", bytes: 900 },
-        ]);
+        expect(harness.posted).toEqual([1_500, 900]);
         expect(harness.errors).toEqual([]);
 
         harness.observer.dispose();
@@ -370,7 +388,7 @@ describe("createPageUsageObserver", () => {
         mozExtXhr.emitProgress(500, "loadend");
 
         harness.observer.flush();
-        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 1_300 }]);
+        expect(harness.posted).toEqual([1_300]);
 
         harness.observer.dispose();
     });
@@ -405,14 +423,13 @@ describe("createPageUsageObserver", () => {
         expect(appMessage.propagationStopped).toBe(false);
 
         harness.observer.flush();
-        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 4_096 }]);
+        expect(harness.posted).toEqual([4_096]);
 
         const wrappedBlob = harness.createdBlobs.get(wrappedUrl);
         expect(wrappedBlob).toBeDefined();
         const bootstrapSource = await wrappedBlob!.text();
 
         const workerPosted: unknown[] = [];
-        let workerTick: (() => void) | undefined;
         const fakeSelf: Record<string, unknown> = {
             location: { href: "blob:https://example.com/wrapped-1" },
             postMessage: (msg: unknown) => workerPosted.push(msg),
@@ -428,14 +445,7 @@ describe("createPageUsageObserver", () => {
                 return makeStreamResponse([500, 300]);
             },
         };
-        vm.runInNewContext(bootstrapSource, {
-            self: fakeSelf,
-            URL,
-            setInterval: (cb: () => void) => {
-                workerTick = cb;
-                return 1;
-            },
-        });
+        vm.runInNewContext(bootstrapSource, { self: fakeSelf, URL });
 
         expect(fakeSelf.originalLoaded).toBe(true);
         expect(workerPosted).toEqual([{ type: "WORKER_READY" }]);
@@ -450,10 +460,11 @@ describe("createPageUsageObserver", () => {
         await (await workerFetch("moz-extension://1234-5678/script.js")).arrayBuffer();
         await new Promise((resolve) => setTimeout(resolve, 10));
 
-        workerTick?.();
         expect(workerPosted).toEqual([
             { type: "WORKER_READY" },
-            { type: "WORKER_USAGE", bytes: 1_500 },
+            { type: "WORKER_USAGE", bytes: 500 },
+            { type: "WORKER_USAGE", bytes: 300 },
+            { type: "WORKER_USAGE", bytes: 700 },
         ]);
 
         harness.observer.dispose();
@@ -581,11 +592,118 @@ describe("createPageUsageObserver", () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
 
         harness.observer.flush();
-        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 1_000 }]);
+        expect(harness.posted).toEqual([1_000]);
 
         await firstRes.body?.cancel();
         expect(firstStreamCanceled).toBe(true);
 
         harness.observer.dispose();
+    });
+
+    test("flushes buffered bytes on visibilitychange (hidden) and pagehide without double-counting", async () => {
+        const harness = createHarness(async () => makeStreamResponse([1_200, 800]));
+        harness.observer.install();
+
+        await (await harness.globalObject.fetch("https://example.com/stream")).arrayBuffer();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        harness.triggerVisibilityChange("visible");
+        expect(harness.posted).toEqual([]);
+
+        harness.triggerVisibilityChange("hidden");
+        harness.triggerPageHide();
+        expect(harness.posted).toEqual([2_000]);
+
+        const xhr = new FakeXMLHttpRequest();
+        xhr.open("GET", "https://example.com/final-chunk");
+        xhr.send();
+        xhr.emitProgress(600, "loadend");
+
+        harness.triggerPageHide();
+        harness.triggerPageHide();
+        expect(harness.posted).toEqual([2_000, 600]);
+
+        harness.observer.dispose();
+    });
+
+    test("forwards worker chunks to the page immediately so pagehide flushes them once", async () => {
+        const harness = createHarness();
+        harness.observer.install();
+
+        const blobUrl = "blob:https://example.com/stream-worker";
+        FakeXMLHttpRequest.sources.set(blobUrl, { status: 200, responseText: "1;" });
+        const worker = new harness.globalObject.Worker(blobUrl) as unknown as FakeWorker;
+        const wrappedUrl = FakeWorker.constructed[0]?.url ?? "";
+        const bootstrapSource = await harness.createdBlobs.get(wrappedUrl)!.text();
+
+        let streamController!: ReadableStreamDefaultController<Uint8Array>;
+        const fakeSelf: Record<string, unknown> = {
+            location: { href: wrappedUrl },
+            postMessage: (msg: unknown) => worker.emitMessage(msg),
+            fetch: async () =>
+                new Response(
+                    new ReadableStream<Uint8Array>({
+                        start(controller) {
+                            streamController = controller;
+                        },
+                    }),
+                ),
+        };
+        vm.runInNewContext(bootstrapSource, { self: fakeSelf, URL });
+
+        await (fakeSelf.fetch as (url: string) => Promise<Response>)("https://example.com/live");
+        streamController.enqueue(new Uint8Array(700));
+        streamController.enqueue(new Uint8Array(0));
+        streamController.enqueue(new Uint8Array(1_300));
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        // Tab closes before any interval tick: the worker bytes are already page-side.
+        harness.triggerPageHide();
+        expect(harness.posted).toEqual([2_000]);
+
+        harness.triggerTick();
+        harness.triggerPageHide();
+        expect(harness.posted).toEqual([2_000]);
+
+        harness.observer.dispose();
+    });
+
+    test("removes pagehide and visibilitychange listeners on dispose", () => {
+        const windowTarget = new EventTarget();
+        const documentTarget: EventTarget & { visibilityState: DocumentVisibilityState } =
+            Object.assign(new EventTarget(), {
+                visibilityState: "visible" as const,
+            });
+        const removeWindowSpy = jest.spyOn(windowTarget, "removeEventListener");
+        const removeDocumentSpy = jest.spyOn(documentTarget, "removeEventListener");
+        const posted = collectUsageEvents(windowTarget);
+
+        const observer = createPageUsageObserver({
+            globalObject: {
+                fetch: async () => makeStreamResponse([500]),
+                Worker: FakeWorker as unknown as typeof Worker,
+            },
+            XMLHttpRequest: FakeXMLHttpRequest as unknown as typeof XMLHttpRequest,
+            getBaseURI: () => "https://example.com/",
+            scheduleInterval: () => () => {},
+            windowTarget,
+            documentTarget,
+        });
+
+        observer.install();
+        const xhr = new FakeXMLHttpRequest();
+        xhr.open("GET", "https://example.com/chunk");
+        xhr.send();
+        xhr.emitProgress(400, "loadend");
+
+        observer.dispose();
+
+        expect(removeWindowSpy).toHaveBeenCalledWith("pagehide", expect.any(Function));
+        expect(removeDocumentSpy).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
+
+        documentTarget.visibilityState = "hidden";
+        documentTarget.dispatchEvent(new Event("visibilitychange"));
+        windowTarget.dispatchEvent(new Event("pagehide"));
+        expect(posted).toEqual([]);
     });
 });
