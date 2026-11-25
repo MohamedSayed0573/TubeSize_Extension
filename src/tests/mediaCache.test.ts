@@ -1,14 +1,8 @@
 import { afterEach, beforeEach, describe, expect, setSystemTime, test } from "bun:test";
 
 import type { KickVodData, TwitchVodData, YoutubeData } from "@app-types/platforms.types";
-import CONFIG from "@lib/constants";
-import {
-    clearMediaCache,
-    getMediaCache,
-    getSettings,
-    saveMediaCache,
-    saveSettings,
-} from "@lib/storageService";
+import { clearMediaCache, getMediaCache, saveMediaCache } from "@lib/mediaCache";
+import { saveSettings } from "@lib/settings";
 import { storage } from "@wxt-dev/storage";
 
 const validYoutubeVod: YoutubeData = {
@@ -70,32 +64,7 @@ afterEach(() => {
     setSystemTime();
 });
 
-describe("storageService settings", () => {
-    test("returns default values when sync storage is empty", async () => {
-        expect(await getSettings()).toEqual({
-            toasterEnabled: CONFIG.DEFAULT_TOASTER_ENABLED,
-            toasterThreshold: CONFIG.DEFAULT_TOASTER_THRESHOLD,
-            cacheTTL: CONFIG.DEFAULT_CACHE_TTL,
-            advancedView: CONFIG.DEFAULT_ADVANCED_VIEW,
-            includeAudio: CONFIG.DEFAULT_INCLUDE_AUDIO,
-        });
-    });
-
-    test("persists partial updates without clobbering other settings", async () => {
-        await saveSettings({ toasterEnabled: false, toasterThreshold: 750 });
-        await saveSettings({ advancedView: true, includeAudio: false, cacheTTL: 3600 });
-
-        expect(await getSettings()).toEqual({
-            toasterEnabled: false,
-            toasterThreshold: 750,
-            cacheTTL: 3600,
-            advancedView: true,
-            includeAudio: false,
-        });
-    });
-});
-
-describe("storageService media cache", () => {
+describe("mediaCache", () => {
     beforeEach(async () => {
         await clearMediaCache();
     });
@@ -106,12 +75,10 @@ describe("storageService media cache", () => {
         await saveMediaCache("twitch", validTwitchVod.mediaId, validTwitchVod, 60);
         await saveMediaCache("kick", validKickVod.mediaId, validKickVod, 60);
 
-        expect((await getMediaCache("youtube", "abc12345678"))?.data).toEqual(validYoutubeVod);
-        expect((await getMediaCache("youtube", "live1234567"))?.data).toEqual(validYoutubeLive);
-        expect((await getMediaCache("twitch", validTwitchVod.mediaId))?.data).toEqual(
-            validTwitchVod,
-        );
-        expect((await getMediaCache("kick", validKickVod.mediaId))?.data).toEqual(validKickVod);
+        expect(await getMediaCache("youtube", "abc12345678")).toEqual(validYoutubeVod);
+        expect(await getMediaCache("youtube", "live1234567")).toEqual(validYoutubeLive);
+        expect(await getMediaCache("twitch", validTwitchVod.mediaId)).toEqual(validTwitchVod);
+        expect(await getMediaCache("kick", validKickVod.mediaId)).toEqual(validKickVod);
     });
 
     test("skips caching payloads with empty formats, NaN, Infinity, or non-positive sizes", async () => {
@@ -147,7 +114,7 @@ describe("storageService media cache", () => {
         await saveMediaCache("youtube", "ttlZero00001", validYoutubeVod, 0);
 
         expect(await getMediaCache("youtube", "ttlZero00001")).toBeNull();
-        expect((await getMediaCache("youtube", "ttlDefault01"))?.data).toEqual(validYoutubeVod);
+        expect(await getMediaCache("youtube", "ttlDefault01")).toEqual(validYoutubeVod);
 
         setSystemTime(new Date("2026-06-04T12:00:31Z"));
         expect(await getMediaCache("youtube", "ttlDefault01")).toBeNull();
@@ -177,7 +144,6 @@ describe("storageService media cache", () => {
         await storage.setItem("local:youtube:legacy12345", {
             data: legacyPayload,
             expiry: Date.now() + 60_000,
-            createdAt: "2026-01-01",
         });
 
         expect(await getMediaCache("youtube", "legacy12345")).toBeNull();
@@ -188,7 +154,6 @@ describe("storageService media cache", () => {
         await storage.setItem("local:youtube:legacyVid01", {
             data: { ...validYoutubeVod, type: "video" },
             expiry: Date.now() + 60_000,
-            createdAt: "2026-01-01",
         });
 
         expect(await getMediaCache("youtube", "legacyVid01")).toBeNull();

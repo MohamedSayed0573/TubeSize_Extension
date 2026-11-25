@@ -2,7 +2,7 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 
-import { getMediaCache } from "@lib/storageService";
+import { getMediaCache } from "@lib/mediaCache";
 import { getTwitchLiveData, getTwitchVodData, parseTwitchPageMetadata } from "@lib/twitch";
 
 const cleanups: Array<() => void> = [];

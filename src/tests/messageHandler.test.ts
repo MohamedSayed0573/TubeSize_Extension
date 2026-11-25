@@ -3,8 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { toOrigin } from "@lib/domain";
+import { getMediaCache } from "@lib/mediaCache";
 import { toVideoKey } from "@lib/platformUrl";
-import { getMediaCache } from "@lib/storageService";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
 import {

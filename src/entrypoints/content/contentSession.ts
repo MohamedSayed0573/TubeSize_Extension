@@ -1,5 +1,5 @@
 import type { PlatformId } from "@app-types/types";
-import { toasterEnabled, toasterThreshold } from "@lib/storage";
+import { getSettings } from "@lib/settings";
 
 import { findPlatformAdapter } from "@/adapters/registry";
 import type { DisplayFormat, PlatformAdapter } from "@/adapters/types";
@@ -92,15 +92,17 @@ export function createContentSession(): ContentSession {
                 void injectQualityMenu(formats, signal);
             }
 
-            if (!(await toasterEnabled.getValue()) || signal.aborted) return;
-
-            const thresholdMbph = await toasterThreshold.getValue();
-            if (signal.aborted) return;
+            const { toasterEnabled, toasterThreshold } = await getSettings();
+            if (!toasterEnabled || signal.aborted) return;
 
             const toaster = createToaster(signal);
             await trackResolutionChanges((resolution) => {
                 if (signal.aborted) return;
-                void toaster.show({ formats, currentQuality: resolution, thresholdMbph });
+                void toaster.show({
+                    formats,
+                    currentQuality: resolution,
+                    thresholdMbph: toasterThreshold,
+                });
             }, signal);
         } catch (err) {
             if (signal.aborted) return;

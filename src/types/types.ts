@@ -1,7 +1,5 @@
 import CONFIG from "@lib/constants";
 
-import type { PlatformData } from "./platforms.types";
-
 type Prettify<T> = {
     [K in keyof T]: T[K];
 } & {};
@@ -15,12 +13,6 @@ export type DateKey = Brand<
     `${number}${number}${number}${number}-${number}${number}-${number}${number}`,
     "DateKey"
 >;
-
-export type StorageData<T extends PlatformData> = {
-    data: T;
-    expiry?: number;
-    createdAt?: string;
-};
 
 export type SettingsMap = {
     toasterEnabled: boolean;

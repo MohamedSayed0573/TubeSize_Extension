@@ -2,8 +2,8 @@ import type { TwitchLiveData, TwitchVodData } from "@app-types/platforms.types";
 import type { TwitchLiveMessage, TwitchVodMessage } from "@app-types/types";
 import CONFIG from "@lib/constants";
 import { resolveHlsStreams } from "@lib/hls";
+import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
 import { twitchGqlResponseSchema, twitchPageLdJsonSchema } from "@lib/schema";
-import { getMediaCache, saveMediaCache } from "@lib/storageService";
 import { fetchAndRetry } from "@lib/utils";
 import * as cheerio from "cheerio";
 
@@ -124,8 +124,8 @@ export async function getTwitchLiveData(message: TwitchLiveMessage): Promise<Twi
 
 export async function getTwitchVodData(message: TwitchVodMessage): Promise<TwitchVodData> {
     const cached = await getMediaCache("twitch", message.mediaId);
-    if (cached?.data.type === "vod") {
-        return cached.data;
+    if (cached?.type === "vod") {
+        return cached;
     }
 
     const clientId = await getTwitchClientId(`https://www.twitch.tv/videos/${message.mediaId}`);

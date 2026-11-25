@@ -12,8 +12,8 @@ import type {
 } from "@app-types/platforms.types";
 import type { YoutubeMessage } from "@app-types/types";
 import CONFIG from "@lib/constants";
+import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
 import { ytInitialSchema } from "@lib/schema";
-import { getMediaCache, saveMediaCache } from "@lib/storageService";
 import { fetchAndRetry } from "@lib/utils";
 
 export function parseVideoFormats(
@@ -310,7 +310,7 @@ export async function getYoutubeData(message: YoutubeMessage): Promise<YoutubeDa
 
     const cached = await getMediaCache("youtube", mediaId);
     if (cached) {
-        return cached.data;
+        return cached;
     }
 
     const ytInitialPlayerResponse = await extractYtInitialResponse(mediaId, html);

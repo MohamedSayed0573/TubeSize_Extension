@@ -1,5 +1,11 @@
-import { codecSupport } from "@lib/storage";
-import { isFresh } from "@lib/storageService";
+import { storage } from "@wxt-dev/storage";
+
+type CodecSupportCache = {
+    av1: boolean;
+    expiry: number;
+};
+
+const codecSupport = storage.defineItem<CodecSupportCache>("local:codecSupport");
 
 const AV1_MIME_TYPE = 'video/mp4; codecs="av01.0.12M.08"';
 const AV1_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -28,7 +34,7 @@ async function detectAv1Support(): Promise<boolean | undefined> {
 
 export async function getAv1Support(): Promise<boolean | undefined> {
     const cached = await codecSupport.getValue();
-    if (cached && isFresh(cached)) return cached.av1;
+    if (cached && cached.expiry > Date.now()) return cached.av1;
 
     const av1 = await detectAv1Support();
     if (av1 === undefined) return cached?.av1;
