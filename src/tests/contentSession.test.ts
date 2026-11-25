@@ -71,6 +71,13 @@ async function waitForCondition(predicate: () => boolean, maxAttempts = 100): Pr
     expect(predicate()).toBe(true);
 }
 
+function getToastText(): string | null {
+    return (
+        document.querySelector("#TubeSize-Toast-Host")?.shadowRoot?.querySelector(".container")
+            ?.textContent ?? null
+    );
+}
+
 const HIGH_BITRATE_VOD: VodMediaEstimate = {
     platform: "youtube",
     contentType: "vod",
@@ -175,14 +182,10 @@ describe("createContentSession", () => {
                 (el) => el.textContent,
             ),
         ).toEqual(["900 MB", "180 MB"]);
-        expect(document.querySelector("#TubeSize-Toast-Host")?.textContent).toContain("900 MB");
+        expect(getToastText()).toContain("900 MB");
 
         await session!.navigate("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-        await waitForCondition(
-            () =>
-                document.querySelector("#TubeSize-Toast-Host")?.textContent?.includes("720 MB") ??
-                false,
-        );
+        await waitForCondition(() => getToastText()?.includes("720 MB") ?? false);
 
         expect(requests).toHaveLength(2);
         expect(requests[1]?.url).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
@@ -318,12 +321,8 @@ describe("createContentSession", () => {
             url: "https://www.twitch.tv/shroud",
             isFromPopup: false,
         });
-        expect(document.querySelector("#TubeSize-Toast-Host")?.textContent).toContain(
-            "1.8 GB/hour",
-        );
-        expect(document.querySelector("#TubeSize-Toast-Host")?.textContent).not.toContain(
-            "Total Usage:",
-        );
+        expect(getToastText()).toContain("1.8 GB/hour");
+        expect(getToastText()).not.toContain("Total Usage:");
         expect(document.querySelectorAll(".tubesize-quality-menu-panel")).toHaveLength(0);
 
         await session!.navigate("https://kick.com/xqc");
@@ -333,9 +332,7 @@ describe("createContentSession", () => {
             url: "https://kick.com/xqc",
             isFromPopup: false,
         });
-        expect(document.querySelector("#TubeSize-Toast-Host")?.textContent).toContain(
-            "1.8 GB/hour",
-        );
+        expect(getToastText()).toContain("1.8 GB/hour");
         expect(document.querySelectorAll(".tubesize-quality-menu-panel")).toHaveLength(0);
     });
 
