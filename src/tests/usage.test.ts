@@ -5,6 +5,7 @@ import { getSiteKey, toOrigin } from "@lib/domain";
 import { toVideoKey } from "@lib/platformUrl";
 import {
     aggregateSitesUsage,
+    clearAllUsage,
     exportSiteUsageJson,
     getPlatformUsageTotals,
     getPlatformWatchReport,
@@ -16,13 +17,17 @@ import {
     summarizeDailyUsage,
     summarizeRangeUsage,
 } from "@lib/usage";
+import { fakeBrowser } from "@webext-core/fake-browser";
 
+import { refreshUsageBadge } from "@/badge";
 import {
     addSiteUsage,
     addVideoMetadata,
     addWatchHistory,
     clearDatabaseData,
     getAllSiteUsage,
+    getAllWatchHistory,
+    getVideoMetadataByVideoKey,
     setAllSiteUsage,
     type SiteUsage,
 } from "@/db";
@@ -387,5 +392,35 @@ describe("exportSiteUsageJson and importSiteUsageJson", () => {
         ).rejects.toThrow();
 
         expect(await getAllSiteUsage()).toEqual(initial);
+    });
+});
+
+describe("clearAllUsage and refreshUsageBadge", () => {
+    test("clears all IndexedDB tables and resets the toolbar usage badge", async () => {
+        setSystemTime(new Date("2026-05-20T12:00:00"));
+        const yt = origin("https://www.youtube.com");
+        const gh = origin("https://github.com");
+        const videoKey = toVideoKey("youtube", "dQw4w9WgXcQ");
+
+        await addSiteUsage({ [yt]: 1_200_000, [gh]: 300_000 });
+        await addWatchHistory({ [videoKey]: 1_200_000 });
+        await addVideoMetadata({
+            type: "youtube",
+            mediaId: "dQw4w9WgXcQ",
+            title: "Never Gonna Give You Up",
+            channelName: "Rick Astley",
+            channelUrl: "https://www.youtube.com/@RickAstleyYT",
+            thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+        });
+
+        await refreshUsageBadge();
+        expect(await fakeBrowser.action.getBadgeText({})).toBe("2M");
+
+        await clearAllUsage();
+
+        expect(await getAllSiteUsage()).toEqual([]);
+        expect(await getAllWatchHistory()).toEqual([]);
+        expect(await getVideoMetadataByVideoKey(videoKey)).toBeUndefined();
+        expect(await fakeBrowser.action.getBadgeText({})).toBe("");
     });
 });

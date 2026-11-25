@@ -1,8 +1,15 @@
 import { formatBadge } from "@lib/format";
-import { getTodayUsageSummary } from "@lib/usage";
+
+import { getSiteUsage } from "@/db";
 
 export async function refreshUsageBadge() {
-    const { totalBytes } = await getTodayUsageSummary();
+    const siteUsage = await getSiteUsage();
+    let totalBytes = 0;
+    if (siteUsage) {
+        for (const bytes of Object.values(siteUsage.usage)) {
+            totalBytes += bytes;
+        }
+    }
     await setUsageBadge(totalBytes);
 }
 

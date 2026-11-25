@@ -9,7 +9,9 @@ import type {
     VideoKey,
 } from "@app-types/types";
 
+import { refreshUsageBadge } from "@/badge";
 import {
+    clearDatabaseData,
     getAllSiteUsage,
     getAllWatchHistory,
     getSiteUsage,
@@ -298,4 +300,9 @@ export async function importSiteUsageJson(jsonText: string): Promise<SiteUsage[]
 
     await setAllSiteUsage(result.data);
     return result.data;
+}
+
+export async function clearAllUsage(): Promise<void> {
+    await clearDatabaseData();
+    await refreshUsageBadge();
 }

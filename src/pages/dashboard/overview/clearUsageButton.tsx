@@ -1,8 +1,7 @@
 import { AlertDialogBasic } from "@components/alertDialogBasic";
+import { clearAllUsage } from "@lib/usage";
 import { useState } from "react";
 
-import { refreshUsageBadge } from "@/badge";
-import { clearDatabaseData } from "@/db";
 import { t } from "@/i18n/t";
 
 export default function ClearUsageButton() {
@@ -10,8 +9,7 @@ export default function ClearUsageButton() {
 
     const clearUsage = () => {
         setIsClearingPending(true);
-        void clearDatabaseData()
-            .then(() => refreshUsageBadge())
+        void clearAllUsage()
             .catch((err: unknown) => {
                 console.error("Failed to clear usage data:", err);
             })
