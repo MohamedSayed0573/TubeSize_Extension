@@ -331,7 +331,7 @@ export async function runSmoke(opts: { extDir: string; timeoutMs: number }): Pro
             await mainPage.getByRole("button", { name: "Set video 2160p" }).click();
             const toastHost = mainPage.locator("#TubeSize-Toast-Host");
             await toastHost.waitFor({ state: "visible", timeout: 10_000 });
-            const toastText = (await toastHost.innerText()).trim();
+            const toastText = (await toastHost.locator(".container").innerText()).trim();
             if (!/\b2160p\b/.test(toastText) || !/\b500\b/.test(toastText)) {
                 throw new Error(`Unexpected toast content: ${toastText}`);
             }
