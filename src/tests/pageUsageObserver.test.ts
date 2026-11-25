@@ -452,4 +452,58 @@ describe("createPageUsageObserver", () => {
         harness.observer.flush();
         expect(harness.posted).toEqual([]);
     });
+
+    test("ignores late fetch chunks and XHR events from an earlier installation after dispose and reinstall", async () => {
+        let firstStreamController!: ReadableStreamDefaultController<Uint8Array>;
+        let firstStreamCanceled = false;
+        let fetchCount = 0;
+
+        const harness = createHarness(async () => {
+            fetchCount += 1;
+            if (fetchCount === 1) {
+                const stream = new ReadableStream<Uint8Array>({
+                    start(controller) {
+                        firstStreamController = controller;
+                    },
+                    cancel() {
+                        firstStreamCanceled = true;
+                    },
+                });
+                return new Response(stream);
+            }
+            return makeStreamResponse([750]);
+        });
+
+        harness.observer.install();
+
+        const firstRes = await harness.globalObject.fetch("https://example.com/first");
+        const staleXhr = new FakeXMLHttpRequest();
+        staleXhr.open("GET", "https://example.com/stale-xhr");
+        staleXhr.send();
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        harness.observer.dispose();
+        harness.observer.install();
+
+        firstStreamController.enqueue(new Uint8Array(5_000));
+        staleXhr.emitProgress(3_000, "loadend");
+
+        const freshRes = await harness.globalObject.fetch("https://example.com/fresh");
+        await freshRes.arrayBuffer();
+        const freshXhr = new FakeXMLHttpRequest();
+        freshXhr.open("GET", "https://example.com/fresh-xhr");
+        freshXhr.send();
+        freshXhr.emitProgress(250, "loadend");
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        harness.observer.flush();
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 1_000 }]);
+
+        await firstRes.body?.cancel();
+        expect(firstStreamCanceled).toBe(true);
+
+        harness.observer.dispose();
+    });
 });

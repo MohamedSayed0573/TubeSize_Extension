@@ -170,12 +170,13 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
     const onError = ports.onError ?? ((err: unknown) => console.error(err));
     const flushIntervalMs = ports.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS;
 
-    let installed = false;
+    let activeSession: symbol | undefined;
     let total = 0;
     let originalFetch: FetchFn | undefined;
     let originalSendDescriptor: PropertyDescriptor | undefined;
     let NativeWorker: typeof Worker | undefined;
     let stopInterval: (() => void) | undefined;
+    const activeReaders = new Set<ReadableStreamDefaultReader<Uint8Array>>();
     const workerRefs = new Set<WeakRef<Worker>>();
     const workerRegistry =
         typeof FinalizationRegistry === "function"
@@ -195,7 +196,7 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
     }
 
     function onWorkerMessage(event: MessageEvent) {
-        if (!installed) return;
+        if (!activeSession) return;
         const data: unknown = event.data;
         if (typeof data !== "object" || data === null || !("type" in data)) return;
         if (data.type !== "WORKER_USAGE") return;
@@ -219,15 +220,19 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
     }
 
     function install() {
-        if (installed) return;
-        installed = true;
+        if (activeSession) return;
+        const session = Symbol("pageUsageObserver");
+        activeSession = session;
 
         const baseFetch = globalObject.fetch;
         originalFetch = baseFetch;
         globalObject.fetch = Object.assign(async (...args: Parameters<FetchFn>) => {
             const response = await Reflect.apply(baseFetch, globalObject, args);
 
-            if (hasPositiveContentLength(response.headers.get("content-length"))) {
+            if (
+                activeSession !== session ||
+                hasPositiveContentLength(response.headers.get("content-length"))
+            ) {
                 return response;
             }
 
@@ -236,15 +241,19 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
             void (async () => {
                 const reader = clone.body?.getReader();
                 if (!reader) return;
+                activeReaders.add(reader);
 
-                for (;;) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    if (!installed) break;
-                    // Count per chunk, not at stream end: live streams keep their
-                    // response body open for the whole session, so "count when done"
-                    // would report 0 until the user closes the stream.
-                    total += value.byteLength;
+                try {
+                    for (;;) {
+                        const { done, value } = await reader.read();
+                        if (done || activeSession !== session) break;
+                        // Count per chunk, not at stream end: live streams keep their
+                        // response body open for the whole session, so "count when done"
+                        // would report 0 until the user closes the stream.
+                        total += value.byteLength;
+                    }
+                } finally {
+                    activeReaders.delete(reader);
                 }
             })().catch((err: unknown) => {
                 if (err instanceof Error && err.name === "AbortError") return;
@@ -262,7 +271,7 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
             let loaded = 0;
             const countProgress = (event: ProgressEvent) => {
                 if (
-                    !installed ||
+                    activeSession !== session ||
                     this.responseURL.startsWith("blob:") ||
                     this.responseURL.startsWith("data:") ||
                     hasPositiveContentLength(this.getResponseHeader("content-length"))
@@ -331,12 +340,17 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
     }
 
     function dispose() {
-        if (!installed) return;
-        installed = false;
+        if (!activeSession) return;
+        activeSession = undefined;
         total = 0;
 
         stopInterval?.();
         stopInterval = undefined;
+
+        for (const reader of activeReaders) {
+            void reader.cancel().catch(() => undefined);
+        }
+        activeReaders.clear();
 
         for (const ref of workerRefs) {
             workerRegistry?.unregister(ref);
