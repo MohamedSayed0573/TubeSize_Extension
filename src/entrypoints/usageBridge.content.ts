@@ -3,8 +3,15 @@ import { defineContentScript } from "wxt/utils/define-content-script";
 
 import { sendMessage } from "@/messaging";
 
+const MAX_USAGE_REPORT_BYTES = 1_000_000_000_000;
+
 function isValidBytes(bytes: unknown): bytes is number {
-    return typeof bytes === "number" && Number.isFinite(bytes) && bytes > 0;
+    return (
+        typeof bytes === "number" &&
+        Number.isFinite(bytes) &&
+        bytes > 0 &&
+        bytes <= MAX_USAGE_REPORT_BYTES
+    );
 }
 
 export function parseWindowMessage(data: unknown): UsageMessage | undefined {

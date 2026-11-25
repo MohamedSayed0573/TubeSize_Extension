@@ -100,6 +100,21 @@ describe("siteUsage table", () => {
         expect(await getSiteUsageByDate(day2)).toEqual(imported[1]);
         expect(await getSiteUsageByDate([day1, day3])).toEqual([imported[0]!, imported[2]!]);
     });
+
+    test("clamps oversized site usage values and saturates totals at MAX_SAFE_INTEGER", async () => {
+        const yt = origin("https://www.youtube.com");
+        const example = origin("https://example.com");
+
+        await addSiteUsage({ [yt]: Number.NaN, [example]: Number.POSITIVE_INFINITY });
+        expect(await getAllSiteUsage()).toEqual([]);
+
+        await addSiteUsage({ [yt]: 1e308 });
+        await addSiteUsage({ [yt]: 1e308 });
+
+        const stored = (await getAllSiteUsage())[0]?.usage[yt];
+        expect(stored).toBe(Number.MAX_SAFE_INTEGER);
+        expect(Number.isFinite(stored)).toBe(true);
+    });
 });
 
 describe("watchHistory table", () => {
@@ -142,6 +157,20 @@ describe("watchHistory table", () => {
             { day: day1, videos: { [ytVideo]: 1_500, [twitchStream]: 2_000 } },
         ]);
         expect(await getAllWatchHistory()).toHaveLength(2);
+    });
+
+    test("clamps oversized watch history values and saturates totals at MAX_SAFE_INTEGER", async () => {
+        const ytVideo = toVideoKey("youtube", "dQw4w9WgXcQ");
+
+        await addWatchHistory({ [ytVideo]: Number.NaN });
+        expect(await getAllWatchHistory()).toEqual([]);
+
+        await addWatchHistory({ [ytVideo]: 1e308 });
+        await addWatchHistory({ [ytVideo]: 1e308 });
+
+        const stored = (await getAllWatchHistory())[0]?.videos[ytVideo];
+        expect(stored).toBe(Number.MAX_SAFE_INTEGER);
+        expect(Number.isFinite(stored)).toBe(true);
     });
 });
 

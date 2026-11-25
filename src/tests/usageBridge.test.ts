@@ -33,6 +33,13 @@ describe("parseWindowMessage", () => {
         expect(
             parseWindowMessage({ type: "TUBESIZE_SITE_USAGE", bytes: Infinity }),
         ).toBeUndefined();
+        expect(parseWindowMessage({ type: "TUBESIZE_SITE_USAGE", bytes: 1e308 })).toBeUndefined();
+        expect(
+            parseWindowMessage({ type: "TUBESIZE_SITE_USAGE", bytes: Number.MAX_SAFE_INTEGER }),
+        ).toBeUndefined();
+        expect(
+            parseWindowMessage({ type: "TUBESIZE_SITE_USAGE", bytes: 1_000_000_000_001 }),
+        ).toBeUndefined();
         expect(parseWindowMessage({ type: "TUBESIZE_SITE_USAGE", bytes: "100" })).toBeUndefined();
         expect(
             parseWindowMessage({
@@ -44,10 +51,16 @@ describe("parseWindowMessage", () => {
         ).toBeUndefined();
     });
 
-    test("parses valid site usage payloads", () => {
+    test("parses valid site usage payloads up to the per-report byte cap", () => {
         expect(parseWindowMessage({ type: "TUBESIZE_SITE_USAGE", bytes: 2048 })).toEqual({
             type: "TUBESIZE_SITE_USAGE",
             bytes: 2048,
+        });
+        expect(
+            parseWindowMessage({ type: "TUBESIZE_SITE_USAGE", bytes: 1_000_000_000_000 }),
+        ).toEqual({
+            type: "TUBESIZE_SITE_USAGE",
+            bytes: 1_000_000_000_000,
         });
     });
 });
@@ -61,6 +74,9 @@ describe("relayWindowMessage", () => {
         expect(() => relayWindowMessage(undefined)).not.toThrow();
         expect(() => relayWindowMessage("hello")).not.toThrow();
         expect(() => relayWindowMessage(123)).not.toThrow();
+        expect(() =>
+            relayWindowMessage({ type: "TUBESIZE_SITE_USAGE", bytes: 1e308 }),
+        ).not.toThrow();
         expect(() =>
             relayWindowMessage({
                 type: "TUBESIZE_WATCH_HISTORY",

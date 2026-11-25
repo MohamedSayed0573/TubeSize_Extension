@@ -275,4 +275,113 @@ describe("trackRequest", () => {
         });
         expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
+
+    test("attributes main_frame requests directly to details.url without querying stale or empty tab.url", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        await addVideoMetadata({
+            type: "youtube",
+            mediaId: "dQw4w9WgXcQ",
+            title: "YT Video",
+            channelName: "Channel",
+            channelUrl: "https://www.youtube.com/@channel",
+            thumbnailUrl: "",
+        });
+
+        const tabsGetSpy = spyOn(chrome.tabs, "get");
+        cleanups.push(() => tabsGetSpy.mockRestore());
+
+        const ingestion = createUsageIngestion();
+        const emptyTab = await fakeBrowser.tabs.create({ url: "" });
+        const previousOriginTab = await fakeBrowser.tabs.create({
+            url: "https://previous.example/old",
+        });
+
+        await trackRequest(
+            ingestion,
+            makeDetails({
+                tabId: emptyTab.id,
+                type: "main_frame",
+                url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                responseHeaders: [{ name: "Content-Length", value: "12000" }],
+            }),
+        );
+        await trackRequest(
+            ingestion,
+            makeDetails({
+                tabId: previousOriginTab.id,
+                type: "main_frame",
+                url: "https://destination.example/article",
+                responseHeaders: [{ name: "Content-Length", value: "8000" }],
+            }),
+        );
+        await ingestion.flush();
+
+        expect(tabsGetSpy).not.toHaveBeenCalled();
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://www.youtube.com")]: 12_000,
+            [origin("https://destination.example")]: 8_000,
+        });
+        expect((await getAllWatchHistory())[0]?.videos).toEqual({
+            [toVideoKey("youtube", "dQw4w9WgXcQ")]: 12_000,
+        });
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    test("returns quietly on closed tabs, empty non-main_frame tab URLs, and out-of-range Content-Length headers", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        const ingestion = createUsageIngestion();
+        const emptyTab = await fakeBrowser.tabs.create({ url: "" });
+        const validTab = await fakeBrowser.tabs.create({ url: "https://example.com/page" });
+
+        await trackRequest(
+            ingestion,
+            makeDetails({
+                tabId: 999_999,
+                type: "script",
+                url: "https://cdn.example.com/closed.js",
+                responseHeaders: [{ name: "Content-Length", value: "4096" }],
+            }),
+        );
+
+        const rejectedGetSpy = spyOn(chrome.tabs, "get").mockImplementationOnce(async () => {
+            throw new Error("No tab with id: 888888.");
+        });
+        cleanups.push(() => rejectedGetSpy.mockRestore());
+        await trackRequest(
+            ingestion,
+            makeDetails({
+                tabId: 888_888,
+                type: "script",
+                url: "https://cdn.example.com/rejected-closed.js",
+                responseHeaders: [{ name: "Content-Length", value: "4096" }],
+            }),
+        );
+        await trackRequest(
+            ingestion,
+            makeDetails({
+                tabId: emptyTab.id,
+                type: "image",
+                url: "https://cdn.example.com/banner.png",
+                responseHeaders: [{ name: "Content-Length", value: "2048" }],
+            }),
+        );
+        await trackRequest(
+            ingestion,
+            makeDetails({
+                tabId: validTab.id,
+                type: "xmlhttprequest",
+                url: "https://cdn.example.com/overflow.bin",
+                responseHeaders: [{ name: "Content-Length", value: "1e308" }],
+            }),
+        );
+        await ingestion.flush();
+
+        expect(ingestion.hasPendingUsage).toBe(false);
+        expect(await getAllSiteUsage()).toEqual([]);
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
 });

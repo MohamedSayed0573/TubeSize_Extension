@@ -33,6 +33,38 @@ export function hasPositiveContentLength(value: string | null | undefined): bool
     return Number.isFinite(bytes) && bytes > 0;
 }
 
+export function isCountableRequestUrl(
+    responseUrl: string | undefined,
+    requestInput: unknown,
+    baseUrl?: string,
+): boolean {
+    let rawUrl: string | undefined = responseUrl || undefined;
+    if (rawUrl === undefined) {
+        if (typeof requestInput === "string") {
+            rawUrl = requestInput;
+        } else if (typeof requestInput === "object" && requestInput !== null) {
+            if ("url" in requestInput && typeof requestInput.url === "string") {
+                rawUrl = requestInput.url;
+            } else if ("href" in requestInput && typeof requestInput.href === "string") {
+                rawUrl = requestInput.href;
+            }
+        }
+    }
+    if (rawUrl === undefined) return false;
+
+    try {
+        const parsed = baseUrl ? new URL(rawUrl, baseUrl) : new URL(rawUrl);
+        return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+        try {
+            const parsed = new URL(rawUrl);
+            return parsed.protocol === "http:" || parsed.protocol === "https:";
+        } catch {
+            return false;
+        }
+    }
+}
+
 function workerBootstrap(flushIntervalMs: number): string {
     return `
 (() => {
@@ -41,12 +73,17 @@ function workerBootstrap(flushIntervalMs: number): string {
     self.postMessage({ type: "WORKER_READY" });
     let total = 0;
     const hasPositiveContentLength = ${hasPositiveContentLength.toString()};
+    const isCountableRequestUrl = ${isCountableRequestUrl.toString()};
     const _fetch = self.fetch;
     self.fetch = (...args) => {
         const response = _fetch.apply(self, args);
         return response.then((res) => {
             try {
-                if (!hasPositiveContentLength(res.headers.get("content-length"))) {
+                const baseUrl = self.location ? self.location.href : undefined;
+                if (
+                    isCountableRequestUrl(res.url, args[0], baseUrl) &&
+                    !hasPositiveContentLength(res.headers.get("content-length"))
+                ) {
                     const clone = res.clone();
                     void (async () => {
                         const reader = clone.body && clone.body.getReader();
@@ -231,6 +268,7 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
 
             if (
                 activeSession !== session ||
+                !isCountableRequestUrl(response.url, args[0], getBaseURI()) ||
                 hasPositiveContentLength(response.headers.get("content-length"))
             ) {
                 return response;
@@ -272,8 +310,8 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
             const countProgress = (event: ProgressEvent) => {
                 if (
                     activeSession !== session ||
-                    this.responseURL.startsWith("blob:") ||
-                    this.responseURL.startsWith("data:") ||
+                    (this.responseURL &&
+                        !isCountableRequestUrl(this.responseURL, undefined, getBaseURI())) ||
                     hasPositiveContentLength(this.getResponseHeader("content-length"))
                 ) {
                     return;

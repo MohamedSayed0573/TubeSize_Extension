@@ -8,7 +8,7 @@ const originSchema = z.string().refine(isOrigin, "Invalid origin");
 
 const siteUsageSchema = z.object({
     day: z.custom<DateKey>((arg) => typeof arg === "string" && isValidDateKey(arg)),
-    usage: z.record(originSchema, z.number().nonnegative()),
+    usage: z.record(originSchema, z.number().nonnegative().max(Number.MAX_SAFE_INTEGER)),
 }) satisfies z.ZodType<{ day: DateKey; usage: Record<Origin, number> }>;
 
 export type SiteUsage = z.infer<typeof siteUsageSchema>;
