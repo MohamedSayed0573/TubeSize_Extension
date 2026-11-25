@@ -2,7 +2,7 @@ import { PLATFORM_MATCH_PATTERNS } from "@lib/platformUrl";
 import { defineContentScript } from "wxt/utils/define-content-script";
 
 import { initializeLanguage } from "@/i18n/language";
-import { onMessage } from "@/messaging";
+import { onTabMessage } from "@/messaging";
 
 import { createContentSession, isSamePageNavigation } from "./contentSession";
 import { getCurrentResolution } from "./resolution";
@@ -30,6 +30,6 @@ export default defineContentScript({
             void session.navigate(newUrl.href);
         });
 
-        ctx.onInvalidated(onMessage("getCurrentResolution", () => getCurrentResolution()));
+        ctx.onInvalidated(onTabMessage("getCurrentResolution", () => getCurrentResolution()));
     },
 });
