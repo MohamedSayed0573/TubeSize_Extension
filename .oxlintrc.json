@@ -211,6 +211,13 @@
                 "no-restricted-imports": [
                     "error",
                     {
+                        "paths": [
+                            {
+                                "name": "react",
+                                "importNames": ["useEffect"],
+                                "message": "Avoid useEffect in UI components; use useLiveDbQuery, TanStack Query, or an explicit primitive in src/hooks/."
+                            }
+                        ],
                         "patterns": [
                             {
                                 "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
@@ -226,6 +233,14 @@
                                 "message": "UI code must not import directly from @wxt-dev/storage; go through @hooks/* or @lib/*."
                             }
                         ]
+                    }
+                ],
+                "no-restricted-properties": [
+                    "error",
+                    {
+                        "object": "React",
+                        "property": "useEffect",
+                        "message": "Avoid useEffect in UI components; use useLiveDbQuery, TanStack Query, or an explicit primitive in src/hooks/."
                     }
                 ]
             }
