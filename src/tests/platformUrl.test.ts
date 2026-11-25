@@ -9,6 +9,8 @@ import {
     toVideoKey,
 } from "@lib/platformUrl";
 
+import contentScript from "@/entrypoints/content/index";
+
 describe("parsePlatformUrl", () => {
     test("returns undefined for empty, invalid, non-HTTP, and unsupported URLs", () => {
         expect(parsePlatformUrl("")).toBeUndefined();
@@ -165,5 +167,18 @@ describe("platform identity and VideoKey helpers", () => {
         expect(() => parseVideoKey("unknown:abc" as VideoKey)).toThrow("Invalid video key");
         expect(() => parseVideoKey("youtube:" as VideoKey)).toThrow("Invalid video key");
         expect(() => parseVideoKey("no-colon" as VideoKey)).toThrow("Invalid video key");
+    });
+
+    test("keeps content script match patterns aligned with supported platform hosts", () => {
+        expect(contentScript.matches).toEqual([
+            "*://www.youtube.com/*",
+            "*://youtube.com/*",
+            "*://www.twitch.tv/*",
+            "*://twitch.tv/*",
+            "*://www.twitch.com/*",
+            "*://twitch.com/*",
+            "*://www.kick.com/*",
+            "*://kick.com/*",
+        ]);
     });
 });
