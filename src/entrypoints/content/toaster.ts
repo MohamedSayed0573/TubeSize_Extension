@@ -1,35 +1,33 @@
-import type { DateKey, PlatformId } from "@app-types/types";
 import { getDateKey } from "@lib/dateUtils";
 import { megabytesPerHour } from "@lib/format";
 import { toasterSuppressedDate } from "@lib/storage";
 
-import type { DisplayFormat, PlatformDataMap, ToastAdapter } from "@/adapters/types";
+import type { DisplayFormat } from "@/adapters/types";
 
 import { createToast } from "./toast";
 
 const HOST_ID = "TubeSize-Toast-Host";
 
-let suppressedDateCache: DateKey | undefined;
-let toastGeneration = 0;
-
 async function isSuppressedForToday(): Promise<boolean> {
-    const today = getDateKey();
-    if (suppressedDateCache === today) return true;
-    suppressedDateCache = (await toasterSuppressedDate.getValue()) ?? undefined;
-    return suppressedDateCache === today;
+    return (await toasterSuppressedDate.getValue()) === getDateKey();
 }
 
 async function suppressForToday(): Promise<void> {
-    const today = getDateKey();
-    suppressedDateCache = today;
-    await toasterSuppressedDate.setValue(today);
+    await toasterSuppressedDate.setValue(getDateKey());
 }
 
-function mountToast(options: {
-    currentQuality: number;
-    thresholdMbph: number;
-    format: DisplayFormat;
-}) {
+export function unmountToast() {
+    document.querySelector(`#${HOST_ID}`)?.remove();
+}
+
+function mountToast(
+    options: {
+        currentQuality: number;
+        thresholdMbph: number;
+        format: DisplayFormat;
+    },
+    dismiss: () => void,
+) {
     let host = document.querySelector<HTMLDivElement>(`#${HOST_ID}`);
     if (!host) {
         host = document.createElement("div");
@@ -40,40 +38,60 @@ function mountToast(options: {
     host.replaceChildren(
         createToast({
             ...options,
-            okOnClick: unmountToast,
+            okOnClick: dismiss,
             dontShowAgainOnClick: () => {
                 void suppressForToday();
-                unmountToast();
+                dismiss();
             },
         }),
     );
 }
 
-export async function showPlatformToast<P extends PlatformId>(
-    adapter: ToastAdapter<P>,
-    data: PlatformDataMap[P],
-    currentQuality: number,
-    toasterThresholdMbph: number,
-) {
-    const generation = toastGeneration;
-    if (await isSuppressedForToday()) return;
-    if (generation !== toastGeneration) return;
+type ShowToastOptions = {
+    formats: readonly DisplayFormat[];
+    currentQuality: number;
+    thresholdMbph: number;
+};
 
-    const format = adapter
-        .formats(data)
-        .find((candidate) => candidate.resolution === currentQuality);
-    if (!format) return;
+type Toaster = {
+    show: (options: ShowToastOptions) => Promise<void>;
+    dismiss: () => void;
+};
 
-    if (megabytesPerHour(format.sizePerSecondBytes) <= toasterThresholdMbph) return;
+export function createToaster(signal?: AbortSignal): Toaster {
+    let pendingController: AbortController | undefined;
 
-    mountToast({
-        currentQuality,
-        thresholdMbph: toasterThresholdMbph,
-        format,
-    });
-}
+    const dismiss = () => {
+        pendingController?.abort();
+        pendingController = undefined;
+        unmountToast();
+    };
 
-export function unmountToast() {
-    toastGeneration++;
-    document.querySelector(`#${HOST_ID}`)?.remove();
+    signal?.addEventListener("abort", dismiss, { once: true });
+
+    const show = async ({ formats, currentQuality, thresholdMbph }: ShowToastOptions) => {
+        if (signal?.aborted) return;
+
+        pendingController?.abort();
+        const requestController = new AbortController();
+        pendingController = requestController;
+
+        try {
+            const format = formats.find((candidate) => candidate.resolution === currentQuality);
+            if (!format) return;
+
+            if (megabytesPerHour(format.sizePerSecondBytes) <= thresholdMbph) return;
+
+            if (await isSuppressedForToday()) return;
+            if (signal?.aborted || requestController.signal.aborted) return;
+
+            mountToast({ currentQuality, thresholdMbph, format }, dismiss);
+        } finally {
+            if (pendingController === requestController) {
+                pendingController = undefined;
+            }
+        }
+    };
+
+    return { show, dismiss };
 }

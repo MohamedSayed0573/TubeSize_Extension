@@ -48,12 +48,7 @@ export type LoadPlatformOptions = {
     isFromPopup?: boolean;
 };
 
-export interface ToastAdapter<P extends PlatformId = PlatformId> {
-    platform: P;
-    formats: (data: PlatformDataMap[P], options?: FormatOptions) => DisplayFormat[];
-}
-
-export interface PlatformAdapter<P extends PlatformId = PlatformId> extends ToastAdapter<P> {
+export interface PlatformAdapter<P extends PlatformId = PlatformId> {
     platform: P;
 
     load: (

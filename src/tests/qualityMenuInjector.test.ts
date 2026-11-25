@@ -1,18 +1,25 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { youtubeAdapter } from "@/adapters/youtubeAdapter";
-import { clearQualityMenu, injectMenu } from "@/entrypoints/content/qualityMenuInjector";
-import type { YoutubeData } from "@/types/platforms.types";
+import type { DisplayFormat } from "@/adapters/types";
+import { clearQualityMenu, injectQualityMenu } from "@/entrypoints/content/qualityMenuInjector";
 
 import { installDomEnv } from "./domEnv";
 
 let cleanupDom: (() => Promise<void>) | undefined;
+const controllers: AbortController[] = [];
+
+function createSignal(): AbortController {
+    const controller = new AbortController();
+    controllers.push(controller);
+    return controller;
+}
 
 beforeEach(() => {
     cleanupDom = installDomEnv();
 });
 
 afterEach(async () => {
+    while (controllers.length > 0) controllers.pop()?.abort();
     clearQualityMenu();
     await cleanupDom?.();
     cleanupDom = undefined;
@@ -73,47 +80,31 @@ async function waitForCondition(predicate: () => boolean, maxAttempts = 100): Pr
     expect(predicate()).toBe(true);
 }
 
-const sampleVod: YoutubeData = {
-    platform: "youtube",
-    type: "vod",
-    title: "VOD Test",
-    durationSeconds: 3600,
-    thumbnailUrl: undefined,
-    channelName: "Tester",
-    channelUrl: undefined,
-    formats: [
-        {
-            type: "vod",
-            formatId: 137,
-            height: 1080,
-            sizeBytes: 500_000_000,
-            sizePerSecondBytes: 500_000_000 / 3600,
-        },
-        {
-            type: "vod",
-            formatId: 136,
-            height: 720,
-            sizeBytes: 250_000_000,
-            sizePerSecondBytes: 250_000_000 / 3600,
-        },
-    ],
-};
+const sampleVodFormats: DisplayFormat[] = [
+    {
+        kind: "vod",
+        key: 137,
+        resolution: 1080,
+        sizeBytes: 500_000_000,
+        sizePerSecondBytes: 500_000_000 / 3600,
+    },
+    {
+        kind: "vod",
+        key: 136,
+        resolution: 720,
+        sizeBytes: 250_000_000,
+        sizePerSecondBytes: 250_000_000 / 3600,
+    },
+];
 
-const sampleLive: YoutubeData = {
-    platform: "youtube",
-    type: "live",
-    title: "Live Test",
-    channelName: "LiveChannel",
-    thumbnailUrl: undefined,
-    channelUrl: undefined,
-    formats: [
-        {
-            type: "live",
-            resolution: 1080,
-            sizePerSecondBytes: 500_000,
-        },
-    ],
-};
+const sampleLiveFormats: DisplayFormat[] = [
+    {
+        kind: "live",
+        key: 1080,
+        resolution: 1080,
+        sizePerSecondBytes: 500_000,
+    },
+];
 
 describe("qualityMenuInjector", () => {
     test("injects VOD format sizes while skipping Premium and Auto labels", async () => {
@@ -124,7 +115,7 @@ describe("qualityMenuInjector", () => {
             { label: "Auto" },
         ]);
 
-        await injectMenu(youtubeAdapter, sampleVod);
+        await injectQualityMenu(sampleVodFormats, createSignal().signal);
 
         const badges = [...settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")].map(
             (node) => node.textContent,
@@ -145,7 +136,7 @@ describe("qualityMenuInjector", () => {
     test("observes dynamic quality menu mounts and renders live hourly rates", async () => {
         const settingsMenu = createSettingsMenu();
 
-        await injectMenu(youtubeAdapter, sampleLive);
+        await injectQualityMenu(sampleLiveFormats, createSignal().signal);
         expect(settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")).toHaveLength(0);
 
         settingsMenu.append(createQualityPanel([{ label: "1080p" }]));
@@ -159,10 +150,11 @@ describe("qualityMenuInjector", () => {
         expect(badges).toEqual(["1.8 GB/hour"]);
     });
 
-    test("reuses existing badges in place without duplication across observer mutations and clears on clearQualityMenu", async () => {
+    test("reuses existing badges in place across observer mutations and clears on abort", async () => {
         const settingsMenu = createSettingsMenu([{ label: "1080p" }]);
 
-        await injectMenu(youtubeAdapter, sampleVod);
+        const firstController = createSignal();
+        await injectQualityMenu(sampleVodFormats, firstController.signal);
         const initialBadges = [...settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")];
         expect(initialBadges).toHaveLength(1);
         const firstBadge = initialBadges[0];
@@ -186,25 +178,41 @@ describe("qualityMenuInjector", () => {
         expect(reusedBadges[0]).toBe(firstBadge);
         expect(reusedBadges.map((node) => node.textContent)).toEqual(["500 MB", "250 MB"]);
 
-        await injectMenu(youtubeAdapter, {
-            ...sampleVod,
-            formats: [
+        firstController.abort();
+        expect(settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")).toHaveLength(0);
+
+        const secondController = createSignal();
+        await injectQualityMenu(
+            [
                 {
-                    type: "vod",
-                    formatId: 137,
-                    height: 1080,
+                    kind: "vod",
+                    key: 137,
+                    resolution: 1080,
                     sizeBytes: 900_000_000,
                     sizePerSecondBytes: 250_000,
                 },
             ],
-        });
+            secondController.signal,
+        );
         await new Promise((resolve) => setTimeout(resolve, 10));
 
         const updatedBadges = [...settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")];
         expect(updatedBadges).toHaveLength(1);
         expect(updatedBadges[0]?.textContent).toBe("900 MB");
 
-        clearQualityMenu();
+        secondController.abort();
+        expect(settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")).toHaveLength(0);
+    });
+
+    test("aborts an in-flight wait for .ytp-settings-menu without injecting badges later", async () => {
+        const controller = createSignal();
+        const pending = injectQualityMenu(sampleVodFormats, controller.signal);
+
+        controller.abort();
+        await pending;
+
+        const settingsMenu = createSettingsMenu([{ label: "1080p" }]);
+        await new Promise((resolve) => setTimeout(resolve, 20));
         expect(settingsMenu.querySelectorAll(".tubesize-quality-menu-panel")).toHaveLength(0);
     });
 });

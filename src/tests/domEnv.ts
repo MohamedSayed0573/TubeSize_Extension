@@ -3,6 +3,7 @@ import { Window } from "happy-dom";
 const DOM_GLOBALS = [
     "window",
     "document",
+    "location",
     "Node",
     "Element",
     "HTMLElement",
@@ -17,8 +18,10 @@ const DOM_GLOBALS = [
     "IS_REACT_ACT_ENVIRONMENT",
 ] as const;
 
-export function installDomEnv(): () => Promise<void> {
-    const win = new Window({ url: "https://www.youtube.com/watch?v=I82j7AzMU80" });
+export function installDomEnv(
+    url = "https://www.youtube.com/watch?v=I82j7AzMU80",
+): () => Promise<void> {
+    const win = new Window({ url });
     const previousDescriptors = new Map<string, PropertyDescriptor | undefined>();
 
     for (const key of DOM_GLOBALS) {
@@ -28,6 +31,7 @@ export function installDomEnv(): () => Promise<void> {
     const bindings: Record<(typeof DOM_GLOBALS)[number], unknown> = {
         window: win,
         document: win.document,
+        location: win.location,
         Node: win.Node,
         Element: win.Element,
         HTMLElement: win.HTMLElement,
