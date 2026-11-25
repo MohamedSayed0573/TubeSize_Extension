@@ -119,6 +119,12 @@ function createHarness(baseFetch?: FetchFn) {
         Worker: FakeWorker as unknown as typeof Worker,
     };
 
+    const windowTarget = new EventTarget();
+    const documentTarget: EventTarget & { visibilityState: DocumentVisibilityState } =
+        Object.assign(new EventTarget(), {
+            visibilityState: "visible" as const,
+        });
+
     const observer = createPageUsageObserver({
         globalObject,
         XMLHttpRequest: FakeXMLHttpRequest as unknown as typeof XMLHttpRequest,
@@ -141,6 +147,8 @@ function createHarness(baseFetch?: FetchFn) {
                 intervalCleared = true;
             };
         },
+        windowTarget,
+        documentTarget,
         onError: (err) => errors.push(err),
         flushIntervalMs: 3000,
     });
@@ -154,6 +162,11 @@ function createHarness(baseFetch?: FetchFn) {
         createdBlobs,
         revokedUrls,
         triggerTick: () => intervalTick?.(),
+        triggerPageHide: () => windowTarget.dispatchEvent(new Event("pagehide")),
+        triggerVisibilityChange: (state: DocumentVisibilityState) => {
+            documentTarget.visibilityState = state;
+            documentTarget.dispatchEvent(new Event("visibilitychange"));
+        },
         getIntervalMs: () => intervalMs,
         isIntervalCleared: () => intervalCleared,
     };
@@ -587,5 +600,74 @@ describe("createPageUsageObserver", () => {
         expect(firstStreamCanceled).toBe(true);
 
         harness.observer.dispose();
+    });
+
+    test("flushes buffered bytes on visibilitychange (hidden) and pagehide without double-counting", async () => {
+        const harness = createHarness(async () => makeStreamResponse([1_200, 800]));
+        harness.observer.install();
+
+        await (await harness.globalObject.fetch("https://example.com/stream")).arrayBuffer();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        harness.triggerVisibilityChange("visible");
+        expect(harness.posted).toEqual([]);
+
+        harness.triggerVisibilityChange("hidden");
+        harness.triggerPageHide();
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 2_000 }]);
+
+        const xhr = new FakeXMLHttpRequest();
+        xhr.open("GET", "https://example.com/final-chunk");
+        xhr.send();
+        xhr.emitProgress(600, "loadend");
+
+        harness.triggerPageHide();
+        harness.triggerPageHide();
+        expect(harness.posted).toEqual([
+            { type: "TUBESIZE_SITE_USAGE", bytes: 2_000 },
+            { type: "TUBESIZE_SITE_USAGE", bytes: 600 },
+        ]);
+
+        harness.observer.dispose();
+    });
+
+    test("removes pagehide and visibilitychange listeners on dispose", () => {
+        const windowTarget = new EventTarget();
+        const documentTarget: EventTarget & { visibilityState: DocumentVisibilityState } =
+            Object.assign(new EventTarget(), {
+                visibilityState: "visible" as const,
+            });
+        const removeWindowSpy = jest.spyOn(windowTarget, "removeEventListener");
+        const removeDocumentSpy = jest.spyOn(documentTarget, "removeEventListener");
+        const posted: UsageMessage[] = [];
+
+        const observer = createPageUsageObserver({
+            globalObject: {
+                fetch: async () => makeStreamResponse([500]),
+                Worker: FakeWorker as unknown as typeof Worker,
+            },
+            XMLHttpRequest: FakeXMLHttpRequest as unknown as typeof XMLHttpRequest,
+            getBaseURI: () => "https://example.com/",
+            postMessage: (message) => posted.push(message),
+            scheduleInterval: () => () => {},
+            windowTarget,
+            documentTarget,
+        });
+
+        observer.install();
+        const xhr = new FakeXMLHttpRequest();
+        xhr.open("GET", "https://example.com/chunk");
+        xhr.send();
+        xhr.emitProgress(400, "loadend");
+
+        observer.dispose();
+
+        expect(removeWindowSpy).toHaveBeenCalledWith("pagehide", expect.any(Function));
+        expect(removeDocumentSpy).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
+
+        documentTarget.visibilityState = "hidden";
+        documentTarget.dispatchEvent(new Event("visibilitychange"));
+        windowTarget.dispatchEvent(new Event("pagehide"));
+        expect(posted).toEqual([]);
     });
 });

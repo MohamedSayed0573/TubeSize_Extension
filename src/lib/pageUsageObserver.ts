@@ -9,6 +9,13 @@ export interface PageUsageObserverGlobal {
     Worker: typeof Worker;
 }
 
+interface PageUsageObserverDocument extends Pick<
+    EventTarget,
+    "addEventListener" | "removeEventListener"
+> {
+    readonly visibilityState: DocumentVisibilityState;
+}
+
 export interface PageUsageObserverPorts {
     globalObject?: PageUsageObserverGlobal;
     XMLHttpRequest?: typeof XMLHttpRequest;
@@ -17,6 +24,8 @@ export interface PageUsageObserverPorts {
     getBaseURI?: () => string;
     postMessage?: (message: UsageMessage) => void;
     scheduleInterval?: (callback: () => void, intervalMs: number) => () => void;
+    windowTarget?: Pick<EventTarget, "addEventListener" | "removeEventListener">;
+    documentTarget?: PageUsageObserverDocument;
     onError?: (err: unknown) => void;
     flushIntervalMs?: number;
 }
@@ -204,6 +213,9 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
     const postMessage =
         ports.postMessage ?? ((message: UsageMessage) => globalThis.postMessage(message, "*"));
     const scheduleInterval = ports.scheduleInterval ?? defaultScheduleInterval;
+    const windowTarget = ports.windowTarget ?? (typeof window !== "undefined" ? window : undefined);
+    const documentTarget =
+        ports.documentTarget ?? (typeof document !== "undefined" ? document : undefined);
     const onError = ports.onError ?? ((err: unknown) => console.error(err));
     const flushIntervalMs = ports.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS;
 
@@ -230,6 +242,16 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
             type: "TUBESIZE_SITE_USAGE",
             bytes,
         });
+    }
+
+    function onPageHide() {
+        if (!activeSession) return;
+        flush();
+    }
+
+    function onVisibilityChange() {
+        if (!activeSession || documentTarget?.visibilityState !== "hidden") return;
+        flush();
     }
 
     function onWorkerMessage(event: MessageEvent) {
@@ -375,6 +397,8 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
         });
 
         stopInterval = scheduleInterval(flush, flushIntervalMs);
+        windowTarget?.addEventListener("pagehide", onPageHide);
+        documentTarget?.addEventListener("visibilitychange", onVisibilityChange);
     }
 
     function dispose() {
@@ -384,6 +408,9 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
 
         stopInterval?.();
         stopInterval = undefined;
+
+        windowTarget?.removeEventListener("pagehide", onPageHide);
+        documentTarget?.removeEventListener("visibilitychange", onVisibilityChange);
 
         for (const reader of activeReaders) {
             void reader.cancel().catch(() => undefined);
