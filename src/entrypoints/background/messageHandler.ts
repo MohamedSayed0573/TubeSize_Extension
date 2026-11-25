@@ -5,8 +5,15 @@ import { onBackgroundMessage, type BackgroundResponse } from "@/messaging";
 import { estimateMedia } from "./estimateMedia";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
+const MAX_USAGE_REPORT_BYTES = 1_000_000_000_000;
+
 function isValidUsageBytes(usage: unknown): usage is number {
-    return typeof usage === "number" && Number.isFinite(usage) && usage > 0;
+    return (
+        typeof usage === "number" &&
+        Number.isFinite(usage) &&
+        usage > 0 &&
+        usage <= MAX_USAGE_REPORT_BYTES
+    );
 }
 
 async function toBackgroundResponse<T>(
@@ -33,7 +40,7 @@ async function recordUsageFromTab(
     const frameUrl = sender.url;
     if (isExtensionUrl(tabUrl) || isExtensionUrl(frameUrl)) return null;
 
-    const originUrl = tabUrl ?? frameUrl;
+    const originUrl = tabUrl || frameUrl;
     if (!originUrl) throw new Error("No origin in handleAddUsage");
 
     const { bytes } = message;

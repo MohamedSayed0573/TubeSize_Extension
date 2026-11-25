@@ -75,8 +75,17 @@ describe("ImportSchema", () => {
         }
     });
 
-    test("rejects negative, NaN, infinite, and non-numeric byte counts", () => {
-        const invalidBytes = [-1, -0.5, Number.NaN, Number.POSITIVE_INFINITY, "1000", null];
+    test("rejects negative, NaN, infinite, oversized, and non-numeric byte counts", () => {
+        const invalidBytes = [
+            -1,
+            -0.5,
+            Number.NaN,
+            Number.POSITIVE_INFINITY,
+            Number.MAX_SAFE_INTEGER + 1,
+            1e308,
+            "1000",
+            null,
+        ];
 
         for (const bytes of invalidBytes) {
             const result = ImportSchema.safeParse([
@@ -87,6 +96,15 @@ describe("ImportSchema", () => {
             ]);
             expect(result.success, `expected bytes ${String(bytes)} to fail`).toBe(false);
         }
+
+        expect(
+            ImportSchema.safeParse([
+                {
+                    day: "2026-05-01",
+                    usage: { "https://www.youtube.com": Number.MAX_SAFE_INTEGER },
+                },
+            ]).success,
+        ).toBe(true);
     });
 
     test("rejects non-array inputs and entries missing required fields", () => {

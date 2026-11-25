@@ -1,5 +1,7 @@
 import { isFirefox } from "@lib/browser";
 
+import { MAX_SAFE_BYTES } from "@/db";
+
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 const CONTENT_LENGTH_HEADER = "content-length";
@@ -23,6 +25,23 @@ export function setupTrackUsage(ingestion: UsageIngestion = createUsageIngestion
     ingestion.startAutoFlush();
 }
 
+async function resolveRequestTabUrl(details: CompletedRequestDetails): Promise<string | undefined> {
+    if (details.type === "main_frame") {
+        return isExtensionUrl(details.url) ? undefined : details.url;
+    }
+
+    let tab: chrome.tabs.Tab | undefined;
+    try {
+        tab = await chrome.tabs.get(details.tabId);
+    } catch {
+        return undefined;
+    }
+
+    const tabUrl = tab?.url;
+    if (!tabUrl || isExtensionUrl(tabUrl)) return undefined;
+    return tabUrl;
+}
+
 export async function trackRequest(ingestion: UsageIngestion, details: CompletedRequestDetails) {
     try {
         if (!isCountableRequest(details)) return;
@@ -30,13 +49,10 @@ export async function trackRequest(ingestion: UsageIngestion, details: Completed
         const bytes = getContentLength(details);
         if (bytes === undefined) return;
 
-        const tab = await chrome.tabs.get(details.tabId);
-        const tabUrl = tab.url;
-        if (isExtensionUrl(tabUrl)) return;
+        const tabUrl = await resolveRequestTabUrl(details);
+        if (!tabUrl) return;
 
-        if (!tabUrl || !ingestion.bufferTabUsage(tabUrl, bytes)) {
-            throw new Error("Skipping request from unknown origin: " + details.url);
-        }
+        ingestion.bufferTabUsage(tabUrl, bytes);
     } catch (err) {
         console.error("Failed to track request usage:", err);
     }
@@ -65,5 +81,5 @@ function toWireBytes(value: string | undefined): number | undefined {
     if (!value) return;
 
     const bytes = Number(value);
-    return Number.isFinite(bytes) && bytes > 0 ? bytes : undefined;
+    return Number.isFinite(bytes) && bytes > 0 && bytes <= MAX_SAFE_BYTES ? bytes : undefined;
 }

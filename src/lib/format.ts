@@ -10,7 +10,8 @@ import { filesize, type FilesizeOptions } from "filesize";
 import { getLanguage } from "@/i18n/language";
 
 export function formatBytes(bytes: number, options?: FilesizeOptions) {
-    const [value, unit] = filesize(bytes, {
+    const safeBytes = Number.isFinite(bytes) && bytes >= 0 ? bytes : 0;
+    const [value, unit] = filesize(safeBytes, {
         base: 10,
         standard: "si",
         round: 2,
@@ -76,6 +77,7 @@ export function formatDate(date: DateKey | DateKey[]) {
 }
 
 export function formatBadge(bytes: number) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "0B";
     if (bytes < 1000) return `${bytes}B`;
     if (bytes < 1_000_000) return `${(bytes / 1000).toFixed(0)}K`;
     if (bytes < 1_000_000_000) return `${(bytes / 1_000_000).toFixed(0)}M`;

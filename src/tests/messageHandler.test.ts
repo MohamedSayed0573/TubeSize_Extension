@@ -30,8 +30,10 @@ function attachWrappedRootListener() {
             message,
             {
                 ...sender,
-                ...(senderTabUrl ? { tab: { url: senderTabUrl } as chrome.tabs.Tab } : {}),
-                ...(senderFrameUrl ? { url: senderFrameUrl } : {}),
+                ...(senderTabUrl !== undefined
+                    ? { tab: { url: senderTabUrl } as chrome.tabs.Tab }
+                    : {}),
+                ...(senderFrameUrl !== undefined ? { url: senderFrameUrl } : {}),
             },
             sendResponse,
         ),
@@ -433,6 +435,24 @@ describe("attachMessageHandler RPC seam", () => {
             message: "Invalid usage bytes",
         });
 
+        const usageOverflowFirst = await sendBackgroundMessage("addUsage", { bytes: 1e308 });
+        const usageOverflowSecond = await sendBackgroundMessage("addUsage", { bytes: 1e308 });
+        expect(usageOverflowFirst).toEqual({
+            success: false,
+            message: "Invalid usage bytes",
+        });
+        expect(usageOverflowSecond).toEqual({
+            success: false,
+            message: "Invalid usage bytes",
+        });
+        expect((await getAllSiteUsage())[0]?.usage[toOrigin("https://example.com")!]).toBe(6144);
+
+        const usageAboveCap = await sendBackgroundMessage("addUsage", { bytes: 1_000_000_000_001 });
+        expect(usageAboveCap).toEqual({
+            success: false,
+            message: "Invalid usage bytes",
+        });
+
         senderTabUrl = "not-a-valid-url";
         const usageInvalidOrigin = await sendBackgroundMessage("addUsage", { bytes: 100 });
         expect(usageInvalidOrigin).toEqual({
@@ -496,6 +516,15 @@ describe("attachMessageHandler RPC seam", () => {
         expect((await getAllSiteUsage())[0]?.usage[toOrigin("https://www.twitch.tv")!]).toBe(4_500);
         expect((await getAllWatchHistory())[0]?.videos[toVideoKey("twitch", "shroud")]).toBe(4_500);
         expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+        senderTabUrl = "";
+        senderFrameUrl = "https://www.twitch.tv/shroud";
+        expect(await sendBackgroundMessage("addUsage", { bytes: 750 })).toEqual({
+            success: true,
+            data: null,
+        });
+        expect((await getAllSiteUsage())[0]?.usage[toOrigin("https://www.twitch.tv")!]).toBe(5_250);
+        expect((await getAllWatchHistory())[0]?.videos[toVideoKey("twitch", "shroud")]).toBe(5_250);
     });
 
     test("ignores addUsage messages originating from chrome-extension or moz-extension tab or frame URLs", async () => {

@@ -39,6 +39,13 @@ describe("formatBytes", () => {
         expect(formatBytes(1024, { base: 2, standard: "iec" })).toBe("1 KiB");
         expect(formatBytes(1500, { round: 0 })).toBe("2 KB");
     });
+
+    test("handles non-finite, negative, and MAX_SAFE_INTEGER values without throwing", () => {
+        expect(formatBytes(Number.POSITIVE_INFINITY)).toBe("0 B");
+        expect(formatBytes(Number.NaN)).toBe("0 B");
+        expect(formatBytes(-500)).toBe("0 B");
+        expect(formatBytes(Number.MAX_SAFE_INTEGER)).toBe("9.01 PB");
+    });
 });
 
 describe("formatRate", () => {
@@ -121,6 +128,12 @@ describe("formatBadge", () => {
 
     test("formats gigabytes", () => {
         expect(formatBadge(2_400_000_000)).toBe("2.4G");
+    });
+
+    test("handles non-finite and non-positive values", () => {
+        expect(formatBadge(Number.POSITIVE_INFINITY)).toBe("0B");
+        expect(formatBadge(Number.NaN)).toBe("0B");
+        expect(formatBadge(-100)).toBe("0B");
     });
 });
 

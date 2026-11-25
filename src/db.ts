@@ -44,22 +44,39 @@ class TubeSizeDatabase extends Dexie {
 
 const database = new TubeSizeDatabase();
 
+export const MAX_SAFE_BYTES = Number.MAX_SAFE_INTEGER;
+
+export function addSafeBytes(current: number, delta: number): number {
+    const base = Number.isFinite(current) && current > 0 ? Math.min(current, MAX_SAFE_BYTES) : 0;
+    if (!Number.isFinite(delta) || delta <= 0) return base;
+    const remaining = MAX_SAFE_BYTES - base;
+    return delta >= remaining ? MAX_SAFE_BYTES : base + delta;
+}
+
 export async function addSiteUsage(siteUsage: Record<Origin, number>) {
-    const entries = typedEntries(siteUsage);
-    if (entries.length === 0) return;
+    const validEntries: Array<[Origin, number]> = [];
+    for (const [origin, bytes] of typedEntries(siteUsage)) {
+        const clamped = addSafeBytes(0, bytes);
+        if (clamped > 0) validEntries.push([origin, clamped]);
+    }
+    if (validEntries.length === 0) return;
     const day = getDateKey();
 
     await database.transaction("readwrite", database.siteUsage, async () => {
         const existing = await database.siteUsage.get(day);
 
         if (existing) {
-            for (const [origin, bytes] of entries) {
-                existing.usage[origin] = (existing.usage[origin] ?? 0) + bytes;
+            for (const [origin, bytes] of validEntries) {
+                existing.usage[origin] = addSafeBytes(existing.usage[origin] ?? 0, bytes);
             }
 
             await database.siteUsage.put(existing);
         } else {
-            await database.siteUsage.add({ day, usage: siteUsage });
+            const usage: Record<Origin, number> = {};
+            for (const [origin, bytes] of validEntries) {
+                usage[origin] = bytes;
+            }
+            await database.siteUsage.add({ day, usage });
         }
     });
 }
@@ -88,21 +105,29 @@ export async function getSiteUsageByDate(day: DateKey | DateKey[]) {
 }
 
 export async function addWatchHistory(watchHistory: Record<VideoKey, number>) {
-    const entries = typedEntries(watchHistory);
-    if (entries.length === 0) return;
+    const validEntries: Array<[VideoKey, number]> = [];
+    for (const [videoKey, bytes] of typedEntries(watchHistory)) {
+        const clamped = addSafeBytes(0, bytes);
+        if (clamped > 0) validEntries.push([videoKey, clamped]);
+    }
+    if (validEntries.length === 0) return;
     const day = getDateKey();
 
     await database.transaction("readwrite", database.watchHistory, async () => {
         const existing = await database.watchHistory.get(day);
 
         if (existing) {
-            for (const [videoKey, bytes] of entries) {
-                existing.videos[videoKey] = (existing.videos[videoKey] ?? 0) + bytes;
+            for (const [videoKey, bytes] of validEntries) {
+                existing.videos[videoKey] = addSafeBytes(existing.videos[videoKey] ?? 0, bytes);
             }
 
             await database.watchHistory.put(existing);
         } else {
-            await database.watchHistory.add({ day, videos: watchHistory });
+            const videos: Record<VideoKey, number> = {};
+            for (const [videoKey, bytes] of validEntries) {
+                videos[videoKey] = bytes;
+            }
+            await database.watchHistory.add({ day, videos });
         }
     });
 }

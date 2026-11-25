@@ -301,4 +301,30 @@ describe("createUsageIngestion", () => {
         });
         expect(await fakeBrowser.action.getBadgeText({})).toBe("3K");
     });
+
+    test("rejects out-of-range byte counts and saturates accumulated totals at MAX_SAFE_INTEGER", async () => {
+        const recordMetadata = jest.fn(async () => {});
+        const ingestion = createUsageIngestion({ recordMetadata });
+        const ytUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+
+        expect(ingestion.bufferTabUsage(ytUrl, 1e308)).toBe(false);
+        expect(ingestion.bufferTabUsage(ytUrl, Number.POSITIVE_INFINITY)).toBe(false);
+        expect(ingestion.bufferTabUsage(ytUrl, Number.NaN)).toBe(false);
+        expect(ingestion.bufferTabUsage(ytUrl, 0)).toBe(false);
+        expect(ingestion.bufferTabUsage(ytUrl, -100)).toBe(false);
+        expect(ingestion.hasPendingUsage).toBe(false);
+
+        const halfMax = Math.floor(Number.MAX_SAFE_INTEGER / 2) + 1_000;
+        expect(ingestion.bufferTabUsage(ytUrl, halfMax)).toBe(true);
+        expect(ingestion.bufferTabUsage(ytUrl, halfMax)).toBe(true);
+
+        await ingestion.flush();
+
+        expect((await getAllSiteUsage())[0]?.usage[origin("https://www.youtube.com")]).toBe(
+            Number.MAX_SAFE_INTEGER,
+        );
+        expect((await getAllWatchHistory())[0]?.videos[toVideoKey("youtube", "dQw4w9WgXcQ")]).toBe(
+            Number.MAX_SAFE_INTEGER,
+        );
+    });
 });

@@ -5,6 +5,7 @@ import type { UsageMessage } from "@app-types/types";
 import {
     createPageUsageObserver,
     hasPositiveContentLength,
+    isCountableRequestUrl,
     type FetchFn,
     type PageUsageObserverGlobal,
 } from "@lib/pageUsageObserver";
@@ -176,6 +177,44 @@ describe("hasPositiveContentLength", () => {
     });
 });
 
+describe("isCountableRequestUrl", () => {
+    test("allows http and https URLs including relative paths on http(s) pages and skips non-network schemes", () => {
+        expect(isCountableRequestUrl("https://example.com/stream", undefined)).toBe(true);
+        expect(isCountableRequestUrl("http://127.0.0.1:8080/chunk", undefined)).toBe(true);
+        expect(isCountableRequestUrl("", "/api/stream", "https://example.com/app/")).toBe(true);
+        expect(
+            isCountableRequestUrl(
+                "",
+                new Request("https://example.com/req"),
+                "https://example.com/",
+            ),
+        ).toBe(true);
+        expect(
+            isCountableRequestUrl(
+                "",
+                new URL("https://example.com/url"),
+                "blob:https://example.com/w",
+            ),
+        ).toBe(true);
+
+        expect(
+            isCountableRequestUrl("", "data:text/plain;base64,SGVsbG8=", "https://example.com/"),
+        ).toBe(false);
+        expect(
+            isCountableRequestUrl("", "blob:https://example.com/1234", "https://example.com/"),
+        ).toBe(false);
+        expect(
+            isCountableRequestUrl("", "chrome-extension://abcdef/asset.js", "https://example.com/"),
+        ).toBe(false);
+        expect(
+            isCountableRequestUrl("", "moz-extension://1234-5678/asset.js", "https://example.com/"),
+        ).toBe(false);
+        expect(
+            isCountableRequestUrl("", "/relative.js", "chrome-extension://abcdef/page.html"),
+        ).toBe(false);
+    });
+});
+
 describe("createPageUsageObserver", () => {
     test("counts streamed fetch responses without Content-Length and skips positive Content-Length responses", async () => {
         const harness = createHarness(async (input) => {
@@ -209,6 +248,34 @@ describe("createPageUsageObserver", () => {
         harness.triggerTick();
 
         expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 2_600 }]);
+        expect(harness.errors).toEqual([]);
+
+        harness.observer.dispose();
+    });
+
+    test("counts relative http(s) fetches and skips data:, blob:, chrome-extension:, and moz-extension: fetch responses", async () => {
+        const harness = createHarness(async () => makeStreamResponse([1_200]));
+        harness.observer.install();
+
+        await (await harness.globalObject.fetch("/relative/stream")).arrayBuffer();
+        await (await harness.globalObject.fetch("data:text/plain;base64,SGVsbG8=")).arrayBuffer();
+        await (
+            await harness.globalObject.fetch("blob:https://example.com/local-blob")
+        ).arrayBuffer();
+        await (
+            await harness.globalObject.fetch("chrome-extension://abcdef/chunk.js")
+        ).arrayBuffer();
+        await (
+            await harness.globalObject.fetch("moz-extension://1234-5678/chunk.js")
+        ).arrayBuffer();
+        await (
+            await harness.globalObject.fetch(new Request("data:application/octet-stream,abc"))
+        ).arrayBuffer();
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        harness.observer.flush();
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 1_200 }]);
         expect(harness.errors).toEqual([]);
 
         harness.observer.dispose();
@@ -292,6 +359,16 @@ describe("createPageUsageObserver", () => {
         dataXhr.send();
         dataXhr.emitProgress(500, "loadend");
 
+        const chromeExtXhr = new FakeXMLHttpRequest();
+        chromeExtXhr.open("GET", "chrome-extension://abcdef/asset.js");
+        chromeExtXhr.send();
+        chromeExtXhr.emitProgress(500, "loadend");
+
+        const mozExtXhr = new FakeXMLHttpRequest();
+        mozExtXhr.open("GET", "moz-extension://1234-5678/asset.js");
+        mozExtXhr.send();
+        mozExtXhr.emitProgress(500, "loadend");
+
         harness.observer.flush();
         expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 1_300 }]);
 
@@ -337,6 +414,7 @@ describe("createPageUsageObserver", () => {
         const workerPosted: unknown[] = [];
         let workerTick: (() => void) | undefined;
         const fakeSelf: Record<string, unknown> = {
+            location: { href: "blob:https://example.com/wrapped-1" },
             postMessage: (msg: unknown) => workerPosted.push(msg),
             fetch: async (input: string) => {
                 if (input.endsWith("/fixed")) {
@@ -366,6 +444,10 @@ describe("createPageUsageObserver", () => {
         await (await workerFetch("https://example.com/fixed")).arrayBuffer();
         await (await workerFetch("https://example.com/stream")).arrayBuffer();
         await (await workerFetch("https://example.com/infinity")).arrayBuffer();
+        await (await workerFetch("data:text/plain;base64,SGVsbG8=")).arrayBuffer();
+        await (await workerFetch("blob:https://example.com/inner")).arrayBuffer();
+        await (await workerFetch("chrome-extension://abcdef/script.js")).arrayBuffer();
+        await (await workerFetch("moz-extension://1234-5678/script.js")).arrayBuffer();
         await new Promise((resolve) => setTimeout(resolve, 10));
 
         workerTick?.();

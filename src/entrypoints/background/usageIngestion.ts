@@ -5,7 +5,7 @@ import { typedEntries } from "@lib/utils";
 import { recordVideoMetadata } from "@lib/videoMetadata";
 
 import { refreshUsageBadge } from "@/badge";
-import { addSiteUsage, addWatchHistory } from "@/db";
+import { MAX_SAFE_BYTES, addSafeBytes, addSiteUsage, addWatchHistory } from "@/db";
 
 const DEFAULT_FLUSH_INTERVAL_MS = 3000;
 
@@ -68,11 +68,11 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
 
     function restore(snapshot: UsageSnapshot) {
         for (const [origin, bytes] of typedEntries(snapshot.origins)) {
-            origins[origin] = (origins[origin] ?? 0) + bytes;
+            origins[origin] = addSafeBytes(origins[origin] ?? 0, bytes);
         }
 
         for (const [videoKey, bytes] of typedEntries(snapshot.videos)) {
-            videos[videoKey] = (videos[videoKey] ?? 0) + bytes;
+            videos[videoKey] = addSafeBytes(videos[videoKey] ?? 0, bytes);
         }
     }
 
@@ -114,18 +114,19 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
     }
 
     function bufferTabUsage(tabUrl: string, bytes: number, frameUrl?: string): boolean {
+        if (!Number.isFinite(bytes) || bytes <= 0 || bytes > MAX_SAFE_BYTES) return false;
         if (isExtensionUrl(tabUrl) || isExtensionUrl(frameUrl)) return false;
 
         const origin = toOrigin(tabUrl);
         if (!origin) return false;
 
-        origins[origin] = (origins[origin] ?? 0) + bytes;
+        origins[origin] = addSafeBytes(origins[origin] ?? 0, bytes);
 
         try {
             const matched = resolvePlatformMedia([tabUrl, frameUrl]);
             if (matched) {
                 const videoKey = toVideoKey(matched.media.platform, matched.media.mediaId);
-                videos[videoKey] = (videos[videoKey] ?? 0) + bytes;
+                videos[videoKey] = addSafeBytes(videos[videoKey] ?? 0, bytes);
                 void recordMetadata(matched.media, matched.url);
             }
         } catch (err) {
