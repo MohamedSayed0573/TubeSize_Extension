@@ -198,7 +198,7 @@ describe("createContentSession", () => {
         await saveSettings({ toasterEnabled: false });
         const requests: EstimateMediaMessage[] = [];
         messageCleanups.push(
-            onMessage("estimateMedia", ({ data }) => {
+            onBackgroundMessage("estimateMedia", ({ data }) => {
                 requests.push(data);
                 return { success: true, data: HIGH_BITRATE_VOD };
             }),
