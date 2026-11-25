@@ -1,13 +1,13 @@
 import type { KickLiveData, KickVodData } from "@app-types/platforms.types";
 import type { KickLiveMessage, KickVodMessage } from "@app-types/types";
 import { resolveHlsStreams } from "@lib/hls";
+import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
 import { isKickVideoUuid } from "@lib/platformUrl";
 import {
     kickChannelVideosResponseSchema,
     kickPlaybackResponseSchema,
     kickVideoResponseSchema,
 } from "@lib/schema";
-import { getMediaCache, saveMediaCache } from "@lib/storageService";
 import { fetchAndRetry } from "@lib/utils";
 
 async function getKickHtml(url: string): Promise<string> {
@@ -144,8 +144,8 @@ async function findKickVodInChannelVideos(channelName: string, mediaId: string) 
 
 export async function getKickVodData(message: KickVodMessage): Promise<KickVodData> {
     const cached = await getMediaCache("kick", message.mediaId);
-    if (cached?.data.type === "vod") {
-        return cached.data;
+    if (cached?.type === "vod") {
+        return cached;
     }
 
     const { source, durationMs } = isKickVideoUuid(message.mediaId)

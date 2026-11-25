@@ -1,4 +1,4 @@
-import { clearMediaCache } from "@/lib/storageService";
+import { clearMediaCache } from "@lib/mediaCache";
 
 import { runMigrations } from "./migrations";
 

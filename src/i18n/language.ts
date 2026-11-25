@@ -1,6 +1,8 @@
-import { language as languageItem } from "@lib/storage";
+import { storage } from "@wxt-dev/storage";
 
 export type Language = "en" | "ar";
+
+const languageItem = storage.defineItem<Language>("sync:language");
 
 let language: Language | undefined;
 

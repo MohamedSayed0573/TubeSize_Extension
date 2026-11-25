@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, setSystemTime, test } from "bun:test";
 
 import { toDateKey } from "@lib/dateUtils";
-import { toasterSuppressedDate } from "@lib/storage";
+import { storage } from "@wxt-dev/storage";
 
 import type { DisplayFormat } from "@/adapters/types";
 import { createToaster, unmountToast } from "@/entrypoints/content/toaster";
@@ -93,7 +93,7 @@ describe("createToaster", () => {
 
         okBtn?.click();
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
-        expect(await toasterSuppressedDate.getValue()).toBeNull();
+        expect(await storage.getItem("local:toasterSuppressedDate")).toBeNull();
 
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
         expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
@@ -140,7 +140,7 @@ describe("createToaster", () => {
         await Promise.resolve();
 
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
-        expect(await toasterSuppressedDate.getValue()).toBe(expectedDate!);
+        expect(await storage.getItem("local:toasterSuppressedDate")).toBe(expectedDate!);
 
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
         expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();

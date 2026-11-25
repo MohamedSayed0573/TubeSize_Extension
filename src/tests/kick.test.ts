@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 
 import { getKickLiveData, getKickVodData } from "@lib/kick";
-import { getMediaCache } from "@lib/storageService";
+import { getMediaCache } from "@lib/mediaCache";
 
 const originalFetch = globalThis.fetch;
 const originalSetTimeout = globalThis.setTimeout;
@@ -241,7 +241,7 @@ describe("getKickVodData", () => {
             `https://kick.com/api/v1/video/${uuid}`,
             "https://cdn.kick.example/vod-master.m3u8",
         ]);
-        expect((await getMediaCache("kick", uuid))?.createdAt).toBeDefined();
+        expect(await getMediaCache("kick", uuid)).toEqual(first);
 
         fetchMock.mockClear();
         const second = await getKickVodData({

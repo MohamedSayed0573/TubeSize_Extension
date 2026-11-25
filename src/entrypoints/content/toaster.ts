@@ -1,12 +1,14 @@
+import type { DateKey } from "@app-types/types";
 import { getDateKey } from "@lib/dateUtils";
 import { megabytesPerHour } from "@lib/format";
-import { toasterSuppressedDate } from "@lib/storage";
+import { storage } from "@wxt-dev/storage";
 
 import type { DisplayFormat } from "@/adapters/types";
 
 import { createToast } from "./toast";
 
 const HOST_ID = "TubeSize-Toast-Host";
+const toasterSuppressedDate = storage.defineItem<DateKey>("local:toasterSuppressedDate");
 
 async function isSuppressedForToday(): Promise<boolean> {
     return (await toasterSuppressedDate.getValue()) === getDateKey();

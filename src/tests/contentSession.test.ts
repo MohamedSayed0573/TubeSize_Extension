@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import type { KickLiveData, TwitchLiveData, YoutubeData } from "@app-types/platforms.types";
 import type { KickLiveMessage, TwitchLiveMessage, YoutubeMessage } from "@app-types/types";
-import { toasterEnabled, toasterThreshold } from "@lib/storage";
+import { saveSettings } from "@lib/settings";
 
 import { type ContentSession, createContentSession } from "@/entrypoints/content/contentSession";
 import { setLanguage } from "@/i18n/language";
@@ -126,8 +126,7 @@ beforeEach(async () => {
     cleanupDom = installDomEnv("https://www.youtube.com/watch?v=I82j7AzMU80");
     session = createContentSession();
     await setLanguage("en");
-    await toasterEnabled.setValue(true);
-    await toasterThreshold.setValue(500);
+    await saveSettings({ toasterEnabled: true, toasterThreshold: 500 });
 });
 
 afterEach(async () => {
@@ -190,7 +189,7 @@ describe("createContentSession", () => {
     });
 
     test("skips toaster when toasterEnabled is false while still injecting YouTube quality menu", async () => {
-        await toasterEnabled.setValue(false);
+        await saveSettings({ toasterEnabled: false });
         messageCleanups.push(
             onMessage("youtubeVideo", () => ({
                 success: true,

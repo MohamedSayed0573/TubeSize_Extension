@@ -7,7 +7,7 @@ Canonical domain terms live in [`GLOSSARY.md`](./GLOSSARY.md). Do not inline it 
 **Read `GLOSSARY.md` before:**
 
 - Designing or planning features/refactors (`/architect`, `/arena`, `/poteto-mode` Feature / Refactoring / Multi-phase plan)
-- Adding or changing types, storage keys, IndexedDB tables, messaging payloads, adapters, or domain helpers (`src/types/`, `src/db.ts`, `src/messaging.ts`, `src/adapters/`, `src/lib/storage.ts`, `src/lib/domain.ts`)
+- Adding or changing types, storage keys, IndexedDB tables, messaging payloads, adapters, or domain helpers (`src/types/`, `src/db.ts`, `src/messaging.ts`, `src/adapters/`, `src/lib/settings.ts`, `src/lib/mediaCache.ts`, `src/lib/domain.ts`)
 - Reviewing diffs or checking blast radius (`/interrogate`, `/blast-radius`) for semantic mismatches (e.g., `origin` vs. `siteKey`, nominal `resolution` vs. `videoHeight`, decimal SI vs. binary IEC units)
 - Writing user-facing docs, PR descriptions, or new i18n copy
 

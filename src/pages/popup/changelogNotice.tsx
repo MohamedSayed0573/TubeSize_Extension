@@ -1,10 +1,11 @@
-import { lastSeenVersion } from "@lib/storage";
+import { storage } from "@wxt-dev/storage";
 import { ExternalLink, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { t } from "@/i18n/t";
 
 const RELEASES_URL = "https://github.com/MohamedSayed0573/TubeSize_Extension/releases/latest";
+const lastSeenVersion = storage.defineItem<string>("local:lastSeenVersion");
 
 export default function ChangelogNotice() {
     const version = chrome.runtime.getManifest().version;

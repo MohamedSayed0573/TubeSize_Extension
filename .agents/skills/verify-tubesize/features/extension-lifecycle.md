@@ -5,7 +5,7 @@ Extension lifecycle & Firefox parity ensures install and update events clear sta
 ## Sub-features
 
 - `lifecycle-cache-cleanup` clears only `local:youtube:*`, `local:twitch:*`, and `local:kick:*` media cache keys on `install` and `update`, preserving `sync:*` settings, `local:lastSeenVersion`, `local:codecSupport`, `local:toasterSuppressedDate`, and IndexedDB.
-- `lifecycle-migrations` removes legacy keys (such as `sync:qualityIds`) safely inside per-migration `try/catch` blocks on every extension `update` (runs unconditionally; `last_version` is metadata only).
+- `lifecycle-migrations` removes legacy keys (such as `sync:qualityIds`) safely inside per-migration `try/catch` blocks on every extension `update`.
 - `lifecycle-firefox-build` strips Chromium-only `"favicon"` permission, emits `background.scripts: ["background.js"]` and `browser_specific_settings.gecko` in `.output/firefox-mv3/manifest.json`, avoids `"extraHeaders"` in `webRequest` listeners, reads `originUrl`/`documentUrl` where `initiator` is absent (filtering `moz-extension://`), and falls back to direct origin `/favicon.ico` only in popup `SiteIcon`.
 
 ## How to get to it (user POV)

@@ -1,20 +1,26 @@
 import type { PlatformData, PlatformDataMap } from "@app-types/platforms.types";
-import type { PlatformId, SettingsMap, StorageData } from "@app-types/types";
+import type { PlatformId } from "@app-types/types";
 import CONFIG from "@lib/constants";
-import { getDateKey } from "@lib/dateUtils";
-import {
-    advancedView,
-    cacheTTL,
-    includeAudio,
-    mediaCacheItem,
-    mediaCachePrefix,
-    toasterEnabled,
-    toasterThreshold,
-} from "@lib/storage";
+import { getSettings } from "@lib/settings";
 import { storage, type StorageItemKey } from "@wxt-dev/storage";
 
-export function isFresh(entry: { expiry?: number } | null): boolean {
-    return entry !== null && entry.expiry !== undefined && entry.expiry > Date.now();
+type CachedMediaEntry<T extends PlatformData> = {
+    data: T;
+    expiry: number;
+};
+
+function mediaCachePrefix(target: PlatformId) {
+    return `local:${target}:` as const;
+}
+
+function mediaCacheItem<T extends PlatformId>(target: T, id: string) {
+    return storage.defineItem<CachedMediaEntry<PlatformDataMap[T]>>(
+        `${mediaCachePrefix(target)}${id}`,
+    );
+}
+
+function isFresh(entry: { expiry?: unknown } | null): boolean {
+    return entry !== null && typeof entry.expiry === "number" && entry.expiry > Date.now();
 }
 
 function isPositiveFinite(value: number): boolean {
@@ -64,7 +70,7 @@ function isValidCachedPlatformData<T extends PlatformId>(
 export async function getMediaCache<T extends PlatformId>(
     target: T,
     id: string,
-): Promise<StorageData<PlatformDataMap[T]> | null> {
+): Promise<PlatformDataMap[T] | null> {
     const item = mediaCacheItem(target, id);
     const cached = await item.getValue();
 
@@ -75,7 +81,7 @@ export async function getMediaCache<T extends PlatformId>(
         return null;
     }
 
-    return cached;
+    return cached.data;
 }
 
 export async function saveMediaCache<T extends PlatformId>(
@@ -86,13 +92,12 @@ export async function saveMediaCache<T extends PlatformId>(
 ): Promise<void> {
     if (!isCacheable(data)) return;
 
-    const ttl = ttlSeconds ?? (await cacheTTL.getValue());
+    const ttl = ttlSeconds ?? (await getSettings()).cacheTTL;
     if (!isPositiveFinite(ttl)) return;
 
     await mediaCacheItem(target, id).setValue({
         data,
         expiry: Date.now() + ttl * 1000,
-        createdAt: getDateKey(),
     });
 }
 
@@ -104,44 +109,4 @@ export async function clearMediaCache(): Promise<void> {
         .map((key) => `local:${key}` as StorageItemKey);
 
     if (keys.length > 0) await storage.removeItems(keys);
-}
-
-export async function getSettings(): Promise<Required<SettingsMap>> {
-    const [enabled, threshold, ttl, isAdvancedView, isAudioIncluded] = await Promise.all([
-        toasterEnabled.getValue(),
-        toasterThreshold.getValue(),
-        cacheTTL.getValue(),
-        advancedView.getValue(),
-        includeAudio.getValue(),
-    ]);
-
-    return {
-        toasterEnabled: enabled,
-        toasterThreshold: threshold,
-        cacheTTL: ttl,
-        advancedView: isAdvancedView,
-        includeAudio: isAudioIncluded,
-    };
-}
-
-export async function saveSettings(settings: SettingsMap): Promise<void> {
-    const updates: Promise<void>[] = [];
-
-    if (settings.toasterEnabled !== undefined) {
-        updates.push(toasterEnabled.setValue(settings.toasterEnabled));
-    }
-    if (settings.toasterThreshold !== undefined) {
-        updates.push(toasterThreshold.setValue(settings.toasterThreshold));
-    }
-    if (settings.cacheTTL !== undefined) {
-        updates.push(cacheTTL.setValue(settings.cacheTTL));
-    }
-    if (settings.advancedView !== undefined) {
-        updates.push(advancedView.setValue(settings.advancedView));
-    }
-    if (settings.includeAudio !== undefined) {
-        updates.push(includeAudio.setValue(settings.includeAudio));
-    }
-
-    await Promise.all(updates);
 }
