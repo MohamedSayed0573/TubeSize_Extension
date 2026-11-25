@@ -1,5 +1,5 @@
 {
-    "plugins": ["typescript", "react", "jsx-a11y", "unicorn", "promise", "oxc"],
+    "plugins": ["typescript", "react", "jsx-a11y", "unicorn", "promise", "oxc", "import"],
     "categories": {
         "correctness": "error",
         "suspicious": "warn"
@@ -40,6 +40,15 @@
         "typescript/no-empty-object-type": "off",
         "typescript/no-explicit-any": "error",
         "typescript/no-unnecessary-type-assertion": "error",
+        "import/no-cycle": "error",
+        "import/no-unassigned-import": [
+            "warn",
+            {
+                "allow": ["**/*.css"]
+            }
+        ],
+        "react/exhaustive-deps": "error",
+        "react/rules-of-hooks": "error",
         "react/react-in-jsx-scope": "off",
         "react/only-export-components": [
             "error",
@@ -108,12 +117,132 @@
             }
         },
         {
+            "files": ["src/lib/**/*.{ts,tsx}"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^(?:@(?:pages|layouts|hooks)|@/(?:pages|layouts|hooks|entrypoints)|(?:\\.\\./)+(?:pages|layouts|hooks))(?:/|$)|(?:^|/)entrypoints(?:/|$)",
+                                "message": "src/lib/ cannot import from pages, layouts, hooks, or entrypoints."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/entrypoints/genericObserver.content.ts"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "group": [
+                                    "*",
+                                    "**",
+                                    "!@app-types/*",
+                                    "!@app-types/**",
+                                    "!@lib/pageUsageObserver",
+                                    "!../lib/pageUsageObserver",
+                                    "!./pageUsageObserver",
+                                    "!wxt/utils/define-content-script"
+                                ],
+                                "message": "MAIN-world genericObserver.content.ts may only import @app-types/*, @lib/pageUsageObserver, or wxt/utils/define-content-script."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/lib/pageUsageObserver.ts"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "group": ["*", "**", "!@app-types/*", "!@app-types/**"],
+                                "message": "MAIN-world pageUsageObserver.ts may only import from @app-types/*."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/entrypoints/usageBridge.content.ts"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^(?:@lib|@/lib|(?:\\.\\./)+lib)/platformUrl(?:\\.[cm]?[jt]sx?)?$",
+                                "message": "usageBridge.content.ts must not import platformUrl; URL parsing belongs in background usageIngestion."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["src/pages/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "regex": "^(?:node:|bun(?::|$)|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$))",
+                                "message": "Node and Bun built-in modules cannot be imported in browser extension code."
+                            },
+                            {
+                                "regex": "^(?:@/db|(?:\\.\\./)+db)(?:\\.[cm]?[jt]sx?)?$",
+                                "allowTypeImports": true,
+                                "message": "UI code must not import values directly from db; go through @hooks/* or @lib/*."
+                            },
+                            {
+                                "regex": "^@wxt-dev/storage(?:/|$)",
+                                "message": "UI code must not import directly from @wxt-dev/storage; go through @hooks/* or @lib/*."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
             "files": ["src/tests/**/*.{ts,tsx}"],
             "env": {
                 "jest": true,
                 "node": true
             },
             "rules": {
+                "import/no-unassigned-import": [
+                    "warn",
+                    {
+                        "allow": ["**/*.css", "fake-indexeddb/auto"]
+                    }
+                ],
                 "typescript/no-unsafe-type-assertion": "off",
                 "no-restricted-globals": "off",
                 "no-restricted-imports": "off"
