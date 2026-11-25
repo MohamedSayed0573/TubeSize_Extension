@@ -106,7 +106,7 @@ export async function clearMediaCache(): Promise<void> {
     if (keys.length > 0) await storage.removeItems(keys);
 }
 
-export async function getSettings(): Promise<Required<SettingsMap>> {
+export async function getSettings(): Promise<SettingsMap> {
     const [enabled, threshold, ttl, isAdvancedView, isAudioIncluded] = await Promise.all([
         toasterEnabled.getValue(),
         toasterThreshold.getValue(),
@@ -124,7 +124,7 @@ export async function getSettings(): Promise<Required<SettingsMap>> {
     };
 }
 
-export async function saveSettings(settings: SettingsMap): Promise<void> {
+export async function saveSettings(settings: Partial<SettingsMap>): Promise<void> {
     const updates: Promise<void>[] = [];
 
     if (settings.toasterEnabled !== undefined) {

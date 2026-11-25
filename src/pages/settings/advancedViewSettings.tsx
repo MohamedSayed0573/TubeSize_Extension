@@ -1,6 +1,5 @@
 import type { SettingsMap } from "@app-types/types";
 import useSettings from "@hooks/useSettings";
-import CONFIG from "@lib/constants";
 
 import {
     Field,
@@ -14,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { t } from "@/i18n/t";
 
 export default function AdvancedViewSettings({ settingsState }: { settingsState: SettingsMap }) {
-    const isAdvancedView = settingsState.advancedView ?? CONFIG.DEFAULT_ADVANCED_VIEW;
+    const isAdvancedView = settingsState.advancedView;
 
     const { updateSettingsMutation } = useSettings();
     const { mutate: updateSettings, isPending } = updateSettingsMutation;

@@ -1,7 +1,6 @@
 import type { PlatformId } from "@app-types/types";
 import Spinner from "@components/spinner";
 import useSettings from "@hooks/useSettings";
-import CONFIG from "@lib/constants";
 
 import type { PlatformAdapter, PlatformDataMap } from "@/adapters/types";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -30,8 +29,7 @@ export default function FormatView<P extends PlatformId>({
     if (query.isPending) return <Spinner />;
     if (query.isError) throw query.error;
 
-    const advancedView = query.data.advancedView ?? CONFIG.DEFAULT_ADVANCED_VIEW;
-    const includeAudio = query.data.includeAudio ?? CONFIG.DEFAULT_INCLUDE_AUDIO;
+    const { advancedView, includeAudio } = query.data;
 
     const audio = adapter.audio?.(data);
     const showAudioControls = advancedView && audio !== undefined;

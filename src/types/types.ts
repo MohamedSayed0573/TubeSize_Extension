@@ -23,11 +23,11 @@ export type StorageData<T extends PlatformData> = {
 };
 
 export type SettingsMap = {
-    toasterEnabled?: boolean;
-    toasterThreshold?: number;
-    cacheTTL?: number;
-    advancedView?: boolean;
-    includeAudio?: boolean;
+    toasterEnabled: boolean;
+    toasterThreshold: number;
+    cacheTTL: number;
+    advancedView: boolean;
+    includeAudio: boolean;
 };
 
 export type AddUsageMessage = {
