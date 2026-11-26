@@ -2,7 +2,13 @@ import { isFirefox } from "@lib/browser";
 
 import { MAX_SAFE_BYTES } from "@/db";
 
-import { type DownloadDeduplicator, isAttachmentNavigation } from "./downloadDedup";
+import {
+    type DownloadDeduplicator,
+    isAttachmentNavigation,
+    isDownloadableWebRequest,
+    isPdfMainFrameNavigation,
+    resolveRequestInitiatingOrigin,
+} from "./downloadDedup";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 const CONTENT_LENGTH_HEADER = "content-length";
@@ -79,12 +85,35 @@ export async function trackRequest(
         const bytes = getContentLength(details);
         if (bytes === undefined) return;
 
-        const tabUrl = await resolveRequestTabUrl(details);
+        let committedMainFrameUrl: string | undefined;
+        if (deduplicator && isPdfMainFrameNavigation(details)) {
+            try {
+                committedMainFrameUrl = (await chrome.tabs.get(details.tabId))?.url;
+            } catch {
+                committedMainFrameUrl = undefined;
+            }
+        }
+
+        const downloadable =
+            deduplicator !== undefined && isDownloadableWebRequest(details, committedMainFrameUrl);
+        if (downloadable) {
+            await deduplicator.whenReady();
+        }
+
+        // Attribute downloadable main_frame requests to their initiating origin (falling back to
+        // details.url) so request-first and downloads.onCreated-first paths record the same origin.
+        const tabUrl =
+            downloadable && details.type === "main_frame"
+                ? (resolveRequestInitiatingOrigin(details) ??
+                  (isExtensionUrl(details.url) ? undefined : details.url))
+                : await resolveRequestTabUrl(details);
         if (!tabUrl) return;
-        if (deduplicator?.shouldSkipWebRequest(details, bytes, tabUrl)) return;
+        if (deduplicator?.shouldSkipWebRequest(details, bytes, tabUrl, committedMainFrameUrl)) {
+            return;
+        }
 
         if (ingestion.bufferTabUsage(tabUrl, bytes)) {
-            deduplicator?.recordCountedWebRequest(details, bytes, tabUrl);
+            deduplicator?.recordCountedWebRequest(details, bytes, tabUrl, committedMainFrameUrl);
         }
     } catch (err) {
         console.error("Failed to track request usage:", err);

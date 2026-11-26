@@ -2390,4 +2390,246 @@ describe("downloadTracker durability, resume, pause, and error resilience", () =
             tracker.dispose();
         }
     });
+
+    test("deduplicates non-attachment PDF downloads when the tab stays on the referring page (Download PDFs setting)", async () => {
+        for (const order of ["created-first", "request-first"] as const) {
+            await clearDatabaseData();
+            const fakeDownloads = new FakeDownloadsController();
+            const ingestion = createUsageIngestion();
+            const deduplicator = createDownloadDeduplicator();
+            const tracker = createDownloadTracker(ingestion, deduplicator, {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 1_000,
+            });
+            cleanups.push(() => tracker.dispose());
+            await tracker.whenIdle();
+
+            // Tab remains on referring page because the browser downloads the PDF instead of opening it inline.
+            const tab = await fakeBrowser.tabs.create({ url: "https://example.com/files" });
+            const url = "https://example.com/manual.pdf";
+            const id = order === "created-first" ? 90 : 91;
+
+            const fireRequest = () =>
+                trackRequest(
+                    ingestion,
+                    makeWebRequestDetails({
+                        tabId: tab.id,
+                        type: "main_frame",
+                        url,
+                        initiator: "https://example.com",
+                        responseHeaders: [
+                            { name: "Content-Length", value: "50000" },
+                            { name: "Content-Type", value: "application/pdf" },
+                        ],
+                    }),
+                    deduplicator,
+                );
+            const fireDownload = () => {
+                fakeDownloads.emitCreated(
+                    makeDownloadItem({
+                        id,
+                        url,
+                        finalUrl: url,
+                        referrer: "https://example.com/files",
+                        mime: "application/pdf",
+                        bytesReceived: 0,
+                        totalBytes: 50_000,
+                        state: "in_progress",
+                    }),
+                );
+                fakeDownloads.updateItem(id, { bytesReceived: 50_000, state: "complete" });
+                fakeDownloads.emitChanged({
+                    id,
+                    state: { previous: "in_progress", current: "complete" },
+                });
+            };
+
+            if (order === "created-first") {
+                fireDownload();
+                await tracker.whenIdle();
+                await fireRequest();
+            } else {
+                await fireRequest();
+                fireDownload();
+                await tracker.whenIdle();
+            }
+            await ingestion.flush();
+
+            expect((await getAllSiteUsage())[0]?.usage).toEqual({
+                [origin("https://example.com")]: 50_000,
+            });
+            tracker.dispose();
+        }
+    });
+
+    test("waits for startup checkpoint hydration before webRequest counts a recovered download while keeping unmatched requests countable", async () => {
+        const fakeDownloads = new FakeDownloadsController();
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/files" });
+        const url = "https://example.com/recovered.bin";
+
+        // Prior session committed 30_000 bytes and persisted an in-progress checkpoint.
+        await commitDownloadProgress({
+            usage: { [origin("https://example.com")]: 30_000 },
+            upserts: [
+                {
+                    id: 92,
+                    startTime: DEFAULT_TIME_ISO,
+                    bytesReceived: 30_000,
+                    state: "in_progress",
+                },
+            ],
+            deletes: [],
+        });
+
+        // Download finished at 100_000 while the service worker was restarting.
+        fakeDownloads.items.set(
+            92,
+            makeDownloadItem({
+                id: 92,
+                url,
+                finalUrl: url,
+                referrer: "https://example.com/files",
+                bytesReceived: 100_000,
+                totalBytes: 100_000,
+                state: "complete",
+            }),
+        );
+
+        let releaseLoad!: () => void;
+        const loadGate = new Promise<void>((resolve) => {
+            releaseLoad = resolve;
+        });
+
+        const ingestion = createUsageIngestion();
+        const deduplicator = createDownloadDeduplicator();
+        const tracker = createDownloadTracker(ingestion, deduplicator, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 1_000,
+            loadCheckpoints: async () => {
+                await loadGate;
+                return getDownloadCheckpoints();
+            },
+        });
+        cleanups.push(() => tracker.dispose());
+
+        // While checkpoint loading is still pending, both the download's webRequest completion and
+        // an unrelated request arrive.
+        const matchedPromise = trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "other",
+                url,
+                responseHeaders: [{ name: "Content-Length", value: "100000" }],
+            }),
+            deduplicator,
+        );
+        const unmatchedPromise = trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "other",
+                url: "https://example.com/unrelated.bin",
+                responseHeaders: [{ name: "Content-Length", value: "5000" }],
+            }),
+            deduplicator,
+        );
+
+        releaseLoad();
+        await Promise.all([matchedPromise, unmatchedPromise, tracker.whenIdle()]);
+        await ingestion.flush();
+
+        // 30_000 prior + 70_000 hydration final delta + 5_000 unmatched = 105_000 (not 205_000).
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 105_000,
+        });
+        expect(await getDownloadCheckpoints()).toEqual([]);
+    });
+
+    test("attributes cross-origin downloadable navigations to the initiating origin in either event order without affecting inline navigations", async () => {
+        for (const order of ["created-first", "request-first"] as const) {
+            await clearDatabaseData();
+            const fakeDownloads = new FakeDownloadsController();
+            const ingestion = createUsageIngestion();
+            const deduplicator = createDownloadDeduplicator();
+            const tracker = createDownloadTracker(ingestion, deduplicator, {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 1_000,
+            });
+            cleanups.push(() => tracker.dispose());
+            await tracker.whenIdle();
+
+            const tab = await fakeBrowser.tabs.create({ url: "https://example.com/downloads" });
+            const fileUrl = "https://cdn.example.net/bundle.zip";
+            const id = order === "created-first" ? 93 : 94;
+
+            const fireRequest = () =>
+                trackRequest(
+                    ingestion,
+                    makeWebRequestDetails({
+                        tabId: tab.id,
+                        type: "main_frame",
+                        url: fileUrl,
+                        initiator: "https://example.com",
+                        responseHeaders: [
+                            { name: "Content-Length", value: "80000" },
+                            { name: "Content-Type", value: "application/zip" },
+                        ],
+                    }),
+                    deduplicator,
+                );
+            const fireDownload = () => {
+                fakeDownloads.emitCreated(
+                    makeDownloadItem({
+                        id,
+                        url: fileUrl,
+                        finalUrl: fileUrl,
+                        referrer: "https://example.com/downloads",
+                        mime: "application/zip",
+                        bytesReceived: 0,
+                        totalBytes: 80_000,
+                        state: "in_progress",
+                    }),
+                );
+                fakeDownloads.updateItem(id, { bytesReceived: 80_000, state: "complete" });
+                fakeDownloads.emitChanged({
+                    id,
+                    state: { previous: "in_progress", current: "complete" },
+                });
+            };
+
+            if (order === "created-first") {
+                fireDownload();
+                await tracker.whenIdle();
+                await fireRequest();
+            } else {
+                await fireRequest();
+                fireDownload();
+                await tracker.whenIdle();
+            }
+
+            // A normal inline HTML navigation to cdn.example.net still attributes to its destination.
+            await trackRequest(
+                ingestion,
+                makeWebRequestDetails({
+                    tabId: tab.id,
+                    type: "main_frame",
+                    url: "https://cdn.example.net/docs.html",
+                    initiator: "https://example.com",
+                    responseHeaders: [
+                        { name: "Content-Length", value: "12000" },
+                        { name: "Content-Type", value: "text/html" },
+                    ],
+                }),
+                deduplicator,
+            );
+            await ingestion.flush();
+
+            expect((await getAllSiteUsage())[0]?.usage).toEqual({
+                [origin("https://example.com")]: 80_000,
+                [origin("https://cdn.example.net")]: 12_000,
+            });
+            tracker.dispose();
+        }
+    });
 });

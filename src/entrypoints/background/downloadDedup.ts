@@ -18,14 +18,14 @@ const MAX_RECENT_ENTRIES = 256;
 
 // Exact MIME types browsers display inline on frame navigations; all other types (such as
 // archives, binaries, image/tiff, text/calendar, text/csv, video/x-msvideo) trigger downloads
-// even without Content-Disposition: attachment.
+// even without Content-Disposition: attachment. `application/pdf` is handled separately because
+// users can configure browsers to always download PDFs instead of viewing them inline.
 const INLINE_RENDERABLE_MIMES = new Set([
     "text/html",
     "text/plain",
     "text/css",
     "text/javascript",
     "text/xml",
-    "application/pdf",
     "application/xhtml+xml",
     "application/xml",
     "application/json",
@@ -82,13 +82,25 @@ export interface DownloadDeduplicatorOptions {
 }
 
 export interface DownloadDeduplicator {
+    setHydrationGate(promise: Promise<void>): void;
+    whenReady(): Promise<void>;
     trackActiveDownload(item: DownloadDedupItem): void;
     addDownloadUrls(downloadId: number, urls: ReadonlyArray<string | undefined>): void;
     finishDownload(item: DownloadDedupItem): void;
     cancelDownload(downloadId: number): void;
     recordAttachmentNavigation(details: WebRequestDedupDetails): void;
-    shouldSkipWebRequest(details: WebRequestDedupDetails, bytes: number, tabUrl?: string): boolean;
-    recordCountedWebRequest(details: WebRequestDedupDetails, bytes: number, tabUrl?: string): void;
+    shouldSkipWebRequest(
+        details: WebRequestDedupDetails,
+        bytes: number,
+        tabUrl?: string,
+        committedTabUrl?: string,
+    ): boolean;
+    recordCountedWebRequest(
+        details: WebRequestDedupDetails,
+        bytes: number,
+        tabUrl?: string,
+        committedTabUrl?: string,
+    ): void;
     consumeRecentWebRequestBytes(item: DownloadDedupItem): number;
 }
 
@@ -191,14 +203,42 @@ export function isAttachmentNavigation(
     );
 }
 
+function stripUrlHash(url: string): string {
+    const hashIdx = url.indexOf("#");
+    return hashIdx === -1 ? url : url.slice(0, hashIdx);
+}
+
+export function isPdfMainFrameNavigation(details: WebRequestDedupDetails): boolean {
+    if (details.type !== "main_frame") return false;
+    return (
+        normalizeMime(getHeaderValue(details.responseHeaders, CONTENT_TYPE_HEADER)) ===
+        "application/pdf"
+    );
+}
+
 function isInlineRenderableMime(mime: string | undefined): boolean {
     return !mime || INLINE_RENDERABLE_MIMES.has(mime);
 }
 
-function isDownloadableWebRequest(details: WebRequestDedupDetails): boolean {
+export function isDownloadableWebRequest(
+    details: WebRequestDedupDetails,
+    committedTabUrl?: string,
+): boolean {
     if (details.type === "other") return true;
     if (details.type !== "main_frame" && details.type !== "sub_frame") return false;
     const mime = normalizeMime(getHeaderValue(details.responseHeaders, CONTENT_TYPE_HEADER));
+    if (mime === "application/pdf") {
+        // When the browser is set to download PDFs instead of opening them, the initiating tab
+        // stays on its referring page rather than committing a navigation to the PDF URL.
+        if (
+            details.type === "main_frame" &&
+            committedTabUrl &&
+            stripUrlHash(committedTabUrl) === stripUrlHash(details.url)
+        ) {
+            return false;
+        }
+        return true;
+    }
     return !isInlineRenderableMime(mime);
 }
 
@@ -236,7 +276,7 @@ function hasNonIdentityEncoding(headers: chrome.webRequest.HttpHeader[] | undefi
         .some((encoding) => encoding.length > 0 && encoding !== "identity");
 }
 
-function resolveRequestInitiatingOrigin(
+export function resolveRequestInitiatingOrigin(
     details: WebRequestDedupDetails,
     tabUrl?: string,
 ): Origin | undefined {
@@ -374,6 +414,15 @@ export function createDownloadDeduplicator(
     const recentlyFinished: FinishedDedupEntry[] = [];
     const recentWebRequests: RecentWebRequestEntry[] = [];
     const recentAttachments: RecentAttachmentEntry[] = [];
+    let hydrationGate: Promise<void> = Promise.resolve();
+
+    function setHydrationGate(promise: Promise<void>) {
+        hydrationGate = promise;
+    }
+
+    function whenReady(): Promise<void> {
+        return hydrationGate;
+    }
 
     function pruneExpired(currentTime: number) {
         while (recentlyFinished.length > 0 && recentlyFinished[0]!.expiresAt <= currentTime) {
@@ -481,8 +530,9 @@ export function createDownloadDeduplicator(
         details: WebRequestDedupDetails,
         bytes: number,
         tabUrl?: string,
+        committedTabUrl?: string,
     ): boolean {
-        if (!isDownloadableWebRequest(details)) return false;
+        if (!isDownloadableWebRequest(details, committedTabUrl)) return false;
 
         const currentTime = now();
         pruneExpired(currentTime);
@@ -510,8 +560,9 @@ export function createDownloadDeduplicator(
         details: WebRequestDedupDetails,
         bytes: number,
         tabUrl?: string,
+        committedTabUrl?: string,
     ) {
-        if (!isDownloadableWebRequest(details)) return;
+        if (!isDownloadableWebRequest(details, committedTabUrl)) return;
         const safeBytes = toOptionalPositiveBytes(bytes);
         if (!details.url || safeBytes === undefined) return;
 
@@ -547,6 +598,8 @@ export function createDownloadDeduplicator(
     }
 
     return {
+        setHydrationGate,
+        whenReady,
         trackActiveDownload,
         addDownloadUrls,
         finishDownload,

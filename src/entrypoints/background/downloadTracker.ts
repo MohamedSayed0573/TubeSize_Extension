@@ -80,6 +80,9 @@ function addOriginBytes(usage: Record<Origin, number>, origin: Origin, bytes: nu
 
 // Track browser-observed bytes and remaining pre-counted webRequest credit separately so any drop
 // in `bytesReceived` unambiguously indicates a transfer restart without conflating credit floors.
+// API boundary: `chrome.downloads` does not expose HTTP status (200 vs 206) or an attempt counter,
+// so if a non-Range restart transfers >= `observedBytes` before any poll/event samples a lower
+// `bytesReceived`, only `received - observedBytes` is observable.
 function computeProgressDelta(
     received: number,
     state: DownloadProgressState,
@@ -712,10 +715,27 @@ export function createDownloadTracker(
         enqueue(() => handleErased(downloadId));
     };
 
+    let resolveInitialHydration: (() => void) | undefined;
+    const initialHydrationGate = new Promise<void>((resolve) => {
+        resolveInitialHydration = resolve;
+    });
+    deduplicator.setHydrationGate(initialHydrationGate);
+
+    function releaseInitialHydration() {
+        resolveInitialHydration?.();
+        resolveInitialHydration = undefined;
+    }
+
     downloads.onCreated.addListener(onCreated);
     downloads.onChanged.addListener(onChanged);
     downloads.onErased?.addListener(onErased);
-    enqueue(() => hydrateAndReconcile());
+    enqueue(async () => {
+        try {
+            await hydrateAndReconcile();
+        } finally {
+            releaseInitialHydration();
+        }
+    });
 
     return {
         get activeCount() {
@@ -730,6 +750,7 @@ export function createDownloadTracker(
         dispose() {
             if (isDisposed) return;
             isDisposed = true;
+            releaseInitialHydration();
             clearHydrateRetry();
             stopPolling();
             downloads.onCreated.removeListener(onCreated);
