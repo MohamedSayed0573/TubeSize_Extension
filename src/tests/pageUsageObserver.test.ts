@@ -1253,4 +1253,112 @@ describe("createPageUsageObserver", () => {
         expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 128 }]);
         harness.observer.dispose();
     });
+
+    test("does not wrap disturbed unlocked ReadableStreams and detaches interrupted XHR listeners on reopen", async () => {
+        let seenFetchBody: unknown;
+        const harness = createHarness(async (_input, init) => {
+            seenFetchBody = init?.body;
+            if (init?.body instanceof ReadableStream) {
+                // Mirror native Fetch spec rejection of disturbed streams.
+                void new Response(init.body);
+            }
+            return new Response("ok", { headers: { "content-length": "2" } });
+        });
+        harness.observer.install();
+
+        // 1. Partially read, unlocked (disturbed) stream must NOT be wrapped into a fresh stream.
+        const disturbedForReq = new ReadableStream<Uint8Array>({
+            start(c) {
+                c.enqueue(new Uint8Array([1, 2]));
+                c.enqueue(new Uint8Array([3, 4]));
+                c.close();
+            },
+        });
+        const r1 = disturbedForReq.getReader();
+        await r1.read();
+        r1.releaseLock();
+        expect(disturbedForReq.locked).toBe(false);
+
+        const PatchedRequest = harness.globalObject.Request!;
+        expect(
+            () =>
+                new PatchedRequest("https://example.com/disturbed-req", {
+                    method: "POST",
+                    body: disturbedForReq,
+                }),
+        ).toThrow();
+
+        const disturbedForFetch = new ReadableStream<Uint8Array>({
+            start(c) {
+                c.enqueue(new Uint8Array([1, 2]));
+                c.enqueue(new Uint8Array([3, 4]));
+                c.close();
+            },
+        });
+        const r2 = disturbedForFetch.getReader();
+        await r2.read();
+        r2.releaseLock();
+        expect(disturbedForFetch.locked).toBe(false);
+
+        await expect(
+            harness.globalObject.fetch("https://example.com/disturbed-fetch", {
+                method: "POST",
+                body: disturbedForFetch,
+            }),
+        ).rejects.toThrow();
+        expect(seenFetchBody).toBe(disturbedForFetch);
+
+        // 2. Reopening an XHR before send A finishes detaches A's listeners so B's loadend counts only B.
+        const xhr = new FakeXMLHttpRequest();
+        xhr.open("POST", "https://example.com/upload-a");
+        xhr.responseURL = "https://example.com/upload-a";
+        xhr.send(new Uint8Array(500));
+
+        xhr.open("POST", "https://example.com/upload-b");
+        xhr.responseURL = "https://example.com/upload-b";
+        xhr.send(new Uint8Array(120));
+        xhr.emitLoad(200);
+
+        harness.observer.flush();
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 120 }]);
+        harness.observer.dispose();
+
+        // 3. If native open() throws on reopen, the active send's listeners stay intact.
+        let failNextOpen = false;
+        class FlakyOpenXhr extends FakeXMLHttpRequest {
+            override open(method: string, url: string | URL, async = true) {
+                if (failNextOpen) {
+                    failNextOpen = false;
+                    throw new DOMException("Invalid method", "SyntaxError");
+                }
+                super.open(method, url, async);
+            }
+        }
+        const harness2 = createHarness(
+            async () => new Response("ok", { headers: { "content-length": "2" } }),
+        );
+        const obs2 = createPageUsageObserver({
+            globalObject: harness2.globalObject,
+            XMLHttpRequest: FlakyOpenXhr as unknown as typeof XMLHttpRequest,
+            navigator: harness2.navigatorObj,
+            getBaseURI: () => "https://example.com/",
+            postMessage: (m) => harness2.posted.push(m),
+            scheduleInterval: () => () => {},
+            windowTarget: harness2.windowTarget,
+            documentTarget: harness2.documentTarget,
+        });
+        obs2.install();
+
+        const xhr2 = new FlakyOpenXhr();
+        xhr2.open("POST", "https://example.com/upload-c");
+        xhr2.responseURL = "https://example.com/upload-c";
+        xhr2.send(new Uint8Array(80));
+        failNextOpen = true;
+        expect(() => xhr2.open("BAD METHOD", "https://example.com/upload-d")).toThrow();
+        xhr2.emitLoad(200);
+
+        obs2.flush();
+        expect(harness2.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 80 }]);
+        obs2.dispose();
+    });
 });

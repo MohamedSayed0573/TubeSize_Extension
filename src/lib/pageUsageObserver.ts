@@ -204,7 +204,30 @@ function patchFetchAndRequest(
 ): () => void {
     const requestUploads = new WeakMap<object, TrackedRequestUpload>();
     const baseRequest = scope.Request;
+    const baseResponse: unknown =
+        Reflect.get(scope, "Response") ?? (typeof Response === "function" ? Response : undefined);
     let restoreClone: (() => void) | undefined;
+
+    const isFreshStream = (body: BodyInit): body is ReadableStream<Uint8Array> => {
+        if (
+            typeof body !== "object" ||
+            Object.prototype.toString.call(body) !== "[object ReadableStream]" ||
+            !("getReader" in body) ||
+            typeof body.getReader !== "function" ||
+            body.locked
+        ) {
+            return false;
+        }
+        if (typeof baseResponse === "function") {
+            try {
+                // Probe disturbed state per Fetch spec without locking or consuming a fresh stream.
+                Reflect.construct(baseResponse, [body]);
+            } catch {
+                return false;
+            }
+        }
+        return true;
+    };
 
     if (typeof baseRequest === "function") {
         const reqProto = baseRequest.prototype;
@@ -232,13 +255,7 @@ function patchFetchAndRequest(
                 let callArgs = args;
                 if (init?.body !== undefined && init.body !== null) {
                     const body = init.body;
-                    if (
-                        typeof body === "object" &&
-                        Object.prototype.toString.call(body) === "[object ReadableStream]" &&
-                        "getReader" in body &&
-                        typeof body.getReader === "function" &&
-                        !body.locked
-                    ) {
+                    if (isFreshStream(body)) {
                         const streamTracked: TrackedRequestUpload = {
                             bytes: 0,
                             isStream: true,
@@ -296,13 +313,7 @@ function patchFetchAndRequest(
         if (countableUrl && isActive() && isUpload(method)) {
             if (init?.body !== undefined && init.body !== null) {
                 const body = init.body;
-                if (
-                    typeof body === "object" &&
-                    Object.prototype.toString.call(body) === "[object ReadableStream]" &&
-                    "getReader" in body &&
-                    typeof body.getReader === "function" &&
-                    !body.locked
-                ) {
+                if (isFreshStream(body)) {
                     const nextInit: RequestInit = {
                         body: wrapStream(body, (bytes) => {
                             if (!isActive() || bytes <= 0) return;
@@ -575,7 +586,10 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
     let activeSession: symbol | undefined;
     let total = 0;
     const cleanups: Array<() => void> = [];
-    const xhrMeta = new WeakMap<XMLHttpRequest, { method: string; url: string; async: boolean }>();
+    const xhrMeta = new WeakMap<
+        XMLHttpRequest,
+        { method: string; url: string; async: boolean; cleanup?: () => void }
+    >();
     const activeReaders = new Set<ReadableStreamDefaultReader<Uint8Array>>();
     const workerRefs = new Set<WeakRef<Worker>>();
     const workerRegistry =
@@ -689,6 +703,7 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                     if (typeof baseOpen === "function") {
                         Reflect.apply(baseOpen, this, [method, url, ...rest]);
                     }
+                    xhrMeta.get(this)?.cleanup?.();
                     xhrMeta.set(this, {
                         method,
                         url: String(url),
@@ -749,12 +764,15 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                 const cleanup = () => {
                     this.removeEventListener("progress", countProgress);
                     this.removeEventListener("loadend", onLoadEnd);
+                    if (meta && meta.cleanup === cleanup) meta.cleanup = undefined;
                 };
                 const onLoadEnd = (event: ProgressEvent) => {
                     if (this.status > 0) commitUpload();
                     countProgress(event);
                     cleanup();
                 };
+                meta?.cleanup?.();
+                if (meta) meta.cleanup = cleanup;
                 this.addEventListener("progress", countProgress);
                 this.addEventListener("loadend", onLoadEnd);
                 try {
