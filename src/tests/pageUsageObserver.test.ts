@@ -1078,8 +1078,8 @@ describe("createPageUsageObserver", () => {
         await harness.globalObject.fetch(streamReq);
         expect(cloneCalls).toBe(0);
 
-        // User-initiated Request.clone() and new Request(existing) preserve upload tracking;
-        // explicit body: null clears inherited body bytes.
+        // User-initiated Request.clone(), new Request(existing), and fetch(existing, { body: null })
+        // preserve inherited upload tracking per the Fetch spec without extra cloning.
         const baseReq = new PatchedRequest("https://example.com/base", {
             method: "POST",
             body: new Uint8Array(300),
@@ -1087,13 +1087,22 @@ describe("createPageUsageObserver", () => {
         const clonedReq = baseReq.clone();
         expect(cloneCalls).toBe(1);
         const derivedReq = new PatchedRequest(baseReq, { headers: { "X-Copy": "1" } });
-        const clearedReq = new PatchedRequest(clonedReq, { method: "POST", body: null });
         await harness.globalObject.fetch(derivedReq);
-        await harness.globalObject.fetch(clearedReq);
+        await harness.globalObject.fetch(clonedReq, { method: "POST", body: null });
         expect(cloneCalls).toBe(1);
 
+        // Untracked Request (e.g. constructed in another realm or copied via new Request(iframeReq))
+        // falls back to a bounded clone drain when Content-Length is absent.
+        const untrackedReq = new harness.BaseRequest("https://example.com/from-iframe", {
+            method: "POST",
+            body: new Uint8Array(450),
+        });
+        const copiedUntrackedReq = new PatchedRequest(untrackedReq);
+        await harness.globalObject.fetch(copiedUntrackedReq);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
         harness.observer.flush();
-        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 2_800 }]);
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 3_550 }]);
 
         harness.observer.dispose();
         expect(harness.globalObject.Request).toBe(harness.BaseRequest);

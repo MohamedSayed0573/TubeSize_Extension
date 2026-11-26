@@ -230,35 +230,33 @@ function patchFetchAndRequest(
                 const [input, init] = args;
                 let tracked: TrackedRequestUpload | undefined;
                 let callArgs = args;
-                if (init?.body !== undefined) {
-                    if (init.body !== null) {
-                        const body = init.body;
-                        if (
-                            typeof body === "object" &&
-                            Object.prototype.toString.call(body) === "[object ReadableStream]" &&
-                            "getReader" in body &&
-                            typeof body.getReader === "function" &&
-                            !body.locked
-                        ) {
-                            const streamTracked: TrackedRequestUpload = {
-                                bytes: 0,
-                                isStream: true,
-                            };
-                            tracked = streamTracked;
-                            // Preserve prototype-inherited RequestInit options (method, headers, duplex, signal).
-                            const nextInit: RequestInit = {
-                                body: wrapStream(body, (b) => {
-                                    if (!isActive() || b <= 0) return;
-                                    streamTracked.bytes += b;
-                                    streamTracked.onChunk?.(b);
-                                }),
-                            };
-                            Object.setPrototypeOf(nextInit, init);
-                            callArgs = [input, nextInit];
-                        } else {
-                            const bytes = measureBody(body);
-                            if (bytes > 0) tracked = { bytes, isStream: false };
-                        }
+                if (init?.body !== undefined && init.body !== null) {
+                    const body = init.body;
+                    if (
+                        typeof body === "object" &&
+                        Object.prototype.toString.call(body) === "[object ReadableStream]" &&
+                        "getReader" in body &&
+                        typeof body.getReader === "function" &&
+                        !body.locked
+                    ) {
+                        const streamTracked: TrackedRequestUpload = {
+                            bytes: 0,
+                            isStream: true,
+                        };
+                        tracked = streamTracked;
+                        // Preserve prototype-inherited RequestInit options (method, headers, duplex, signal).
+                        const nextInit: RequestInit = {
+                            body: wrapStream(body, (b) => {
+                                if (!isActive() || b <= 0) return;
+                                streamTracked.bytes += b;
+                                streamTracked.onChunk?.(b);
+                            }),
+                        };
+                        Object.setPrototypeOf(nextInit, init);
+                        callArgs = [input, nextInit];
+                    } else {
+                        const bytes = measureBody(body);
+                        if (bytes > 0) tracked = { bytes, isStream: false };
                     }
                 } else if (typeof input === "object" && input !== null) {
                     tracked = requestUploads.get(input);
@@ -292,13 +290,14 @@ function patchFetchAndRequest(
         let streamUploadBytes = 0;
         let fetchResolved = false;
         let trackedRequest: TrackedRequestUpload | undefined;
+        let fallbackReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+        let fallbackPromise: Promise<number> | undefined;
 
         if (countableUrl && isActive() && isUpload(method)) {
-            if (init?.body !== undefined) {
+            if (init?.body !== undefined && init.body !== null) {
                 const body = init.body;
                 if (
                     typeof body === "object" &&
-                    body !== null &&
                     Object.prototype.toString.call(body) === "[object ReadableStream]" &&
                     "getReader" in body &&
                     typeof body.getReader === "function" &&
@@ -323,13 +322,51 @@ function patchFetchAndRequest(
                     else fixedUploadBytes = tracked.bytes;
                 } else {
                     const cl = input.headers?.get?.("content-length");
-                    if (hasCL(cl)) fixedUploadBytes = Number(cl);
+                    if (hasCL(cl)) {
+                        fixedUploadBytes = Number(cl);
+                    } else {
+                        try {
+                            const cloned = input.clone();
+                            if (cloned.body) {
+                                const reader = cloned.body.getReader();
+                                fallbackReader = reader;
+                                fallbackPromise = (async () => {
+                                    let bytes = 0;
+                                    try {
+                                        for (;;) {
+                                            const { done, value } = await reader.read();
+                                            if (done || !isActive()) break;
+                                            bytes += value.byteLength;
+                                            if (bytes >= 4_194_304) {
+                                                await reader.cancel().catch(() => undefined);
+                                                break;
+                                            }
+                                        }
+                                    } catch {
+                                        // Ignore cancelled or errored fallback clone reads
+                                    }
+                                    return bytes;
+                                })();
+                            }
+                        } catch {
+                            // Ignore non-cloneable or locked requests
+                        }
+                    }
                 }
             }
         }
 
-        const response = await Reflect.apply(baseFetch, scope, callArgs);
-        if (!isActive() || !isCountableUrl(response.url, input, baseUrl)) return response;
+        let response: Response;
+        try {
+            response = await Reflect.apply(baseFetch, scope, callArgs);
+        } catch (err) {
+            void fallbackReader?.cancel().catch(() => undefined);
+            throw err;
+        }
+        if (!isActive() || !isCountableUrl(response.url, input, baseUrl)) {
+            void fallbackReader?.cancel().catch(() => undefined);
+            return response;
+        }
 
         fetchResolved = true;
         let totalUpload = fixedUploadBytes + streamUploadBytes;
@@ -341,6 +378,12 @@ function patchFetchAndRequest(
             };
         }
         if (totalUpload > 0) onBytes(totalUpload);
+        if (fallbackPromise) {
+            void fallbackPromise.then((bytes) => {
+                if (isActive() && bytes > 0) onBytes(bytes);
+                return undefined;
+            });
+        }
 
         if (hasCL(response.headers.get("content-length"))) return response;
 
