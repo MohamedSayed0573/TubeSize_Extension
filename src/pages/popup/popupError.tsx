@@ -12,6 +12,7 @@ export default function PopupError({ error }: { error: unknown }) {
             <Header />
             <div
                 role="alert"
+                data-error-boundary="true"
                 className="flex flex-col items-center gap-2 px-3 pt-4 pb-3 text-center"
             >
                 <div

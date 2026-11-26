@@ -171,10 +171,11 @@ export async function readPageSummary(page: Page): Promise<PageSummary> {
         const root = document.getElementById("root") ?? document.body;
         const text = (root?.innerText || "").trim();
         const hasErrorBoundary =
-            text.includes("⚠") &&
-            (text.includes("Something went wrong") ||
-                text.includes("حدث خطأ") ||
-                root?.querySelector(".border-red-900, .border-red-400") !== null);
+            root?.querySelector("[data-error-boundary]") !== null ||
+            (text.includes("⚠") &&
+                (text.includes("Something went wrong") ||
+                    text.includes("حدث خطأ") ||
+                    root?.querySelector(".border-red-900, .border-red-400") !== null));
         return {
             url: location.href,
             hash: location.hash,
