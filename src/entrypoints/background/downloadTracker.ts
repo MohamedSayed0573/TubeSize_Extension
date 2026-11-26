@@ -1,9 +1,7 @@
 import type { Origin } from "@app-types/types";
-import { toOrigin } from "@lib/domain";
 
 import { refreshUsageBadge } from "@/badge";
 import {
-    MAX_SAFE_BYTES,
     type DownloadCheckpoint,
     type DownloadCommitBatch,
     addSafeBytes,
@@ -11,60 +9,18 @@ import {
     getDownloadCheckpoints,
 } from "@/db";
 
+import {
+    type DownloadDeduplicator,
+    type DownloadOriginSource,
+    collectDownloadUrls,
+    collectNonEmptyUrls,
+    sanitizeBytes,
+    toDownloadDedupItem,
+    toWebOrigin,
+} from "./downloadDedup";
 import { isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
-const CONTENT_DISPOSITION_HEADER = "content-disposition";
-const CONTENT_ENCODING_HEADER = "content-encoding";
-const CONTENT_LENGTH_HEADER = "content-length";
-const CONTENT_RANGE_HEADER = "content-range";
-const CONTENT_TYPE_HEADER = "content-type";
-const ATTACHMENT_DISPOSITION_RE = /^\s*attachment(?:\s*;|\s*$)/i;
-const CONTENT_RANGE_RE = /^\s*bytes\s+(?:\d+-\d+|\*)\/(\d+|\*)\s*$/i;
 const DEFAULT_POLL_INTERVAL_MS = 1_000;
-const DEFAULT_FINISHED_DOWNLOAD_TTL_MS = 10_000;
-const DEFAULT_RECENT_WEB_REQUEST_TTL_MS = 5_000;
-const SAME_TRANSFER_START_SLACK_MS = 250;
-const FINISHED_MATCH_SLACK_MS = 2_000;
-const MAX_RECENT_ENTRIES = 256;
-
-type WebRequestDedupDetails = Pick<
-    chrome.webRequest.OnCompletedDetails,
-    "url" | "type" | "responseHeaders" | "timeStamp" | "initiator" | "statusCode"
-> & {
-    originUrl?: string;
-    documentUrl?: string;
-};
-
-export type DownloadOriginSource = Pick<chrome.downloads.DownloadItem, "url" | "referrer"> & {
-    finalUrl?: string;
-};
-
-interface DownloadDedupItem {
-    id: number;
-    urls: ReadonlyArray<string | undefined>;
-    referrer?: string;
-    mime?: string;
-    totalBytes?: number;
-    startTime?: string;
-    endTime?: string;
-}
-
-export interface DownloadDeduplicatorOptions {
-    now?: () => number;
-    finishedDownloadTtlMs?: number;
-    recentWebRequestTtlMs?: number;
-}
-
-export interface DownloadDeduplicator {
-    trackActiveDownload(item: DownloadDedupItem): void;
-    addDownloadUrls(downloadId: number, urls: ReadonlyArray<string | undefined>): void;
-    finishDownload(item: DownloadDedupItem): void;
-    cancelDownload(downloadId: number): void;
-    recordAttachmentNavigation(details: WebRequestDedupDetails): void;
-    shouldSkipWebRequest(details: WebRequestDedupDetails, bytes: number, tabUrl?: string): boolean;
-    recordCountedWebRequest(details: WebRequestDedupDetails, bytes: number, tabUrl?: string): void;
-    consumeRecentWebRequestBytes(item: DownloadDedupItem): number;
-}
 
 export interface DownloadApi {
     onCreated: Pick<typeof chrome.downloads.onCreated, "addListener" | "removeListener">;
@@ -88,46 +44,12 @@ export interface DownloadTracker {
     dispose(): void;
 }
 
-interface DownloadTransferProfile {
-    urls: Set<string>;
-    totalBytes?: number;
-    mime?: string;
-    referrerOrigin?: Origin;
-    startTimeMs?: number;
-    endTimeMs?: number;
+interface DownloadProgressState {
+    observedBytes: number;
+    creditRemaining: number;
 }
 
-interface ActiveDedupEntry extends DownloadTransferProfile {
-    webRequestMatched: boolean;
-}
-
-interface FinishedDedupEntry extends DownloadTransferProfile {
-    expiresAt: number;
-}
-
-interface WebRequestProfile {
-    url: string;
-    type: WebRequestDedupDetails["type"];
-    bytes?: number;
-    rangeTotalBytes?: number;
-    isPartialContent: boolean;
-    mime?: string;
-    isCompressed: boolean;
-    initiatingOrigin?: Origin;
-    completedAtMs?: number;
-}
-
-interface RecentWebRequestEntry extends WebRequestProfile {
-    bytes: number;
-    expiresAt: number;
-}
-
-interface RecentAttachmentEntry extends WebRequestProfile {
-    expiresAt: number;
-}
-
-interface TrackedDownload {
-    lastBytesReceived: number;
+interface TrackedDownload extends DownloadProgressState {
     origin: Origin;
     urls: Set<string>;
     startTime: string;
@@ -136,16 +58,12 @@ interface TrackedDownload {
     totalBytes?: number;
 }
 
-function toWebOrigin(url: string | undefined): Origin | undefined {
-    if (!url) return undefined;
-    try {
-        const parsed = new URL(url);
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return undefined;
-        return toOrigin(parsed.origin);
-    } catch {
-        return undefined;
-    }
+interface PlanContext {
+    baselineIfNew: "zero" | "received";
+    isNewlyCreated: boolean;
 }
+
+type PlanOutcome = "planned" | "retry-credit";
 
 // Only http(s) transfers count: `blob:`/`data:` saves never cross the network (their bytes were
 // already counted when the page fetched them), and extension-initiated downloads are not site usage.
@@ -155,454 +73,37 @@ export function resolveDownloadOrigin(item: DownloadOriginSource): Origin | unde
     return toWebOrigin(item.referrer) ?? targetOrigin;
 }
 
-export function isAttachmentNavigation(
-    details: Pick<chrome.webRequest.OnCompletedDetails, "type" | "responseHeaders">,
-): boolean {
-    if (details.type !== "main_frame" && details.type !== "sub_frame") return false;
-    return (
-        details.responseHeaders?.some(
-            (candidate) =>
-                candidate.name.toLowerCase() === CONTENT_DISPOSITION_HEADER &&
-                typeof candidate.value === "string" &&
-                ATTACHMENT_DISPOSITION_RE.test(candidate.value),
-        ) ?? false
-    );
-}
-
-function isInlineRenderableMime(mime: string | undefined): boolean {
-    if (!mime) return true;
-    return (
-        mime.startsWith("text/") ||
-        mime.startsWith("image/") ||
-        mime.startsWith("audio/") ||
-        mime.startsWith("video/") ||
-        mime === "application/pdf" ||
-        mime === "application/xhtml+xml" ||
-        mime === "application/xml" ||
-        mime === "application/json" ||
-        mime === "application/javascript" ||
-        mime === "application/ecmascript"
-    );
-}
-
-// `main_frame`/`sub_frame` navigations without `Content-Disposition: attachment` only become
-// downloads when their Content-Type cannot be rendered inline (e.g. archives/binaries), even if
-// the server sent `Content-Disposition: inline`; inline-renderable navigations (HTML, PDF, media,
-// text) must never be suppressed as downloads.
-function isDownloadableWebRequest(details: WebRequestDedupDetails): boolean {
-    if (details.type === "other") return true;
-    if (details.type !== "main_frame" && details.type !== "sub_frame") return false;
-    const mime = normalizeMime(getHeaderValue(details.responseHeaders, CONTENT_TYPE_HEADER));
-    return !isInlineRenderableMime(mime);
-}
-
-function collectNonEmptyUrls(urls: ReadonlyArray<string | undefined>): string[] {
-    const out: string[] = [];
-    for (const url of urls) {
-        if (typeof url === "string" && url.length > 0 && !out.includes(url)) {
-            out.push(url);
-        }
-    }
-    return out;
-}
-
-function collectDownloadUrls(item: Pick<DownloadOriginSource, "url" | "finalUrl">): string[] {
-    return collectNonEmptyUrls([item.finalUrl, item.url]);
-}
-
-function sanitizeBytes(value: number | undefined): number {
-    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return 0;
-    return Math.min(Math.floor(value), MAX_SAFE_BYTES);
-}
-
-function toOptionalPositiveBytes(value: number | undefined): number | undefined {
-    const sanitized = sanitizeBytes(value);
-    return sanitized > 0 ? sanitized : undefined;
-}
-
-function normalizeMime(value: string | undefined): string | undefined {
-    if (!value) return undefined;
-    const base = value.split(";")[0]?.trim().toLowerCase();
-    return base ? base : undefined;
-}
-
-function parseTimestampMs(value: string | undefined): number | undefined {
-    if (!value) return undefined;
-    const parsed = Date.parse(value);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
-}
-
-function getHeaderValue(
-    headers: chrome.webRequest.HttpHeader[] | undefined,
-    name: string,
-): string | undefined {
-    const match = headers?.find((header) => header.name.toLowerCase() === name);
-    return typeof match?.value === "string" ? match.value : undefined;
-}
-
-function hasNonIdentityEncoding(headers: chrome.webRequest.HttpHeader[] | undefined): boolean {
-    const value = getHeaderValue(headers, CONTENT_ENCODING_HEADER);
-    if (!value) return false;
-    return value
-        .split(",")
-        .map((part) => part.trim().toLowerCase())
-        .some((encoding) => encoding.length > 0 && encoding !== "identity");
-}
-
-function resolveRequestInitiatingOrigin(
-    details: WebRequestDedupDetails,
-    tabUrl?: string,
-): Origin | undefined {
-    if (details.type !== "main_frame") {
-        return (
-            toWebOrigin(tabUrl) ??
-            toWebOrigin(details.initiator) ??
-            toWebOrigin(details.originUrl) ??
-            toWebOrigin(details.documentUrl)
-        );
-    }
-    return (
-        toWebOrigin(details.initiator) ??
-        toWebOrigin(details.originUrl) ??
-        toWebOrigin(details.documentUrl)
-    );
-}
-
-function parseContentRange(headers: chrome.webRequest.HttpHeader[] | undefined): {
-    isPartial: boolean;
-    totalBytes?: number;
-} {
-    const value = getHeaderValue(headers, CONTENT_RANGE_HEADER);
-    if (!value) return { isPartial: false };
-    const match = CONTENT_RANGE_RE.exec(value);
-    if (!match) return { isPartial: false };
-    const totalToken = match[1];
-    const totalBytes =
-        totalToken && totalToken !== "*" ? toOptionalPositiveBytes(Number(totalToken)) : undefined;
-    return { isPartial: true, totalBytes };
-}
-
-function buildWebRequestProfile(
-    details: WebRequestDedupDetails,
-    bytes?: number,
-    tabUrl?: string,
-): WebRequestProfile {
-    const headerLength = toOptionalPositiveBytes(
-        Number(getHeaderValue(details.responseHeaders, CONTENT_LENGTH_HEADER)),
-    );
-    const contentRange = parseContentRange(details.responseHeaders);
-    return {
-        url: details.url,
-        type: details.type,
-        bytes: toOptionalPositiveBytes(bytes) ?? headerLength,
-        rangeTotalBytes: contentRange.totalBytes,
-        isPartialContent: contentRange.isPartial || details.statusCode === 206,
-        mime: normalizeMime(getHeaderValue(details.responseHeaders, CONTENT_TYPE_HEADER)),
-        isCompressed: hasNonIdentityEncoding(details.responseHeaders),
-        initiatingOrigin: resolveRequestInitiatingOrigin(details, tabUrl),
-        completedAtMs:
-            typeof details.timeStamp === "number" &&
-            Number.isFinite(details.timeStamp) &&
-            details.timeStamp > 0
-                ? details.timeStamp
-                : undefined,
-    };
-}
-
-function buildDownloadProfile(item: DownloadDedupItem): DownloadTransferProfile {
-    return {
-        urls: new Set(collectNonEmptyUrls(item.urls)),
-        totalBytes: toOptionalPositiveBytes(item.totalBytes),
-        mime: normalizeMime(item.mime),
-        referrerOrigin: toWebOrigin(item.referrer),
-        startTimeMs: parseTimestampMs(item.startTime),
-        endTimeMs: parseTimestampMs(item.endTime),
-    };
-}
-
-function matchesTransfer(
-    download: DownloadTransferProfile,
-    request: WebRequestProfile,
-    mode: "skip" | "credit",
-): boolean {
-    if (!download.urls.has(request.url)) return false;
-
-    if (download.totalBytes !== undefined && !request.isCompressed) {
-        if (request.rangeTotalBytes !== undefined) {
-            if (request.rangeTotalBytes !== download.totalBytes) return false;
-        } else if (request.isPartialContent) {
-            if (request.bytes !== undefined && request.bytes > download.totalBytes) return false;
-        } else if (request.bytes !== undefined && request.bytes !== download.totalBytes) {
-            return false;
-        }
-    }
-
-    if (download.mime && request.mime && download.mime !== request.mime) {
-        return false;
-    }
-
-    if (
-        download.referrerOrigin &&
-        request.initiatingOrigin &&
-        download.referrerOrigin !== request.initiatingOrigin
-    ) {
-        return false;
-    }
-
-    if (request.type === "main_frame" && download.referrerOrigin && !request.initiatingOrigin) {
-        return false;
-    }
-
-    if (download.startTimeMs !== undefined && request.completedAtMs !== undefined) {
-        if (mode === "credit") {
-            if (download.startTimeMs > request.completedAtMs + SAME_TRANSFER_START_SLACK_MS) {
-                return false;
-            }
-        } else if (request.completedAtMs < download.startTimeMs - SAME_TRANSFER_START_SLACK_MS) {
-            return false;
-        }
-    }
-
-    if (
-        mode === "skip" &&
-        download.endTimeMs !== undefined &&
-        request.completedAtMs !== undefined &&
-        request.completedAtMs > download.endTimeMs + FINISHED_MATCH_SLACK_MS
-    ) {
-        return false;
-    }
-
-    return true;
-}
-
-function toDedupItem(
-    item: chrome.downloads.DownloadItem,
-    extraUrls: ReadonlyArray<string | undefined> = [],
-): DownloadDedupItem {
-    return {
-        id: item.id,
-        urls: [...collectDownloadUrls(item), ...extraUrls],
-        referrer: item.referrer,
-        mime: item.mime,
-        totalBytes: item.totalBytes,
-        startTime: item.startTime,
-        endTime: item.endTime,
-    };
-}
-
 function addOriginBytes(usage: Record<Origin, number>, origin: Origin, bytes: number) {
     if (bytes <= 0) return;
     usage[origin] = addSafeBytes(usage[origin] ?? 0, bytes);
 }
 
-function computeDelta(
-    item: chrome.downloads.DownloadItem,
-    baseline: number,
-    isResume: boolean,
-): { delta: number; nextLastBytes: number } {
-    const received = sanitizeBytes(item.bytesReceived);
-    const effectiveBaseline = isResume && received < baseline ? 0 : baseline;
-    const delta = Math.max(0, received - effectiveBaseline);
+// Track browser-observed bytes and remaining pre-counted webRequest credit separately so any drop
+// in `bytesReceived` unambiguously indicates a transfer restart without conflating credit floors.
+function computeProgressDelta(
+    received: number,
+    state: DownloadProgressState,
+): { usageDelta: number; next: DownloadProgressState } {
+    const rawDelta = received < state.observedBytes ? received : received - state.observedBytes;
+    const creditAbsorbed = Math.min(rawDelta, state.creditRemaining);
     return {
-        delta,
-        nextLastBytes: Math.max(effectiveBaseline, received),
+        usageDelta: rawDelta - creditAbsorbed,
+        next: {
+            observedBytes: received,
+            creditRemaining: state.creditRemaining - creditAbsorbed,
+        },
     };
 }
 
-export function createDownloadDeduplicator(
-    options: DownloadDeduplicatorOptions = {},
-): DownloadDeduplicator {
-    const now = options.now ?? Date.now;
-    const finishedDownloadTtlMs = options.finishedDownloadTtlMs ?? DEFAULT_FINISHED_DOWNLOAD_TTL_MS;
-    const recentWebRequestTtlMs =
-        options.recentWebRequestTtlMs ?? DEFAULT_RECENT_WEB_REQUEST_TTL_MS;
-
-    const activeById = new Map<number, ActiveDedupEntry>();
-    const recentlyFinished: FinishedDedupEntry[] = [];
-    const recentWebRequests: RecentWebRequestEntry[] = [];
-    const recentAttachments: RecentAttachmentEntry[] = [];
-
-    function pruneExpired(currentTime: number) {
-        while (recentlyFinished.length > 0 && recentlyFinished[0]!.expiresAt <= currentTime) {
-            recentlyFinished.shift();
-        }
-        while (recentWebRequests.length > 0 && recentWebRequests[0]!.expiresAt <= currentTime) {
-            recentWebRequests.shift();
-        }
-        while (recentAttachments.length > 0 && recentAttachments[0]!.expiresAt <= currentTime) {
-            recentAttachments.shift();
-        }
-    }
-
-    function trackActiveDownload(item: DownloadDedupItem) {
-        const profile = buildDownloadProfile(item);
-        const existing = activeById.get(item.id);
-        if (existing) {
-            for (const url of profile.urls) existing.urls.add(url);
-            if (profile.totalBytes !== undefined) existing.totalBytes = profile.totalBytes;
-            if (profile.mime) existing.mime = profile.mime;
-            if (profile.referrerOrigin) existing.referrerOrigin = profile.referrerOrigin;
-            if (profile.startTimeMs !== undefined) existing.startTimeMs = profile.startTimeMs;
-            return;
-        }
-
-        const currentTime = now();
-        pruneExpired(currentTime);
-        const attachmentIdx = recentAttachments.findIndex((entry) =>
-            matchesTransfer(profile, entry, "credit"),
-        );
-        const webRequestMatched = attachmentIdx !== -1;
-        if (webRequestMatched) {
-            recentAttachments.splice(attachmentIdx, 1);
-        }
-
-        activeById.set(item.id, {
-            ...profile,
-            webRequestMatched,
-        });
-    }
-
-    function addDownloadUrls(downloadId: number, urls: ReadonlyArray<string | undefined>) {
-        const existing = activeById.get(downloadId);
-        if (!existing) return;
-        for (const url of collectNonEmptyUrls(urls)) {
-            existing.urls.add(url);
-        }
-    }
-
-    function finishDownload(item: DownloadDedupItem) {
-        const active = activeById.get(item.id);
-        activeById.delete(item.id);
-
-        if (active?.webRequestMatched) return;
-
-        const profile = buildDownloadProfile(item);
-        const urls = new Set<string>(active?.urls);
-        for (const url of profile.urls) urls.add(url);
-        if (urls.size === 0) return;
-
-        const currentTime = now();
-        pruneExpired(currentTime);
-        recentlyFinished.push({
-            urls,
-            totalBytes: profile.totalBytes ?? active?.totalBytes,
-            mime: profile.mime ?? active?.mime,
-            referrerOrigin: profile.referrerOrigin ?? active?.referrerOrigin,
-            startTimeMs: profile.startTimeMs ?? active?.startTimeMs,
-            endTimeMs: profile.endTimeMs ?? currentTime,
-            expiresAt: currentTime + finishedDownloadTtlMs,
-        });
-        if (recentlyFinished.length > MAX_RECENT_ENTRIES) {
-            recentlyFinished.splice(0, recentlyFinished.length - MAX_RECENT_ENTRIES);
-        }
-    }
-
-    function cancelDownload(downloadId: number) {
-        activeById.delete(downloadId);
-    }
-
-    function recordAttachmentNavigation(details: WebRequestDedupDetails) {
-        if (!details.url) return;
-
-        const currentTime = now();
-        pruneExpired(currentTime);
-        const profile = buildWebRequestProfile(details);
-
-        for (const entry of activeById.values()) {
-            if (!entry.webRequestMatched && matchesTransfer(entry, profile, "skip")) {
-                entry.webRequestMatched = true;
-                return;
-            }
-        }
-
-        recentAttachments.push({
-            ...profile,
-            expiresAt: currentTime + recentWebRequestTtlMs,
-        });
-        if (recentAttachments.length > MAX_RECENT_ENTRIES) {
-            recentAttachments.splice(0, recentAttachments.length - MAX_RECENT_ENTRIES);
-        }
-    }
-
-    function shouldSkipWebRequest(
-        details: WebRequestDedupDetails,
-        bytes: number,
-        tabUrl?: string,
-    ): boolean {
-        if (!isDownloadableWebRequest(details)) return false;
-
-        const currentTime = now();
-        pruneExpired(currentTime);
-        const request = buildWebRequestProfile(details, bytes, tabUrl);
-
-        for (const entry of activeById.values()) {
-            if (!entry.webRequestMatched && matchesTransfer(entry, request, "skip")) {
-                entry.webRequestMatched = true;
-                return true;
-            }
-        }
-
-        const finishedIdx = recentlyFinished.findIndex((entry) =>
-            matchesTransfer(entry, request, "skip"),
-        );
-        if (finishedIdx !== -1) {
-            recentlyFinished.splice(finishedIdx, 1);
-            return true;
-        }
-
-        return false;
-    }
-
-    function recordCountedWebRequest(
-        details: WebRequestDedupDetails,
-        bytes: number,
-        tabUrl?: string,
-    ) {
-        if (!isDownloadableWebRequest(details)) return;
-        const safeBytes = toOptionalPositiveBytes(bytes);
-        if (!details.url || safeBytes === undefined) return;
-
-        const currentTime = now();
-        pruneExpired(currentTime);
-        const profile = buildWebRequestProfile(details, safeBytes, tabUrl);
-        recentWebRequests.push({
-            ...profile,
-            bytes: safeBytes,
-            expiresAt: currentTime + recentWebRequestTtlMs,
-        });
-        if (recentWebRequests.length > MAX_RECENT_ENTRIES) {
-            recentWebRequests.splice(0, recentWebRequests.length - MAX_RECENT_ENTRIES);
-        }
-    }
-
-    function consumeRecentWebRequestBytes(item: DownloadDedupItem): number {
-        const profile = buildDownloadProfile(item);
-        if (profile.urls.size === 0) return 0;
-
-        const currentTime = now();
-        pruneExpired(currentTime);
-
-        const matchIdx = recentWebRequests.findIndex((entry) =>
-            matchesTransfer(profile, entry, "credit"),
-        );
-        if (matchIdx === -1) return 0;
-
-        const [matched] = recentWebRequests.splice(matchIdx, 1);
-        const active = activeById.get(item.id);
-        if (active) active.webRequestMatched = true;
-        return matched?.bytes ?? 0;
-    }
-
-    return {
-        trackActiveDownload,
-        addDownloadUrls,
-        finishDownload,
-        cancelDownload,
-        recordAttachmentNavigation,
-        shouldSkipWebRequest,
-        recordCountedWebRequest,
-        consumeRecentWebRequestBytes,
-    };
+function checkpointEquals(a: DownloadCheckpoint | undefined, b: DownloadCheckpoint): boolean {
+    return (
+        a !== undefined &&
+        a.id === b.id &&
+        a.startTime === b.startTime &&
+        a.bytesReceived === b.bytesReceived &&
+        (a.creditRemaining ?? 0) === (b.creditRemaining ?? 0) &&
+        a.state === b.state
+    );
 }
 
 export function createDownloadTracker(
@@ -661,14 +162,12 @@ export function createDownloadTracker(
         }, pollIntervalMs);
     }
 
-    function stopPollingIfIdle() {
-        if (activeDownloads.size === 0) {
+    function syncPollingState() {
+        if (isDisposed || activeDownloads.size === 0) {
             stopPolling();
+            return;
         }
-    }
-
-    function ensurePolling() {
-        if (isDisposed || activeDownloads.size === 0 || pollTimerId !== undefined) return;
+        if (pollTimerId !== undefined) return;
         pollTimerId = setInterval(() => {
             if (pollQueued || isDisposed) return;
             pollQueued = true;
@@ -755,13 +254,13 @@ export function createDownloadTracker(
     function makeTrackedEntry(
         item: chrome.downloads.DownloadItem,
         origin: Origin,
-        lastBytesReceived: number,
+        progress: DownloadProgressState,
         existing?: TrackedDownload,
     ): TrackedDownload {
         const urls = new Set<string>(existing?.urls);
         for (const url of collectDownloadUrls(item)) urls.add(url);
         return {
-            lastBytesReceived,
+            ...progress,
             origin,
             urls,
             startTime: item.startTime ?? existing?.startTime ?? "",
@@ -769,6 +268,141 @@ export function createDownloadTracker(
             mime: item.mime || existing?.mime,
             totalBytes: item.totalBytes > 0 ? item.totalBytes : existing?.totalBytes,
         };
+    }
+
+    function getPriorProgress(
+        item: chrome.downloads.DownloadItem,
+        baselineIfNew: "zero" | "received",
+    ): DownloadProgressState {
+        const existing = activeDownloads.get(item.id);
+        if (existing) {
+            return {
+                observedBytes: existing.observedBytes,
+                creditRemaining: existing.creditRemaining,
+            };
+        }
+        const matching = getMatchingCheckpoint(item);
+        if (matching) {
+            return {
+                observedBytes: matching.bytesReceived,
+                creditRemaining: matching.creditRemaining ?? 0,
+            };
+        }
+        return {
+            observedBytes: baselineIfNew === "zero" ? 0 : sanitizeBytes(item.bytesReceived),
+            creditRemaining: 0,
+        };
+    }
+
+    async function planDownloadItem(
+        batch: DownloadCommitBatch,
+        postCommitActions: Array<() => void>,
+        item: chrome.downloads.DownloadItem,
+        context: PlanContext,
+    ): Promise<PlanOutcome> {
+        const origin = resolveDownloadOrigin(item);
+        const existing = activeDownloads.get(item.id);
+        const matching = getMatchingCheckpoint(item);
+
+        if (!origin) {
+            if (checkpoints.has(item.id)) batch.deletes.push(item.id);
+            postCommitActions.push(() => {
+                activeDownloads.delete(item.id);
+                seenCreatedIds.delete(item.id);
+                pendingWebCredits.delete(item.id);
+                deduplicator.cancelDownload(item.id);
+            });
+            return "planned";
+        }
+
+        const pendingCredit = pendingWebCredits.get(item.id) ?? 0;
+        if (pendingCredit > 0) {
+            const creditFlushed = await flushIngestionForCredit();
+            if (!creditFlushed) {
+                return "retry-credit";
+            }
+        }
+
+        const prior = getPriorProgress(item, context.baselineIfNew);
+        const { usageDelta, next } = computeProgressDelta(sanitizeBytes(item.bytesReceived), {
+            observedBytes: prior.observedBytes,
+            creditRemaining: addSafeBytes(prior.creditRemaining, pendingCredit),
+        });
+        addOriginBytes(batch.usage, origin, usageDelta);
+
+        const isActive = item.state === "in_progress" && !item.paused;
+        const shouldKeepCheckpoint =
+            item.state === "in_progress" || (item.state === "interrupted" && item.canResume);
+
+        if (shouldKeepCheckpoint) {
+            const nextCheckpoint: DownloadCheckpoint = {
+                id: item.id,
+                startTime: item.startTime ?? matching?.startTime ?? "",
+                bytesReceived: next.observedBytes,
+                ...(next.creditRemaining > 0 ? { creditRemaining: next.creditRemaining } : {}),
+                state: item.state === "interrupted" ? "interrupted" : "in_progress",
+            };
+            if (!checkpointEquals(matching, nextCheckpoint)) {
+                batch.upserts.push(nextCheckpoint);
+            }
+        } else if (checkpoints.has(item.id)) {
+            batch.deletes.push(item.id);
+        }
+
+        const nextEntry = makeTrackedEntry(item, origin, next, existing);
+        const wasTrackedInProgress =
+            existing !== undefined || matching?.state === "in_progress" || context.isNewlyCreated;
+
+        postCommitActions.push(() => {
+            pendingWebCredits.delete(item.id);
+            if (isActive) {
+                activeDownloads.set(item.id, nextEntry);
+                deduplicator.trackActiveDownload(toDownloadDedupItem(item, [...nextEntry.urls]));
+                return;
+            }
+
+            activeDownloads.delete(item.id);
+            seenCreatedIds.delete(item.id);
+            if (
+                (item.state === "complete" || item.state === "interrupted") &&
+                wasTrackedInProgress
+            ) {
+                deduplicator.finishDownload(toDownloadDedupItem(item, [...nextEntry.urls]));
+            } else {
+                deduplicator.cancelDownload(item.id);
+            }
+        });
+
+        return "planned";
+    }
+
+    function planRemovedDownload(
+        batch: DownloadCommitBatch,
+        postCommitActions: Array<() => void>,
+        downloadId: number,
+        finishIfActive: boolean,
+    ) {
+        const removed = activeDownloads.get(downloadId);
+        if (checkpoints.has(downloadId)) {
+            batch.deletes.push(downloadId);
+        }
+        postCommitActions.push(() => {
+            activeDownloads.delete(downloadId);
+            seenCreatedIds.delete(downloadId);
+            pendingWebCredits.delete(downloadId);
+            if (finishIfActive && removed) {
+                deduplicator.finishDownload({
+                    id: downloadId,
+                    urls: [...removed.urls],
+                    referrer: removed.referrer,
+                    mime: removed.mime,
+                    totalBytes: removed.totalBytes,
+                    startTime: removed.startTime,
+                });
+            } else {
+                deduplicator.cancelDownload(downloadId);
+            }
+        });
     }
 
     async function hydrateAndReconcile() {
@@ -802,79 +436,17 @@ export function createDownloadTracker(
             inProgressIds.add(item.id);
             const existing = activeDownloads.get(item.id);
             const matching = getMatchingCheckpoint(item);
-            const origin = resolveDownloadOrigin(item);
+            if (!existing && !matching && seenCreatedIds.has(item.id)) continue;
 
-            if (!origin) {
-                if (checkpoints.has(item.id)) batch.deletes.push(item.id);
-                postCommitActions.push(() => {
-                    activeDownloads.delete(item.id);
-                    pendingWebCredits.delete(item.id);
-                    deduplicator.cancelDownload(item.id);
-                });
-                continue;
-            }
-
-            if (!existing && !matching && seenCreatedIds.has(item.id)) {
-                continue;
-            }
-
-            const pendingCredit = pendingWebCredits.get(item.id) ?? 0;
-            if (pendingCredit > 0) {
-                const creditFlushed = await flushIngestionForCredit();
-                if (!creditFlushed) {
-                    needsRetry = true;
-                    continue;
-                }
-            }
-
-            const isResume = matching?.state === "interrupted";
-            const baseline = Math.max(
-                existing?.lastBytesReceived ??
-                    matching?.bytesReceived ??
-                    sanitizeBytes(item.bytesReceived),
-                pendingCredit,
-            );
-            const { delta, nextLastBytes } = computeDelta(item, baseline, isResume);
-
-            addOriginBytes(batch.usage, origin, delta);
-            if (
-                !matching ||
-                matching.state !== "in_progress" ||
-                matching.bytesReceived !== nextLastBytes ||
-                matching.startTime !== (item.startTime ?? "")
-            ) {
-                batch.upserts.push({
-                    id: item.id,
-                    startTime: item.startTime ?? "",
-                    bytesReceived: nextLastBytes,
-                    state: "in_progress",
-                });
-            }
-
-            const nextEntry = makeTrackedEntry(item, origin, nextLastBytes, existing);
-            postCommitActions.push(() => {
-                pendingWebCredits.delete(item.id);
-                if (item.paused) {
-                    activeDownloads.delete(item.id);
-                    deduplicator.cancelDownload(item.id);
-                } else {
-                    activeDownloads.set(item.id, nextEntry);
-                    deduplicator.trackActiveDownload(toDedupItem(item, [...nextEntry.urls]));
-                }
+            const outcome = await planDownloadItem(batch, postCommitActions, item, {
+                baselineIfNew: "received",
+                isNewlyCreated: false,
             });
+            if (outcome === "retry-credit") needsRetry = true;
         }
 
         for (const [id, checkpoint] of Array.from(checkpoints.entries())) {
             if (inProgressIds.has(id) || activeDownloads.has(id)) continue;
-
-            const pendingCredit = pendingWebCredits.get(id) ?? 0;
-            if (pendingCredit > 0) {
-                const creditFlushed = await flushIngestionForCredit();
-                if (!creditFlushed) {
-                    needsRetry = true;
-                    continue;
-                }
-            }
 
             const found = await safeSearch({ id });
             if (!found) {
@@ -883,63 +455,21 @@ export function createDownloadTracker(
             }
 
             const [item] = found;
-            if (!item) {
-                batch.deletes.push(id);
-                postCommitActions.push(() => {
-                    pendingWebCredits.delete(id);
-                });
-                continue;
-            }
-
-            if (checkpoint.startTime && item.startTime && checkpoint.startTime !== item.startTime) {
-                batch.deletes.push(id);
-                postCommitActions.push(() => {
-                    pendingWebCredits.delete(id);
-                });
+            if (
+                !item ||
+                (checkpoint.startTime && item.startTime && checkpoint.startTime !== item.startTime)
+            ) {
+                planRemovedDownload(batch, postCommitActions, id, false);
                 continue;
             }
 
             if (item.state === "in_progress") continue;
 
-            const origin = resolveDownloadOrigin(item);
-            const isResume = checkpoint.state === "interrupted";
-            const { delta, nextLastBytes } = computeDelta(
-                item,
-                Math.max(checkpoint.bytesReceived, pendingCredit),
-                isResume,
-            );
-            if (origin) {
-                addOriginBytes(batch.usage, origin, delta);
-            }
-
-            if (item.state === "interrupted" && item.canResume && origin) {
-                if (
-                    checkpoint.state !== "interrupted" ||
-                    checkpoint.bytesReceived !== nextLastBytes
-                ) {
-                    batch.upserts.push({
-                        id,
-                        startTime: item.startTime ?? checkpoint.startTime,
-                        bytesReceived: nextLastBytes,
-                        state: "interrupted",
-                    });
-                }
-                postCommitActions.push(() => {
-                    pendingWebCredits.delete(id);
-                    if (checkpoint.state === "in_progress") {
-                        deduplicator.finishDownload(toDedupItem(item));
-                    }
-                });
-                continue;
-            }
-
-            batch.deletes.push(id);
-            postCommitActions.push(() => {
-                pendingWebCredits.delete(id);
-                if (checkpoint.state === "in_progress" && origin) {
-                    deduplicator.finishDownload(toDedupItem(item));
-                }
+            const outcome = await planDownloadItem(batch, postCommitActions, item, {
+                baselineIfNew: "received",
+                isNewlyCreated: false,
             });
+            if (outcome === "retry-credit") needsRetry = true;
         }
 
         const committed = await commitBatch(batch);
@@ -949,32 +479,13 @@ export function createDownloadTracker(
         }
 
         for (const apply of postCommitActions) apply();
-        if (activeDownloads.size > 0) {
-            ensurePolling();
-        } else {
-            stopPollingIfIdle();
-        }
+        syncPollingState();
         if (needsRetry) {
             scheduleHydrateRetry();
         }
     }
 
     async function handleCreated(item: chrome.downloads.DownloadItem, recentWebBytes: number) {
-        const origin = resolveDownloadOrigin(item);
-        if (!origin) {
-            seenCreatedIds.delete(item.id);
-            pendingWebCredits.delete(item.id);
-            deduplicator.cancelDownload(item.id);
-            if (checkpoints.has(item.id)) {
-                await commitBatch({ usage: {}, upserts: [], deletes: [item.id] });
-            }
-            return;
-        }
-
-        const existing = activeDownloads.get(item.id);
-        const matching = getMatchingCheckpoint(item);
-        const priorBytes = existing?.lastBytesReceived ?? matching?.bytesReceived ?? 0;
-
         if (recentWebBytes > 0) {
             pendingWebCredits.set(
                 item.id,
@@ -982,66 +493,41 @@ export function createDownloadTracker(
             );
         }
 
-        const pendingCredit = pendingWebCredits.get(item.id) ?? 0;
-        const baseline = Math.max(priorBytes, pendingCredit);
-        if (pendingCredit > 0) {
-            const creditFlushed = await flushIngestionForCredit();
-            if (!creditFlushed) {
-                activeDownloads.set(item.id, makeTrackedEntry(item, origin, baseline, existing));
-                ensurePolling();
-                return;
+        const origin = resolveDownloadOrigin(item);
+        const existing = activeDownloads.get(item.id);
+        const prior = getPriorProgress(item, "zero");
+
+        const batch: DownloadCommitBatch = { usage: {}, upserts: [], deletes: [] };
+        const postCommitActions: Array<() => void> = [];
+        const outcome = await planDownloadItem(batch, postCommitActions, item, {
+            baselineIfNew: "zero",
+            isNewlyCreated: true,
+        });
+
+        if (outcome === "retry-credit") {
+            if (origin) {
+                activeDownloads.set(item.id, makeTrackedEntry(item, origin, prior, existing));
+                syncPollingState();
             }
+            return;
         }
-
-        const { delta, nextLastBytes } = computeDelta(item, baseline, false);
-
-        const isActive = item.state === "in_progress" && !item.paused;
-        const shouldKeepCheckpoint =
-            item.state === "in_progress" || (item.state === "interrupted" && item.canResume);
-
-        const batch: DownloadCommitBatch = {
-            usage: {},
-            upserts: shouldKeepCheckpoint
-                ? [
-                      {
-                          id: item.id,
-                          startTime: item.startTime ?? "",
-                          bytesReceived: nextLastBytes,
-                          state: item.state === "interrupted" ? "interrupted" : "in_progress",
-                      },
-                  ]
-                : [],
-            deletes: shouldKeepCheckpoint ? [] : [item.id],
-        };
-        addOriginBytes(batch.usage, origin, delta);
 
         const committed = await commitBatch(batch);
         if (!committed) {
-            if (isActive || pendingCredit > 0 || delta > 0 || shouldKeepCheckpoint) {
-                activeDownloads.set(item.id, makeTrackedEntry(item, origin, baseline, existing));
-                ensurePolling();
+            const hasPendingWork =
+                (item.state === "in_progress" && !item.paused) ||
+                (pendingWebCredits.get(item.id) ?? 0) > 0 ||
+                Object.keys(batch.usage).length > 0 ||
+                batch.upserts.length > 0;
+            if (origin && hasPendingWork) {
+                activeDownloads.set(item.id, makeTrackedEntry(item, origin, prior, existing));
+                syncPollingState();
             }
             return;
         }
 
-        pendingWebCredits.delete(item.id);
-
-        const nextEntry = makeTrackedEntry(item, origin, nextLastBytes, existing);
-        if (isActive) {
-            activeDownloads.set(item.id, nextEntry);
-            deduplicator.trackActiveDownload(toDedupItem(item, [...nextEntry.urls]));
-            ensurePolling();
-            return;
-        }
-
-        activeDownloads.delete(item.id);
-        seenCreatedIds.delete(item.id);
-        if (item.state === "complete" || item.state === "interrupted") {
-            deduplicator.finishDownload(toDedupItem(item, [...nextEntry.urls]));
-        } else {
-            deduplicator.cancelDownload(item.id);
-        }
-        stopPollingIfIdle();
+        for (const apply of postCommitActions) apply();
+        syncPollingState();
     }
 
     async function handleChanged(delta: chrome.downloads.DownloadDelta) {
@@ -1060,61 +546,24 @@ export function createDownloadTracker(
             return;
         }
 
+        const batch: DownloadCommitBatch = { usage: {}, upserts: [], deletes: [] };
+        const postCommitActions: Array<() => void> = [];
         const [item] = found;
+
         if (!item) {
-            const removed = activeDownloads.get(delta.id);
-            const hadCheckpoint = checkpoints.has(delta.id);
-            if (hadCheckpoint) {
-                const committed = await commitBatch({
-                    usage: {},
-                    upserts: [],
-                    deletes: [delta.id],
-                });
-                if (!committed) {
-                    if (!activeDownloads.has(delta.id)) scheduleHydrateRetry();
-                    return;
-                }
+            planRemovedDownload(batch, postCommitActions, delta.id, true);
+            const committed = await commitBatch(batch);
+            if (!committed) {
+                if (!activeDownloads.has(delta.id)) scheduleHydrateRetry();
+                return;
             }
-            activeDownloads.delete(delta.id);
-            seenCreatedIds.delete(delta.id);
-            pendingWebCredits.delete(delta.id);
-            if (removed) {
-                deduplicator.finishDownload({
-                    id: delta.id,
-                    urls: [...removed.urls],
-                    referrer: removed.referrer,
-                    mime: removed.mime,
-                    totalBytes: removed.totalBytes,
-                    startTime: removed.startTime,
-                });
-            } else {
-                deduplicator.cancelDownload(delta.id);
-            }
-            stopPollingIfIdle();
+            for (const apply of postCommitActions) apply();
+            syncPollingState();
             return;
         }
 
         const existingActive = activeDownloads.get(item.id);
         const matchingCheckpoint = getMatchingCheckpoint(item);
-        const origin = resolveDownloadOrigin(item);
-
-        if (!origin) {
-            if (checkpoints.has(item.id)) {
-                const committed = await commitBatch({
-                    usage: {},
-                    upserts: [],
-                    deletes: [item.id],
-                });
-                if (!committed) return;
-            }
-            activeDownloads.delete(item.id);
-            seenCreatedIds.delete(item.id);
-            pendingWebCredits.delete(item.id);
-            deduplicator.cancelDownload(item.id);
-            stopPollingIfIdle();
-            return;
-        }
-
         const isTransitionToActive =
             delta.state?.current === "in_progress" || delta.paused?.current === false;
         if (!existingActive && !matchingCheckpoint && !isTransitionToActive) {
@@ -1122,17 +571,11 @@ export function createDownloadTracker(
             return;
         }
 
-        const isResume =
-            matchingCheckpoint?.state === "interrupted" ||
-            (delta.state?.previous === "interrupted" && delta.state.current === "in_progress");
-        let baseline =
-            existingActive?.lastBytesReceived ??
-            matchingCheckpoint?.bytesReceived ??
-            sanitizeBytes(item.bytesReceived);
-
-        if (delta.finalUrl?.current && baseline === 0) {
+        const origin = resolveDownloadOrigin(item);
+        const prior = getPriorProgress(item, "received");
+        if (origin && delta.finalUrl?.current && prior.observedBytes === 0) {
             const recentCredit = deduplicator.consumeRecentWebRequestBytes(
-                toDedupItem(item, [delta.finalUrl.current]),
+                toDownloadDedupItem(item, [delta.finalUrl.current]),
             );
             if (recentCredit > 0) {
                 pendingWebCredits.set(
@@ -1142,48 +585,17 @@ export function createDownloadTracker(
             }
         }
 
-        const pendingCredit = pendingWebCredits.get(item.id) ?? 0;
-        if (pendingCredit > 0) {
-            baseline = Math.max(baseline, pendingCredit);
-            const creditFlushed = await flushIngestionForCredit();
-            if (!creditFlushed) {
-                activeDownloads.set(
-                    item.id,
-                    makeTrackedEntry(item, origin, baseline, existingActive),
-                );
-                ensurePolling();
-                return;
+        const outcome = await planDownloadItem(batch, postCommitActions, item, {
+            baselineIfNew: "received",
+            isNewlyCreated: false,
+        });
+        if (outcome === "retry-credit") {
+            if (origin) {
+                activeDownloads.set(item.id, makeTrackedEntry(item, origin, prior, existingActive));
+                syncPollingState();
             }
+            return;
         }
-
-        const { delta: deltaBytes, nextLastBytes } = computeDelta(item, baseline, isResume);
-        const isActive = item.state === "in_progress" && !item.paused;
-        const shouldKeepCheckpoint =
-            item.state === "in_progress" || (item.state === "interrupted" && item.canResume);
-
-        const nextCheckpointState = item.state === "interrupted" ? "interrupted" : "in_progress";
-        const needsUpsert =
-            shouldKeepCheckpoint &&
-            (!matchingCheckpoint ||
-                matchingCheckpoint.state !== nextCheckpointState ||
-                matchingCheckpoint.bytesReceived !== nextLastBytes ||
-                matchingCheckpoint.startTime !== (item.startTime ?? ""));
-
-        const batch: DownloadCommitBatch = {
-            usage: {},
-            upserts: needsUpsert
-                ? [
-                      {
-                          id: item.id,
-                          startTime: item.startTime ?? "",
-                          bytesReceived: nextLastBytes,
-                          state: nextCheckpointState,
-                      },
-                  ]
-                : [],
-            deletes: !shouldKeepCheckpoint && checkpoints.has(item.id) ? [item.id] : [],
-        };
-        addOriginBytes(batch.usage, origin, deltaBytes);
 
         const committed = await commitBatch(batch);
         if (!committed) {
@@ -1193,28 +605,8 @@ export function createDownloadTracker(
             return;
         }
 
-        pendingWebCredits.delete(item.id);
-
-        const nextEntry = makeTrackedEntry(item, origin, nextLastBytes, existingActive);
-        if (isActive) {
-            activeDownloads.set(item.id, nextEntry);
-            deduplicator.trackActiveDownload(toDedupItem(item, [...nextEntry.urls]));
-            ensurePolling();
-            return;
-        }
-
-        activeDownloads.delete(item.id);
-        seenCreatedIds.delete(item.id);
-        if (item.state === "complete" || item.state === "interrupted") {
-            if (existingActive || matchingCheckpoint?.state === "in_progress") {
-                deduplicator.finishDownload(toDedupItem(item, [...nextEntry.urls]));
-            } else {
-                deduplicator.cancelDownload(item.id);
-            }
-        } else {
-            deduplicator.cancelDownload(item.id);
-        }
-        stopPollingIfIdle();
+        for (const apply of postCommitActions) apply();
+        syncPollingState();
     }
 
     async function handleErased(downloadId: number) {
@@ -1226,20 +618,15 @@ export function createDownloadTracker(
             return;
         }
 
-        if (checkpoints.has(downloadId)) {
-            const committed = await commitBatch({
-                usage: {},
-                upserts: [],
-                deletes: [downloadId],
-            });
-            if (!committed) return;
-        }
+        const batch: DownloadCommitBatch = { usage: {}, upserts: [], deletes: [] };
+        const postCommitActions: Array<() => void> = [];
+        planRemovedDownload(batch, postCommitActions, downloadId, false);
 
-        activeDownloads.delete(downloadId);
-        seenCreatedIds.delete(downloadId);
-        pendingWebCredits.delete(downloadId);
-        deduplicator.cancelDownload(downloadId);
-        stopPollingIfIdle();
+        const committed = await commitBatch(batch);
+        if (!committed) return;
+
+        for (const apply of postCommitActions) apply();
+        syncPollingState();
     }
 
     async function pollInProgress() {
@@ -1252,64 +639,18 @@ export function createDownloadTracker(
 
         for (const item of items) {
             seenInProgress.add(item.id);
-            const origin = resolveDownloadOrigin(item);
-            if (!origin) continue;
-
             const existing = activeDownloads.get(item.id);
             const matching = getMatchingCheckpoint(item);
             if (!existing && !matching && seenCreatedIds.has(item.id)) continue;
 
-            const pendingCredit = pendingWebCredits.get(item.id) ?? 0;
-            if (pendingCredit > 0) {
-                const creditFlushed = await flushIngestionForCredit();
-                if (!creditFlushed) continue;
-            }
-
-            const isResume = matching?.state === "interrupted";
-            const baseline = Math.max(
-                existing?.lastBytesReceived ??
-                    matching?.bytesReceived ??
-                    sanitizeBytes(item.bytesReceived),
-                pendingCredit,
-            );
-            const { delta, nextLastBytes } = computeDelta(item, baseline, isResume);
-
-            addOriginBytes(batch.usage, origin, delta);
-            if (
-                !matching ||
-                matching.state !== "in_progress" ||
-                matching.bytesReceived !== nextLastBytes ||
-                matching.startTime !== (item.startTime ?? "")
-            ) {
-                batch.upserts.push({
-                    id: item.id,
-                    startTime: item.startTime ?? "",
-                    bytesReceived: nextLastBytes,
-                    state: "in_progress",
-                });
-            }
-
-            const nextEntry = makeTrackedEntry(item, origin, nextLastBytes, existing);
-            postCommitActions.push(() => {
-                pendingWebCredits.delete(item.id);
-                if (item.paused) {
-                    activeDownloads.delete(item.id);
-                    deduplicator.cancelDownload(item.id);
-                } else {
-                    activeDownloads.set(item.id, nextEntry);
-                    deduplicator.trackActiveDownload(toDedupItem(item, [...nextEntry.urls]));
-                }
+            await planDownloadItem(batch, postCommitActions, item, {
+                baselineIfNew: "received",
+                isNewlyCreated: false,
             });
         }
 
-        for (const [id, entry] of Array.from(activeDownloads.entries())) {
+        for (const id of Array.from(activeDownloads.keys())) {
             if (seenInProgress.has(id)) continue;
-
-            const pendingCredit = pendingWebCredits.get(id) ?? 0;
-            if (pendingCredit > 0) {
-                const creditFlushed = await flushIngestionForCredit();
-                if (!creditFlushed) continue;
-            }
 
             const found = await safeSearch({ id });
             if (!found) continue;
@@ -1317,66 +658,29 @@ export function createDownloadTracker(
             const [finished] = found;
             if (finished?.state === "in_progress") continue;
 
-            if (finished) {
-                const origin = resolveDownloadOrigin(finished) ?? entry.origin;
-                const { delta, nextLastBytes } = computeDelta(
-                    finished,
-                    Math.max(entry.lastBytesReceived, pendingCredit),
-                    false,
-                );
-                addOriginBytes(batch.usage, origin, delta);
-
-                if (finished.state === "interrupted" && finished.canResume) {
-                    batch.upserts.push({
-                        id,
-                        startTime: finished.startTime ?? entry.startTime,
-                        bytesReceived: nextLastBytes,
-                        state: "interrupted",
-                    });
-                } else {
-                    batch.deletes.push(id);
-                }
-
-                postCommitActions.push(() => {
-                    pendingWebCredits.delete(id);
-                    activeDownloads.delete(id);
-                    seenCreatedIds.delete(id);
-                    deduplicator.finishDownload(toDedupItem(finished, [...entry.urls]));
-                });
-            } else {
-                batch.deletes.push(id);
-                postCommitActions.push(() => {
-                    pendingWebCredits.delete(id);
-                    activeDownloads.delete(id);
-                    seenCreatedIds.delete(id);
-                    deduplicator.finishDownload({
-                        id,
-                        urls: [...entry.urls],
-                        referrer: entry.referrer,
-                        mime: entry.mime,
-                        totalBytes: entry.totalBytes,
-                        startTime: entry.startTime,
-                    });
-                });
+            if (!finished) {
+                planRemovedDownload(batch, postCommitActions, id, true);
+                continue;
             }
+
+            await planDownloadItem(batch, postCommitActions, finished, {
+                baselineIfNew: "received",
+                isNewlyCreated: false,
+            });
         }
 
         const committed = await commitBatch(batch);
         if (!committed) return;
 
         for (const apply of postCommitActions) apply();
-        if (activeDownloads.size > 0) {
-            ensurePolling();
-        } else {
-            stopPollingIfIdle();
-        }
+        syncPollingState();
     }
 
     const onCreated = (item: chrome.downloads.DownloadItem) => {
         if (isDisposed) return;
         if (!resolveDownloadOrigin(item)) return;
 
-        const dedupItem = toDedupItem(item);
+        const dedupItem = toDownloadDedupItem(item);
         deduplicator.trackActiveDownload(dedupItem);
         const recentWebBytes = deduplicator.consumeRecentWebRequestBytes(dedupItem);
         seenCreatedIds.add(item.id);
@@ -1433,11 +737,4 @@ export function createDownloadTracker(
             downloads.onErased?.removeListener(onErased);
         },
     };
-}
-
-export function setupDownloadTracking(
-    ingestion: UsageIngestion,
-    deduplicator: DownloadDeduplicator,
-): DownloadTracker {
-    return createDownloadTracker(ingestion, deduplicator);
 }

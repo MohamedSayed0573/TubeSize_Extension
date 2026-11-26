@@ -260,6 +260,7 @@ describe("downloadCheckpoints table", () => {
                     id: 1,
                     startTime: "2026-11-25T00:00:00.000Z",
                     bytesReceived: 12_500,
+                    creditRemaining: 5_000,
                     state: "in_progress",
                 },
             ],
@@ -272,6 +273,7 @@ describe("downloadCheckpoints table", () => {
                 id: 1,
                 startTime: "2026-11-25T00:00:00.000Z",
                 bytesReceived: 12_500,
+                creditRemaining: 5_000,
                 state: "in_progress",
             },
         ]);

@@ -2,7 +2,7 @@ import { isFirefox } from "@lib/browser";
 
 import { MAX_SAFE_BYTES } from "@/db";
 
-import { type DownloadDeduplicator, isAttachmentNavigation } from "./downloadTracker";
+import { type DownloadDeduplicator, isAttachmentNavigation } from "./downloadDedup";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 const CONTENT_LENGTH_HEADER = "content-length";
@@ -52,20 +52,12 @@ export async function trackRequest(
     deduplicator?: DownloadDeduplicator,
 ) {
     try {
+        if (isIgnoredRequestBase(details)) return;
         if (isAttachmentNavigation(details)) {
-            if (
-                !details.fromCache &&
-                details.method !== "HEAD" &&
-                !isExtensionUrl(details.url) &&
-                !isExtensionUrl(details.initiator) &&
-                !isExtensionUrl(details.originUrl) &&
-                !isExtensionUrl(details.documentUrl)
-            ) {
-                deduplicator?.recordAttachmentNavigation(details);
-            }
+            deduplicator?.recordAttachmentNavigation(details);
             return;
         }
-        if (!isCountableRequest(details)) return;
+        if (details.tabId === NO_TAB_ID) return;
 
         const bytes = getContentLength(details);
         if (bytes === undefined) return;
@@ -82,16 +74,22 @@ export async function trackRequest(
     }
 }
 
-export function isCountableRequest(details: CompletedRequestDetails) {
-    return !(
-        details.tabId === NO_TAB_ID ||
+function isIgnoredRequestBase(details: CompletedRequestDetails) {
+    return (
         isExtensionUrl(details.url) ||
         isExtensionUrl(details.initiator) ||
         isExtensionUrl(details.originUrl) ||
         isExtensionUrl(details.documentUrl) ||
         details.fromCache ||
-        details.method === "HEAD" ||
-        isAttachmentNavigation(details)
+        details.method === "HEAD"
+    );
+}
+
+export function isCountableRequest(details: CompletedRequestDetails) {
+    return (
+        details.tabId !== NO_TAB_ID &&
+        !isIgnoredRequestBase(details) &&
+        !isAttachmentNavigation(details)
     );
 }
 

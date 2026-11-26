@@ -33,6 +33,7 @@ export interface DownloadCheckpoint {
     id: number;
     startTime: string;
     bytesReceived: number;
+    creditRemaining?: number;
     state: DownloadCheckpointState;
 }
 
@@ -75,31 +76,40 @@ export function addSafeBytes(current: number, delta: number): number {
     return delta >= remaining ? MAX_SAFE_BYTES : base + delta;
 }
 
-export async function addSiteUsage(siteUsage: Record<Origin, number>) {
+function collectValidSiteUsageEntries(siteUsage: Record<Origin, number>): Array<[Origin, number]> {
     const validEntries: Array<[Origin, number]> = [];
     for (const [origin, bytes] of typedEntries(siteUsage)) {
         const clamped = addSafeBytes(0, bytes);
         if (clamped > 0) validEntries.push([origin, clamped]);
     }
+    return validEntries;
+}
+
+async function mergeSiteUsageInTx(day: DateKey, validEntries: ReadonlyArray<[Origin, number]>) {
+    const existing = await database.siteUsage.get(day);
+
+    if (existing) {
+        for (const [origin, bytes] of validEntries) {
+            existing.usage[origin] = addSafeBytes(existing.usage[origin] ?? 0, bytes);
+        }
+
+        await database.siteUsage.put(existing);
+    } else {
+        const usage: Record<Origin, number> = {};
+        for (const [origin, bytes] of validEntries) {
+            usage[origin] = bytes;
+        }
+        await database.siteUsage.add({ day, usage });
+    }
+}
+
+export async function addSiteUsage(siteUsage: Record<Origin, number>) {
+    const validEntries = collectValidSiteUsageEntries(siteUsage);
     if (validEntries.length === 0) return;
     const day = getDateKey();
 
     await database.transaction("readwrite", database.siteUsage, async () => {
-        const existing = await database.siteUsage.get(day);
-
-        if (existing) {
-            for (const [origin, bytes] of validEntries) {
-                existing.usage[origin] = addSafeBytes(existing.usage[origin] ?? 0, bytes);
-            }
-
-            await database.siteUsage.put(existing);
-        } else {
-            const usage: Record<Origin, number> = {};
-            for (const [origin, bytes] of validEntries) {
-                usage[origin] = bytes;
-            }
-            await database.siteUsage.add({ day, usage });
-        }
+        await mergeSiteUsageInTx(day, validEntries);
     });
 }
 
@@ -182,6 +192,11 @@ export async function getVideoMetadataByVideoKey(videoKey: VideoKey | VideoKey[]
         : database.videoMetaData.get(videoKey);
 }
 
+function normalizeOptionalCredit(value: number | undefined): number | undefined {
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return undefined;
+    return Math.min(Math.floor(value), MAX_SAFE_BYTES);
+}
+
 export async function getDownloadCheckpoints(): Promise<DownloadCheckpoint[]> {
     const stored = await database.downloadCheckpoints.toArray();
     const valid: DownloadCheckpoint[] = [];
@@ -195,10 +210,12 @@ export async function getDownloadCheckpoints(): Promise<DownloadCheckpoint[]> {
             checkpoint.bytesReceived >= 0 &&
             (checkpoint.state === "in_progress" || checkpoint.state === "interrupted")
         ) {
+            const creditRemaining = normalizeOptionalCredit(checkpoint.creditRemaining);
             valid.push({
                 id: checkpoint.id,
                 startTime: checkpoint.startTime,
                 bytesReceived: Math.min(Math.floor(checkpoint.bytesReceived), MAX_SAFE_BYTES),
+                ...(creditRemaining !== undefined ? { creditRemaining } : {}),
                 state: checkpoint.state,
             });
         }
@@ -207,19 +224,17 @@ export async function getDownloadCheckpoints(): Promise<DownloadCheckpoint[]> {
 }
 
 export async function commitDownloadProgress(batch: DownloadCommitBatch) {
-    const validUsage: Array<[Origin, number]> = [];
-    for (const [origin, bytes] of typedEntries(batch.usage)) {
-        const clamped = addSafeBytes(0, bytes);
-        if (clamped > 0) validUsage.push([origin, clamped]);
-    }
+    const validUsage = collectValidSiteUsageEntries(batch.usage);
 
     const validUpserts: DownloadCheckpoint[] = [];
     for (const checkpoint of batch.upserts) {
         if (!Number.isSafeInteger(checkpoint.id) || checkpoint.id < 0) continue;
+        const creditRemaining = normalizeOptionalCredit(checkpoint.creditRemaining);
         validUpserts.push({
             id: checkpoint.id,
             startTime: checkpoint.startTime,
             bytesReceived: addSafeBytes(0, Math.floor(checkpoint.bytesReceived)),
+            ...(creditRemaining !== undefined ? { creditRemaining } : {}),
             state: checkpoint.state,
         });
     }
@@ -237,19 +252,7 @@ export async function commitDownloadProgress(batch: DownloadCommitBatch) {
         [database.siteUsage, database.downloadCheckpoints],
         async () => {
             if (validUsage.length > 0) {
-                const existing = await database.siteUsage.get(day);
-                if (existing) {
-                    for (const [origin, bytes] of validUsage) {
-                        existing.usage[origin] = addSafeBytes(existing.usage[origin] ?? 0, bytes);
-                    }
-                    await database.siteUsage.put(existing);
-                } else {
-                    const usage: Record<Origin, number> = {};
-                    for (const [origin, bytes] of validUsage) {
-                        usage[origin] = bytes;
-                    }
-                    await database.siteUsage.add({ day, usage });
-                }
+                await mergeSiteUsageInTx(day, validUsage);
             }
 
             if (validUpserts.length > 0) {
