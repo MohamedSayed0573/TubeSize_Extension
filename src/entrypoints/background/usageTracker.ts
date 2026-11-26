@@ -106,7 +106,13 @@ export async function trackRequest(
         }
 
         if (ingestion.bufferTabUsage(tabUrl, bytes)) {
-            deduplicator?.recordCountedWebRequest(details, bytes, tabUrl, committedMainFrameUrl);
+            deduplicator?.recordCountedWebRequest(
+                details,
+                bytes,
+                tabUrl,
+                committedMainFrameUrl,
+                ingestion.getBufferFlushHandle(),
+            );
         }
     } catch (err) {
         console.error("Failed to track request usage:", err);

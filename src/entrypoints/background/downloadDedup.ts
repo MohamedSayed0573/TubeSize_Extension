@@ -1,8 +1,9 @@
-import type { DateKey, Origin } from "@app-types/types";
-import { getDateKey } from "@lib/dateUtils";
+import type { Origin } from "@app-types/types";
 import { toOrigin } from "@lib/domain";
 
 import { MAX_SAFE_BYTES } from "@/db";
+
+import type { UsageFlushHandle } from "./usageIngestion";
 
 const CONTENT_DISPOSITION_HEADER = "content-disposition";
 const CONTENT_ENCODING_HEADER = "content-encoding";
@@ -85,7 +86,7 @@ export interface DownloadDeduplicatorOptions {
 interface ConsumedWebRequestCredit {
     bytes: number;
     attributedOrigin?: Origin;
-    day?: DateKey;
+    flushHandle?: UsageFlushHandle;
 }
 
 export interface DownloadDeduplicator {
@@ -107,6 +108,7 @@ export interface DownloadDeduplicator {
         bytes: number,
         tabUrl?: string,
         committedTabUrl?: string,
+        flushHandle?: UsageFlushHandle,
     ): void;
     consumeRecentWebRequestBytes(item: DownloadDedupItem): ConsumedWebRequestCredit | undefined;
 }
@@ -143,7 +145,7 @@ interface WebRequestProfile {
 interface RecentWebRequestEntry extends WebRequestProfile {
     bytes: number;
     attributedOrigin?: Origin;
-    day: DateKey;
+    flushHandle?: UsageFlushHandle;
     expiresAt: number;
 }
 
@@ -570,6 +572,7 @@ export function createDownloadDeduplicator(
         bytes: number,
         tabUrl?: string,
         committedTabUrl?: string,
+        flushHandle?: UsageFlushHandle,
     ) {
         if (!isDownloadableWebRequest(details, committedTabUrl)) return;
         const safeBytes = toOptionalPositiveBytes(bytes);
@@ -582,7 +585,7 @@ export function createDownloadDeduplicator(
             ...profile,
             bytes: safeBytes,
             attributedOrigin: toWebOrigin(tabUrl),
-            day: getDateKey(),
+            flushHandle,
             expiresAt: currentTime + recentWebRequestTtlMs,
         });
         if (recentWebRequests.length > MAX_RECENT_ENTRIES) {
@@ -611,7 +614,7 @@ export function createDownloadDeduplicator(
         return {
             bytes: matched.bytes,
             attributedOrigin: matched.attributedOrigin,
-            day: matched.day,
+            flushHandle: matched.flushHandle,
         };
     }
 

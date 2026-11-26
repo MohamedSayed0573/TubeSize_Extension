@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, setSystemTime, spyOn, test } from "bun:test";
 
+import { getDateKey } from "@lib/dateUtils";
 import { toOrigin } from "@lib/domain";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
@@ -151,6 +152,7 @@ const cleanups: Array<() => void> = [];
 
 afterEach(async () => {
     while (cleanups.length > 0) cleanups.pop()?.();
+    setSystemTime();
     fakeBrowser.reset();
     await clearDatabaseData();
 });
@@ -2822,10 +2824,10 @@ describe("downloadTracker durability, resume, pause, and error resilience", () =
             const ingestion = createUsageIngestion(
                 mode === "in-flight"
                     ? {
-                          writeSiteUsage: async (batch) => {
+                          writeSiteUsage: async (batch, day) => {
                               resolveWriteStarted();
                               await writeGate;
-                              await addSiteUsage(batch);
+                              await addSiteUsage(batch, day);
                           },
                       }
                     : {},
@@ -2889,6 +2891,135 @@ describe("downloadTracker durability, resume, pause, and error resilience", () =
             expect((await getAllSiteUsage())[0]?.usage).toEqual({
                 [origin("https://example.com")]: 80_000,
             });
+            tracker.dispose();
+        }
+    });
+
+    test("reattributes flushed cross-origin webRequest credits on the exact day row flushed across midnight", async () => {
+        const beforeMidnight = new Date(2026, 10, 25, 23, 59, 59, 0);
+        const afterMidnight = new Date(2026, 10, 26, 0, 0, 1, 0);
+        const dayBefore = getDateKey(beforeMidnight);
+        const dayAfter = getDateKey(afterMidnight);
+
+        for (const scenario of [
+            "buffered-before-flushed-after",
+            "flushed-before-created-after",
+            "in-flight-across-midnight",
+        ] as const) {
+            await clearDatabaseData();
+            setSystemTime(beforeMidnight);
+
+            const fakeDownloads = new FakeDownloadsController();
+            const tab = await fakeBrowser.tabs.create({ url: "https://example.com/downloads" });
+            const fileUrl = `https://cdn.example.net/${scenario}.zip`;
+            const id =
+                scenario === "buffered-before-flushed-after"
+                    ? 100
+                    : scenario === "flushed-before-created-after"
+                      ? 101
+                      : 102;
+
+            let resolveWriteStarted!: () => void;
+            const writeStarted = new Promise<void>((resolve) => {
+                resolveWriteStarted = resolve;
+            });
+            let releaseWrite!: () => void;
+            const writeGate = new Promise<void>((resolve) => {
+                releaseWrite = resolve;
+            });
+
+            const ingestion = createUsageIngestion(
+                scenario === "in-flight-across-midnight"
+                    ? {
+                          writeSiteUsage: async (batch, day) => {
+                              resolveWriteStarted();
+                              await writeGate;
+                              await addSiteUsage(batch, day);
+                          },
+                      }
+                    : {},
+            );
+            const deduplicator = createDownloadDeduplicator();
+            const tracker = createDownloadTracker(ingestion, deduplicator, {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 1_000,
+            });
+            cleanups.push(() => tracker.dispose());
+            await tracker.whenIdle();
+
+            if (scenario === "buffered-before-flushed-after") {
+                await addSiteUsage({ [origin("https://cdn.example.net")]: 50_000 }, dayBefore);
+            }
+
+            await trackRequest(
+                ingestion,
+                makeWebRequestDetails({
+                    tabId: tab.id,
+                    type: "main_frame",
+                    url: fileUrl,
+                    initiator: "https://example.com",
+                    responseHeaders: [
+                        { name: "Content-Length", value: "80000" },
+                        { name: "Content-Type", value: "application/zip" },
+                    ],
+                }),
+                deduplicator,
+            );
+
+            let inFlightFlush: Promise<void> | undefined;
+            if (scenario === "flushed-before-created-after") {
+                await ingestion.flush();
+                setSystemTime(afterMidnight);
+                await addSiteUsage({ [origin("https://cdn.example.net")]: 50_000 }, dayAfter);
+            } else if (scenario === "buffered-before-flushed-after") {
+                setSystemTime(afterMidnight);
+                await ingestion.flush();
+            } else {
+                inFlightFlush = ingestion.flush();
+                await writeStarted;
+                setSystemTime(afterMidnight);
+                await addSiteUsage({ [origin("https://cdn.example.net")]: 50_000 }, dayAfter);
+            }
+
+            fakeDownloads.emitCreated(
+                makeDownloadItem({
+                    id,
+                    url: fileUrl,
+                    finalUrl: fileUrl,
+                    referrer: "https://example.com/downloads",
+                    mime: "application/zip",
+                    bytesReceived: 0,
+                    totalBytes: 80_000,
+                    state: "in_progress",
+                }),
+            );
+            releaseWrite();
+            await inFlightFlush;
+
+            fakeDownloads.updateItem(id, { bytesReceived: 80_000, state: "complete" });
+            fakeDownloads.emitChanged({
+                id,
+                state: { previous: "in_progress", current: "complete" },
+            });
+            await tracker.whenIdle();
+            await ingestion.flush();
+
+            const byDay = new Map((await getAllSiteUsage()).map((row) => [row.day, row.usage]));
+            if (scenario === "buffered-before-flushed-after") {
+                expect(byDay.get(dayBefore)).toEqual({
+                    [origin("https://cdn.example.net")]: 50_000,
+                });
+                expect(byDay.get(dayAfter)).toEqual({
+                    [origin("https://example.com")]: 80_000,
+                });
+            } else {
+                expect(byDay.get(dayBefore)).toEqual({
+                    [origin("https://example.com")]: 80_000,
+                });
+                expect(byDay.get(dayAfter)).toEqual({
+                    [origin("https://cdn.example.net")]: 50_000,
+                });
+            }
             tracker.dispose();
         }
     });

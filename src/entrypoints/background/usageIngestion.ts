@@ -1,4 +1,5 @@
-import type { Origin, VideoKey } from "@app-types/types";
+import type { DateKey, Origin, VideoKey } from "@app-types/types";
+import { getDateKey } from "@lib/dateUtils";
 import { toOrigin } from "@lib/domain";
 import { type ParsedPlatformMedia, parsePlatformUrl, toVideoKey } from "@lib/platformUrl";
 import { typedEntries } from "@lib/utils";
@@ -14,8 +15,12 @@ interface UsageSnapshot {
     videos: Record<VideoKey, number>;
 }
 
+export interface UsageFlushHandle {
+    readonly day?: DateKey;
+}
+
 export interface UsageIngestionDeps {
-    writeSiteUsage?: (siteUsage: Record<Origin, number>) => Promise<void>;
+    writeSiteUsage?: (siteUsage: Record<Origin, number>, day?: DateKey) => Promise<void>;
     writeWatchHistory?: (watchHistory: Record<VideoKey, number>) => Promise<void>;
     refreshBadge?: () => Promise<void>;
     recordMetadata?: (media: ParsedPlatformMedia, url: string) => Promise<void>;
@@ -25,6 +30,7 @@ export interface UsageIngestionDeps {
 export interface UsageIngestion {
     readonly hasPendingUsage: boolean;
     bufferTabUsage(tabUrl: string, bytes: number, frameUrl?: string): boolean;
+    getBufferFlushHandle(): UsageFlushHandle;
     reattributeBufferedOrigin(fromOrigin: Origin, targetOrigin: Origin, bytes: number): boolean;
     recordTabUsage(tabUrl: string, bytes: number, frameUrl?: string): Promise<boolean>;
     flush(): Promise<void>;
@@ -61,6 +67,8 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
     let timerId: ReturnType<typeof setInterval> | undefined;
     let flushQueue: Promise<void> = Promise.resolve();
     let inFlightFlushes = 0;
+    let currentFlushRecord: { day?: DateKey } = {};
+    let restoredFlushRecords: Array<{ day?: DateKey }> = [];
 
     function drain(): UsageSnapshot {
         const snapshot = { origins, videos };
@@ -85,13 +93,23 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
         if (!hasOrigins && !hasVideos) return;
 
         const snapshot = drain();
+        const batchRecords = hasOrigins ? [...restoredFlushRecords, currentFlushRecord] : [];
+        if (hasOrigins) {
+            restoredFlushRecords = [];
+            currentFlushRecord = {};
+        }
 
         if (hasOrigins) {
+            const committedDay = getDateKey();
             try {
-                await writeSiteUsage(snapshot.origins);
+                await writeSiteUsage(snapshot.origins, committedDay);
             } catch (err) {
                 restore(snapshot);
+                restoredFlushRecords.push(...batchRecords);
                 throw err;
+            }
+            for (const record of batchRecords) {
+                record.day = committedDay;
             }
         }
 
@@ -158,6 +176,10 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
         return true;
     }
 
+    function getBufferFlushHandle(): UsageFlushHandle {
+        return currentFlushRecord;
+    }
+
     function reattributeBufferedOrigin(
         fromOrigin: Origin,
         targetOrigin: Origin,
@@ -209,6 +231,7 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
             );
         },
         bufferTabUsage,
+        getBufferFlushHandle,
         reattributeBufferedOrigin,
         recordTabUsage,
         flush,

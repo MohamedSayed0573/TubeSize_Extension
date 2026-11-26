@@ -19,7 +19,7 @@ import {
     toDownloadDedupItem,
     toWebOrigin,
 } from "./downloadDedup";
-import { isExtensionUrl, type UsageIngestion } from "./usageIngestion";
+import { isExtensionUrl, type UsageFlushHandle, type UsageIngestion } from "./usageIngestion";
 
 const DEFAULT_POLL_INTERVAL_MS = 1_000;
 
@@ -65,6 +65,10 @@ interface PlanContext {
 }
 
 type PlanOutcome = "planned" | "retry-credit";
+
+interface PendingOriginReattribution extends DownloadOriginReattribution {
+    flushHandle?: UsageFlushHandle;
+}
 
 // Only http(s) transfers count: `blob:`/`data:` saves never cross the network (their bytes were
 // already counted when the page fetched them), and extension-initiated downloads are not site usage.
@@ -125,7 +129,7 @@ export function createDownloadTracker(
     const checkpoints = new Map<number, DownloadCheckpoint>();
     const seenCreatedIds = new Set<number>();
     const pendingWebCredits = new Map<number, number>();
-    const pendingOriginReattributions = new Map<number, DownloadOriginReattribution>();
+    const pendingOriginReattributions = new Map<number, PendingOriginReattribution>();
 
     let pollTimerId: ReturnType<typeof setInterval> | undefined;
     let startupRetryTimerId: ReturnType<typeof setTimeout> | undefined;
@@ -336,8 +340,14 @@ export function createDownloadTracker(
             }
         }
         if (pendingReattribution) {
+            const committedDay = pendingReattribution.flushHandle?.day ?? pendingReattribution.day;
             batch.reattributions ??= [];
-            batch.reattributions.push(pendingReattribution);
+            batch.reattributions.push({
+                fromOrigin: pendingReattribution.fromOrigin,
+                toOrigin: pendingReattribution.toOrigin,
+                bytes: pendingReattribution.bytes,
+                ...(committedDay ? { day: committedDay } : {}),
+            });
         }
 
         const prior = getPriorProgress(item, context.baselineIfNew);
@@ -614,7 +624,7 @@ export function createDownloadTracker(
                         fromOrigin: recentCredit.attributedOrigin,
                         toOrigin: origin,
                         bytes: recentCredit.bytes,
-                        ...(recentCredit.day ? { day: recentCredit.day } : {}),
+                        flushHandle: recentCredit.flushHandle,
                     });
                 }
                 pendingWebCredits.set(
@@ -736,7 +746,7 @@ export function createDownloadTracker(
                 fromOrigin: recentCredit.attributedOrigin,
                 toOrigin: origin,
                 bytes: recentCredit.bytes,
-                ...(recentCredit.day ? { day: recentCredit.day } : {}),
+                flushHandle: recentCredit.flushHandle,
             });
         }
         seenCreatedIds.add(item.id);

@@ -111,10 +111,9 @@ async function mergeSiteUsageInTx(day: DateKey, validEntries: ReadonlyArray<[Ori
     }
 }
 
-export async function addSiteUsage(siteUsage: Record<Origin, number>) {
+export async function addSiteUsage(siteUsage: Record<Origin, number>, day = getDateKey()) {
     const validEntries = collectValidSiteUsageEntries(siteUsage);
     if (validEntries.length === 0) return;
-    const day = getDateKey();
 
     await database.transaction("readwrite", database.siteUsage, async () => {
         await mergeSiteUsageInTx(day, validEntries);
