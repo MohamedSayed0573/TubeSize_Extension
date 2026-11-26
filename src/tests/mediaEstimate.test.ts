@@ -169,8 +169,12 @@ describe("requestMediaEstimate", () => {
 
         const codes: MediaEstimateErrorCode[] = [
             "stream_offline",
+            "sign_in_required",
+            "members_only",
+            "geo_blocked",
             "restricted_content",
             "unavailable",
+            "rate_limited",
             "network_error",
             "no_formats",
             "unsupported_url",

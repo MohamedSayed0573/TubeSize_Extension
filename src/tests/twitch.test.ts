@@ -263,14 +263,62 @@ describe("estimateTwitch (live)", () => {
         });
         await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
             name: "MediaEstimateError",
-            code: "restricted_content",
+            code: "members_only",
             message: "Twitch stream playback forbidden: SUBSCRIBER_ONLY",
+        });
+
+        stubFetch(async (input) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/offline") {
+                return new Response('clientId = "cid"', { status: 200 });
+            }
+            return Response.json({
+                data: {
+                    streamPlaybackAccessToken: {
+                        value: "",
+                        signature: "",
+                        authorization: {
+                            isForbidden: true,
+                            forbiddenReasonCode: "GEOBLOCKED",
+                        },
+                    },
+                },
+            });
+        });
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "geo_blocked",
+            message: "Twitch stream playback forbidden: GEOBLOCKED",
+        });
+
+        stubFetch(async (input) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/offline") {
+                return new Response('clientId = "cid"', { status: 200 });
+            }
+            return Response.json({
+                data: {
+                    streamPlaybackAccessToken: {
+                        value: "",
+                        signature: "",
+                        authorization: {
+                            isForbidden: true,
+                            forbiddenReasonCode: "DMCA",
+                        },
+                    },
+                },
+            });
+        });
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "restricted_content",
+            message: "Twitch stream playback forbidden: DMCA",
         });
 
         stubFetch(async () => new Response("Too Many Requests", { status: 429 }));
         await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
             name: "MediaEstimateError",
-            code: "network_error",
+            code: "rate_limited",
         });
 
         stubFetch(async () => {
@@ -539,7 +587,7 @@ describe("estimateTwitch (vod)", () => {
             }),
         ).rejects.toMatchObject({
             name: "MediaEstimateError",
-            code: "network_error",
+            code: "rate_limited",
         });
     });
 });

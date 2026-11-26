@@ -27,23 +27,26 @@ const LIVE_AUDIO_ITAG = 140;
 const YT_INITIAL_PLAYER_ASSIGNMENT_REGEX = /\bytInitialPlayerResponse\s*=\s*\{/g;
 const DEFAULT_YOUTUBE_THUMBNAIL = "https://www.youtube.com/img/desktop/yt_1200.png";
 
-const RESTRICTED_PLAYABILITY_STATUSES = new Set([
+const SIGN_IN_PLAYABILITY_STATUSES = new Set([
     "LOGIN_REQUIRED",
     "AGE_CHECK_REQUIRED",
     "AGE_VERIFICATION_REQUIRED",
-    "CONTENT_CHECK_REQUIRED",
 ]);
+
+const MEMBERS_ONLY_REASON_REGEX =
+    /\b(?:members[- ]?only|join this channel|channel(?:'s)? members|channel membership|requires? membership|requires? payment|purchase|buy or rent|youtube premium|subscribers?[- ]?only)\b|(?:للمنتسبين|المنتسبين|الانتساب إلى هذه القناة)/i;
+
+const GEO_BLOCKED_REASON_REGEX =
+    /\b(?:in your country|in your region|not available in your|blocked it in your|geo[- ]?restrict|region[- ]?block)\b|(?:في بلدك|في منطقتك)/i;
+
+const SIGN_IN_REASON_REGEX =
+    /\b(?:age[- ]?restricted|confirm your age|sign in|log in|login)\b|(?:تسجيل الدخول|تأكيد عمرك)/i;
 
 const RESTRICTED_REASON_REGEX =
-    /\b(?:age[- ]?restricted|confirm your age|sign in|log in|login|members[- ]?only|join this channel|channel(?:'s)? members|channel membership|requires? membership|private video|video is private|in your country|in your region|not available in your|blocked it in your|geo[- ]?restrict|region[- ]?block|requires? payment|purchase|buy or rent|youtube premium|subscribers?[- ]?only|restricted mode)|(?:فيديو خاص|للمنتسبين|المنتسبين|الانتساب إلى هذه القناة|في بلدك|في منطقتك|تسجيل الدخول|تأكيد عمرك|وضع تقييد المحتوى)/i;
+    /\b(?:private video|video is private|restricted mode)\b|(?:فيديو خاص|وضع تقييد المحتوى)/i;
 
-const RESTRICTED_ICON_TYPES = new Set([
-    "LOCK",
-    "PRIVATE",
-    "PRIVACY_PRIVATE",
-    "MONETIZATION_ON",
-    "PAID",
-]);
+const MEMBERS_ONLY_ICON_TYPES = new Set(["MONETIZATION_ON", "PAID"]);
+const RESTRICTED_ICON_TYPES = new Set(["LOCK", "PRIVATE", "PRIVACY_PRIVATE"]);
 
 const OFFLINE_REASON_REGEX =
     /\b(?:live event will begin|premiere will begin|live stream is offline|stream is offline|upcoming)/i;
@@ -279,7 +282,7 @@ function isSignInNavigation(
     return /(?:accounts\.google\.com|\/signin\b)/i.test(url);
 }
 
-function hasRestrictedProceedButton(
+function hasSignInProceedButton(
     proceedButton: z.infer<typeof ytProceedButtonSchema> | null | undefined,
 ): boolean {
     const renderer = proceedButton?.buttonRenderer;
@@ -291,8 +294,7 @@ function hasRestrictedProceedButton(
     );
 }
 
-function hasRestrictedPlayabilityMarkers(playability: YtPlayabilityStatus): boolean {
-    if (playability.desktopLegacyAgeGateReason != null) return true;
+function hasMembersOnlyPlayabilityMarkers(playability: YtPlayabilityStatus): boolean {
     const screen = playability.errorScreen;
     if (!screen) return false;
     if (
@@ -302,6 +304,14 @@ function hasRestrictedPlayabilityMarkers(playability: YtPlayabilityStatus): bool
     ) {
         return true;
     }
+    const iconType = screen.playerErrorMessageRenderer?.icon?.iconType;
+    return iconType != null && MEMBERS_ONLY_ICON_TYPES.has(iconType);
+}
+
+function hasSignInPlayabilityMarkers(playability: YtPlayabilityStatus): boolean {
+    if (playability.desktopLegacyAgeGateReason != null) return true;
+    const screen = playability.errorScreen;
+    if (!screen) return false;
     const interstitialButton =
         screen.playerInterstitialRenderer?.content?.interstitialViewModel?.primaryButton
             ?.buttonViewModel;
@@ -311,10 +321,11 @@ function hasRestrictedPlayabilityMarkers(playability: YtPlayabilityStatus): bool
     ) {
         return true;
     }
-    const renderer = screen.playerErrorMessageRenderer;
-    if (!renderer) return false;
-    if (hasRestrictedProceedButton(renderer.proceedButton)) return true;
-    const iconType = renderer.icon?.iconType;
+    return hasSignInProceedButton(screen.playerErrorMessageRenderer?.proceedButton);
+}
+
+function hasGenericRestrictedMarkers(playability: YtPlayabilityStatus): boolean {
+    const iconType = playability.errorScreen?.playerErrorMessageRenderer?.icon?.iconType;
     return iconType != null && RESTRICTED_ICON_TYPES.has(iconType);
 }
 
@@ -333,18 +344,40 @@ function classifyYoutubePlayability(
         );
     }
 
-    if (
-        RESTRICTED_PLAYABILITY_STATUSES.has(status) ||
-        hasRestrictedPlayabilityMarkers(playability)
-    ) {
+    if (hasMembersOnlyPlayabilityMarkers(playability) || MEMBERS_ONLY_REASON_REGEX.test(detail)) {
         return new MediaEstimateError(
-            "restricted_content",
-            detail || "This video requires sign-in or is restricted",
+            "members_only",
+            detail || "This video requires channel membership or purchase",
         );
     }
 
-    if (RESTRICTED_REASON_REGEX.test(detail)) {
-        return new MediaEstimateError("restricted_content", detail);
+    if (GEO_BLOCKED_REASON_REGEX.test(detail)) {
+        return new MediaEstimateError(
+            "geo_blocked",
+            detail || "This video is not available in your region",
+        );
+    }
+
+    if (
+        SIGN_IN_PLAYABILITY_STATUSES.has(status) ||
+        hasSignInPlayabilityMarkers(playability) ||
+        SIGN_IN_REASON_REGEX.test(detail)
+    ) {
+        return new MediaEstimateError(
+            "sign_in_required",
+            detail || "This video requires signing in",
+        );
+    }
+
+    if (
+        status === "CONTENT_CHECK_REQUIRED" ||
+        hasGenericRestrictedMarkers(playability) ||
+        RESTRICTED_REASON_REGEX.test(detail)
+    ) {
+        return new MediaEstimateError(
+            "restricted_content",
+            detail || "Access to this video is restricted",
+        );
     }
 
     if (OFFLINE_REASON_REGEX.test(detail)) {

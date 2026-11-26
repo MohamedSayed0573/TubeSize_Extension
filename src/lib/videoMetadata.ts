@@ -1,7 +1,7 @@
 import type { VideoKey } from "@app-types/types";
 import CONFIG from "@lib/constants";
 import { fetchKickMetadata } from "@lib/kick";
-import { isMediaEstimateError } from "@lib/mediaEstimateError";
+import { isExpectedMediaEstimateError } from "@lib/mediaEstimateError";
 import { type ParsedPlatformMedia, toVideoKey } from "@lib/platformUrl";
 import { fetchTwitchMetadata } from "@lib/twitch";
 import type { PageHtmlFetcher } from "@lib/utils";
@@ -76,7 +76,7 @@ async function recordVideoMetadataOnce(
             await addVideoMetadata(metadata);
         }
     } catch (err) {
-        if (isMediaEstimateError(err) && err.code !== "unknown") return;
+        if (isExpectedMediaEstimateError(err)) return;
         console.error(`Failed to record ${media.platform} metadata:`, err);
     }
 }

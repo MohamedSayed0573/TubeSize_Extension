@@ -171,7 +171,7 @@ describe("attachMessageHandler RPC seam", () => {
                 html: restrictedHtml,
             }),
         ).rejects.toEqual(
-            new MediaEstimateError("restricted_content", "Sign in to confirm your age"),
+            new MediaEstimateError("sign_in_required", "Sign in to confirm your age"),
         );
     });
 

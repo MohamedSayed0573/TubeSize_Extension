@@ -2,8 +2,12 @@ import type { FetchFailure } from "@lib/utils";
 
 const MEDIA_ESTIMATE_ERROR_CODES = [
     "stream_offline",
+    "sign_in_required",
+    "members_only",
+    "geo_blocked",
     "restricted_content",
     "unavailable",
+    "rate_limited",
     "network_error",
     "no_formats",
     "unsupported_url",
@@ -30,6 +34,10 @@ export class MediaEstimateError extends Error {
 
 export function isMediaEstimateError(err: unknown): err is MediaEstimateError {
     return err instanceof MediaEstimateError;
+}
+
+export function isExpectedMediaEstimateError(err: unknown): boolean {
+    return isMediaEstimateError(err) && err.code !== "unknown";
 }
 
 export function getMediaEstimateErrorCode(err: unknown): MediaEstimateErrorCode {
@@ -59,7 +67,10 @@ export function classifyFetchFailure(
             cause: failure.error,
         });
     }
-    if (status === 429 || (status !== undefined && status >= 500)) {
+    if (status === 429) {
+        return new MediaEstimateError("rate_limited", message, { cause: failure.error });
+    }
+    if (status !== undefined && status >= 500) {
         return new MediaEstimateError("network_error", message, { cause: failure.error });
     }
 

@@ -209,13 +209,37 @@
         "message": "هذه القناة لا تبث حاليًا. حاول مجددًا عند بدء البث.",
         "description": "Popup error description when a live channel or premiere is offline"
     },
+    "popup_error_signInRequired_title": {
+        "message": "يلزم تسجيل الدخول",
+        "description": "Popup error title when media requires signing in or age confirmation"
+    },
+    "popup_error_signInRequired_description": {
+        "message": "سجّل الدخول إلى حسابك على هذه المنصة لتأكيد الوصول، ثم حاول مرة أخرى.",
+        "description": "Popup error description when media requires signing in or age confirmation"
+    },
+    "popup_error_membersOnly_title": {
+        "message": "محتوى للمنتسبين فقط",
+        "description": "Popup error title when media requires channel membership, subscription, or purchase"
+    },
+    "popup_error_membersOnly_description": {
+        "message": "يتطلب هذا الفيديو انتسابًا أو اشتراكًا في القناة أو شراءً.",
+        "description": "Popup error description when media requires channel membership, subscription, or purchase"
+    },
+    "popup_error_geoBlocked_title": {
+        "message": "غير متاح في منطقتك",
+        "description": "Popup error title when media is geo-blocked in the user's region"
+    },
+    "popup_error_geoBlocked_description": {
+        "message": "قيّد صاحب القناة أو المنصة هذا المحتوى في موقعك الجغرافي.",
+        "description": "Popup error description when media is geo-blocked in the user's region"
+    },
     "popup_error_restrictedContent_title": {
         "message": "محتوى مقيّد",
-        "description": "Popup error title when media is age-restricted, private, members-only, subscriber-only, or geo-blocked"
+        "description": "Popup error title when media access is restricted without a more specific reason"
     },
     "popup_error_restrictedContent_description": {
-        "message": "يتطلب هذا الفيديو تسجيل الدخول أو عضوية، أو غير متاح في منطقتك.",
-        "description": "Popup error description when media is restricted"
+        "message": "تم تقييد الوصول إلى هذا الفيديو من قِبل المنصة أو صاحب القناة.",
+        "description": "Popup error description when media access is restricted"
     },
     "popup_error_unavailable_title": {
         "message": "الفيديو غير متاح",
@@ -225,9 +249,17 @@
         "message": "تم حذف هذا الفيديو أو القناة أو تعذّر العثور عليه.",
         "description": "Popup error description when a video, VOD, or channel is unavailable or deleted"
     },
+    "popup_error_rateLimited_title": {
+        "message": "طلبات كثيرة جدًا",
+        "description": "Popup error title when the platform responds with HTTP 429 rate limiting"
+    },
+    "popup_error_rateLimited_description": {
+        "message": "قيّدت المنصة الطلبات مؤقتًا. انتظر قليلًا ثم حاول مرة أخرى.",
+        "description": "Popup error description when the platform responds with HTTP 429 rate limiting"
+    },
     "popup_error_networkError_title": {
         "message": "مشكلة في الاتصال",
-        "description": "Popup error title when a network error, timeout, rate-limit, or server error occurs"
+        "description": "Popup error title when a network error, timeout, or upstream server error occurs"
     },
     "popup_error_networkError_description": {
         "message": "تعذّر الاتصال بالمنصة الآن. تحقّق من اتصالك وحاول مرة أخرى.",

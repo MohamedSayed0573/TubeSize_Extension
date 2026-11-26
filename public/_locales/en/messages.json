@@ -209,13 +209,37 @@
         "message": "This channel isn't live right now. Try again once the stream starts.",
         "description": "Popup error description when a live channel or premiere is offline"
     },
+    "popup_error_signInRequired_title": {
+        "message": "Sign in required",
+        "description": "Popup error title when media requires signing in or age confirmation"
+    },
+    "popup_error_signInRequired_description": {
+        "message": "Sign in to your account on this platform to confirm access, then try again.",
+        "description": "Popup error description when media requires signing in or age confirmation"
+    },
+    "popup_error_membersOnly_title": {
+        "message": "Members-only content",
+        "description": "Popup error title when media requires channel membership, subscription, or purchase"
+    },
+    "popup_error_membersOnly_description": {
+        "message": "This video requires a channel membership, subscription, or purchase.",
+        "description": "Popup error description when media requires channel membership, subscription, or purchase"
+    },
+    "popup_error_geoBlocked_title": {
+        "message": "Not available in your region",
+        "description": "Popup error title when media is geo-blocked in the user's region"
+    },
+    "popup_error_geoBlocked_description": {
+        "message": "The uploader or platform restricted this content in your location.",
+        "description": "Popup error description when media is geo-blocked in the user's region"
+    },
     "popup_error_restrictedContent_title": {
         "message": "Restricted content",
-        "description": "Popup error title when media is age-restricted, private, members-only, subscriber-only, or geo-blocked"
+        "description": "Popup error title when media access is restricted without a more specific reason"
     },
     "popup_error_restrictedContent_description": {
-        "message": "This video requires sign-in, membership, or isn't available in your region.",
-        "description": "Popup error description when media is restricted"
+        "message": "Access to this video is restricted by the platform or uploader.",
+        "description": "Popup error description when media access is restricted"
     },
     "popup_error_unavailable_title": {
         "message": "Video unavailable",
@@ -225,9 +249,17 @@
         "message": "This video or channel was removed or could not be found.",
         "description": "Popup error description when a video, VOD, or channel is unavailable or deleted"
     },
+    "popup_error_rateLimited_title": {
+        "message": "Too many requests",
+        "description": "Popup error title when the platform responds with HTTP 429 rate limiting"
+    },
+    "popup_error_rateLimited_description": {
+        "message": "The platform temporarily rate-limited requests. Wait a moment and try again.",
+        "description": "Popup error description when the platform responds with HTTP 429 rate limiting"
+    },
     "popup_error_networkError_title": {
         "message": "Connection issue",
-        "description": "Popup error title when a network error, timeout, rate-limit, or server error occurs"
+        "description": "Popup error title when a network error, timeout, or upstream server error occurs"
     },
     "popup_error_networkError_description": {
         "message": "Couldn't reach the platform right now. Check your connection and try again.",

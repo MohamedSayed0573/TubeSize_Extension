@@ -226,7 +226,7 @@ describe("estimateYoutube", () => {
             ),
         ).rejects.toMatchObject({
             name: "MediaEstimateError",
-            code: "restricted_content",
+            code: "sign_in_required",
             message: expect.stringContaining("Sign in to confirm your age"),
         });
 
@@ -245,7 +245,7 @@ describe("estimateYoutube", () => {
             ),
         ).rejects.toMatchObject({
             name: "MediaEstimateError",
-            code: "restricted_content",
+            code: "members_only",
         });
 
         await expect(
@@ -262,7 +262,7 @@ describe("estimateYoutube", () => {
             ),
         ).rejects.toMatchObject({
             name: "MediaEstimateError",
-            code: "restricted_content",
+            code: "geo_blocked",
         });
 
         await expect(
@@ -339,7 +339,7 @@ describe("estimateYoutube", () => {
             }),
         ).rejects.toMatchObject({
             name: "MediaEstimateError",
-            code: "network_error",
+            code: "rate_limited",
         });
 
         await expect(
@@ -381,7 +381,7 @@ describe("estimateYoutube", () => {
             ),
         ).rejects.toMatchObject({
             name: "MediaEstimateError",
-            code: "restricted_content",
+            code: "members_only",
         });
 
         stubFetch(async () => {
@@ -473,7 +473,7 @@ describe("estimateYoutube", () => {
             ),
         ).rejects.toMatchObject({
             name: "MediaEstimateError",
-            code: "restricted_content",
+            code: "sign_in_required",
         });
 
         await expect(
@@ -512,7 +512,7 @@ describe("estimateYoutube", () => {
             ),
         ).rejects.toMatchObject({
             name: "MediaEstimateError",
-            code: "restricted_content",
+            code: "sign_in_required",
         });
 
         await expect(

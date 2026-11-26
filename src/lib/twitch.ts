@@ -8,6 +8,7 @@ import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
 import {
     classifyFetchFailure,
     MediaEstimateError,
+    type MediaEstimateErrorCode,
     readResponseJson,
     readResponseText,
 } from "@lib/mediaEstimateError";
@@ -131,6 +132,26 @@ async function getTwitchClientId(url: string): Promise<string> {
     return clientId[1];
 }
 
+function classifyTwitchForbiddenReason(reasonCode: string | undefined): MediaEstimateErrorCode {
+    const normalized = reasonCode?.trim().toUpperCase();
+    if (!normalized) return "restricted_content";
+    if (normalized.includes("SUBSCRIBER") || normalized.includes("SUB_ONLY")) {
+        return "members_only";
+    }
+    if (normalized.includes("GEO")) {
+        return "geo_blocked";
+    }
+    if (
+        normalized === "UNAUTHORIZED" ||
+        normalized === "LOGIN_REQUIRED" ||
+        normalized === "UNAUTHENTICATED" ||
+        normalized === "AGE_RESTRICTED"
+    ) {
+        return "sign_in_required";
+    }
+    return "restricted_content";
+}
+
 async function getTwitchToken(
     clientId: string,
     variables: TwitchGqlVariables,
@@ -164,7 +185,7 @@ async function getTwitchToken(
     if (streamToken?.authorization?.isForbidden) {
         const reason = streamToken.authorization.forbiddenReasonCode?.trim();
         throw new MediaEstimateError(
-            "restricted_content",
+            classifyTwitchForbiddenReason(reason),
             reason
                 ? `Twitch stream playback forbidden: ${reason}`
                 : "Twitch stream playback is forbidden",

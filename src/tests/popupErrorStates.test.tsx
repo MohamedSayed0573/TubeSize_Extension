@@ -116,11 +116,31 @@ describe("popup actionable platform error states", () => {
         }> = [
             { code: "stream_offline", expectedTitle: "Stream is offline", expectRetryButton: true },
             {
+                code: "sign_in_required",
+                expectedTitle: "Sign in required",
+                expectRetryButton: true,
+            },
+            {
+                code: "members_only",
+                expectedTitle: "Members-only content",
+                expectRetryButton: true,
+            },
+            {
+                code: "geo_blocked",
+                expectedTitle: "Not available in your region",
+                expectRetryButton: true,
+            },
+            {
                 code: "restricted_content",
                 expectedTitle: "Restricted content",
                 expectRetryButton: true,
             },
             { code: "unavailable", expectedTitle: "Video unavailable", expectRetryButton: true },
+            {
+                code: "rate_limited",
+                expectedTitle: "Too many requests",
+                expectRetryButton: true,
+            },
             { code: "network_error", expectedTitle: "Connection issue", expectRetryButton: true },
             { code: "no_formats", expectedTitle: "No formats available", expectRetryButton: true },
             {
@@ -226,7 +246,11 @@ describe("popup actionable platform error states", () => {
 
         releaseRetry?.();
 
-        await waitForCondition(() => host?.querySelector('[role="alert"]') === null);
+        await waitForCondition(
+            () =>
+                host?.querySelector('[role="alert"]') === null &&
+                (host?.textContent?.includes("120 MB") ?? false),
+        );
 
         expect(host?.textContent).toContain("Recovered Video");
         expect(host?.textContent).toContain("120 MB");
