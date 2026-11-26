@@ -28,6 +28,7 @@ export interface BundleBuildReport {
     categories: Record<string, number>;
     largestFiles: BundleFileEntry[];
     fileBytes: Record<string, number>;
+    manifestContentScripts: string[] | null;
 }
 
 export interface BundlePerfReport {
@@ -39,6 +40,7 @@ type BundleTarget = "chrome-mv3" | "firefox-mv3";
 
 interface BundleBudgetConfig {
     readonly totalBytes: number;
+    readonly contentScriptsTotalBytes: number;
     readonly files: Readonly<Record<string, number>>;
 }
 
@@ -48,7 +50,12 @@ interface BundleBudgetCheck {
     actualBytes: number | null;
     budgetBytes: number;
     passed: boolean;
-    reason?: "missing-build" | "missing-file" | "over-budget";
+    reason?:
+        | "missing-build"
+        | "missing-file"
+        | "over-budget"
+        | "invalid-manifest"
+        | "unbudgeted-content-script";
 }
 
 export interface BundleBudgetEvaluation {
@@ -60,11 +67,12 @@ export interface BundleBudgetEvaluation {
 
 export const BUNDLE_BUDGETS = {
     totalBytes: 3_200_000,
+    contentScriptsTotalBytes: 80_000,
     files: {
         "background.js": 800_000,
-        "content-scripts/genericObserver.js": 10_000,
-        "content-scripts/usageBridge.js": 15_000,
-        "content-scripts/content.js": 75_000,
+        "content-scripts/genericObserver.js": 8_000,
+        "content-scripts/usageBridge.js": 10_000,
+        "content-scripts/content.js": 65_000,
     },
 } as const satisfies BundleBudgetConfig;
 
@@ -191,6 +199,33 @@ function categorizeBundleFile(relPath: string): string {
     return "other";
 }
 
+function readManifestContentScripts(buildDir: string): string[] | null {
+    const manifestPath = join(buildDir, "manifest.json");
+    if (!existsSync(manifestPath)) return null;
+    try {
+        const parsed = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+            content_scripts?: unknown;
+        };
+        if (!Array.isArray(parsed.content_scripts)) return null;
+        const assets = new Set<string>();
+        for (const entry of parsed.content_scripts) {
+            if (!entry || typeof entry !== "object") return null;
+            const record = entry as { js?: unknown; css?: unknown };
+            for (const list of [record.js, record.css]) {
+                if (list === undefined) continue;
+                if (!Array.isArray(list)) return null;
+                for (const item of list) {
+                    if (typeof item !== "string" || item.trim().length === 0) return null;
+                    assets.add(item.replaceAll("\\", "/").replace(/^\.?\//, ""));
+                }
+            }
+        }
+        return [...assets].toSorted((a, b) => a.localeCompare(b));
+    } catch {
+        return null;
+    }
+}
+
 function scanBuildDir(rootDir: string, buildDir: string): BundleBuildReport | null {
     if (!existsSync(buildDir)) return null;
     const files: BundleFileEntry[] = [];
@@ -226,6 +261,7 @@ function scanBuildDir(rootDir: string, buildDir: string): BundleBuildReport | nu
         categories,
         largestFiles,
         fileBytes,
+        manifestContentScripts: readManifestContentScripts(buildDir),
     };
 }
 
@@ -271,6 +307,34 @@ export function evaluateBundleBudgets(
             ...(totalPassed ? {} : { reason: "over-budget" as const }),
         });
 
+        if (build.manifestContentScripts === null) {
+            checks.push({
+                target,
+                metric: "manifest:content_scripts",
+                actualBytes: null,
+                budgetBytes: budgets.contentScriptsTotalBytes,
+                passed: false,
+                reason: "invalid-manifest",
+            });
+        } else {
+            let manifestTotalBytes = 0;
+            for (const assetPath of build.manifestContentScripts) {
+                const actual = build.fileBytes[assetPath];
+                if (typeof actual === "number" && Number.isFinite(actual)) {
+                    manifestTotalBytes += actual;
+                }
+            }
+            const manifestTotalPassed = manifestTotalBytes <= budgets.contentScriptsTotalBytes;
+            checks.push({
+                target,
+                metric: "manifest:content_scripts",
+                actualBytes: manifestTotalBytes,
+                budgetBytes: budgets.contentScriptsTotalBytes,
+                passed: manifestTotalPassed,
+                ...(manifestTotalPassed ? {} : { reason: "over-budget" as const }),
+            });
+        }
+
         for (const [filePath, budgetBytes] of Object.entries(budgets.files)) {
             const actual = build.fileBytes[filePath];
             if (typeof actual !== "number" || !Number.isFinite(actual)) {
@@ -293,6 +357,23 @@ export function evaluateBundleBudgets(
                 budgetBytes,
                 passed: filePassed,
                 ...(filePassed ? {} : { reason: "over-budget" as const }),
+            });
+        }
+
+        const contentScriptAssets = new Set<string>([
+            ...(build.manifestContentScripts ?? []),
+            ...Object.keys(build.fileBytes).filter((p) => p.startsWith("content-scripts/")),
+        ]);
+        for (const assetPath of [...contentScriptAssets].toSorted((a, b) => a.localeCompare(b))) {
+            if (Object.hasOwn(budgets.files, assetPath)) continue;
+            const actual = build.fileBytes[assetPath];
+            checks.push({
+                target,
+                metric: assetPath,
+                actualBytes: typeof actual === "number" && Number.isFinite(actual) ? actual : null,
+                budgetBytes: 0,
+                passed: false,
+                reason: "unbudgeted-content-script",
             });
         }
     }

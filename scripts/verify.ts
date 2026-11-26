@@ -104,6 +104,15 @@ function printBundlePerf(rep: BundlePerfReport): void {
             .map((f) => `${f.path} (${formatSiBytes(f.bytes)})`)
             .join(", ");
         out(`    Largest:    ${top}`);
+        if (b.manifestContentScripts) {
+            const injectedBytes = b.manifestContentScripts.reduce(
+                (sum, p) => sum + (b.fileBytes[p] ?? 0),
+                0,
+            );
+            out(
+                `    Injected:   ${formatSiBytes(injectedBytes)} across ${b.manifestContentScripts.length} manifest content_scripts asset(s) (${b.manifestContentScripts.join(", ")})`,
+            );
+        }
     }
 }
 
@@ -114,8 +123,21 @@ function printBundleBudgets(evaluation: BundleBudgetEvaluation): void {
         const mark = check.passed ? "✓" : "✗";
         const targetLabel = check.target.padEnd(11);
         const metricLabel = check.metric.padEnd(metricWidth);
+        if (check.reason === "unbudgeted-content-script") {
+            const actual =
+                check.actualBytes === null ? "missing" : formatSiBytes(check.actualBytes);
+            out(
+                `  [${mark}] ${targetLabel}  ${metricLabel}  ${actual} (unbudgeted content script)`,
+            );
+            continue;
+        }
         if (check.actualBytes === null) {
-            const detail = check.reason === "missing-build" ? "missing build" : "missing file";
+            const detail =
+                check.reason === "missing-build"
+                    ? "missing build"
+                    : check.reason === "invalid-manifest"
+                      ? "missing or invalid manifest.json content_scripts"
+                      : "missing file";
             out(
                 `  [${mark}] ${targetLabel}  ${metricLabel}  missing / ${formatSiBytes(check.budgetBytes)} (${detail})`,
             );
