@@ -1323,15 +1323,29 @@ describe("createPageUsageObserver", () => {
         expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 120 }]);
         harness.observer.dispose();
 
-        // 3. If native open() throws on reopen, the active send's listeners stay intact.
+        // 3. If native open() throws, a second send() throws, or open()'s readystatechange calls send(),
+        //    the active send's listeners remain intact while superseded listeners are detached.
         let failNextOpen = false;
-        class FlakyOpenXhr extends FakeXMLHttpRequest {
+        let inFlight = false;
+        let sendInsideOpen: ((xhr: FakeXMLHttpRequest) => void) | undefined;
+        class ReentrantXhr extends FakeXMLHttpRequest {
             override open(method: string, url: string | URL, async = true) {
                 if (failNextOpen) {
                     failNextOpen = false;
                     throw new DOMException("Invalid method", "SyntaxError");
                 }
+                inFlight = false;
                 super.open(method, url, async);
+                const cb = sendInsideOpen;
+                sendInsideOpen = undefined;
+                cb?.(this);
+            }
+            override send(body?: Document | XMLHttpRequestBodyInit | null) {
+                if (inFlight) {
+                    throw new DOMException("Already sending", "InvalidStateError");
+                }
+                inFlight = true;
+                super.send(body);
             }
         }
         const harness2 = createHarness(
@@ -1339,7 +1353,7 @@ describe("createPageUsageObserver", () => {
         );
         const obs2 = createPageUsageObserver({
             globalObject: harness2.globalObject,
-            XMLHttpRequest: FlakyOpenXhr as unknown as typeof XMLHttpRequest,
+            XMLHttpRequest: ReentrantXhr as unknown as typeof XMLHttpRequest,
             navigator: harness2.navigatorObj,
             getBaseURI: () => "https://example.com/",
             postMessage: (m) => harness2.posted.push(m),
@@ -1349,16 +1363,30 @@ describe("createPageUsageObserver", () => {
         });
         obs2.install();
 
-        const xhr2 = new FlakyOpenXhr();
+        // Throwing open() and duplicate send() keep active upload+download listeners alive.
+        const xhr2 = new ReentrantXhr();
         xhr2.open("POST", "https://example.com/upload-c");
         xhr2.responseURL = "https://example.com/upload-c";
         xhr2.send(new Uint8Array(80));
         failNextOpen = true;
         expect(() => xhr2.open("BAD METHOD", "https://example.com/upload-d")).toThrow();
+        expect(() => xhr2.send(new Uint8Array(999))).toThrow("Already sending");
+        xhr2.emitProgress(40);
+        xhr2.emitLoad(200);
+
+        // Reused XHR calling send() synchronously inside open()'s readystatechange keeps its listeners.
+        sendInsideOpen = (target) => {
+            target.responseURL = "https://example.com/reused-nested";
+            target.send(new Uint8Array(60));
+        };
+        xhr2.open("POST", "https://example.com/reused-nested");
+        xhr2.emitProgress(30);
         xhr2.emitLoad(200);
 
         obs2.flush();
-        expect(harness2.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 80 }]);
+        expect(harness2.posted).toEqual([
+            { type: "TUBESIZE_SITE_USAGE", bytes: 80 + 40 + 60 + 30 },
+        ]);
         obs2.dispose();
     });
 });

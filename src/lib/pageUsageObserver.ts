@@ -59,7 +59,9 @@ export function isUploadMethod(method: string | undefined): boolean {
 // Self-contained (no outer helper references) so `.toString()` works inside minified blob Workers.
 export function measureBodyBytes(body: unknown): number {
     if (body === null || body === undefined) return 0;
-    if (typeof body === "string") return new TextEncoder().encode(body).byteLength;
+    let encoder: TextEncoder | undefined;
+    const strBytes = (s: string) => (encoder ??= new TextEncoder()).encode(s).byteLength;
+    if (typeof body === "string") return strBytes(body);
     if (ArrayBuffer.isView(body)) return body.byteLength;
     if (typeof body !== "object") return 0;
 
@@ -74,19 +76,16 @@ export function measureBodyBytes(body: unknown): number {
         const toStr: unknown = Reflect.get(body, "toString");
         if (typeof toStr === "function") {
             const serialized: unknown = Reflect.apply(toStr, body, []);
-            return typeof serialized === "string"
-                ? new TextEncoder().encode(serialized).byteLength
-                : 0;
+            return typeof serialized === "string" ? strBytes(serialized) : 0;
         }
     }
     if (tag === "FormData" && "forEach" in body && typeof body.forEach === "function") {
-        const encoder = new TextEncoder();
         let sum = 0;
         Reflect.apply(body.forEach, body, [
             (value: unknown, key: unknown) => {
-                if (typeof key === "string") sum += encoder.encode(key).byteLength;
+                if (typeof key === "string") sum += strBytes(key);
                 if (typeof value === "string") {
-                    sum += encoder.encode(value).byteLength;
+                    sum += strBytes(value);
                 } else if (typeof value === "object" && value !== null) {
                     const valueTag = Object.prototype.toString.call(value).slice(8, -1);
                     if (
@@ -112,9 +111,7 @@ export function measureBodyBytes(body: unknown): number {
             const serialize: unknown = Reflect.get(serializer, "serializeToString");
             if (typeof serialize === "function") {
                 const serialized: unknown = Reflect.apply(serialize, serializer, [body]);
-                return typeof serialized === "string"
-                    ? new TextEncoder().encode(serialized).byteLength
-                    : 0;
+                return typeof serialized === "string" ? strBytes(serialized) : 0;
             }
         } catch {
             return 0;
@@ -700,15 +697,23 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                     url: string | URL,
                     ...rest: unknown[]
                 ) {
-                    if (typeof baseOpen === "function") {
-                        Reflect.apply(baseOpen, this, [method, url, ...rest]);
-                    }
-                    xhrMeta.get(this)?.cleanup?.();
+                    const prev = xhrMeta.get(this);
+                    const prevCleanup = prev?.cleanup;
                     xhrMeta.set(this, {
                         method,
                         url: String(url),
                         async: rest.length > 0 && rest[0] !== undefined ? Boolean(rest[0]) : true,
                     });
+                    try {
+                        if (typeof baseOpen === "function") {
+                            Reflect.apply(baseOpen, this, [method, url, ...rest]);
+                        }
+                    } catch (err) {
+                        if (prev) xhrMeta.set(this, prev);
+                        else xhrMeta.delete(this);
+                        throw err;
+                    }
+                    prevCleanup?.();
                 },
             ),
         );
@@ -771,15 +776,17 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                     countProgress(event);
                     cleanup();
                 };
-                meta?.cleanup?.();
-                if (meta) meta.cleanup = cleanup;
+                const prevCleanup = meta?.cleanup;
                 this.addEventListener("progress", countProgress);
                 this.addEventListener("loadend", onLoadEnd);
                 try {
                     invokeXhrSend(baseSend, this, body);
+                    prevCleanup?.();
                     if (isSync) {
                         if (this.status > 0) commitUpload();
                         cleanup();
+                    } else if (meta) {
+                        meta.cleanup = cleanup;
                     }
                 } catch (err) {
                     cleanup();
