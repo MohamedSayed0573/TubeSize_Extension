@@ -5,7 +5,12 @@ import type {
 } from "@app-types/platforms.types";
 import { resolveHlsStreams, toVodFormats } from "@lib/hls";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
-import { classifyFetchFailure, MediaEstimateError } from "@lib/mediaEstimateError";
+import {
+    classifyFetchFailure,
+    MediaEstimateError,
+    readResponseJson,
+    readResponseText,
+} from "@lib/mediaEstimateError";
 import type { ParsedTwitchMedia } from "@lib/platformUrl";
 import { fetchAndRetry, type PageHtmlFetcher } from "@lib/utils";
 import * as cheerio from "cheerio";
@@ -117,7 +122,7 @@ async function getTwitchClientId(url: string): Promise<string> {
         throw classifyFetchFailure(res, `Failed to fetch Twitch page: ${res.error.message}`);
     }
 
-    const data = await res.response.text();
+    const data = await readResponseText(res.response, "Failed to read Twitch page");
     const clientId = data.match(/clientId\s*=\s*"(.*?)"/);
 
     if (!clientId?.[1]) {
@@ -151,7 +156,7 @@ async function getTwitchToken(
         );
     }
 
-    const data = (await res.response.json()) as unknown;
+    const data = await readResponseJson(res.response, "Failed to read Twitch token response");
     const parsedData = twitchGqlResponseSchema.parse(data);
     const streamToken = parsedData.data.streamPlaybackAccessToken;
     const videoToken = parsedData.data.videoPlaybackAccessToken;

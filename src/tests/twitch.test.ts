@@ -272,6 +272,28 @@ describe("estimateTwitch (live)", () => {
             name: "MediaEstimateError",
             code: "network_error",
         });
+
+        stubFetch(async () => {
+            const response = new Response("", { status: 200 });
+            response.text = async () => {
+                throw new DOMException("The operation timed out.", "TimeoutError");
+            };
+            return response;
+        });
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "network_error",
+        });
+
+        stubFetch(async (input) => {
+            if (input.toString() === "https://www.twitch.tv/offline") {
+                return new Response('clientId = "cid"', { status: 200 });
+            }
+            return new Response("<html>not json</html>", { status: 200 });
+        });
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toThrow(
+            SyntaxError,
+        );
     });
 });
 

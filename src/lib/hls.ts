@@ -3,6 +3,7 @@ import CONFIG from "@lib/constants";
 import {
     classifyFetchFailure,
     MediaEstimateError,
+    readResponseText,
     type MediaEstimateErrorCode,
 } from "@lib/mediaEstimateError";
 import { fetchAndRetry, type FetchLike } from "@lib/utils";
@@ -66,7 +67,7 @@ async function fetchMediaPlaylist(
     if (!res.success) {
         throw classifyFetchFailure(res, `Error fetching media playlist M3U8: ${res.error.message}`);
     }
-    return parseM3u8(await res.response.text());
+    return parseM3u8(await readResponseText(res.response, "Error reading media playlist M3U8"));
 }
 
 function hasAdInterruption(manifest: Manifest): boolean {
@@ -217,7 +218,9 @@ export async function resolveHlsStreams(
         );
     }
 
-    const playlists = parseM3u8(await masterRes.response.text()).playlists;
+    const playlists = parseM3u8(
+        await readResponseText(masterRes.response, "Error reading master M3U8"),
+    ).playlists;
     if (!playlists || playlists.length === 0) {
         throw new MediaEstimateError("no_formats", "No playlists found in master M3U8");
     }

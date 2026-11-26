@@ -65,3 +65,22 @@ export function classifyFetchFailure(
 
     return new MediaEstimateError("unknown", message, { cause: failure.error });
 }
+
+export async function readResponseText(response: Response, messagePrefix: string): Promise<string> {
+    try {
+        return await response.text();
+    } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        throw new MediaEstimateError("network_error", `${messagePrefix}: ${detail}`, {
+            cause: err,
+        });
+    }
+}
+
+export async function readResponseJson(
+    response: Response,
+    messagePrefix: string,
+): Promise<unknown> {
+    const text = await readResponseText(response, messagePrefix);
+    return JSON.parse(text) as unknown;
+}

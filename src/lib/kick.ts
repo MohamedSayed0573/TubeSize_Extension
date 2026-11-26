@@ -5,7 +5,12 @@ import type {
 } from "@app-types/platforms.types";
 import { resolveHlsStreams, toVodFormats } from "@lib/hls";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
-import { classifyFetchFailure, MediaEstimateError } from "@lib/mediaEstimateError";
+import {
+    classifyFetchFailure,
+    MediaEstimateError,
+    readResponseJson,
+    readResponseText,
+} from "@lib/mediaEstimateError";
 import { isKickVideoUuid, type ParsedKickMedia } from "@lib/platformUrl";
 import { fetchAndRetry, type PageHtmlFetcher } from "@lib/utils";
 import * as cheerio from "cheerio";
@@ -49,7 +54,7 @@ async function getKickHtml(url: string): Promise<string> {
     if (!res.success) {
         throw classifyFetchFailure(res, `Error fetching Kick page HTML: ${res.error.message}`);
     }
-    return await res.response.text();
+    return readResponseText(res.response, "Error reading Kick page HTML");
 }
 
 function getKickStreamId(html: string): string | undefined {
@@ -103,7 +108,10 @@ async function getKickLiveMasterM3u8Url(streamId: string): Promise<string> {
         );
     }
 
-    const playback = (await playbackRes.response.json()) as unknown;
+    const playback = await readResponseJson(
+        playbackRes.response,
+        "Error reading Kick playback info",
+    );
     const parsedPlayback = kickPlaybackResponseSchema.parse(playback);
     const m3u8Url = parsedPlayback.playback_url?.live;
     if (!m3u8Url) {
@@ -153,7 +161,9 @@ async function getKickVodByUuid(mediaId: string): Promise<{ source: string; dura
         throw classifyFetchFailure(res, `Error fetching Kick video: ${res.error.message}`);
     }
 
-    const video = kickVideoResponseSchema.parse(await res.response.json());
+    const video = kickVideoResponseSchema.parse(
+        await readResponseJson(res.response, "Error reading Kick video"),
+    );
     if (!video.source) {
         throw new MediaEstimateError("unavailable", "Kick VOD source not found");
     }
@@ -175,7 +185,9 @@ async function findKickVodInChannelVideos(channelName: string, mediaId: string) 
         throw classifyFetchFailure(res, `Error fetching Kick channel videos: ${res.error.message}`);
     }
 
-    const videos = kickChannelVideosResponseSchema.parse(await res.response.json());
+    const videos = kickChannelVideosResponseSchema.parse(
+        await readResponseJson(res.response, "Error reading Kick channel videos"),
+    );
     const video = videos.find((entry) => entry.slug === mediaId);
     if (!video?.source) {
         throw new MediaEstimateError("unavailable", "Kick VOD not found in channel videos");

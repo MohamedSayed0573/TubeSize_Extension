@@ -416,6 +416,160 @@ describe("estimateYoutube", () => {
         expect(recovered.videoDetails.videoId).toBe("I82j7AzMU80");
         expect(staleFetchSpy).toHaveBeenCalledTimes(1);
     });
+
+    test("distinguishes non-auth proceedButton from sign-in markers, supports playerInterstitialRenderer, nullable playability fields, and HLS-only streamingData", async () => {
+        await clearMediaCache();
+
+        await expect(
+            estimateYoutube(
+                { kind: "media", platform: "youtube", mediaId: "unv12345678", isShorts: false },
+                {
+                    html: wrapPlayer({
+                        playabilityStatus: {
+                            status: "ERROR",
+                            reason: "Video unavailable",
+                            errorScreen: {
+                                playerErrorMessageRenderer: {
+                                    reason: { simpleText: "Video unavailable" },
+                                    proceedButton: {
+                                        buttonRenderer: {
+                                            navigationEndpoint: {
+                                                browseEndpoint: { browseId: "FEwhat_to_watch" },
+                                            },
+                                        },
+                                    },
+                                    icon: { iconType: "ERROR_OUTLINE" },
+                                },
+                            },
+                        },
+                    }),
+                },
+            ),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "unavailable",
+        });
+
+        await expect(
+            estimateYoutube(
+                { kind: "media", platform: "youtube", mediaId: "sgn12345678", isShorts: false },
+                {
+                    html: wrapPlayer({
+                        playabilityStatus: {
+                            status: "ERROR",
+                            reason: "Localized error",
+                            errorScreen: {
+                                playerErrorMessageRenderer: {
+                                    proceedButton: {
+                                        buttonRenderer: {
+                                            navigationEndpoint: { signInEndpoint: {} },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    }),
+                },
+            ),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "restricted_content",
+        });
+
+        await expect(
+            estimateYoutube(
+                { kind: "media", platform: "youtube", mediaId: "int12345678", isShorts: false },
+                {
+                    html: wrapPlayer({
+                        playabilityStatus: {
+                            status: "ERROR",
+                            reason: "Video unavailable",
+                            errorScreen: {
+                                playerInterstitialRenderer: {
+                                    content: {
+                                        interstitialViewModel: {
+                                            title: { content: "Private video" },
+                                            description: {
+                                                content:
+                                                    "Sign in if you have been granted access to this video",
+                                            },
+                                            primaryButton: {
+                                                buttonViewModel: {
+                                                    accessibilityId:
+                                                        "id.interstitial_sign_in_button",
+                                                    onTap: {
+                                                        innertubeCommand: { signInEndpoint: {} },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    }),
+                },
+            ),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "restricted_content",
+        });
+
+        await expect(
+            estimateYoutube(
+                { kind: "media", platform: "youtube", mediaId: "nul12345678", isShorts: false },
+                {
+                    html: wrapPlayer({
+                        playabilityStatus: {
+                            status: "LIVE_STREAM_OFFLINE",
+                            reason: "Live event will begin in 30 minutes",
+                            errorScreen: {
+                                playerErrorMessageRenderer: {
+                                    reason: { simpleText: "Live event will begin in 30 minutes" },
+                                    subreason: null,
+                                },
+                            },
+                        },
+                    }),
+                },
+            ),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "stream_offline",
+        });
+
+        stubFetch(
+            async () =>
+                new Response(
+                    wrapPlayer({
+                        playabilityStatus: { status: "OK" },
+                        videoDetails: {
+                            videoId: "hls12345678",
+                            title: "HLS Only",
+                            lengthSeconds: "60",
+                            author: "Channel",
+                            thumbnail: { thumbnails: [] },
+                        },
+                        streamingData: {
+                            expiresInSeconds: "21540",
+                            hlsManifestUrl: "https://manifest.googlevideo.com/api/manifest/hls",
+                        },
+                    }),
+                    { status: 200 },
+                ),
+        );
+        await expect(
+            estimateYoutube({
+                kind: "media",
+                platform: "youtube",
+                mediaId: "hls12345678",
+                isShorts: false,
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "no_formats",
+        });
+    });
 });
 
 describe("parseVideoFormats", () => {

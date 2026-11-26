@@ -127,6 +127,22 @@ describe("resolveHlsStreams", () => {
         ).rejects.toEqual(
             new MediaEstimateError("no_formats", "No playlists found in master M3U8"),
         );
+
+        await expect(
+            resolveHlsStreams(MASTER_URL, {
+                fetch: async () => {
+                    const response = new Response("", { status: 200 });
+                    response.text = async () => {
+                        throw new TypeError("Body stream interrupted");
+                    };
+                    return response;
+                },
+                sleep: instantSleep,
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "network_error",
+        });
     });
 
     test("computes bytes/sec from 206 Content-Range segment probes sorted by resolution descending without refetching the first media playlist", async () => {

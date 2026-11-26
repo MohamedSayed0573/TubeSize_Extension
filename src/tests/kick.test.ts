@@ -273,6 +273,30 @@ describe("estimateKick (live)", () => {
             name: "MediaEstimateError",
             code: "network_error",
         });
+
+        globalThis.fetch = jest.fn(async () => {
+            const response = new Response("", { status: 200 });
+            response.text = async () => {
+                throw new TypeError("Body stream reset");
+            };
+            return response;
+        }) as unknown as typeof fetch;
+
+        await expect(
+            estimateKick(
+                {
+                    kind: "media",
+                    platform: "kick",
+                    contentType: "live",
+                    mediaId: "broken",
+                    channelName: "broken",
+                },
+                { isFromPopup: false },
+            ),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "network_error",
+        });
     });
 });
 

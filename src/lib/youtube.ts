@@ -11,7 +11,11 @@ import type {
 import { getCachedAv1Support } from "@lib/codecSupport";
 import CONFIG from "@lib/constants";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
-import { classifyFetchFailure, MediaEstimateError } from "@lib/mediaEstimateError";
+import {
+    classifyFetchFailure,
+    MediaEstimateError,
+    readResponseText,
+} from "@lib/mediaEstimateError";
 import { getPlatformDisplayName, type ParsedYoutubeMedia } from "@lib/platformUrl";
 import { fetchAndRetry } from "@lib/utils";
 import { z } from "zod";
@@ -45,40 +49,87 @@ const OFFLINE_REASON_REGEX =
     /\b(?:live event will begin|premiere will begin|live stream is offline|stream is offline|upcoming)/i;
 
 const ytTextRunSchema = z.object({
-    simpleText: z.string().optional(),
-    runs: z.array(z.object({ text: z.string() })).optional(),
+    simpleText: z.string().nullish(),
+    runs: z.array(z.object({ text: z.string().nullish() })).nullish(),
+});
+
+const ytButtonNavigationSchema = z.object({
+    signInEndpoint: z.unknown().nullish(),
+    urlEndpoint: z.object({ url: z.string().nullish() }).nullish(),
+});
+
+const ytProceedButtonSchema = z.object({
+    buttonRenderer: z
+        .object({
+            navigationEndpoint: ytButtonNavigationSchema.nullish(),
+            command: ytButtonNavigationSchema.nullish(),
+            serviceEndpoint: z.unknown().nullish(),
+        })
+        .nullish(),
+});
+
+const ytInterstitialViewModelSchema = z.object({
+    title: z.object({ content: z.string().nullish() }).nullish(),
+    description: z.object({ content: z.string().nullish() }).nullish(),
+    primaryButton: z
+        .object({
+            buttonViewModel: z
+                .object({
+                    accessibilityId: z.string().nullish(),
+                    onTap: z
+                        .object({
+                            innertubeCommand: z
+                                .object({
+                                    signInEndpoint: z.unknown().nullish(),
+                                })
+                                .nullish(),
+                        })
+                        .nullish(),
+                })
+                .nullish(),
+        })
+        .nullish(),
 });
 
 const ytPlayabilityStatusSchema = z.object({
-    status: z.string().optional(),
-    reason: z.string().optional(),
-    messages: z.array(z.string()).optional(),
-    desktopLegacyAgeGateReason: z.number().optional(),
+    status: z.string().nullish(),
+    reason: z.string().nullish(),
+    messages: z.array(z.string()).nullish(),
+    desktopLegacyAgeGateReason: z.number().nullish(),
     errorScreen: z
         .object({
-            playerLegacyDesktopYpcOfferRenderer: z.unknown().optional(),
-            playerLegacyDesktopYpcTrailerRenderer: z.unknown().optional(),
-            ypcTrailerRenderer: z.unknown().optional(),
+            playerLegacyDesktopYpcOfferRenderer: z.unknown().nullish(),
+            playerLegacyDesktopYpcTrailerRenderer: z.unknown().nullish(),
+            ypcTrailerRenderer: z.unknown().nullish(),
             playerErrorMessageRenderer: z
                 .object({
-                    reason: ytTextRunSchema.optional(),
-                    subreason: ytTextRunSchema.optional(),
-                    icon: z.object({ iconType: z.string().optional() }).optional(),
-                    proceedButton: z.unknown().optional(),
+                    reason: ytTextRunSchema.nullish(),
+                    subreason: ytTextRunSchema.nullish(),
+                    icon: z.object({ iconType: z.string().nullish() }).nullish(),
+                    proceedButton: ytProceedButtonSchema.nullish(),
                 })
-                .optional(),
+                .nullish(),
+            playerInterstitialRenderer: z
+                .object({
+                    content: z
+                        .object({
+                            interstitialViewModel: ytInterstitialViewModelSchema.nullish(),
+                        })
+                        .nullish(),
+                })
+                .nullish(),
         })
-        .optional(),
+        .nullish(),
 });
 
 const ytEnvelopeSchema = z.object({
-    playabilityStatus: ytPlayabilityStatusSchema.optional(),
+    playabilityStatus: ytPlayabilityStatusSchema.nullish(),
     videoDetails: z
         .object({
-            videoId: z.string().optional(),
+            videoId: z.string().nullish(),
         })
-        .optional(),
-    streamingData: z.unknown().optional(),
+        .nullish(),
+    streamingData: z.unknown().nullish(),
 });
 
 type YtPlayabilityStatus = z.infer<typeof ytPlayabilityStatusSchema>;
@@ -186,29 +237,31 @@ async function fetchYoutubeHtml(mediaId: string) {
     if (!res.success) {
         throw classifyFetchFailure(res, `HTTP ${res.error.message}`);
     }
-    try {
-        return await res.response.text();
-    } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        throw new MediaEstimateError("network_error", `HTTP ${message}`, { cause: err });
-    }
+    return readResponseText(res.response, "HTTP");
 }
 
-function extractTextRun(run: z.infer<typeof ytTextRunSchema> | undefined): string | undefined {
+function extractTextRun(
+    run: z.infer<typeof ytTextRunSchema> | null | undefined,
+): string | undefined {
     if (!run) return undefined;
     if (run.simpleText) return run.simpleText;
     if (run.runs && run.runs.length > 0) {
-        return run.runs.map((part) => part.text).join("");
+        const joined = run.runs.map((part) => part.text ?? "").join("");
+        return joined || undefined;
     }
     return undefined;
 }
 
 function getPlayabilityDetail(playability: YtPlayabilityStatus): string {
+    const interstitial =
+        playability.errorScreen?.playerInterstitialRenderer?.content?.interstitialViewModel;
     const parts = [
         playability.reason,
         ...(playability.messages ?? []),
         extractTextRun(playability.errorScreen?.playerErrorMessageRenderer?.reason),
         extractTextRun(playability.errorScreen?.playerErrorMessageRenderer?.subreason),
+        interstitial?.title?.content,
+        interstitial?.description?.content,
     ]
         .map((part) => part?.trim())
         .filter((part): part is string => Boolean(part));
@@ -216,22 +269,53 @@ function getPlayabilityDetail(playability: YtPlayabilityStatus): string {
     return [...new Set(parts)].join(" — ");
 }
 
+function isSignInNavigation(
+    nav: z.infer<typeof ytButtonNavigationSchema> | null | undefined,
+): boolean {
+    if (!nav) return false;
+    if (nav.signInEndpoint != null) return true;
+    const url = nav.urlEndpoint?.url;
+    if (!url) return false;
+    return /(?:accounts\.google\.com|\/signin\b)/i.test(url);
+}
+
+function hasRestrictedProceedButton(
+    proceedButton: z.infer<typeof ytProceedButtonSchema> | null | undefined,
+): boolean {
+    const renderer = proceedButton?.buttonRenderer;
+    if (!renderer) return false;
+    return (
+        renderer.serviceEndpoint != null ||
+        isSignInNavigation(renderer.navigationEndpoint) ||
+        isSignInNavigation(renderer.command)
+    );
+}
+
 function hasRestrictedPlayabilityMarkers(playability: YtPlayabilityStatus): boolean {
-    if (playability.desktopLegacyAgeGateReason !== undefined) return true;
+    if (playability.desktopLegacyAgeGateReason != null) return true;
     const screen = playability.errorScreen;
     if (!screen) return false;
     if (
-        screen.playerLegacyDesktopYpcOfferRenderer !== undefined ||
-        screen.playerLegacyDesktopYpcTrailerRenderer !== undefined ||
-        screen.ypcTrailerRenderer !== undefined
+        screen.playerLegacyDesktopYpcOfferRenderer != null ||
+        screen.playerLegacyDesktopYpcTrailerRenderer != null ||
+        screen.ypcTrailerRenderer != null
+    ) {
+        return true;
+    }
+    const interstitialButton =
+        screen.playerInterstitialRenderer?.content?.interstitialViewModel?.primaryButton
+            ?.buttonViewModel;
+    if (
+        interstitialButton?.onTap?.innertubeCommand?.signInEndpoint != null ||
+        interstitialButton?.accessibilityId === "id.interstitial_sign_in_button"
     ) {
         return true;
     }
     const renderer = screen.playerErrorMessageRenderer;
     if (!renderer) return false;
-    if (renderer.proceedButton !== undefined) return true;
+    if (hasRestrictedProceedButton(renderer.proceedButton)) return true;
     const iconType = renderer.icon?.iconType;
-    return iconType !== undefined && RESTRICTED_ICON_TYPES.has(iconType);
+    return iconType != null && RESTRICTED_ICON_TYPES.has(iconType);
 }
 
 function classifyYoutubePlayability(
@@ -303,6 +387,15 @@ function extractJsonObject(source: string, openBraceIndex: number): string | und
     return undefined;
 }
 
+function hasAdaptiveFormats(streamingData: unknown): boolean {
+    return (
+        typeof streamingData === "object" &&
+        streamingData !== null &&
+        "adaptiveFormats" in streamingData &&
+        Array.isArray(streamingData.adaptiveFormats)
+    );
+}
+
 type ParseYtInitialResult =
     | { ok: true; data: ytInitialPlayerResponse }
     | { ok: false; error: Error; definitive: boolean };
@@ -342,7 +435,7 @@ function tryParseYtInitialFromHtml(html: string, mediaId: string): ParseYtInitia
                 if (
                     envelope.success &&
                     envelope.data.videoDetails?.videoId === mediaId &&
-                    envelope.data.streamingData == null
+                    !hasAdaptiveFormats(envelope.data.streamingData)
                 ) {
                     lastError = new MediaEstimateError(
                         "no_formats",
