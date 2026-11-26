@@ -375,4 +375,99 @@ describe("evaluateBundleBudgets", () => {
             rmSync(tmpRoot, { recursive: true, force: true });
         }
     });
+
+    test("rejects malformed or missing manifest.json content_scripts entries on disk and detects manifest CSS assets", () => {
+        const tmpRoot = mkdtempSync(join(tmpdir(), "tubesize-manifest-"));
+        try {
+            const writeBuildFiles = (target: "chrome-mv3" | "firefox-mv3", manifest?: string) => {
+                const base = `.output/${target}`;
+                const writeFile = (relPath: string, content: string | Buffer) => {
+                    const absPath = join(tmpRoot, `${base}/${relPath}`);
+                    mkdirSync(dirname(absPath), { recursive: true });
+                    writeFileSync(absPath, content);
+                };
+                writeFile("background.js", Buffer.alloc(40_000));
+                writeFile("content-scripts/content.js", Buffer.alloc(25_000));
+                writeFile("content-scripts/usageBridge.js", Buffer.alloc(7_000));
+                writeFile("content-scripts/genericObserver.js", Buffer.alloc(5_000));
+                if (manifest !== undefined) {
+                    writeFile("manifest.json", manifest);
+                }
+            };
+
+            const validManifest = JSON.stringify({
+                manifest_version: 3,
+                content_scripts: [
+                    { js: ["content-scripts/content.js"] },
+                    { js: ["content-scripts/genericObserver.js"] },
+                    { js: ["content-scripts/usageBridge.js"] },
+                ],
+            });
+
+            writeBuildFiles("firefox-mv3", validManifest);
+
+            for (const malformedManifest of [
+                JSON.stringify({ manifest_version: 3, content_scripts: [] }),
+                JSON.stringify({ manifest_version: 3, content_scripts: [{}] }),
+                JSON.stringify({ manifest_version: 3, content_scripts: [[]] }),
+                JSON.stringify({ manifest_version: 3, content_scripts: [{ js: [] }] }),
+                "{not-json",
+            ]) {
+                writeBuildFiles("chrome-mv3", malformedManifest);
+                const report = measureBundle(tmpRoot);
+                expect(report.chrome?.manifestContentScripts).toBeNull();
+                const evaluation = evaluateBundleBudgets(report);
+                expect(evaluation.passed).toBe(false);
+                expect(evaluation.failures).toEqual([
+                    {
+                        target: "chrome-mv3",
+                        metric: "manifest:content_scripts",
+                        actualBytes: null,
+                        budgetBytes: BUNDLE_BUDGETS.contentScriptsTotalBytes,
+                        passed: false,
+                        reason: "invalid-manifest",
+                    },
+                ]);
+            }
+
+            // Manifest declaring an unbudgeted CSS file on disk
+            writeBuildFiles(
+                "chrome-mv3",
+                JSON.stringify({
+                    manifest_version: 3,
+                    content_scripts: [
+                        {
+                            js: ["content-scripts/content.js"],
+                            css: ["./content-scripts/content.css"],
+                        },
+                        { js: ["content-scripts/genericObserver.js"] },
+                        { js: ["content-scripts/usageBridge.js"] },
+                    ],
+                }),
+            );
+            writeFileSync(
+                join(tmpRoot, ".output/chrome-mv3/content-scripts/content.css"),
+                Buffer.alloc(1_500),
+            );
+
+            const cssReport = measureBundle(tmpRoot);
+            expect(cssReport.chrome?.manifestContentScripts).toContain(
+                "content-scripts/content.css",
+            );
+            const cssEvaluation = evaluateBundleBudgets(cssReport);
+            expect(cssEvaluation.passed).toBe(false);
+            expect(cssEvaluation.failures).toEqual([
+                {
+                    target: "chrome-mv3",
+                    metric: "content-scripts/content.css",
+                    actualBytes: 1_500,
+                    budgetBytes: 0,
+                    passed: false,
+                    reason: "unbudgeted-content-script",
+                },
+            ]);
+        } finally {
+            rmSync(tmpRoot, { recursive: true, force: true });
+        }
+    });
 });

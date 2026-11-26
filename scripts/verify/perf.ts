@@ -206,19 +206,24 @@ function readManifestContentScripts(buildDir: string): string[] | null {
         const parsed = JSON.parse(readFileSync(manifestPath, "utf8")) as {
             content_scripts?: unknown;
         };
-        if (!Array.isArray(parsed.content_scripts)) return null;
+        if (!Array.isArray(parsed.content_scripts) || parsed.content_scripts.length === 0) {
+            return null;
+        }
         const assets = new Set<string>();
         for (const entry of parsed.content_scripts) {
-            if (!entry || typeof entry !== "object") return null;
+            if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
             const record = entry as { js?: unknown; css?: unknown };
+            let entryAssetCount = 0;
             for (const list of [record.js, record.css]) {
                 if (list === undefined) continue;
                 if (!Array.isArray(list)) return null;
                 for (const item of list) {
                     if (typeof item !== "string" || item.trim().length === 0) return null;
                     assets.add(item.replaceAll("\\", "/").replace(/^\.?\//, ""));
+                    entryAssetCount += 1;
                 }
             }
+            if (entryAssetCount === 0) return null;
         }
         return [...assets].toSorted((a, b) => a.localeCompare(b));
     } catch {
