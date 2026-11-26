@@ -37,8 +37,16 @@ export interface DownloadCheckpoint {
     state: DownloadCheckpointState;
 }
 
+export interface DownloadOriginReattribution {
+    fromOrigin: Origin;
+    toOrigin: Origin;
+    bytes: number;
+    day?: DateKey;
+}
+
 export interface DownloadCommitBatch {
     usage: Record<Origin, number>;
+    reattributions?: DownloadOriginReattribution[];
     upserts: DownloadCheckpoint[];
     deletes: number[];
 }
@@ -239,9 +247,27 @@ export async function commitDownloadProgress(batch: DownloadCommitBatch) {
         });
     }
 
+    const validReattributions: DownloadOriginReattribution[] = [];
+    for (const move of batch.reattributions ?? []) {
+        const clamped = addSafeBytes(0, Math.floor(move.bytes));
+        if (clamped > 0 && move.fromOrigin !== move.toOrigin) {
+            validReattributions.push({
+                fromOrigin: move.fromOrigin,
+                toOrigin: move.toOrigin,
+                bytes: clamped,
+                ...(move.day ? { day: move.day } : {}),
+            });
+        }
+    }
+
     const validDeletes = batch.deletes.filter((id) => Number.isSafeInteger(id) && id >= 0);
 
-    if (validUsage.length === 0 && validUpserts.length === 0 && validDeletes.length === 0) {
+    if (
+        validUsage.length === 0 &&
+        validReattributions.length === 0 &&
+        validUpserts.length === 0 &&
+        validDeletes.length === 0
+    ) {
         return;
     }
 
@@ -253,6 +279,22 @@ export async function commitDownloadProgress(batch: DownloadCommitBatch) {
         async () => {
             if (validUsage.length > 0) {
                 await mergeSiteUsageInTx(day, validUsage);
+            }
+
+            for (const move of validReattributions) {
+                const targetDay = move.day ?? day;
+                const existing = await database.siteUsage.get(targetDay);
+                if (!existing) continue;
+                const currentFrom = existing.usage[move.fromOrigin] ?? 0;
+                const moved = Math.min(currentFrom, move.bytes);
+                if (moved <= 0) continue;
+                if (currentFrom === moved) delete existing.usage[move.fromOrigin];
+                else existing.usage[move.fromOrigin] = currentFrom - moved;
+                existing.usage[move.toOrigin] = addSafeBytes(
+                    existing.usage[move.toOrigin] ?? 0,
+                    moved,
+                );
+                await database.siteUsage.put(existing);
             }
 
             if (validUpserts.length > 0) {

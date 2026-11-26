@@ -1,4 +1,5 @@
-import type { Origin } from "@app-types/types";
+import type { DateKey, Origin } from "@app-types/types";
+import { getDateKey } from "@lib/dateUtils";
 import { toOrigin } from "@lib/domain";
 
 import { MAX_SAFE_BYTES } from "@/db";
@@ -84,6 +85,7 @@ export interface DownloadDeduplicatorOptions {
 interface ConsumedWebRequestCredit {
     bytes: number;
     attributedOrigin?: Origin;
+    day?: DateKey;
 }
 
 export interface DownloadDeduplicator {
@@ -141,6 +143,7 @@ interface WebRequestProfile {
 interface RecentWebRequestEntry extends WebRequestProfile {
     bytes: number;
     attributedOrigin?: Origin;
+    day: DateKey;
     expiresAt: number;
 }
 
@@ -579,6 +582,7 @@ export function createDownloadDeduplicator(
             ...profile,
             bytes: safeBytes,
             attributedOrigin: toWebOrigin(tabUrl),
+            day: getDateKey(),
             expiresAt: currentTime + recentWebRequestTtlMs,
         });
         if (recentWebRequests.length > MAX_RECENT_ENTRIES) {
@@ -607,6 +611,7 @@ export function createDownloadDeduplicator(
         return {
             bytes: matched.bytes,
             attributedOrigin: matched.attributedOrigin,
+            day: matched.day,
         };
     }
 

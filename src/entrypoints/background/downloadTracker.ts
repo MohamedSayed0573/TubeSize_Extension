@@ -4,6 +4,7 @@ import { refreshUsageBadge } from "@/badge";
 import {
     type DownloadCheckpoint,
     type DownloadCommitBatch,
+    type DownloadOriginReattribution,
     addSafeBytes,
     commitDownloadProgress,
     getDownloadCheckpoints,
@@ -124,6 +125,7 @@ export function createDownloadTracker(
     const checkpoints = new Map<number, DownloadCheckpoint>();
     const seenCreatedIds = new Set<number>();
     const pendingWebCredits = new Map<number, number>();
+    const pendingOriginReattributions = new Map<number, DownloadOriginReattribution>();
 
     let pollTimerId: ReturnType<typeof setInterval> | undefined;
     let startupRetryTimerId: ReturnType<typeof setTimeout> | undefined;
@@ -214,7 +216,13 @@ export function createDownloadTracker(
 
     async function commitBatch(batch: DownloadCommitBatch): Promise<boolean> {
         const hasUsage = Object.keys(batch.usage).length > 0;
-        if (!hasUsage && batch.upserts.length === 0 && batch.deletes.length === 0) {
+        const hasReattributions = (batch.reattributions?.length ?? 0) > 0;
+        if (
+            !hasUsage &&
+            !hasReattributions &&
+            batch.upserts.length === 0 &&
+            batch.deletes.length === 0
+        ) {
             return true;
         }
 
@@ -313,17 +321,23 @@ export function createDownloadTracker(
                 activeDownloads.delete(item.id);
                 seenCreatedIds.delete(item.id);
                 pendingWebCredits.delete(item.id);
+                pendingOriginReattributions.delete(item.id);
                 deduplicator.cancelDownload(item.id);
             });
             return "planned";
         }
 
         const pendingCredit = pendingWebCredits.get(item.id) ?? 0;
-        if (pendingCredit > 0) {
+        const pendingReattribution = pendingOriginReattributions.get(item.id);
+        if (pendingCredit > 0 || pendingReattribution) {
             const creditFlushed = await flushIngestionForCredit();
             if (!creditFlushed) {
                 return "retry-credit";
             }
+        }
+        if (pendingReattribution) {
+            batch.reattributions ??= [];
+            batch.reattributions.push(pendingReattribution);
         }
 
         const prior = getPriorProgress(item, context.baselineIfNew);
@@ -358,6 +372,7 @@ export function createDownloadTracker(
 
         postCommitActions.push(() => {
             pendingWebCredits.delete(item.id);
+            pendingOriginReattributions.delete(item.id);
             if (isActive) {
                 activeDownloads.set(item.id, nextEntry);
                 deduplicator.trackActiveDownload(toDownloadDedupItem(item, [...nextEntry.urls]));
@@ -393,6 +408,7 @@ export function createDownloadTracker(
             activeDownloads.delete(downloadId);
             seenCreatedIds.delete(downloadId);
             pendingWebCredits.delete(downloadId);
+            pendingOriginReattributions.delete(downloadId);
             if (finishIfActive && removed) {
                 deduplicator.finishDownload({
                     id: downloadId,
@@ -522,7 +538,9 @@ export function createDownloadTracker(
             const hasPendingWork =
                 (item.state === "in_progress" && !item.paused) ||
                 (pendingWebCredits.get(item.id) ?? 0) > 0 ||
+                pendingOriginReattributions.has(item.id) ||
                 Object.keys(batch.usage).length > 0 ||
+                (batch.reattributions?.length ?? 0) > 0 ||
                 batch.upserts.length > 0;
             if (origin && hasPendingWork) {
                 activeDownloads.set(item.id, makeTrackedEntry(item, origin, prior, existing));
@@ -583,12 +601,21 @@ export function createDownloadTracker(
                 toDownloadDedupItem(item, [delta.finalUrl.current]),
             );
             if (recentCredit && recentCredit.bytes > 0) {
-                if (recentCredit.attributedOrigin && recentCredit.attributedOrigin !== origin) {
-                    ingestion.reattributeBufferedOrigin(
+                if (
+                    recentCredit.attributedOrigin &&
+                    recentCredit.attributedOrigin !== origin &&
+                    !ingestion.reattributeBufferedOrigin(
                         recentCredit.attributedOrigin,
                         origin,
                         recentCredit.bytes,
-                    );
+                    )
+                ) {
+                    pendingOriginReattributions.set(item.id, {
+                        fromOrigin: recentCredit.attributedOrigin,
+                        toOrigin: origin,
+                        bytes: recentCredit.bytes,
+                        ...(recentCredit.day ? { day: recentCredit.day } : {}),
+                    });
                 }
                 pendingWebCredits.set(
                     item.id,
@@ -696,12 +723,21 @@ export function createDownloadTracker(
         const dedupItem = toDownloadDedupItem(item);
         deduplicator.trackActiveDownload(dedupItem);
         const recentCredit = deduplicator.consumeRecentWebRequestBytes(dedupItem);
-        if (recentCredit?.attributedOrigin && recentCredit.attributedOrigin !== origin) {
-            ingestion.reattributeBufferedOrigin(
+        if (
+            recentCredit?.attributedOrigin &&
+            recentCredit.attributedOrigin !== origin &&
+            !ingestion.reattributeBufferedOrigin(
                 recentCredit.attributedOrigin,
                 origin,
                 recentCredit.bytes,
-            );
+            )
+        ) {
+            pendingOriginReattributions.set(item.id, {
+                fromOrigin: recentCredit.attributedOrigin,
+                toOrigin: origin,
+                bytes: recentCredit.bytes,
+                ...(recentCredit.day ? { day: recentCredit.day } : {}),
+            });
         }
         seenCreatedIds.add(item.id);
         enqueue(() => handleCreated(item, recentCredit?.bytes ?? 0));

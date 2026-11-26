@@ -2802,4 +2802,94 @@ describe("downloadTracker durability, resume, pause, and error resilience", () =
         });
         expect(await getDownloadCheckpoints()).toEqual([]);
     });
+
+    test("reattributes already-flushed and in-flight cross-origin webRequest credits to the download referrer origin", async () => {
+        for (const mode of ["already-flushed", "in-flight"] as const) {
+            await clearDatabaseData();
+            const fakeDownloads = new FakeDownloadsController();
+            const tab = await fakeBrowser.tabs.create({ url: "https://example.com/downloads" });
+            const fileUrl = "https://cdn.example.net/flushed-bundle.zip";
+            const id = mode === "already-flushed" ? 98 : 99;
+
+            let resolveWriteStarted!: () => void;
+            const writeStarted = new Promise<void>((resolve) => {
+                resolveWriteStarted = resolve;
+            });
+            let releaseWrite!: () => void;
+            const writeGate = new Promise<void>((resolve) => {
+                releaseWrite = resolve;
+            });
+            const ingestion = createUsageIngestion(
+                mode === "in-flight"
+                    ? {
+                          writeSiteUsage: async (batch) => {
+                              resolveWriteStarted();
+                              await writeGate;
+                              await addSiteUsage(batch);
+                          },
+                      }
+                    : {},
+            );
+            const deduplicator = createDownloadDeduplicator();
+            const tracker = createDownloadTracker(ingestion, deduplicator, {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 1_000,
+            });
+            cleanups.push(() => tracker.dispose());
+            await tracker.whenIdle();
+
+            // Request-first: trackRequest buffers 80_000 under cdn.example.net.
+            await trackRequest(
+                ingestion,
+                makeWebRequestDetails({
+                    tabId: tab.id,
+                    type: "main_frame",
+                    url: fileUrl,
+                    initiator: "https://example.com",
+                    responseHeaders: [
+                        { name: "Content-Length", value: "80000" },
+                        { name: "Content-Type", value: "application/zip" },
+                    ],
+                }),
+                deduplicator,
+            );
+
+            let inFlightFlush: Promise<void> | undefined;
+            if (mode === "already-flushed") {
+                await ingestion.flush();
+            } else {
+                inFlightFlush = ingestion.flush();
+                await writeStarted;
+            }
+
+            // Now downloads.onCreated fires with referrer https://example.com/downloads.
+            fakeDownloads.emitCreated(
+                makeDownloadItem({
+                    id,
+                    url: fileUrl,
+                    finalUrl: fileUrl,
+                    referrer: "https://example.com/downloads",
+                    mime: "application/zip",
+                    bytesReceived: 0,
+                    totalBytes: 80_000,
+                    state: "in_progress",
+                }),
+            );
+            releaseWrite();
+            await inFlightFlush;
+
+            fakeDownloads.updateItem(id, { bytesReceived: 80_000, state: "complete" });
+            fakeDownloads.emitChanged({
+                id,
+                state: { previous: "in_progress", current: "complete" },
+            });
+            await tracker.whenIdle();
+            await ingestion.flush();
+
+            expect((await getAllSiteUsage())[0]?.usage).toEqual({
+                [origin("https://example.com")]: 80_000,
+            });
+            tracker.dispose();
+        }
+    });
 });
