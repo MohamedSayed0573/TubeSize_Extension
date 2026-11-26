@@ -7,6 +7,20 @@ export type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<
 export interface PageUsageObserverGlobal {
     fetch: FetchFn;
     Worker: typeof Worker;
+    Request?: typeof Request;
+}
+
+interface PageUsageObserverDocument extends Pick<
+    EventTarget,
+    "addEventListener" | "removeEventListener"
+> {
+    readonly visibilityState: DocumentVisibilityState;
+}
+
+interface TrackedRequestUpload {
+    bytes: number;
+    isStream: boolean;
+    onChunk?: (bytes: number) => void;
 }
 
 export interface PageUsageObserverPorts {
@@ -18,6 +32,8 @@ export interface PageUsageObserverPorts {
     getBaseURI?: () => string;
     postMessage?: (message: UsageMessage) => void;
     scheduleInterval?: (callback: () => void, intervalMs: number) => () => void;
+    windowTarget?: Pick<EventTarget, "addEventListener" | "removeEventListener">;
+    documentTarget?: PageUsageObserverDocument;
     onError?: (err: unknown) => void;
     flushIntervalMs?: number;
 }
@@ -43,32 +59,63 @@ export function isUploadMethod(method: string | undefined): boolean {
 // Self-contained (no outer helper references) so `.toString()` works inside minified blob Workers.
 export function measureBodyBytes(body: unknown): number {
     if (body === null || body === undefined) return 0;
-    if (typeof Blob === "function" && body instanceof Blob) return body.size;
-    if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) return body.byteLength;
     if (typeof body === "string") return new TextEncoder().encode(body).byteLength;
-    if (typeof URLSearchParams === "function" && body instanceof URLSearchParams) {
-        return new TextEncoder().encode(body.toString()).byteLength;
+    if (ArrayBuffer.isView(body)) return body.byteLength;
+    if (typeof body !== "object") return 0;
+
+    const tag = Object.prototype.toString.call(body).slice(8, -1);
+    if ((tag === "Blob" || tag === "File") && "size" in body && typeof body.size === "number") {
+        return Number.isFinite(body.size) && body.size > 0 ? body.size : 0;
     }
-    if (typeof FormData === "function" && body instanceof FormData) {
+    if (tag === "ArrayBuffer" && "byteLength" in body && typeof body.byteLength === "number") {
+        return body.byteLength;
+    }
+    if (tag === "URLSearchParams") {
+        const toStr: unknown = Reflect.get(body, "toString");
+        if (typeof toStr === "function") {
+            const serialized: unknown = Reflect.apply(toStr, body, []);
+            return typeof serialized === "string"
+                ? new TextEncoder().encode(serialized).byteLength
+                : 0;
+        }
+    }
+    if (tag === "FormData" && "forEach" in body && typeof body.forEach === "function") {
         const encoder = new TextEncoder();
         let sum = 0;
-        body.forEach((value, key) => {
-            sum += encoder.encode(key).byteLength;
-            if (typeof value === "string") {
-                sum += encoder.encode(value).byteLength;
-            } else if (typeof Blob === "function" && value instanceof Blob) {
-                sum += value.size;
-            }
-        });
+        Reflect.apply(body.forEach, body, [
+            (value: unknown, key: unknown) => {
+                if (typeof key === "string") sum += encoder.encode(key).byteLength;
+                if (typeof value === "string") {
+                    sum += encoder.encode(value).byteLength;
+                } else if (typeof value === "object" && value !== null) {
+                    const valueTag = Object.prototype.toString.call(value).slice(8, -1);
+                    if (
+                        (valueTag === "Blob" || valueTag === "File") &&
+                        "size" in value &&
+                        typeof value.size === "number" &&
+                        Number.isFinite(value.size) &&
+                        value.size > 0
+                    ) {
+                        sum += value.size;
+                    }
+                }
+            },
+        ]);
         return sum;
     }
     if (
-        typeof Document === "function" &&
-        body instanceof Document &&
+        (tag === "Document" || tag === "HTMLDocument" || tag === "XMLDocument") &&
         typeof XMLSerializer === "function"
     ) {
         try {
-            return new TextEncoder().encode(new XMLSerializer().serializeToString(body)).byteLength;
+            const serializer = new XMLSerializer();
+            const serialize: unknown = Reflect.get(serializer, "serializeToString");
+            if (typeof serialize === "function") {
+                const serialized: unknown = Reflect.apply(serialize, serializer, [body]);
+                return typeof serialized === "string"
+                    ? new TextEncoder().encode(serialized).byteLength
+                    : 0;
+            }
         } catch {
             return 0;
         }
@@ -77,29 +124,35 @@ export function measureBodyBytes(body: unknown): number {
 }
 
 // Self-contained so `.toString()` works inside minified blob Workers.
+// `highWaterMark: 0` keeps `pull` lazy so the caller's stream is not locked if fetch rejects before reading.
 function wrapReadableStreamBody(
     stream: ReadableStream<Uint8Array>,
     onBytes: (bytes: number) => void,
 ): ReadableStream<Uint8Array> {
-    const reader = stream.getReader();
-    return new ReadableStream<Uint8Array>({
-        async pull(controller) {
-            const { done, value } = await reader.read();
-            if (done) {
-                controller.close();
-                return;
-            }
-            if (ArrayBuffer.isView(value)) {
-                onBytes(value.byteLength);
-            }
-            controller.enqueue(value);
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    return new ReadableStream<Uint8Array>(
+        {
+            async pull(controller) {
+                reader ??= stream.getReader();
+                const { done, value } = await reader.read();
+                if (done) {
+                    controller.close();
+                    return;
+                }
+                if (ArrayBuffer.isView(value)) {
+                    onBytes(value.byteLength);
+                }
+                controller.enqueue(value);
+            },
+            cancel(reason) {
+                return reader ? reader.cancel(reason) : stream.cancel(reason);
+            },
         },
-        cancel(reason) {
-            return reader.cancel(reason);
-        },
-    });
+        { highWaterMark: 0 },
+    );
 }
 
+// Self-contained so `.toString()` works inside minified blob Workers.
 export function isCountableRequestUrl(
     responseUrl: string | undefined,
     requestInput: unknown,
@@ -132,9 +185,182 @@ export function isCountableRequestUrl(
     }
 }
 
+// Self-contained so `.toString()` works inside minified blob Workers and avoids duplicating
+// Request/fetch upload accounting between the page MAIN world and classic blob Workers.
+function patchFetchAndRequest(
+    scope: {
+        fetch: FetchFn;
+        Request?: typeof Request;
+    },
+    getBaseUrl: () => string | undefined,
+    isActive: () => boolean,
+    onBytes: (bytes: number) => void,
+    countResponseStream: (stream: ReadableStream<Uint8Array>) => void,
+    hasCL: typeof hasPositiveContentLength,
+    isCountableUrl: typeof isCountableRequestUrl,
+    isUpload: typeof isUploadMethod,
+    measureBody: typeof measureBodyBytes,
+    wrapStream: typeof wrapReadableStreamBody,
+): () => void {
+    const requestUploads = new WeakMap<object, TrackedRequestUpload>();
+    const baseRequest = scope.Request;
+    let restoreClone: (() => void) | undefined;
+
+    if (typeof baseRequest === "function") {
+        const reqProto = baseRequest.prototype;
+        const hadOwn = Object.prototype.hasOwnProperty.call(reqProto, "clone");
+        const origDesc = Object.getOwnPropertyDescriptor(reqProto, "clone");
+        const baseClone: unknown = Reflect.get(reqProto, "clone");
+        if (typeof baseClone === "function") {
+            Reflect.set(reqProto, "clone", function (this: Request): unknown {
+                const cloned: unknown = Reflect.apply(baseClone, this, []);
+                const tracked = requestUploads.get(this);
+                if (tracked && typeof cloned === "object" && cloned !== null) {
+                    requestUploads.set(cloned, tracked);
+                }
+                return cloned;
+            });
+            restoreClone = () => {
+                if (hadOwn && origDesc) Object.defineProperty(reqProto, "clone", origDesc);
+                else Reflect.deleteProperty(reqProto, "clone");
+            };
+        }
+        scope.Request = new Proxy(baseRequest, {
+            construct(target, args: [RequestInfo | URL, RequestInit?], newTarget) {
+                const [input, init] = args;
+                let tracked: TrackedRequestUpload | undefined;
+                let callArgs = args;
+                if (init?.body !== undefined) {
+                    if (init.body !== null) {
+                        const body = init.body;
+                        if (
+                            typeof body === "object" &&
+                            Object.prototype.toString.call(body) === "[object ReadableStream]" &&
+                            "getReader" in body &&
+                            typeof body.getReader === "function" &&
+                            !body.locked
+                        ) {
+                            const streamTracked: TrackedRequestUpload = {
+                                bytes: 0,
+                                isStream: true,
+                            };
+                            tracked = streamTracked;
+                            // Preserve prototype-inherited RequestInit options (method, headers, duplex, signal).
+                            const nextInit: RequestInit = {
+                                body: wrapStream(body, (b) => {
+                                    if (!isActive() || b <= 0) return;
+                                    streamTracked.bytes += b;
+                                    streamTracked.onChunk?.(b);
+                                }),
+                            };
+                            Object.setPrototypeOf(nextInit, init);
+                            callArgs = [input, nextInit];
+                        } else {
+                            const bytes = measureBody(body);
+                            if (bytes > 0) tracked = { bytes, isStream: false };
+                        }
+                    }
+                } else if (typeof input === "object" && input !== null) {
+                    tracked = requestUploads.get(input);
+                }
+                const req: unknown = Reflect.construct(target, callArgs, newTarget);
+                if (tracked && typeof req === "object" && req !== null) {
+                    requestUploads.set(req, tracked);
+                }
+                return req instanceof baseRequest ? req : new target(...callArgs);
+            },
+        });
+    }
+
+    const baseFetch = scope.fetch;
+    scope.fetch = Object.assign(async (...args: Parameters<FetchFn>) => {
+        const [input, init] = args;
+        const baseUrl = getBaseUrl();
+        const countableUrl = isCountableUrl(undefined, input, baseUrl);
+        const inputIsRequest =
+            typeof input === "object" &&
+            input !== null &&
+            Object.prototype.toString.call(input) === "[object Request]" &&
+            "method" in input &&
+            typeof input.method === "string" &&
+            "url" in input &&
+            typeof input.url === "string";
+        const method = init?.method ?? (inputIsRequest ? input.method : undefined);
+
+        let callArgs = args;
+        let fixedUploadBytes = 0;
+        let streamUploadBytes = 0;
+        let fetchResolved = false;
+        let trackedRequest: TrackedRequestUpload | undefined;
+
+        if (countableUrl && isActive() && isUpload(method)) {
+            if (init?.body !== undefined) {
+                const body = init.body;
+                if (
+                    typeof body === "object" &&
+                    body !== null &&
+                    Object.prototype.toString.call(body) === "[object ReadableStream]" &&
+                    "getReader" in body &&
+                    typeof body.getReader === "function" &&
+                    !body.locked
+                ) {
+                    const nextInit: RequestInit = {
+                        body: wrapStream(body, (bytes) => {
+                            if (!isActive() || bytes <= 0) return;
+                            if (fetchResolved) onBytes(bytes);
+                            else streamUploadBytes += bytes;
+                        }),
+                    };
+                    Object.setPrototypeOf(nextInit, init);
+                    callArgs = [input, nextInit];
+                } else {
+                    fixedUploadBytes = measureBody(body);
+                }
+            } else if (inputIsRequest && input.body !== null && !input.bodyUsed) {
+                const tracked = requestUploads.get(input);
+                if (tracked) {
+                    if (tracked.isStream) trackedRequest = tracked;
+                    else fixedUploadBytes = tracked.bytes;
+                } else {
+                    const cl = input.headers?.get?.("content-length");
+                    if (hasCL(cl)) fixedUploadBytes = Number(cl);
+                }
+            }
+        }
+
+        const response = await Reflect.apply(baseFetch, scope, callArgs);
+        if (!isActive() || !isCountableUrl(response.url, input, baseUrl)) return response;
+
+        fetchResolved = true;
+        let totalUpload = fixedUploadBytes + streamUploadBytes;
+        streamUploadBytes = 0;
+        if (trackedRequest) {
+            totalUpload += trackedRequest.bytes;
+            trackedRequest.onChunk = (bytes) => {
+                if (isActive() && bytes > 0) onBytes(bytes);
+            };
+        }
+        if (totalUpload > 0) onBytes(totalUpload);
+
+        if (hasCL(response.headers.get("content-length"))) return response;
+
+        const clone = response.clone();
+        if (clone.body) countResponseStream(clone.body);
+
+        return response;
+    }, baseFetch);
+
+    return () => {
+        scope.fetch = baseFetch;
+        restoreClone?.();
+        if (typeof baseRequest === "function") scope.Request = baseRequest;
+    };
+}
+
 interface WorkerBootstrapGlobal {
     [key: string]: unknown;
     location?: { href?: string };
+    Request?: typeof Request;
     fetch: FetchFn;
     postMessage: (message: unknown) => void;
 }
@@ -142,7 +368,7 @@ interface WorkerBootstrapGlobal {
 // Self-contained so `.toString()` works inside minified blob Workers.
 function initWorkerUsagePatch(
     scope: WorkerBootstrapGlobal,
-    flushIntervalMs: number,
+    patchFetch: typeof patchFetchAndRequest,
     hasCL: typeof hasPositiveContentLength,
     isCountableUrl: typeof isCountableRequestUrl,
     isUpload: typeof isUploadMethod,
@@ -155,102 +381,35 @@ function initWorkerUsagePatch(
     const emit = (msg: unknown) => {
         Reflect.apply(scope.postMessage, scope, [msg]);
     };
+    const emitBytes = (bytes: number) => {
+        if (bytes > 0) emit({ type: "WORKER_USAGE", bytes });
+    };
     emit({ type: "WORKER_READY" });
-    let total = 0;
-    const countStream = (stream: ReadableStream<Uint8Array> | null) => {
-        void (async () => {
-            const reader = stream?.getReader();
-            if (!reader) return;
-            for (;;) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                total += value.byteLength;
-            }
-        })().catch(() => undefined);
-    };
-    const baseFetch = scope.fetch;
-    scope.fetch = (...args) => {
-        const [input, init] = args;
-        const baseUrl = scope.location?.href;
-        const countable = isCountableUrl(undefined, input, baseUrl);
-        const method =
-            init?.method ??
-            (typeof Request === "function" && input instanceof Request ? input.method : undefined);
-        let callArgs = args;
-        let uploadBytes = 0;
-        let streamUploadBytes = 0;
-        let fetchResolved = false;
-        let reqClone: Request | undefined;
-        if (countable && isUpload(method)) {
-            if (init?.body !== undefined) {
-                if (
-                    typeof ReadableStream === "function" &&
-                    init.body instanceof ReadableStream &&
-                    !init.body.locked
-                ) {
-                    callArgs = [
-                        input,
-                        {
-                            ...init,
-                            body: wrapStream(init.body, (b) => {
-                                if (b <= 0) return;
-                                if (fetchResolved) total += b;
-                                else streamUploadBytes += b;
-                            }),
-                        },
-                    ];
-                } else {
-                    uploadBytes = measureBody(init.body);
+    patchFetch(
+        scope,
+        () => scope.location?.href,
+        () => true,
+        emitBytes,
+        (stream) => {
+            void (async () => {
+                const reader = stream.getReader();
+                for (;;) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    emitBytes(value.byteLength);
                 }
-            } else if (
-                typeof Request === "function" &&
-                input instanceof Request &&
-                input.body !== null &&
-                !input.bodyUsed
-            ) {
-                try {
-                    reqClone = input.clone();
-                } catch {
-                    reqClone = undefined;
-                }
-            }
-        }
-        return baseFetch.apply(scope, callArgs).then(
-            (res) => {
-                try {
-                    const okUrl = isCountableUrl(res.url, input, baseUrl);
-                    if (okUrl) {
-                        fetchResolved = true;
-                        const totalUpload = uploadBytes + streamUploadBytes;
-                        streamUploadBytes = 0;
-                        if (totalUpload > 0) total += totalUpload;
-                        else if (reqClone?.body) countStream(reqClone.body);
-                    } else if (reqClone?.body) {
-                        void reqClone.body.cancel().catch(() => undefined);
-                    }
-                    if (okUrl && !hasCL(res.headers.get("content-length"))) {
-                        countStream(res.clone().body);
-                    }
-                } catch {
-                    // Ignore response inspection errors in worker fetch.
-                }
-                return res;
-            },
-            (err: unknown) => {
-                if (reqClone?.body) void reqClone.body.cancel().catch(() => undefined);
-                throw err;
-            },
-        );
-    };
-    setInterval(() => {
-        if (total === 0) return;
-        emit({ type: "WORKER_USAGE", bytes: total });
-        total = 0;
-    }, flushIntervalMs);
+            })().catch(() => undefined);
+        },
+        hasCL,
+        isCountableUrl,
+        isUpload,
+        measureBody,
+        wrapStream,
+    );
 }
 
-function workerBootstrap(flushIntervalMs: number): string {
-    return `(${initWorkerUsagePatch.toString()})(self,${flushIntervalMs},${hasPositiveContentLength.toString()},${isCountableRequestUrl.toString()},${isUploadMethod.toString()},${measureBodyBytes.toString()},${wrapReadableStreamBody.toString()});`;
+function workerBootstrap(): string {
+    return `(${initWorkerUsagePatch.toString()})(self,${patchFetchAndRequest.toString()},${hasPositiveContentLength.toString()},${isCountableRequestUrl.toString()},${isUploadMethod.toString()},${measureBodyBytes.toString()},${wrapReadableStreamBody.toString()});`;
 }
 
 function invokeXhrSend(
@@ -260,6 +419,20 @@ function invokeXhrSend(
 ): void {
     if (typeof sendMethod !== "function") return;
     Reflect.apply(sendMethod, xhr, body === undefined ? [] : [body]);
+}
+
+function patchMethod<T extends object, K extends keyof T>(
+    target: T,
+    key: K,
+    replacement: T[K],
+): () => void {
+    const hadOwn = Object.prototype.hasOwnProperty.call(target, key);
+    const origDesc = Object.getOwnPropertyDescriptor(target, key);
+    target[key] = replacement;
+    return () => {
+        if (hadOwn && origDesc) Object.defineProperty(target, key, origDesc);
+        else Reflect.deleteProperty(target, key);
+    };
 }
 
 function readWorkerSource(
@@ -286,7 +459,6 @@ function wrapBlobWorkerUrl(
     nativeSend: unknown,
     urlApi: Pick<typeof URL, "createObjectURL">,
     BlobCtor: typeof Blob,
-    flushIntervalMs: number,
 ): string | undefined {
     try {
         const url = new URL(String(scriptURL), getBaseURI());
@@ -300,7 +472,7 @@ function wrapBlobWorkerUrl(
         const payload = readWorkerSource(url.href, XhrCtor, nativeSend);
         if (!payload) return undefined;
         return urlApi.createObjectURL(
-            new BlobCtor([workerBootstrap(flushIntervalMs), ";\n", payload], {
+            new BlobCtor([workerBootstrap(), ";\n", payload], {
                 type: "application/javascript",
             }),
         );
@@ -351,19 +523,15 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
     const postMessage =
         ports.postMessage ?? ((message: UsageMessage) => globalThis.postMessage(message, "*"));
     const scheduleInterval = ports.scheduleInterval ?? defaultScheduleInterval;
+    const windowTarget = ports.windowTarget ?? (typeof window !== "undefined" ? window : undefined);
+    const documentTarget =
+        ports.documentTarget ?? (typeof document !== "undefined" ? document : undefined);
     const onError = ports.onError ?? ((err: unknown) => console.error(err));
     const flushIntervalMs = ports.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS;
 
     let activeSession: symbol | undefined;
     let total = 0;
-    let originalFetch: FetchFn | undefined;
-    let originalOpenDescriptor: PropertyDescriptor | undefined;
-    let originalSendDescriptor: PropertyDescriptor | undefined;
-    let patchedSendBeacon = false;
-    let hadOwnSendBeacon = false;
-    let originalSendBeaconDescriptor: PropertyDescriptor | undefined;
-    let NativeWorker: typeof Worker | undefined;
-    let stopInterval: (() => void) | undefined;
+    const cleanups: Array<() => void> = [];
     const xhrMeta = new WeakMap<XMLHttpRequest, { method: string; url: string; async: boolean }>();
     const activeReaders = new Set<ReadableStreamDefaultReader<Uint8Array>>();
     const workerRefs = new Set<WeakRef<Worker>>();
@@ -382,6 +550,16 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
             type: "TUBESIZE_SITE_USAGE",
             bytes,
         });
+    }
+
+    function onPageHide() {
+        if (!activeSession) return;
+        flush();
+    }
+
+    function onVisibilityChange() {
+        if (!activeSession || documentTarget?.visibilityState !== "hidden") return;
+        flush();
     }
 
     function countReadableStream(stream: ReadableStream<Uint8Array>, session: symbol) {
@@ -436,211 +614,153 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
         const session = Symbol("pageUsageObserver");
         activeSession = session;
 
-        const baseFetch = globalObject.fetch;
-        originalFetch = baseFetch;
-        globalObject.fetch = Object.assign(async (...args: Parameters<FetchFn>) => {
-            const [input, init] = args;
-            const baseUri = getBaseURI();
-            const countableUrl = isCountableRequestUrl(undefined, input, baseUri);
-            const method =
-                init?.method ??
-                (typeof Request === "function" && input instanceof Request
-                    ? input.method
-                    : undefined);
-
-            let callArgs = args;
-            let fixedUploadBytes = 0;
-            let streamUploadBytes = 0;
-            let fetchResolved = false;
-            let requestBodyClone: Request | undefined;
-
-            if (countableUrl && activeSession === session && isUploadMethod(method)) {
-                if (init?.body !== undefined) {
-                    if (
-                        typeof ReadableStream === "function" &&
-                        init.body instanceof ReadableStream &&
-                        !init.body.locked
-                    ) {
-                        const wrapped = wrapReadableStreamBody(init.body, (bytes) => {
-                            if (activeSession !== session || bytes <= 0) return;
-                            if (fetchResolved) total += bytes;
-                            else streamUploadBytes += bytes;
-                        });
-                        callArgs = [input, { ...init, body: wrapped }];
-                    } else {
-                        fixedUploadBytes = measureBodyBytes(init.body);
-                    }
-                } else if (
-                    typeof Request === "function" &&
-                    input instanceof Request &&
-                    input.body !== null &&
-                    !input.bodyUsed
-                ) {
-                    try {
-                        requestBodyClone = input.clone();
-                    } catch {
-                        requestBodyClone = undefined;
-                    }
-                }
-            }
-
-            let response: Response;
-            try {
-                response = await Reflect.apply(baseFetch, globalObject, callArgs);
-            } catch (err) {
-                if (requestBodyClone?.body) {
-                    void requestBodyClone.body.cancel().catch(() => undefined);
-                }
-                throw err;
-            }
-
-            if (activeSession !== session) {
-                if (requestBodyClone?.body) {
-                    void requestBodyClone.body.cancel().catch(() => undefined);
-                }
-                return response;
-            }
-
-            const countableResponseUrl = isCountableRequestUrl(response.url, input, baseUri);
-            if (countableResponseUrl) {
-                fetchResolved = true;
-                const totalUpload = fixedUploadBytes + streamUploadBytes;
-                streamUploadBytes = 0;
-                if (totalUpload > 0) {
-                    total += totalUpload;
-                } else if (requestBodyClone?.body) {
-                    countReadableStream(requestBodyClone.body, session);
-                }
-            } else if (requestBodyClone?.body) {
-                void requestBodyClone.body.cancel().catch(() => undefined);
-            }
-
-            if (
-                !countableResponseUrl ||
-                hasPositiveContentLength(response.headers.get("content-length"))
-            ) {
-                return response;
-            }
-
-            const clone = response.clone();
-            if (clone.body) {
-                countReadableStream(clone.body, session);
-            }
-
-            return response;
-        }, baseFetch);
+        cleanups.push(
+            patchFetchAndRequest(
+                globalObject,
+                getBaseURI,
+                () => activeSession === session,
+                (bytes) => {
+                    if (activeSession === session && bytes > 0) total += bytes;
+                },
+                (stream) => countReadableStream(stream, session),
+                hasPositiveContentLength,
+                isCountableRequestUrl,
+                isUploadMethod,
+                measureBodyBytes,
+                wrapReadableStreamBody,
+            ),
+        );
 
         const xhrProto = XhrCtor.prototype;
-        const openDescriptor = Object.getOwnPropertyDescriptor(xhrProto, "open");
-        const baseOpen: unknown = openDescriptor?.value;
-        originalOpenDescriptor = openDescriptor;
-        xhrProto.open = function (method: string, url: string | URL, ...rest: unknown[]) {
-            if (typeof baseOpen === "function") {
-                Reflect.apply(baseOpen, this, [method, url, ...rest]);
-            }
-            xhrMeta.set(this, {
-                method,
-                url: String(url),
-                async: rest[0] !== false,
-            });
-        };
-
-        const sendDescriptor = Object.getOwnPropertyDescriptor(xhrProto, "send");
-        const baseSend: unknown = sendDescriptor?.value;
-        originalSendDescriptor = sendDescriptor;
-        xhrProto.send = function (body) {
-            const meta = xhrMeta.get(this);
-            const isSync = meta?.async === false;
-            const uploadUrl = meta?.url ?? this.responseURL;
-            // Measure body directly instead of attaching `xhr.upload` listeners, which would
-            // force CORS preflight OPTIONS requests on cross-origin simple POSTs.
-            const uploadBytes =
-                activeSession === session &&
-                body !== undefined &&
-                body !== null &&
-                (!meta || isUploadMethod(meta.method)) &&
-                isCountableRequestUrl(undefined, uploadUrl, getBaseURI())
-                    ? measureBodyBytes(body)
-                    : 0;
-
-            let uploadCounted = false;
-            const commitUpload = () => {
-                if (uploadCounted || uploadBytes <= 0 || activeSession !== session) return;
-                uploadCounted = true;
-                total += uploadBytes;
-            };
-
-            let loaded = 0;
-            const countProgress = (event: ProgressEvent) => {
-                if (
-                    activeSession !== session ||
-                    (this.responseURL &&
-                        !isCountableRequestUrl(this.responseURL, undefined, getBaseURI())) ||
-                    hasPositiveContentLength(this.getResponseHeader("content-length"))
+        const baseOpen: unknown = Reflect.get(xhrProto, "open");
+        cleanups.push(
+            patchMethod(
+                xhrProto,
+                "open",
+                function (
+                    this: XMLHttpRequest,
+                    method: string,
+                    url: string | URL,
+                    ...rest: unknown[]
                 ) {
-                    return;
-                }
+                    if (typeof baseOpen === "function") {
+                        Reflect.apply(baseOpen, this, [method, url, ...rest]);
+                    }
+                    xhrMeta.set(this, {
+                        method,
+                        url: String(url),
+                        async: rest.length > 0 && rest[0] !== undefined ? Boolean(rest[0]) : true,
+                    });
+                },
+            ),
+        );
 
-                total += Math.max(0, event.loaded - loaded);
-                loaded = Math.max(loaded, event.loaded);
-            };
-            const onLoad = () => {
-                commitUpload();
-            };
-            const cleanup = () => {
-                this.removeEventListener("progress", countProgress);
-                this.removeEventListener("load", onLoad);
-                this.removeEventListener("loadend", onLoadEnd);
-            };
-            const onLoadEnd = (event: ProgressEvent) => {
-                if (this.status > 0) commitUpload();
-                countProgress(event);
-                cleanup();
-            };
-            this.addEventListener("progress", countProgress);
-            this.addEventListener("load", onLoad);
-            this.addEventListener("loadend", onLoadEnd);
-            try {
-                invokeXhrSend(baseSend, this, body);
-                if (isSync) {
+        const baseSend: unknown = Reflect.get(xhrProto, "send");
+        cleanups.push(
+            patchMethod(xhrProto, "send", function (this: XMLHttpRequest, body) {
+                const meta = xhrMeta.get(this);
+                const isSync = meta?.async === false;
+                const uploadUrl = meta?.url;
+                // Measure body directly instead of attaching `xhr.upload` listeners, which would
+                // force CORS preflight OPTIONS requests on cross-origin simple POSTs.
+                const uploadBytes =
+                    activeSession === session &&
+                    meta !== undefined &&
+                    body !== undefined &&
+                    body !== null &&
+                    isUploadMethod(meta.method) &&
+                    isCountableRequestUrl(undefined, uploadUrl, getBaseURI())
+                        ? measureBodyBytes(body)
+                        : 0;
+
+                let uploadCounted = false;
+                const commitUpload = () => {
+                    if (uploadCounted || uploadBytes <= 0 || activeSession !== session) return;
+                    if (
+                        !isCountableRequestUrl(
+                            this.responseURL || undefined,
+                            uploadUrl,
+                            getBaseURI(),
+                        )
+                    ) {
+                        return;
+                    }
+                    uploadCounted = true;
+                    total += uploadBytes;
+                };
+
+                let loaded = 0;
+                const countProgress = (event: ProgressEvent) => {
+                    if (
+                        activeSession !== session ||
+                        (this.responseURL &&
+                            !isCountableRequestUrl(this.responseURL, undefined, getBaseURI())) ||
+                        hasPositiveContentLength(this.getResponseHeader("content-length"))
+                    ) {
+                        return;
+                    }
+
+                    total += Math.max(0, event.loaded - loaded);
+                    loaded = Math.max(loaded, event.loaded);
+                };
+                const cleanup = () => {
+                    this.removeEventListener("progress", countProgress);
+                    this.removeEventListener("loadend", onLoadEnd);
+                };
+                const onLoadEnd = (event: ProgressEvent) => {
                     if (this.status > 0) commitUpload();
+                    countProgress(event);
                     cleanup();
+                };
+                this.addEventListener("progress", countProgress);
+                this.addEventListener("loadend", onLoadEnd);
+                try {
+                    invokeXhrSend(baseSend, this, body);
+                    if (isSync) {
+                        if (this.status > 0) commitUpload();
+                        cleanup();
+                    }
+                } catch (err) {
+                    cleanup();
+                    throw err;
                 }
-            } catch (err) {
-                cleanup();
-                throw err;
-            }
-        };
+            }),
+        );
 
         if (navigatorObj && typeof navigatorObj.sendBeacon === "function") {
-            hadOwnSendBeacon = Object.prototype.hasOwnProperty.call(navigatorObj, "sendBeacon");
-            originalSendBeaconDescriptor = Object.getOwnPropertyDescriptor(
-                navigatorObj,
-                "sendBeacon",
-            );
             const baseSendBeacon = navigatorObj.sendBeacon;
-            navigatorObj.sendBeacon = function (
-                ...beaconArgs: [url: string | URL, data?: BodyInit | null]
-            ): boolean {
-                const queued = Reflect.apply(baseSendBeacon, this, beaconArgs);
-                const [url, data] = beaconArgs;
-                if (
-                    queued &&
-                    activeSession === session &&
-                    data !== undefined &&
-                    data !== null &&
-                    isCountableRequestUrl(undefined, url, getBaseURI())
-                ) {
-                    const bytes = measureBodyBytes(data);
-                    if (bytes > 0) total += bytes;
-                }
-                return queued;
-            };
-            patchedSendBeacon = true;
+            cleanups.push(
+                patchMethod(
+                    navigatorObj,
+                    "sendBeacon",
+                    function (
+                        this: unknown,
+                        ...beaconArgs: [url: string | URL, data?: BodyInit | null]
+                    ): boolean {
+                        const queued = Reflect.apply(baseSendBeacon, this, beaconArgs);
+                        const [url, data] = beaconArgs;
+                        if (
+                            queued &&
+                            activeSession === session &&
+                            data !== undefined &&
+                            data !== null &&
+                            isCountableRequestUrl(undefined, url, getBaseURI())
+                        ) {
+                            const bytes = measureBodyBytes(data);
+                            if (bytes > 0) {
+                                total += bytes;
+                                // Flush immediately so beacons sent during pagehide/visibilitychange/unload
+                                // are reported before the document tears down.
+                                flush();
+                            }
+                        }
+                        return queued;
+                    },
+                ),
+            );
         }
 
         const baseWorker = globalObject.Worker;
-        NativeWorker = baseWorker;
         globalObject.Worker = new Proxy(baseWorker, {
             construct(target, args: [string | URL, WorkerOptions?], newTarget) {
                 const [scriptURL, options] = args;
@@ -652,7 +772,6 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                     baseSend,
                     urlApi,
                     BlobCtor,
-                    flushIntervalMs,
                 );
                 if (wrappedUrl) {
                     try {
@@ -674,8 +793,21 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                 return fallback instanceof baseWorker ? fallback : new target(...args);
             },
         });
+        cleanups.push(() => {
+            globalObject.Worker = baseWorker;
+        });
 
-        stopInterval = scheduleInterval(flush, flushIntervalMs);
+        cleanups.push(scheduleInterval(flush, flushIntervalMs));
+        if (windowTarget) {
+            windowTarget.addEventListener("pagehide", onPageHide);
+            cleanups.push(() => windowTarget.removeEventListener("pagehide", onPageHide));
+        }
+        if (documentTarget) {
+            documentTarget.addEventListener("visibilitychange", onVisibilityChange);
+            cleanups.push(() =>
+                documentTarget.removeEventListener("visibilitychange", onVisibilityChange),
+            );
+        }
     }
 
     function dispose() {
@@ -683,8 +815,7 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
         activeSession = undefined;
         total = 0;
 
-        stopInterval?.();
-        stopInterval = undefined;
+        while (cleanups.length > 0) cleanups.pop()?.();
 
         for (const reader of activeReaders) {
             void reader.cancel().catch(() => undefined);
@@ -696,33 +827,6 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
             ref.deref()?.removeEventListener("message", onWorkerMessage);
         }
         workerRefs.clear();
-
-        if (originalFetch) {
-            globalObject.fetch = originalFetch;
-            originalFetch = undefined;
-        }
-        if (originalOpenDescriptor) {
-            Object.defineProperty(XhrCtor.prototype, "open", originalOpenDescriptor);
-            originalOpenDescriptor = undefined;
-        }
-        if (originalSendDescriptor) {
-            Object.defineProperty(XhrCtor.prototype, "send", originalSendDescriptor);
-            originalSendDescriptor = undefined;
-        }
-        if (patchedSendBeacon && navigatorObj) {
-            if (hadOwnSendBeacon && originalSendBeaconDescriptor) {
-                Object.defineProperty(navigatorObj, "sendBeacon", originalSendBeaconDescriptor);
-            } else {
-                Reflect.deleteProperty(navigatorObj, "sendBeacon");
-            }
-            patchedSendBeacon = false;
-            hadOwnSendBeacon = false;
-            originalSendBeaconDescriptor = undefined;
-        }
-        if (NativeWorker) {
-            globalObject.Worker = NativeWorker;
-            NativeWorker = undefined;
-        }
     }
 
     return {

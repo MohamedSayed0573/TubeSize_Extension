@@ -120,6 +120,10 @@ function makeStreamResponse(chunks: number[], headers?: Record<string, string>):
     return new Response(stream, { headers });
 }
 
+class FakeDocument extends EventTarget {
+    visibilityState: DocumentVisibilityState = "visible";
+}
+
 function createHarness(
     baseFetch?: FetchFn,
     sendBeaconImpl?: (url: string | URL, data?: BodyInit | null) => boolean,
@@ -127,6 +131,8 @@ function createHarness(
     FakeXMLHttpRequest.sources.clear();
     FakeWorker.constructed = [];
     FakeWorker.throwOnUrl = undefined;
+
+    class TestRequest extends Request {}
 
     const posted: UsageMessage[] = [];
     const errors: unknown[] = [];
@@ -141,11 +147,14 @@ function createHarness(
     const globalObject: PageUsageObserverGlobal = {
         fetch: defaultFetch,
         Worker: FakeWorker as unknown as typeof Worker,
+        Request: TestRequest,
     };
     const defaultSendBeacon = sendBeaconImpl ?? (() => true);
     const navigatorObj: Pick<Navigator, "sendBeacon"> = {
         sendBeacon: defaultSendBeacon,
     };
+    const windowTarget = new EventTarget();
+    const documentTarget = new FakeDocument();
 
     const observer = createPageUsageObserver({
         globalObject,
@@ -170,6 +179,8 @@ function createHarness(
                 intervalCleared = true;
             };
         },
+        windowTarget,
+        documentTarget,
         onError: (err) => errors.push(err),
         flushIntervalMs: 3000,
     });
@@ -178,8 +189,11 @@ function createHarness(
         observer,
         globalObject,
         navigatorObj,
+        windowTarget,
+        documentTarget,
         defaultFetch,
         defaultSendBeacon,
+        BaseRequest: TestRequest,
         posted,
         errors,
         createdBlobs,
@@ -443,7 +457,6 @@ describe("createPageUsageObserver", () => {
         const bootstrapSource = await wrappedBlob!.text();
 
         const workerPosted: unknown[] = [];
-        let workerTick: (() => void) | undefined;
         const fakeSelf: Record<string, unknown> = {
             location: { href: "blob:https://example.com/wrapped-1" },
             postMessage: (msg: unknown) => workerPosted.push(msg),
@@ -462,10 +475,6 @@ describe("createPageUsageObserver", () => {
         vm.runInNewContext(bootstrapSource, {
             self: fakeSelf,
             URL,
-            setInterval: (cb: () => void) => {
-                workerTick = cb;
-                return 1;
-            },
         });
 
         expect(fakeSelf.originalLoaded).toBe(true);
@@ -481,10 +490,11 @@ describe("createPageUsageObserver", () => {
         await (await workerFetch("moz-extension://1234-5678/script.js")).arrayBuffer();
         await new Promise((resolve) => setTimeout(resolve, 10));
 
-        workerTick?.();
         expect(workerPosted).toEqual([
             { type: "WORKER_READY" },
-            { type: "WORKER_USAGE", bytes: 1_500 },
+            { type: "WORKER_USAGE", bytes: 500 },
+            { type: "WORKER_USAGE", bytes: 300 },
+            { type: "WORKER_USAGE", bytes: 700 },
         ]);
 
         harness.observer.dispose();
@@ -714,9 +724,10 @@ describe("createPageUsageObserver", () => {
             body: fd,
         });
 
-        // Request object with body
+        // Request object with body (constructed via patched global Request without cloning)
+        const PatchedRequest = harness.globalObject.Request!;
         await harness.globalObject.fetch(
-            new Request("https://example.com/up-req", {
+            new PatchedRequest("https://example.com/up-req", {
                 method: "POST",
                 body: new Uint8Array(250),
             }),
@@ -856,8 +867,11 @@ describe("createPageUsageObserver", () => {
         ).toBe(true);
         expect(harness.navigatorObj.sendBeacon("https://example.com/empty")).toBe(true);
 
-        harness.observer.flush();
-        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 409 }]);
+        // Beacons flush immediately without waiting for the 3s interval tick.
+        expect(harness.posted).toEqual([
+            { type: "TUBESIZE_SITE_USAGE", bytes: 9 },
+            { type: "TUBESIZE_SITE_USAGE", bytes: 400 },
+        ]);
 
         harness.observer.dispose();
         expect(harness.navigatorObj.sendBeacon).toBe(harness.defaultSendBeacon);
@@ -868,7 +882,10 @@ describe("createPageUsageObserver", () => {
         // Post-dispose sendBeacon is not counted.
         harness.navigatorObj.sendBeacon("https://example.com/after-dispose", new Uint8Array(1_000));
         harness.observer.flush();
-        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 409 }]);
+        expect(harness.posted).toEqual([
+            { type: "TUBESIZE_SITE_USAGE", bytes: 9 },
+            { type: "TUBESIZE_SITE_USAGE", bytes: 400 },
+        ]);
     });
 
     test("restores prototype-inherited navigator.sendBeacon cleanly on dispose", () => {
@@ -912,16 +929,31 @@ describe("createPageUsageObserver", () => {
         const wrappedUrl = FakeWorker.constructed[0]?.url ?? "";
         const bootstrapSource = await harness.createdBlobs.get(wrappedUrl)!.text();
 
+        class WorkerRequest extends Request {}
+        let workerCloneCalls = 0;
+        const origWorkerClone = Object.getOwnPropertyDescriptor(Request.prototype, "clone")
+            ?.value as (this: Request) => Request;
+        WorkerRequest.prototype.clone = function () {
+            workerCloneCalls += 1;
+            return Reflect.apply(origWorkerClone, this, []);
+        };
+
         const workerPosted: unknown[] = [];
-        let workerTick: (() => void) | undefined;
         const fakeSelf: Record<string, unknown> = {
             location: { href: "blob:https://example.com/wrapped-1" },
+            Request: WorkerRequest,
             postMessage: (msg: unknown) => workerPosted.push(msg),
             fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
                 const url = toRequestUrl(input);
                 if (url.endsWith("/fail")) throw new TypeError("net error");
-                if (init?.body instanceof ReadableStream) {
-                    const reader = init.body.getReader();
+                const stream =
+                    init?.body instanceof ReadableStream
+                        ? init.body
+                        : input instanceof Request
+                          ? input.body
+                          : null;
+                if (stream) {
+                    const reader = stream.getReader();
                     for (;;) {
                         const { done } = await reader.read();
                         if (done) break;
@@ -940,23 +972,18 @@ describe("createPageUsageObserver", () => {
             FormData,
             URLSearchParams,
             ReadableStream,
-            Request,
             ArrayBuffer,
             Uint8Array,
-            TextEncoder,
-            setInterval: (cb: () => void) => {
-                workerTick = cb;
-                return 1;
-            },
         });
 
         const workerFetch = fakeSelf.fetch as FetchFn;
+        const PatchedWorkerRequest = fakeSelf.Request as typeof Request;
         await workerFetch("https://example.com/w-post", {
             method: "POST",
             body: new Uint8Array(1_200),
         });
         await workerFetch(
-            new Request("https://example.com/w-req", {
+            new PatchedWorkerRequest("https://example.com/w-req", {
                 method: "POST",
                 body: new Uint8Array(300),
             }),
@@ -968,6 +995,18 @@ describe("createPageUsageObserver", () => {
             },
         });
         await workerFetch("https://example.com/w-stream", { method: "POST", body: wStream });
+        const wReqStream = new ReadableStream<Uint8Array>({
+            start(c) {
+                c.enqueue(new Uint8Array(250));
+                c.close();
+            },
+        });
+        await workerFetch(
+            new PatchedWorkerRequest("https://example.com/w-req-stream", {
+                method: "POST",
+                body: wReqStream,
+            }),
+        );
         await expect(
             workerFetch("https://example.com/fail", { method: "POST", body: new Uint8Array(999) }),
         ).rejects.toThrow("net error");
@@ -977,12 +1016,232 @@ describe("createPageUsageObserver", () => {
         });
         await new Promise((resolve) => setTimeout(resolve, 15));
 
-        workerTick?.();
+        // Emitted immediately (no 3s worker buffer) and never called Request.clone().
+        expect(workerCloneCalls).toBe(0);
         expect(workerPosted).toEqual([
             { type: "WORKER_READY" },
-            { type: "WORKER_USAGE", bytes: 2_000 },
+            { type: "WORKER_USAGE", bytes: 1_200 },
+            { type: "WORKER_USAGE", bytes: 300 },
+            { type: "WORKER_USAGE", bytes: 500 },
+            { type: "WORKER_USAGE", bytes: 250 },
         ]);
 
+        harness.observer.dispose();
+    });
+
+    test("tracks Request fixed, streaming, and cloned uploads without calling Request.prototype.clone during fetch", async () => {
+        const harness = createHarness(async (input) => {
+            if (input instanceof Request && input.body) {
+                const reader = input.body.getReader();
+                for (;;) {
+                    const { done } = await reader.read();
+                    if (done) break;
+                }
+            }
+            return new Response("ok", { headers: { "content-length": "2" } });
+        });
+
+        let cloneCalls = 0;
+        const origClone = Object.getOwnPropertyDescriptor(Request.prototype, "clone")?.value as (
+            this: Request,
+        ) => Request;
+        const spyClone = function (this: Request): Request {
+            cloneCalls += 1;
+            return Reflect.apply(origClone, this, []);
+        };
+        harness.BaseRequest.prototype.clone = spyClone;
+
+        harness.observer.install();
+        const PatchedRequest = harness.globalObject.Request!;
+        expect(PatchedRequest).not.toBe(harness.BaseRequest);
+
+        // Fixed-body Request: zero clone() calls during fetch.
+        const fixedReq = new PatchedRequest("https://example.com/fixed-req", {
+            method: "POST",
+            body: new Blob([new Uint8Array(1_500)]),
+        });
+        await harness.globalObject.fetch(fixedReq);
+        expect(cloneCalls).toBe(0);
+
+        // Stream-body Request: chunks counted as pulled, zero clone() calls during fetch.
+        const stream = new ReadableStream<Uint8Array>({
+            start(c) {
+                c.enqueue(new Uint8Array(600));
+                c.enqueue(new Uint8Array(400));
+                c.close();
+            },
+        });
+        const streamReq = new PatchedRequest("https://example.com/stream-req", {
+            method: "POST",
+            body: stream,
+        });
+        await harness.globalObject.fetch(streamReq);
+        expect(cloneCalls).toBe(0);
+
+        // User-initiated Request.clone() and new Request(existing) preserve upload tracking;
+        // explicit body: null clears inherited body bytes.
+        const baseReq = new PatchedRequest("https://example.com/base", {
+            method: "POST",
+            body: new Uint8Array(300),
+        });
+        const clonedReq = baseReq.clone();
+        expect(cloneCalls).toBe(1);
+        const derivedReq = new PatchedRequest(baseReq, { headers: { "X-Copy": "1" } });
+        const clearedReq = new PatchedRequest(clonedReq, { method: "POST", body: null });
+        await harness.globalObject.fetch(derivedReq);
+        await harness.globalObject.fetch(clearedReq);
+        expect(cloneCalls).toBe(1);
+
+        harness.observer.flush();
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 2_800 }]);
+
+        harness.observer.dispose();
+        expect(harness.globalObject.Request).toBe(harness.BaseRequest);
+        expect(Object.getOwnPropertyDescriptor(harness.BaseRequest.prototype, "clone")?.value).toBe(
+            spyClone,
+        );
+    });
+
+    test("flushes buffered usage on pagehide and hidden visibilitychange and removes listeners on dispose", async () => {
+        const harness = createHarness(
+            async () => new Response("ok", { headers: { "content-length": "2" } }),
+        );
+        harness.observer.install();
+
+        await harness.globalObject.fetch("https://example.com/up", {
+            method: "POST",
+            body: new Uint8Array(700),
+        });
+        expect(harness.posted).toEqual([]);
+
+        // Visible state change does not flush.
+        harness.documentTarget.visibilityState = "visible";
+        harness.documentTarget.dispatchEvent(new Event("visibilitychange"));
+        expect(harness.posted).toEqual([]);
+
+        // Hidden visibilitychange flushes immediately.
+        harness.documentTarget.visibilityState = "hidden";
+        harness.documentTarget.dispatchEvent(new Event("visibilitychange"));
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 700 }]);
+
+        // pagehide flushes immediately.
+        await harness.globalObject.fetch("https://example.com/up2", {
+            method: "POST",
+            body: new Uint8Array(350),
+        });
+        harness.windowTarget.dispatchEvent(new Event("pagehide"));
+        expect(harness.posted).toEqual([
+            { type: "TUBESIZE_SITE_USAGE", bytes: 700 },
+            { type: "TUBESIZE_SITE_USAGE", bytes: 350 },
+        ]);
+
+        // dispose detaches both listeners.
+        harness.observer.dispose();
+        harness.windowTarget.dispatchEvent(new Event("pagehide"));
+        harness.documentTarget.dispatchEvent(new Event("visibilitychange"));
+        expect(harness.posted).toHaveLength(2);
+    });
+
+    test("measures cross-realm iframe upload bodies (ArrayBuffer, TypedArray, Blob, File, URLSearchParams, FormData)", async () => {
+        const otherArrayBuffer = vm.runInNewContext("new ArrayBuffer(256)") as ArrayBuffer;
+        const otherUint8 = vm.runInNewContext("new Uint8Array(64)") as Uint8Array;
+        const otherBlob = { size: 1_024, [Symbol.toStringTag]: "Blob" };
+        const otherFile = { size: 2_048, name: "clip.mp4", [Symbol.toStringTag]: "File" };
+        const otherUsp = { toString: () => "a=1&b=é", [Symbol.toStringTag]: "URLSearchParams" };
+        const otherFd = {
+            forEach(cb: (v: unknown, k: string) => void) {
+                cb("hi", "msg");
+                cb(otherBlob, "f");
+            },
+            [Symbol.toStringTag]: "FormData",
+        };
+
+        expect(measureBodyBytes(otherArrayBuffer)).toBe(256);
+        expect(measureBodyBytes(otherUint8)).toBe(64);
+        expect(measureBodyBytes(otherBlob)).toBe(1_024);
+        expect(measureBodyBytes(otherFile)).toBe(2_048);
+        expect(measureBodyBytes(otherUsp)).toBe(8); // "a=1&b=" (6) + "é" (2)
+        expect(measureBodyBytes(otherFd)).toBe(3 + 2 + 1 + 1_024);
+
+        const harness = createHarness(
+            async () => new Response("ok", { headers: { "content-length": "2" } }),
+        );
+        harness.observer.install();
+
+        await harness.globalObject.fetch("https://example.com/iframe-ab", {
+            method: "POST",
+            body: otherArrayBuffer,
+        });
+        harness.navigatorObj.sendBeacon(
+            "https://example.com/iframe-blob",
+            otherBlob as unknown as BodyInit,
+        );
+
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 256 + 1_024 }]);
+        harness.observer.dispose();
+    });
+
+    test("preserves prototype-inherited RequestInit properties, keeps stream unlocked on early reject, and skips pre-install XHR uploads", async () => {
+        let seenMethod: string | undefined;
+        let seenHeaders: unknown;
+
+        const harness = createHarness(async (input, init) => {
+            const url = toRequestUrl(input);
+            if (url.endsWith("/reject-early")) {
+                throw new TypeError("RequestInit: duplex option is required");
+            }
+            seenMethod = init?.method;
+            seenHeaders = init?.headers;
+            if (init?.body instanceof ReadableStream) {
+                const reader = init.body.getReader();
+                for (;;) {
+                    const { done } = await reader.read();
+                    if (done) break;
+                }
+            }
+            return new Response("ok", { headers: { "content-length": "2" } });
+        });
+
+        // XHR opened BEFORE install() as a GET on blob: URL must not be miscounted as an upload.
+        const preXhr = new FakeXMLHttpRequest();
+        preXhr.open("GET", "blob:https://example.com/pre-install");
+        preXhr.responseURL = "";
+
+        harness.observer.install();
+
+        preXhr.send("ignored-get-body");
+        preXhr.emitLoad(200);
+
+        // Prototype-inherited RequestInit options survive ReadableStream wrapping.
+        const baseOpts = { method: "POST", headers: { "X-Auth": "secret" } };
+        const inheritedInit = Object.create(baseOpts) as RequestInit;
+        inheritedInit.body = new ReadableStream<Uint8Array>({
+            start(c) {
+                c.enqueue(new Uint8Array(128));
+                c.close();
+            },
+        });
+        await harness.globalObject.fetch("https://example.com/proto-init", inheritedInit);
+        expect(seenMethod).toBe("POST");
+        expect(seenHeaders).toBe(baseOpts.headers);
+
+        // Early fetch rejection before reading must leave caller's ReadableStream unlocked.
+        const lazyStream = new ReadableStream<Uint8Array>({
+            start(c) {
+                c.enqueue(new Uint8Array(64));
+                c.close();
+            },
+        });
+        await expect(
+            harness.globalObject.fetch("https://example.com/reject-early", {
+                method: "POST",
+                body: lazyStream,
+            }),
+        ).rejects.toThrow("duplex");
+        expect(lazyStream.locked).toBe(false);
+
+        harness.observer.flush();
+        expect(harness.posted).toEqual([{ type: "TUBESIZE_SITE_USAGE", bytes: 128 }]);
         harness.observer.dispose();
     });
 });
