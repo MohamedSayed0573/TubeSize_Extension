@@ -21,7 +21,7 @@ interface BundleFileEntry {
     bytes: number;
 }
 
-export interface BundleBuildReport {
+interface BundleBuildReport {
     dir: string;
     totalBytes: number;
     fileCount: number;
@@ -65,7 +65,7 @@ export interface BundleBudgetEvaluation {
     failures: BundleBudgetCheck[];
 }
 
-export const BUNDLE_BUDGETS = {
+const BUNDLE_BUDGETS = {
     totalBytes: 3_200_000,
     contentScriptsTotalBytes: 80_000,
     files: {
