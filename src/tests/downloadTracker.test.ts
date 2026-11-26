@@ -1972,6 +1972,57 @@ describe("downloadTracker durability, resume, pause, and error resilience", () =
         });
     });
 
+    test("deduplicates non-renderable application/octet-stream navigation even with Content-Disposition: inline", async () => {
+        const fakeDownloads = new FakeDownloadsController();
+        const ingestion = createUsageIngestion();
+        const deduplicator = createDownloadDeduplicator();
+        const tracker = createDownloadTracker(ingestion, deduplicator, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 1_000,
+        });
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/payload.bin" });
+        const url = "https://example.com/payload.bin";
+
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "main_frame",
+                url,
+                initiator: "https://example.com",
+                responseHeaders: [
+                    { name: "Content-Disposition", value: 'inline; filename="payload.bin"' },
+                    { name: "Content-Length", value: "40000" },
+                    { name: "Content-Type", value: "application/octet-stream" },
+                ],
+            }),
+            deduplicator,
+        );
+
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 73,
+                url,
+                finalUrl: url,
+                referrer: "https://example.com/files",
+                mime: "application/octet-stream",
+                bytesReceived: 40_000,
+                totalBytes: 40_000,
+                state: "complete",
+            }),
+        );
+        await tracker.whenIdle();
+        await ingestion.flush();
+
+        // Counted once (40_000), not doubled across webRequest and downloads.
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 40_000,
+        });
+    });
+
     test("retries initial commit when onCreated receives an already-complete download during a transient IDB error", async () => {
         const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
         cleanups.push(() => consoleErrorSpy.mockRestore());

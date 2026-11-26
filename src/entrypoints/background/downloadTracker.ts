@@ -19,7 +19,6 @@ const CONTENT_LENGTH_HEADER = "content-length";
 const CONTENT_RANGE_HEADER = "content-range";
 const CONTENT_TYPE_HEADER = "content-type";
 const ATTACHMENT_DISPOSITION_RE = /^\s*attachment(?:\s*;|\s*$)/i;
-const INLINE_DISPOSITION_RE = /^\s*inline(?:\s*;|\s*$)/i;
 const CONTENT_RANGE_RE = /^\s*bytes\s+(?:\d+-\d+|\*)\/(\d+|\*)\s*$/i;
 const DEFAULT_POLL_INTERVAL_MS = 1_000;
 const DEFAULT_FINISHED_DOWNLOAD_TTL_MS = 10_000;
@@ -187,13 +186,12 @@ function isInlineRenderableMime(mime: string | undefined): boolean {
 }
 
 // `main_frame`/`sub_frame` navigations without `Content-Disposition: attachment` only become
-// downloads when their Content-Type cannot be rendered inline (e.g. archives/binaries);
-// inline-renderable navigations (HTML, PDF, media, text) must never be suppressed as downloads.
+// downloads when their Content-Type cannot be rendered inline (e.g. archives/binaries), even if
+// the server sent `Content-Disposition: inline`; inline-renderable navigations (HTML, PDF, media,
+// text) must never be suppressed as downloads.
 function isDownloadableWebRequest(details: WebRequestDedupDetails): boolean {
     if (details.type === "other") return true;
     if (details.type !== "main_frame" && details.type !== "sub_frame") return false;
-    const disposition = getHeaderValue(details.responseHeaders, CONTENT_DISPOSITION_HEADER);
-    if (disposition && INLINE_DISPOSITION_RE.test(disposition)) return false;
     const mime = normalizeMime(getHeaderValue(details.responseHeaders, CONTENT_TYPE_HEADER));
     return !isInlineRenderableMime(mime);
 }
