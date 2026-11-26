@@ -18,24 +18,22 @@ type ErrorPresentation = {
     icon: LucideIcon;
     titleKey: MessageKey;
     descriptionKey: MessageKey;
-    cardClassName: string;
     iconClassName: string;
     canRetry: boolean;
     retryButtonClassName?: string;
 };
 
 const SECONDARY_RETRY_BUTTON =
-    "border-white/12 bg-white/8 text-neutral-100 hover:border-white/20 hover:bg-white/15";
+    "border-white/15 bg-white/8 text-neutral-50 hover:border-white/25 hover:bg-white/15";
 
-const PROMINENT_RETRY_BUTTON =
-    "border-red-400/40 bg-red-500/20 text-red-100 hover:border-red-400/60 hover:bg-red-500/30";
+const PRIMARY_RETRY_BUTTON =
+    "border-transparent bg-zinc-100 font-semibold text-zinc-950 hover:bg-white";
 
 const ERROR_PRESENTATION: Record<MediaEstimateErrorCode, ErrorPresentation> = {
     stream_offline: {
         icon: Radio,
         titleKey: "popup_error_streamOffline_title",
         descriptionKey: "popup_error_streamOffline_description",
-        cardClassName: "border-amber-500/25 border-s-amber-400 bg-amber-500/10",
         iconClassName: "text-amber-400",
         canRetry: true,
         retryButtonClassName: SECONDARY_RETRY_BUTTON,
@@ -44,7 +42,6 @@ const ERROR_PRESENTATION: Record<MediaEstimateErrorCode, ErrorPresentation> = {
         icon: Lock,
         titleKey: "popup_error_restrictedContent_title",
         descriptionKey: "popup_error_restrictedContent_description",
-        cardClassName: "border-amber-500/25 border-s-amber-400 bg-amber-500/10",
         iconClassName: "text-amber-400",
         canRetry: true,
         retryButtonClassName: SECONDARY_RETRY_BUTTON,
@@ -53,8 +50,7 @@ const ERROR_PRESENTATION: Record<MediaEstimateErrorCode, ErrorPresentation> = {
         icon: VideoOff,
         titleKey: "popup_error_unavailable_title",
         descriptionKey: "popup_error_unavailable_description",
-        cardClassName: "border-white/12 border-s-zinc-400 bg-white/5",
-        iconClassName: "text-zinc-300",
+        iconClassName: "text-zinc-400",
         canRetry: true,
         retryButtonClassName: SECONDARY_RETRY_BUTTON,
     },
@@ -62,16 +58,14 @@ const ERROR_PRESENTATION: Record<MediaEstimateErrorCode, ErrorPresentation> = {
         icon: WifiOff,
         titleKey: "popup_error_networkError_title",
         descriptionKey: "popup_error_networkError_description",
-        cardClassName: "border-red-500/30 border-s-red-400 bg-red-500/10",
         iconClassName: "text-red-400",
         canRetry: true,
-        retryButtonClassName: PROMINENT_RETRY_BUTTON,
+        retryButtonClassName: PRIMARY_RETRY_BUTTON,
     },
     no_formats: {
         icon: Film,
         titleKey: "popup_error_noFormats_title",
         descriptionKey: "popup_error_noFormats_description",
-        cardClassName: "border-amber-500/25 border-s-amber-400 bg-amber-500/10",
         iconClassName: "text-amber-400",
         canRetry: true,
         retryButtonClassName: SECONDARY_RETRY_BUTTON,
@@ -80,7 +74,6 @@ const ERROR_PRESENTATION: Record<MediaEstimateErrorCode, ErrorPresentation> = {
         icon: Link2Off,
         titleKey: "popup_error_unsupportedUrl_title",
         descriptionKey: "popup_error_unsupportedUrl_description",
-        cardClassName: "border-blue-500/30 border-s-blue-400 bg-blue-400/12",
         iconClassName: "text-sky-300",
         canRetry: false,
     },
@@ -88,10 +81,9 @@ const ERROR_PRESENTATION: Record<MediaEstimateErrorCode, ErrorPresentation> = {
         icon: AlertTriangle,
         titleKey: "popup_error_unknown_title",
         descriptionKey: "popup_error_unknown_description",
-        cardClassName: "border-red-500/30 border-s-red-400 bg-red-500/10",
         iconClassName: "text-red-400",
         canRetry: true,
-        retryButtonClassName: SECONDARY_RETRY_BUTTON,
+        retryButtonClassName: PRIMARY_RETRY_BUTTON,
     },
 };
 
@@ -110,37 +102,32 @@ export default function MediaEstimateErrorCard({ error, isRetrying, onRetry }: P
         <div
             role="alert"
             data-error-code={code}
-            className={cn(
-                "flex flex-col gap-2.5 rounded-lg border border-s-3 p-3 text-start",
-                presentation.cardClassName,
-            )}
+            className="flex flex-col items-center gap-1.5 px-1.5 pt-3 pb-1.5 text-center"
         >
-            <div className="flex items-start gap-2">
-                <Icon
-                    className={cn("mt-0.5 size-4 shrink-0", presentation.iconClassName)}
-                    aria-hidden="true"
-                />
-                <div className="flex min-w-0 flex-col gap-1">
-                    <div className="text-xs font-semibold text-neutral-100">
-                        {t(presentation.titleKey)}
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-zinc-300">
-                        {t(presentation.descriptionKey)}
-                    </p>
-                </div>
+            <div
+                className="mb-0.5 flex size-8 items-center justify-center rounded-lg border border-white/10 bg-white/5"
+                aria-hidden="true"
+            >
+                <Icon className={cn("size-3.5 shrink-0", presentation.iconClassName)} />
             </div>
+            <div className="text-[12.5px] font-semibold text-neutral-50">
+                {t(presentation.titleKey)}
+            </div>
+            <p className="max-w-[202px] text-[11px] leading-relaxed text-zinc-400">
+                {t(presentation.descriptionKey)}
+            </p>
             {presentation.canRetry && (
                 <button
                     type="button"
                     disabled={isRetrying}
                     onClick={onRetry}
                     className={cn(
-                        "flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                        "mt-1.5 inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40 disabled:cursor-not-allowed disabled:opacity-65",
                         presentation.retryButtonClassName,
                     )}
                 >
                     <RefreshCw
-                        className={cn("size-3.5 shrink-0", isRetrying && "animate-spin")}
+                        className={cn("size-3 shrink-0", isRetrying && "animate-spin")}
                         aria-hidden="true"
                     />
                     <span>{isRetrying ? t("common_retrying") : t("common_retry")}</span>
