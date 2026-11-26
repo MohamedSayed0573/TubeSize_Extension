@@ -1,26 +1,51 @@
 import type { Origin } from "@app-types/types";
 import { toOrigin } from "@lib/domain";
 
-import { MAX_SAFE_BYTES } from "@/db";
+import { refreshUsageBadge } from "@/badge";
+import {
+    MAX_SAFE_BYTES,
+    type DownloadCheckpoint,
+    type DownloadCommitBatch,
+    addSafeBytes,
+    commitDownloadProgress,
+    getDownloadCheckpoints,
+} from "@/db";
 
-import { loadDownloadCheckpoints, saveDownloadCheckpoints } from "./downloadCheckpoints";
 import { isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 const CONTENT_DISPOSITION_HEADER = "content-disposition";
+const CONTENT_ENCODING_HEADER = "content-encoding";
+const CONTENT_LENGTH_HEADER = "content-length";
+const CONTENT_TYPE_HEADER = "content-type";
 const ATTACHMENT_DISPOSITION_RE = /^\s*attachment(?:\s*;|\s*$)/i;
 const DEFAULT_POLL_INTERVAL_MS = 1_000;
 const DEFAULT_FINISHED_DOWNLOAD_TTL_MS = 10_000;
 const DEFAULT_RECENT_WEB_REQUEST_TTL_MS = 5_000;
+const SAME_TRANSFER_START_SLACK_MS = 250;
+const FINISHED_MATCH_SLACK_MS = 2_000;
 const MAX_RECENT_ENTRIES = 256;
 
 type WebRequestDedupDetails = Pick<
     chrome.webRequest.OnCompletedDetails,
-    "url" | "type" | "responseHeaders"
->;
+    "url" | "type" | "responseHeaders" | "timeStamp" | "initiator"
+> & {
+    originUrl?: string;
+    documentUrl?: string;
+};
 
 export type DownloadOriginSource = Pick<chrome.downloads.DownloadItem, "url" | "referrer"> & {
     finalUrl?: string;
 };
+
+interface DownloadDedupItem {
+    id: number;
+    urls: ReadonlyArray<string | undefined>;
+    referrer?: string;
+    mime?: string;
+    totalBytes?: number;
+    startTime?: string;
+    endTime?: string;
+}
 
 export interface DownloadDeduplicatorOptions {
     now?: () => number;
@@ -29,27 +54,29 @@ export interface DownloadDeduplicatorOptions {
 }
 
 export interface DownloadDeduplicator {
-    trackActiveDownload(downloadId: number, urls: ReadonlyArray<string | undefined>): void;
-    finishDownload(downloadId: number, urls?: ReadonlyArray<string | undefined>): void;
-    shouldSkipWebRequest(details: WebRequestDedupDetails): boolean;
-    recordCountedWebRequest(details: WebRequestDedupDetails, bytes: number): void;
-    consumeRecentWebRequestBytes(
-        downloadId: number,
-        urls: ReadonlyArray<string | undefined>,
-    ): number;
+    trackActiveDownload(item: DownloadDedupItem): void;
+    addDownloadUrls(downloadId: number, urls: ReadonlyArray<string | undefined>): void;
+    finishDownload(item: DownloadDedupItem): void;
+    cancelDownload(downloadId: number): void;
+    recordAttachmentNavigation(details: WebRequestDedupDetails): void;
+    shouldSkipWebRequest(details: WebRequestDedupDetails, bytes: number, tabUrl?: string): boolean;
+    recordCountedWebRequest(details: WebRequestDedupDetails, bytes: number, tabUrl?: string): void;
+    consumeRecentWebRequestBytes(item: DownloadDedupItem): number;
 }
 
 export interface DownloadApi {
     onCreated: Pick<typeof chrome.downloads.onCreated, "addListener" | "removeListener">;
     onChanged: Pick<typeof chrome.downloads.onChanged, "addListener" | "removeListener">;
+    onErased?: Pick<typeof chrome.downloads.onErased, "addListener" | "removeListener">;
     search: (query: chrome.downloads.DownloadQuery) => Promise<chrome.downloads.DownloadItem[]>;
 }
 
 export interface DownloadTrackerDeps {
     downloads?: DownloadApi;
     pollIntervalMs?: number;
-    loadCheckpoints?: () => Promise<Map<number, number>>;
-    saveCheckpoints?: (checkpoints: ReadonlyMap<number, number>) => Promise<void>;
+    loadCheckpoints?: () => Promise<DownloadCheckpoint[]>;
+    commitProgress?: (batch: DownloadCommitBatch) => Promise<void>;
+    refreshBadge?: () => Promise<void>;
 }
 
 export interface DownloadTracker {
@@ -59,26 +86,50 @@ export interface DownloadTracker {
     dispose(): void;
 }
 
-interface ActiveDedupEntry {
+interface DownloadTransferProfile {
     urls: Set<string>;
+    totalBytes?: number;
+    mime?: string;
+    referrerOrigin?: Origin;
+    startTimeMs?: number;
+    endTimeMs?: number;
+}
+
+interface ActiveDedupEntry extends DownloadTransferProfile {
     webRequestMatched: boolean;
 }
 
-interface FinishedDedupEntry {
-    urls: Set<string>;
+interface FinishedDedupEntry extends DownloadTransferProfile {
     expiresAt: number;
 }
 
-interface RecentWebRequestEntry {
+interface WebRequestProfile {
     url: string;
+    type: WebRequestDedupDetails["type"];
+    bytes?: number;
+    mime?: string;
+    isCompressed: boolean;
+    initiatingOrigin?: Origin;
+    completedAtMs?: number;
+}
+
+interface RecentWebRequestEntry extends WebRequestProfile {
     bytes: number;
+    expiresAt: number;
+}
+
+interface RecentAttachmentEntry extends WebRequestProfile {
     expiresAt: number;
 }
 
 interface TrackedDownload {
     lastBytesReceived: number;
-    origin?: Origin;
+    origin: Origin;
     urls: Set<string>;
+    startTime: string;
+    referrer?: string;
+    mime?: string;
+    totalBytes?: number;
 }
 
 function toWebOrigin(url: string | undefined): Origin | undefined {
@@ -104,10 +155,14 @@ export function isAttachmentNavigation(
     details: Pick<chrome.webRequest.OnCompletedDetails, "type" | "responseHeaders">,
 ): boolean {
     if (details.type !== "main_frame" && details.type !== "sub_frame") return false;
-    const header = details.responseHeaders?.find(
-        (candidate) => candidate.name.toLowerCase() === CONTENT_DISPOSITION_HEADER,
+    return (
+        details.responseHeaders?.some(
+            (candidate) =>
+                candidate.name.toLowerCase() === CONTENT_DISPOSITION_HEADER &&
+                typeof candidate.value === "string" &&
+                ATTACHMENT_DISPOSITION_RE.test(candidate.value),
+        ) ?? false
     );
-    return typeof header?.value === "string" && ATTACHMENT_DISPOSITION_RE.test(header.value);
 }
 
 function isDownloadableRequestType(type: WebRequestDedupDetails["type"]): boolean {
@@ -133,6 +188,182 @@ function sanitizeBytes(value: number | undefined): number {
     return Math.min(Math.floor(value), MAX_SAFE_BYTES);
 }
 
+function toOptionalPositiveBytes(value: number | undefined): number | undefined {
+    const sanitized = sanitizeBytes(value);
+    return sanitized > 0 ? sanitized : undefined;
+}
+
+function normalizeMime(value: string | undefined): string | undefined {
+    if (!value) return undefined;
+    const base = value.split(";")[0]?.trim().toLowerCase();
+    return base ? base : undefined;
+}
+
+function parseTimestampMs(value: string | undefined): number | undefined {
+    if (!value) return undefined;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function getHeaderValue(
+    headers: chrome.webRequest.HttpHeader[] | undefined,
+    name: string,
+): string | undefined {
+    const match = headers?.find((header) => header.name.toLowerCase() === name);
+    return typeof match?.value === "string" ? match.value : undefined;
+}
+
+function hasNonIdentityEncoding(headers: chrome.webRequest.HttpHeader[] | undefined): boolean {
+    const value = getHeaderValue(headers, CONTENT_ENCODING_HEADER);
+    if (!value) return false;
+    return value
+        .split(",")
+        .map((part) => part.trim().toLowerCase())
+        .some((encoding) => encoding.length > 0 && encoding !== "identity");
+}
+
+function resolveRequestInitiatingOrigin(
+    details: WebRequestDedupDetails,
+    tabUrl?: string,
+): Origin | undefined {
+    if (details.type !== "main_frame") {
+        return (
+            toWebOrigin(tabUrl) ??
+            toWebOrigin(details.initiator) ??
+            toWebOrigin(details.originUrl) ??
+            toWebOrigin(details.documentUrl)
+        );
+    }
+    return (
+        toWebOrigin(details.initiator) ??
+        toWebOrigin(details.originUrl) ??
+        toWebOrigin(details.documentUrl)
+    );
+}
+
+function buildWebRequestProfile(
+    details: WebRequestDedupDetails,
+    bytes?: number,
+    tabUrl?: string,
+): WebRequestProfile {
+    const headerLength = toOptionalPositiveBytes(
+        Number(getHeaderValue(details.responseHeaders, CONTENT_LENGTH_HEADER)),
+    );
+    return {
+        url: details.url,
+        type: details.type,
+        bytes: toOptionalPositiveBytes(bytes) ?? headerLength,
+        mime: normalizeMime(getHeaderValue(details.responseHeaders, CONTENT_TYPE_HEADER)),
+        isCompressed: hasNonIdentityEncoding(details.responseHeaders),
+        initiatingOrigin: resolveRequestInitiatingOrigin(details, tabUrl),
+        completedAtMs:
+            typeof details.timeStamp === "number" &&
+            Number.isFinite(details.timeStamp) &&
+            details.timeStamp > 0
+                ? details.timeStamp
+                : undefined,
+    };
+}
+
+function buildDownloadProfile(item: DownloadDedupItem): DownloadTransferProfile {
+    return {
+        urls: new Set(collectNonEmptyUrls(item.urls)),
+        totalBytes: toOptionalPositiveBytes(item.totalBytes),
+        mime: normalizeMime(item.mime),
+        referrerOrigin: toWebOrigin(item.referrer),
+        startTimeMs: parseTimestampMs(item.startTime),
+        endTimeMs: parseTimestampMs(item.endTime),
+    };
+}
+
+function matchesTransfer(
+    download: DownloadTransferProfile,
+    request: WebRequestProfile,
+    mode: "skip" | "credit",
+): boolean {
+    if (!download.urls.has(request.url)) return false;
+
+    if (
+        download.totalBytes !== undefined &&
+        request.bytes !== undefined &&
+        !request.isCompressed &&
+        request.bytes !== download.totalBytes
+    ) {
+        return false;
+    }
+
+    if (download.mime && request.mime && download.mime !== request.mime) {
+        return false;
+    }
+
+    if (
+        download.referrerOrigin &&
+        request.initiatingOrigin &&
+        download.referrerOrigin !== request.initiatingOrigin
+    ) {
+        return false;
+    }
+
+    if (request.type === "main_frame" && download.referrerOrigin && !request.initiatingOrigin) {
+        return false;
+    }
+
+    if (download.startTimeMs !== undefined && request.completedAtMs !== undefined) {
+        if (mode === "credit") {
+            if (download.startTimeMs > request.completedAtMs + SAME_TRANSFER_START_SLACK_MS) {
+                return false;
+            }
+        } else if (request.completedAtMs < download.startTimeMs - SAME_TRANSFER_START_SLACK_MS) {
+            return false;
+        }
+    }
+
+    if (
+        mode === "skip" &&
+        download.endTimeMs !== undefined &&
+        request.completedAtMs !== undefined &&
+        request.completedAtMs > download.endTimeMs + FINISHED_MATCH_SLACK_MS
+    ) {
+        return false;
+    }
+
+    return true;
+}
+
+function toDedupItem(
+    item: chrome.downloads.DownloadItem,
+    extraUrls: ReadonlyArray<string | undefined> = [],
+): DownloadDedupItem {
+    return {
+        id: item.id,
+        urls: [...collectDownloadUrls(item), ...extraUrls],
+        referrer: item.referrer,
+        mime: item.mime,
+        totalBytes: item.totalBytes,
+        startTime: item.startTime,
+        endTime: item.endTime,
+    };
+}
+
+function addOriginBytes(usage: Record<Origin, number>, origin: Origin, bytes: number) {
+    if (bytes <= 0) return;
+    usage[origin] = addSafeBytes(usage[origin] ?? 0, bytes);
+}
+
+function computeDelta(
+    item: chrome.downloads.DownloadItem,
+    baseline: number,
+    isResume: boolean,
+): { delta: number; nextLastBytes: number } {
+    const received = sanitizeBytes(item.bytesReceived);
+    const effectiveBaseline = isResume && received < baseline ? 0 : baseline;
+    const delta = Math.max(0, received - effectiveBaseline);
+    return {
+        delta,
+        nextLastBytes: Math.max(effectiveBaseline, received),
+    };
+}
+
 export function createDownloadDeduplicator(
     options: DownloadDeduplicatorOptions = {},
 ): DownloadDeduplicator {
@@ -144,6 +375,7 @@ export function createDownloadDeduplicator(
     const activeById = new Map<number, ActiveDedupEntry>();
     const recentlyFinished: FinishedDedupEntry[] = [];
     const recentWebRequests: RecentWebRequestEntry[] = [];
+    const recentAttachments: RecentAttachmentEntry[] = [];
 
     function pruneExpired(currentTime: number) {
         while (recentlyFinished.length > 0 && recentlyFinished[0]!.expiresAt <= currentTime) {
@@ -152,35 +384,67 @@ export function createDownloadDeduplicator(
         while (recentWebRequests.length > 0 && recentWebRequests[0]!.expiresAt <= currentTime) {
             recentWebRequests.shift();
         }
+        while (recentAttachments.length > 0 && recentAttachments[0]!.expiresAt <= currentTime) {
+            recentAttachments.shift();
+        }
     }
 
-    function trackActiveDownload(downloadId: number, urls: ReadonlyArray<string | undefined>) {
-        const nonEmpty = collectNonEmptyUrls(urls);
-        const existing = activeById.get(downloadId);
+    function trackActiveDownload(item: DownloadDedupItem) {
+        const profile = buildDownloadProfile(item);
+        const existing = activeById.get(item.id);
         if (existing) {
-            for (const url of nonEmpty) existing.urls.add(url);
+            for (const url of profile.urls) existing.urls.add(url);
+            if (profile.totalBytes !== undefined) existing.totalBytes = profile.totalBytes;
+            if (profile.mime) existing.mime = profile.mime;
+            if (profile.referrerOrigin) existing.referrerOrigin = profile.referrerOrigin;
+            if (profile.startTimeMs !== undefined) existing.startTimeMs = profile.startTimeMs;
             return;
         }
-        activeById.set(downloadId, {
-            urls: new Set(nonEmpty),
-            webRequestMatched: false,
+
+        const currentTime = now();
+        pruneExpired(currentTime);
+        const attachmentIdx = recentAttachments.findIndex((entry) =>
+            matchesTransfer(profile, entry, "credit"),
+        );
+        const webRequestMatched = attachmentIdx !== -1;
+        if (webRequestMatched) {
+            recentAttachments.splice(attachmentIdx, 1);
+        }
+
+        activeById.set(item.id, {
+            ...profile,
+            webRequestMatched,
         });
     }
 
-    function finishDownload(downloadId: number, urls: ReadonlyArray<string | undefined> = []) {
-        const active = activeById.get(downloadId);
-        activeById.delete(downloadId);
+    function addDownloadUrls(downloadId: number, urls: ReadonlyArray<string | undefined>) {
+        const existing = activeById.get(downloadId);
+        if (!existing) return;
+        for (const url of collectNonEmptyUrls(urls)) {
+            existing.urls.add(url);
+        }
+    }
+
+    function finishDownload(item: DownloadDedupItem) {
+        const active = activeById.get(item.id);
+        activeById.delete(item.id);
 
         if (active?.webRequestMatched) return;
 
-        const merged = new Set<string>(active?.urls);
-        for (const url of collectNonEmptyUrls(urls)) merged.add(url);
-        if (merged.size === 0) return;
+        const profile = buildDownloadProfile(item);
+        const urls = new Set<string>(active?.urls);
+        for (const url of profile.urls) urls.add(url);
+        if (urls.size === 0) return;
 
         const currentTime = now();
         pruneExpired(currentTime);
         recentlyFinished.push({
-            urls: merged,
+            urls,
+            totalBytes: profile.totalBytes ?? active?.totalBytes,
+            mime: profile.mime ?? active?.mime,
+            referrerOrigin: profile.referrerOrigin ?? active?.referrerOrigin,
+            startTimeMs: profile.startTimeMs ?? active?.startTimeMs,
+            endTimeMs: profile.endTimeMs ?? currentTime,
             expiresAt: currentTime + finishedDownloadTtlMs,
         });
         if (recentlyFinished.length > MAX_RECENT_ENTRIES) {
@@ -188,41 +452,77 @@ export function createDownloadDeduplicator(
         }
     }
 
-    function shouldSkipWebRequest(details: WebRequestDedupDetails): boolean {
+    function cancelDownload(downloadId: number) {
+        activeById.delete(downloadId);
+    }
+
+    function recordAttachmentNavigation(details: WebRequestDedupDetails) {
+        if (!details.url) return;
+
+        const currentTime = now();
+        pruneExpired(currentTime);
+        const profile = buildWebRequestProfile(details);
+
+        for (const entry of activeById.values()) {
+            if (!entry.webRequestMatched && matchesTransfer(entry, profile, "skip")) {
+                entry.webRequestMatched = true;
+                return;
+            }
+        }
+
+        recentAttachments.push({
+            ...profile,
+            expiresAt: currentTime + recentWebRequestTtlMs,
+        });
+        if (recentAttachments.length > MAX_RECENT_ENTRIES) {
+            recentAttachments.splice(0, recentAttachments.length - MAX_RECENT_ENTRIES);
+        }
+    }
+
+    function shouldSkipWebRequest(
+        details: WebRequestDedupDetails,
+        bytes: number,
+        tabUrl?: string,
+    ): boolean {
         if (!isDownloadableRequestType(details.type)) return false;
 
         const currentTime = now();
         pruneExpired(currentTime);
+        const request = buildWebRequestProfile(details, bytes, tabUrl);
 
         for (const entry of activeById.values()) {
-            if (!entry.webRequestMatched && entry.urls.has(details.url)) {
+            if (!entry.webRequestMatched && matchesTransfer(entry, request, "skip")) {
                 entry.webRequestMatched = true;
                 return true;
             }
         }
 
-        const finishedIdx = recentlyFinished.findIndex((entry) => entry.urls.has(details.url));
+        const finishedIdx = recentlyFinished.findIndex((entry) =>
+            matchesTransfer(entry, request, "skip"),
+        );
         if (finishedIdx !== -1) {
             recentlyFinished.splice(finishedIdx, 1);
             return true;
         }
 
-        for (const entry of activeById.values()) {
-            if (entry.urls.has(details.url)) return true;
-        }
-
         return false;
     }
 
-    function recordCountedWebRequest(details: WebRequestDedupDetails, bytes: number) {
+    function recordCountedWebRequest(
+        details: WebRequestDedupDetails,
+        bytes: number,
+        tabUrl?: string,
+    ) {
         if (!isDownloadableRequestType(details.type)) return;
-        if (!details.url || !Number.isFinite(bytes) || bytes <= 0) return;
+        const safeBytes = toOptionalPositiveBytes(bytes);
+        if (!details.url || safeBytes === undefined) return;
 
         const currentTime = now();
         pruneExpired(currentTime);
+        const profile = buildWebRequestProfile(details, safeBytes, tabUrl);
         recentWebRequests.push({
-            url: details.url,
-            bytes: Math.min(Math.floor(bytes), MAX_SAFE_BYTES),
+            ...profile,
+            bytes: safeBytes,
             expiresAt: currentTime + recentWebRequestTtlMs,
         });
         if (recentWebRequests.length > MAX_RECENT_ENTRIES) {
@@ -230,28 +530,30 @@ export function createDownloadDeduplicator(
         }
     }
 
-    function consumeRecentWebRequestBytes(
-        downloadId: number,
-        urls: ReadonlyArray<string | undefined>,
-    ): number {
-        const candidates = collectNonEmptyUrls(urls);
-        if (candidates.length === 0) return 0;
+    function consumeRecentWebRequestBytes(item: DownloadDedupItem): number {
+        const profile = buildDownloadProfile(item);
+        if (profile.urls.size === 0) return 0;
 
         const currentTime = now();
         pruneExpired(currentTime);
 
-        const matchIdx = recentWebRequests.findIndex((entry) => candidates.includes(entry.url));
+        const matchIdx = recentWebRequests.findIndex((entry) =>
+            matchesTransfer(profile, entry, "credit"),
+        );
         if (matchIdx === -1) return 0;
 
         const [matched] = recentWebRequests.splice(matchIdx, 1);
-        const active = activeById.get(downloadId);
+        const active = activeById.get(item.id);
         if (active) active.webRequestMatched = true;
         return matched?.bytes ?? 0;
     }
 
     return {
         trackActiveDownload,
+        addDownloadUrls,
         finishDownload,
+        cancelDownload,
+        recordAttachmentNavigation,
         shouldSkipWebRequest,
         recordCountedWebRequest,
         consumeRecentWebRequestBytes,
@@ -265,11 +567,12 @@ export function createDownloadTracker(
 ): DownloadTracker {
     const downloads: DownloadApi = deps.downloads ?? chrome.downloads;
     const pollIntervalMs = deps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
-    const loadCheckpoints = deps.loadCheckpoints ?? loadDownloadCheckpoints;
-    const saveCheckpoints = deps.saveCheckpoints ?? saveDownloadCheckpoints;
+    const loadCheckpoints = deps.loadCheckpoints ?? getDownloadCheckpoints;
+    const commitProgress = deps.commitProgress ?? commitDownloadProgress;
+    const refreshBadge = deps.refreshBadge ?? refreshUsageBadge;
 
     const activeDownloads = new Map<number, TrackedDownload>();
-    const persistedCheckpoints = new Map<number, number>();
+    const checkpoints = new Map<number, DownloadCheckpoint>();
     const seenCreatedIds = new Set<number>();
 
     let pollTimerId: ReturnType<typeof setInterval> | undefined;
@@ -317,343 +620,585 @@ export function createDownloadTracker(
         }, pollIntervalMs);
     }
 
-    async function persistActiveCheckpoints() {
-        const snapshot = new Map<number, number>();
-        for (const [id, bytes] of persistedCheckpoints) {
-            snapshot.set(id, bytes);
+    function getMatchingCheckpoint(
+        item: Pick<chrome.downloads.DownloadItem, "id" | "startTime">,
+    ): DownloadCheckpoint | undefined {
+        const stored = checkpoints.get(item.id);
+        if (!stored) return undefined;
+        if (stored.startTime && item.startTime && stored.startTime !== item.startTime) {
+            return undefined;
         }
-        for (const [id, entry] of activeDownloads) {
-            snapshot.set(id, entry.lastBytesReceived);
-        }
-        await saveCheckpoints(snapshot);
+        return stored;
     }
 
-    async function flushIngestion(): Promise<boolean> {
+    function applyCommittedCheckpoints(upserts: DownloadCheckpoint[], deletes: number[]) {
+        for (const checkpoint of upserts) {
+            checkpoints.set(checkpoint.id, checkpoint);
+        }
+        for (const id of deletes) {
+            checkpoints.delete(id);
+        }
+    }
+
+    async function safeRefreshBadge() {
+        try {
+            await refreshBadge();
+        } catch (err) {
+            console.error("Failed to refresh usage badge:", err);
+        }
+    }
+
+    async function commitBatch(batch: DownloadCommitBatch): Promise<boolean> {
+        const hasUsage = Object.keys(batch.usage).length > 0;
+        if (!hasUsage && batch.upserts.length === 0 && batch.deletes.length === 0) {
+            return true;
+        }
+
+        try {
+            await commitProgress(batch);
+        } catch (err) {
+            console.error("Failed to commit download progress:", err);
+            return false;
+        }
+
+        applyCommittedCheckpoints(batch.upserts, batch.deletes);
+        if (hasUsage) {
+            await safeRefreshBadge();
+        }
+        return true;
+    }
+
+    async function flushIngestionForCredit(): Promise<boolean> {
         if (!ingestion.hasPendingUsage) return true;
         try {
             await ingestion.flush();
             return true;
         } catch (err) {
-            console.error("Failed to flush download usage:", err);
+            console.error("Failed to flush credited webRequest usage:", err);
             return false;
         }
     }
 
-    function recordProgress(item: chrome.downloads.DownloadItem, entry: TrackedDownload): number {
-        const received = sanitizeBytes(item.bytesReceived);
-        const delta = received - entry.lastBytesReceived;
-        if (delta <= 0) return 0;
-
-        entry.lastBytesReceived = received;
-        if (entry.origin) {
-            ingestion.bufferOriginUsage(entry.origin, delta);
-        }
-        return delta;
-    }
-
     async function safeSearch(
         query: chrome.downloads.DownloadQuery,
-    ): Promise<chrome.downloads.DownloadItem[]> {
+    ): Promise<chrome.downloads.DownloadItem[] | undefined> {
         try {
             return await downloads.search(query);
         } catch (err) {
             console.error("Failed to query browser downloads:", err);
-            return [];
+            return undefined;
         }
     }
 
+    function makeTrackedEntry(
+        item: chrome.downloads.DownloadItem,
+        origin: Origin,
+        lastBytesReceived: number,
+        existing?: TrackedDownload,
+    ): TrackedDownload {
+        const urls = new Set<string>(existing?.urls);
+        for (const url of collectDownloadUrls(item)) urls.add(url);
+        return {
+            lastBytesReceived,
+            origin,
+            urls,
+            startTime: item.startTime ?? existing?.startTime ?? "",
+            referrer: item.referrer || existing?.referrer,
+            mime: item.mime || existing?.mime,
+            totalBytes: item.totalBytes > 0 ? item.totalBytes : existing?.totalBytes,
+        };
+    }
+
     async function hydrateAndReconcile() {
-        const stored = await loadCheckpoints();
-        for (const [id, bytes] of stored) {
-            persistedCheckpoints.set(id, bytes);
+        let stored: DownloadCheckpoint[];
+        try {
+            stored = await loadCheckpoints();
+        } catch (err) {
+            console.error("Failed to load download checkpoints:", err);
+            return;
+        }
+
+        for (const checkpoint of stored) {
+            checkpoints.set(checkpoint.id, checkpoint);
         }
 
         const items = await safeSearch({ state: "in_progress" });
+        if (!items) return;
+
+        const batch: DownloadCommitBatch = { usage: {}, upserts: [], deletes: [] };
+        const postCommitActions: Array<() => void> = [];
         const inProgressIds = new Set<number>();
-        let checkpointsChanged = false;
-        let recordedAny = false;
 
         for (const item of items) {
             inProgressIds.add(item.id);
             const existing = activeDownloads.get(item.id);
-            if (existing) {
-                for (const url of collectDownloadUrls(item)) existing.urls.add(url);
-                deduplicator.trackActiveDownload(item.id, [...existing.urls]);
-                if (recordProgress(item, existing) > 0) {
-                    recordedAny = true;
-                    checkpointsChanged = true;
-                }
+            const matching = getMatchingCheckpoint(item);
+            const origin = resolveDownloadOrigin(item);
+
+            if (!origin) {
+                if (checkpoints.has(item.id)) batch.deletes.push(item.id);
+                postCommitActions.push(() => {
+                    activeDownloads.delete(item.id);
+                    deduplicator.cancelDownload(item.id);
+                });
                 continue;
             }
+
+            if (!existing && !matching && seenCreatedIds.has(item.id)) {
+                continue;
+            }
+
+            const isResume = matching?.state === "interrupted";
+            const baseline =
+                existing?.lastBytesReceived ??
+                matching?.bytesReceived ??
+                sanitizeBytes(item.bytesReceived);
+            const { delta, nextLastBytes } = computeDelta(item, baseline, isResume);
+
+            addOriginBytes(batch.usage, origin, delta);
+            if (
+                !matching ||
+                matching.state !== "in_progress" ||
+                matching.bytesReceived !== nextLastBytes ||
+                matching.startTime !== (item.startTime ?? "")
+            ) {
+                batch.upserts.push({
+                    id: item.id,
+                    startTime: item.startTime ?? "",
+                    bytesReceived: nextLastBytes,
+                    state: "in_progress",
+                });
+            }
+
+            const nextEntry = makeTrackedEntry(item, origin, nextLastBytes, existing);
+            postCommitActions.push(() => {
+                if (item.paused) {
+                    activeDownloads.delete(item.id);
+                    deduplicator.cancelDownload(item.id);
+                } else {
+                    activeDownloads.set(item.id, nextEntry);
+                    deduplicator.trackActiveDownload(toDedupItem(item, [...nextEntry.urls]));
+                }
+            });
+        }
+
+        for (const [id, checkpoint] of Array.from(checkpoints.entries())) {
+            if (inProgressIds.has(id) || activeDownloads.has(id)) continue;
+
+            const found = await safeSearch({ id });
+            if (!found) continue;
+
+            const [item] = found;
+            if (!item) {
+                batch.deletes.push(id);
+                continue;
+            }
+
+            if (checkpoint.startTime && item.startTime && checkpoint.startTime !== item.startTime) {
+                batch.deletes.push(id);
+                continue;
+            }
+
+            if (item.state === "in_progress") continue;
 
             const origin = resolveDownloadOrigin(item);
-            if (!origin) {
-                if (persistedCheckpoints.delete(item.id)) checkpointsChanged = true;
-                continue;
-            }
-
-            const checkpointBytes = persistedCheckpoints.get(item.id);
-            if (checkpointBytes !== undefined) {
-                persistedCheckpoints.delete(item.id);
-                const urls = collectDownloadUrls(item);
-                const entry: TrackedDownload = {
-                    lastBytesReceived: checkpointBytes,
-                    origin,
-                    urls: new Set(urls),
-                };
-                activeDownloads.set(item.id, entry);
-                deduplicator.trackActiveDownload(item.id, urls);
-                if (recordProgress(item, entry) > 0) recordedAny = true;
-                checkpointsChanged = true;
-                continue;
-            }
-
-            if (seenCreatedIds.has(item.id)) continue;
-
-            // Pre-existing download discovered after extension reload or fresh session:
-            // baseline at current bytesReceived so already-transferred bytes are not double-counted.
-            const urls = collectDownloadUrls(item);
-            const entry: TrackedDownload = {
-                lastBytesReceived: sanitizeBytes(item.bytesReceived),
-                origin,
-                urls: new Set(urls),
-            };
-            activeDownloads.set(item.id, entry);
-            deduplicator.trackActiveDownload(item.id, urls);
-            checkpointsChanged = true;
-        }
-
-        for (const [id, checkpointBytes] of Array.from(persistedCheckpoints.entries())) {
-            if (inProgressIds.has(id) || activeDownloads.has(id)) continue;
-            persistedCheckpoints.delete(id);
-            checkpointsChanged = true;
-
-            const [finished] = await safeSearch({ id });
-            if (!finished) continue;
-
-            const origin = resolveDownloadOrigin(finished);
-            const urls = collectDownloadUrls(finished);
+            const isResume = checkpoint.state === "interrupted";
+            const { delta, nextLastBytes } = computeDelta(item, checkpoint.bytesReceived, isResume);
             if (origin) {
-                const delta = sanitizeBytes(finished.bytesReceived) - checkpointBytes;
-                if (delta > 0) {
-                    ingestion.bufferOriginUsage(origin, delta);
-                    recordedAny = true;
-                }
+                addOriginBytes(batch.usage, origin, delta);
             }
-            deduplicator.finishDownload(id, urls);
+
+            if (item.state === "interrupted" && item.canResume && origin) {
+                if (
+                    checkpoint.state !== "interrupted" ||
+                    checkpoint.bytesReceived !== nextLastBytes
+                ) {
+                    batch.upserts.push({
+                        id,
+                        startTime: item.startTime ?? checkpoint.startTime,
+                        bytesReceived: nextLastBytes,
+                        state: "interrupted",
+                    });
+                }
+                if (checkpoint.state === "in_progress") {
+                    postCommitActions.push(() => {
+                        deduplicator.finishDownload(toDedupItem(item));
+                    });
+                }
+                continue;
+            }
+
+            batch.deletes.push(id);
+            if (checkpoint.state === "in_progress" && origin) {
+                postCommitActions.push(() => {
+                    deduplicator.finishDownload(toDedupItem(item));
+                });
+            }
         }
 
-        const flushed = !recordedAny || (await flushIngestion());
-        if (checkpointsChanged && flushed) await persistActiveCheckpoints();
-        if (activeDownloads.size > 0) ensurePolling();
+        const committed = await commitBatch(batch);
+        if (!committed) return;
+
+        for (const apply of postCommitActions) apply();
+        if (activeDownloads.size > 0) {
+            ensurePolling();
+        } else {
+            stopPollingIfIdle();
+        }
     }
 
     async function handleCreated(item: chrome.downloads.DownloadItem, recentWebBytes: number) {
-        const urls = collectDownloadUrls(item);
         const origin = resolveDownloadOrigin(item);
         if (!origin) {
             seenCreatedIds.delete(item.id);
-            deduplicator.finishDownload(item.id, urls);
-            if (persistedCheckpoints.delete(item.id)) {
-                await persistActiveCheckpoints();
+            deduplicator.cancelDownload(item.id);
+            if (checkpoints.has(item.id)) {
+                await commitBatch({ usage: {}, upserts: [], deletes: [item.id] });
             }
             return;
         }
 
-        const existing = activeDownloads.get(item.id);
-        const priorBytes = existing?.lastBytesReceived ?? persistedCheckpoints.get(item.id) ?? 0;
-        persistedCheckpoints.delete(item.id);
-
-        const entry: TrackedDownload = existing ?? {
-            lastBytesReceived: Math.max(priorBytes, recentWebBytes),
-            origin,
-            urls: new Set(urls),
-        };
-        if (recentWebBytes > entry.lastBytesReceived) {
-            entry.lastBytesReceived = recentWebBytes;
+        let effectiveCredit = 0;
+        if (recentWebBytes > 0) {
+            const creditFlushed = await flushIngestionForCredit();
+            if (!creditFlushed) {
+                if (item.state === "in_progress" && !item.paused) {
+                    activeDownloads.set(
+                        item.id,
+                        makeTrackedEntry(item, origin, 0, activeDownloads.get(item.id)),
+                    );
+                    ensurePolling();
+                }
+                return;
+            }
+            effectiveCredit = recentWebBytes;
         }
-        entry.origin = origin;
-        for (const url of urls) entry.urls.add(url);
 
-        const delta = recordProgress(item, entry);
+        const existing = activeDownloads.get(item.id);
+        const matching = getMatchingCheckpoint(item);
+        const priorBytes = existing?.lastBytesReceived ?? matching?.bytesReceived ?? 0;
+        const baseline = Math.max(priorBytes, effectiveCredit);
+        const { delta, nextLastBytes } = computeDelta(item, baseline, false);
 
-        const flushed = delta <= 0 || (await flushIngestion());
+        const isActive = item.state === "in_progress" && !item.paused;
+        const shouldKeepCheckpoint =
+            item.state === "in_progress" || (item.state === "interrupted" && item.canResume);
 
-        if (item.state === "in_progress") {
-            activeDownloads.set(item.id, entry);
-            if (flushed) await persistActiveCheckpoints();
+        const batch: DownloadCommitBatch = {
+            usage: {},
+            upserts: shouldKeepCheckpoint
+                ? [
+                      {
+                          id: item.id,
+                          startTime: item.startTime ?? "",
+                          bytesReceived: nextLastBytes,
+                          state: item.state === "interrupted" ? "interrupted" : "in_progress",
+                      },
+                  ]
+                : [],
+            deletes: shouldKeepCheckpoint ? [] : [item.id],
+        };
+        addOriginBytes(batch.usage, origin, delta);
+
+        const committed = await commitBatch(batch);
+        if (!committed) {
+            if (isActive) {
+                activeDownloads.set(item.id, makeTrackedEntry(item, origin, baseline, existing));
+                ensurePolling();
+            }
+            return;
+        }
+
+        const nextEntry = makeTrackedEntry(item, origin, nextLastBytes, existing);
+        if (isActive) {
+            activeDownloads.set(item.id, nextEntry);
+            deduplicator.trackActiveDownload(toDedupItem(item, [...nextEntry.urls]));
             ensurePolling();
             return;
         }
 
         activeDownloads.delete(item.id);
         seenCreatedIds.delete(item.id);
-        deduplicator.finishDownload(item.id, [...entry.urls]);
-        if (flushed) await persistActiveCheckpoints();
+        if (item.state === "complete" || item.state === "interrupted") {
+            deduplicator.finishDownload(toDedupItem(item, [...nextEntry.urls]));
+        } else {
+            deduplicator.cancelDownload(item.id);
+        }
         stopPollingIfIdle();
     }
 
     async function handleChanged(delta: chrome.downloads.DownloadDelta) {
-        const [item] = await safeSearch({ id: delta.id });
+        const found = await safeSearch({ id: delta.id });
+        if (!found) return;
+
+        const [item] = found;
         if (!item) {
             const removed = activeDownloads.get(delta.id);
-            const hadCheckpoint = persistedCheckpoints.delete(delta.id);
+            const hadCheckpoint = checkpoints.has(delta.id);
+            if (hadCheckpoint) {
+                const committed = await commitBatch({
+                    usage: {},
+                    upserts: [],
+                    deletes: [delta.id],
+                });
+                if (!committed) return;
+            }
             activeDownloads.delete(delta.id);
             seenCreatedIds.delete(delta.id);
-            deduplicator.finishDownload(delta.id, removed ? [...removed.urls] : []);
-            if (removed || hadCheckpoint) await persistActiveCheckpoints();
+            if (removed) {
+                deduplicator.finishDownload({
+                    id: delta.id,
+                    urls: [...removed.urls],
+                    referrer: removed.referrer,
+                    mime: removed.mime,
+                    totalBytes: removed.totalBytes,
+                    startTime: removed.startTime,
+                });
+            } else {
+                deduplicator.cancelDownload(delta.id);
+            }
             stopPollingIfIdle();
             return;
         }
 
-        const urls = collectDownloadUrls(item);
+        const existingActive = activeDownloads.get(item.id);
+        const matchingCheckpoint = getMatchingCheckpoint(item);
         const origin = resolveDownloadOrigin(item);
-        let entry = activeDownloads.get(item.id);
-
-        if (!entry) {
-            const checkpointBytes = persistedCheckpoints.get(item.id);
-            if (checkpointBytes !== undefined) {
-                persistedCheckpoints.delete(item.id);
-                if (!origin) {
-                    deduplicator.finishDownload(item.id, urls);
-                    await persistActiveCheckpoints();
-                    return;
-                }
-                entry = {
-                    lastBytesReceived: checkpointBytes,
-                    origin,
-                    urls: new Set(urls),
-                };
-                deduplicator.trackActiveDownload(item.id, urls);
-            } else if (delta.state?.current === "in_progress" && origin) {
-                entry = {
-                    lastBytesReceived: sanitizeBytes(item.bytesReceived),
-                    origin,
-                    urls: new Set(urls),
-                };
-                deduplicator.trackActiveDownload(item.id, urls);
-            } else {
-                deduplicator.finishDownload(item.id, urls);
-                return;
-            }
-        }
 
         if (!origin) {
+            if (checkpoints.has(item.id)) {
+                const committed = await commitBatch({
+                    usage: {},
+                    upserts: [],
+                    deletes: [item.id],
+                });
+                if (!committed) return;
+            }
             activeDownloads.delete(item.id);
             seenCreatedIds.delete(item.id);
-            deduplicator.finishDownload(item.id, [...entry.urls, ...urls]);
-            await persistActiveCheckpoints();
+            deduplicator.cancelDownload(item.id);
             stopPollingIfIdle();
             return;
         }
 
-        entry.origin = origin;
-        for (const url of urls) entry.urls.add(url);
-        deduplicator.trackActiveDownload(item.id, [...entry.urls]);
+        const isTransitionToActive =
+            delta.state?.current === "in_progress" || delta.paused?.current === false;
+        if (!existingActive && !matchingCheckpoint && !isTransitionToActive) {
+            deduplicator.cancelDownload(item.id);
+            return;
+        }
 
-        if (delta.finalUrl?.current && entry.lastBytesReceived === 0) {
-            const recentCredit = deduplicator.consumeRecentWebRequestBytes(item.id, [
-                delta.finalUrl.current,
-            ]);
-            if (recentCredit > entry.lastBytesReceived) {
-                entry.lastBytesReceived = recentCredit;
+        const isResume =
+            matchingCheckpoint?.state === "interrupted" ||
+            (delta.state?.previous === "interrupted" && delta.state.current === "in_progress");
+        let baseline =
+            existingActive?.lastBytesReceived ??
+            matchingCheckpoint?.bytesReceived ??
+            sanitizeBytes(item.bytesReceived);
+
+        if (delta.finalUrl?.current && baseline === 0) {
+            const recentCredit = deduplicator.consumeRecentWebRequestBytes(
+                toDedupItem(item, [delta.finalUrl.current]),
+            );
+            if (recentCredit > 0) {
+                const creditFlushed = await flushIngestionForCredit();
+                if (!creditFlushed) return;
+                baseline = Math.max(baseline, recentCredit);
             }
         }
 
-        if (
-            delta.state?.previous === "interrupted" &&
-            delta.state.current === "in_progress" &&
-            sanitizeBytes(item.bytesReceived) < entry.lastBytesReceived
-        ) {
-            entry.lastBytesReceived = 0;
-        }
+        const { delta: deltaBytes, nextLastBytes } = computeDelta(item, baseline, isResume);
+        const isActive = item.state === "in_progress" && !item.paused;
+        const shouldKeepCheckpoint =
+            item.state === "in_progress" || (item.state === "interrupted" && item.canResume);
 
-        const deltaBytes = recordProgress(item, entry);
-        const flushed = deltaBytes <= 0 || (await flushIngestion());
+        const nextCheckpointState = item.state === "interrupted" ? "interrupted" : "in_progress";
+        const needsUpsert =
+            shouldKeepCheckpoint &&
+            (!matchingCheckpoint ||
+                matchingCheckpoint.state !== nextCheckpointState ||
+                matchingCheckpoint.bytesReceived !== nextLastBytes ||
+                matchingCheckpoint.startTime !== (item.startTime ?? ""));
 
-        if (item.state === "complete" || item.state === "interrupted") {
-            activeDownloads.delete(item.id);
-            seenCreatedIds.delete(item.id);
-            deduplicator.finishDownload(item.id, [...entry.urls]);
-            if (flushed) await persistActiveCheckpoints();
-            stopPollingIfIdle();
+        const batch: DownloadCommitBatch = {
+            usage: {},
+            upserts: needsUpsert
+                ? [
+                      {
+                          id: item.id,
+                          startTime: item.startTime ?? "",
+                          bytesReceived: nextLastBytes,
+                          state: nextCheckpointState,
+                      },
+                  ]
+                : [],
+            deletes: !shouldKeepCheckpoint && checkpoints.has(item.id) ? [item.id] : [],
+        };
+        addOriginBytes(batch.usage, origin, deltaBytes);
+
+        const committed = await commitBatch(batch);
+        if (!committed) return;
+
+        const nextEntry = makeTrackedEntry(item, origin, nextLastBytes, existingActive);
+        if (isActive) {
+            activeDownloads.set(item.id, nextEntry);
+            deduplicator.trackActiveDownload(toDedupItem(item, [...nextEntry.urls]));
+            ensurePolling();
             return;
         }
 
-        activeDownloads.set(item.id, entry);
-        if (flushed && (deltaBytes > 0 || delta.state?.current === "in_progress")) {
-            await persistActiveCheckpoints();
+        activeDownloads.delete(item.id);
+        seenCreatedIds.delete(item.id);
+        if (item.state === "complete" || item.state === "interrupted") {
+            if (existingActive || matchingCheckpoint?.state === "in_progress") {
+                deduplicator.finishDownload(toDedupItem(item, [...nextEntry.urls]));
+            } else {
+                deduplicator.cancelDownload(item.id);
+            }
+        } else {
+            deduplicator.cancelDownload(item.id);
         }
-        ensurePolling();
+        stopPollingIfIdle();
+    }
+
+    async function handleErased(downloadId: number) {
+        if (!checkpoints.has(downloadId) && !activeDownloads.has(downloadId)) return;
+
+        if (checkpoints.has(downloadId)) {
+            const committed = await commitBatch({
+                usage: {},
+                upserts: [],
+                deletes: [downloadId],
+            });
+            if (!committed) return;
+        }
+
+        activeDownloads.delete(downloadId);
+        seenCreatedIds.delete(downloadId);
+        deduplicator.cancelDownload(downloadId);
+        stopPollingIfIdle();
     }
 
     async function pollInProgress() {
         const items = await safeSearch({ state: "in_progress" });
+        if (!items) return;
+
+        const batch: DownloadCommitBatch = { usage: {}, upserts: [], deletes: [] };
+        const postCommitActions: Array<() => void> = [];
         const seenInProgress = new Set<number>();
-        let checkpointsChanged = false;
-        let shouldFlush = false;
 
         for (const item of items) {
             seenInProgress.add(item.id);
-            let entry = activeDownloads.get(item.id);
+            const origin = resolveDownloadOrigin(item);
+            if (!origin) continue;
 
-            if (!entry) {
-                const origin = resolveDownloadOrigin(item);
-                if (!origin) continue;
-                const checkpointBytes = persistedCheckpoints.get(item.id);
-                persistedCheckpoints.delete(item.id);
-                const urls = collectDownloadUrls(item);
-                entry = {
-                    lastBytesReceived: checkpointBytes ?? sanitizeBytes(item.bytesReceived),
-                    origin,
-                    urls: new Set(urls),
-                };
-                activeDownloads.set(item.id, entry);
-                deduplicator.trackActiveDownload(item.id, urls);
-                checkpointsChanged = true;
-            } else {
-                const urls = collectDownloadUrls(item);
-                for (const url of urls) entry.urls.add(url);
-                deduplicator.trackActiveDownload(item.id, [...entry.urls]);
-                const refreshedOrigin = resolveDownloadOrigin(item);
-                if (refreshedOrigin) entry.origin = refreshedOrigin;
+            const existing = activeDownloads.get(item.id);
+            const matching = getMatchingCheckpoint(item);
+            if (!existing && !matching && seenCreatedIds.has(item.id)) continue;
+
+            const isResume = matching?.state === "interrupted";
+            const baseline =
+                existing?.lastBytesReceived ??
+                matching?.bytesReceived ??
+                sanitizeBytes(item.bytesReceived);
+            const { delta, nextLastBytes } = computeDelta(item, baseline, isResume);
+
+            addOriginBytes(batch.usage, origin, delta);
+            if (
+                !matching ||
+                matching.state !== "in_progress" ||
+                matching.bytesReceived !== nextLastBytes ||
+                matching.startTime !== (item.startTime ?? "")
+            ) {
+                batch.upserts.push({
+                    id: item.id,
+                    startTime: item.startTime ?? "",
+                    bytesReceived: nextLastBytes,
+                    state: "in_progress",
+                });
             }
 
-            if (recordProgress(item, entry) > 0) {
-                checkpointsChanged = true;
-                shouldFlush = true;
-            }
+            const nextEntry = makeTrackedEntry(item, origin, nextLastBytes, existing);
+            postCommitActions.push(() => {
+                if (item.paused) {
+                    activeDownloads.delete(item.id);
+                    deduplicator.cancelDownload(item.id);
+                } else {
+                    activeDownloads.set(item.id, nextEntry);
+                    deduplicator.trackActiveDownload(toDedupItem(item, [...nextEntry.urls]));
+                }
+            });
         }
 
         for (const [id, entry] of Array.from(activeDownloads.entries())) {
             if (seenInProgress.has(id)) continue;
 
-            const [finished] = await safeSearch({ id });
+            const found = await safeSearch({ id });
+            if (!found) continue;
+
+            const [finished] = found;
             if (finished?.state === "in_progress") continue;
 
             if (finished) {
-                for (const url of collectDownloadUrls(finished)) entry.urls.add(url);
-                if (recordProgress(finished, entry) > 0) {
-                    shouldFlush = true;
-                }
-            }
+                const origin = resolveDownloadOrigin(finished) ?? entry.origin;
+                const { delta, nextLastBytes } = computeDelta(
+                    finished,
+                    entry.lastBytesReceived,
+                    false,
+                );
+                addOriginBytes(batch.usage, origin, delta);
 
-            activeDownloads.delete(id);
-            seenCreatedIds.delete(id);
-            deduplicator.finishDownload(id, [...entry.urls]);
-            checkpointsChanged = true;
+                if (finished.state === "interrupted" && finished.canResume) {
+                    batch.upserts.push({
+                        id,
+                        startTime: finished.startTime ?? entry.startTime,
+                        bytesReceived: nextLastBytes,
+                        state: "interrupted",
+                    });
+                } else {
+                    batch.deletes.push(id);
+                }
+
+                postCommitActions.push(() => {
+                    activeDownloads.delete(id);
+                    seenCreatedIds.delete(id);
+                    deduplicator.finishDownload(toDedupItem(finished, [...entry.urls]));
+                });
+            } else {
+                batch.deletes.push(id);
+                postCommitActions.push(() => {
+                    activeDownloads.delete(id);
+                    seenCreatedIds.delete(id);
+                    deduplicator.finishDownload({
+                        id,
+                        urls: [...entry.urls],
+                        referrer: entry.referrer,
+                        mime: entry.mime,
+                        totalBytes: entry.totalBytes,
+                        startTime: entry.startTime,
+                    });
+                });
+            }
         }
 
-        const flushed = !shouldFlush || (await flushIngestion());
-        if (checkpointsChanged && flushed) await persistActiveCheckpoints();
-        stopPollingIfIdle();
+        const committed = await commitBatch(batch);
+        if (!committed) return;
+
+        for (const apply of postCommitActions) apply();
+        if (activeDownloads.size > 0) {
+            ensurePolling();
+        } else {
+            stopPollingIfIdle();
+        }
     }
 
     const onCreated = (item: chrome.downloads.DownloadItem) => {
         if (isDisposed) return;
-        const urls = collectDownloadUrls(item);
-        deduplicator.trackActiveDownload(item.id, urls);
-        const recentWebBytes = deduplicator.consumeRecentWebRequestBytes(item.id, urls);
+        if (!resolveDownloadOrigin(item)) return;
+
+        const dedupItem = toDedupItem(item);
+        deduplicator.trackActiveDownload(dedupItem);
+        const recentWebBytes = deduplicator.consumeRecentWebRequestBytes(dedupItem);
         seenCreatedIds.add(item.id);
         enqueue(() => handleCreated(item, recentWebBytes));
     };
@@ -662,7 +1207,7 @@ export function createDownloadTracker(
         if (isDisposed) return;
         const updatedUrls = collectNonEmptyUrls([delta.finalUrl?.current, delta.url?.current]);
         if (updatedUrls.length > 0) {
-            deduplicator.trackActiveDownload(delta.id, updatedUrls);
+            deduplicator.addDownloadUrls(delta.id, updatedUrls);
         }
 
         const nextState = delta.state?.current;
@@ -670,14 +1215,22 @@ export function createDownloadTracker(
             nextState === "complete" ||
             nextState === "interrupted" ||
             nextState === "in_progress" ||
+            delta.paused?.current !== undefined ||
+            delta.canResume?.current === false ||
             updatedUrls.length > 0
         ) {
             enqueue(() => handleChanged(delta));
         }
     };
 
+    const onErased = (downloadId: number) => {
+        if (isDisposed) return;
+        enqueue(() => handleErased(downloadId));
+    };
+
     downloads.onCreated.addListener(onCreated);
     downloads.onChanged.addListener(onChanged);
+    downloads.onErased?.addListener(onErased);
     enqueue(() => hydrateAndReconcile());
 
     return {
@@ -696,6 +1249,7 @@ export function createDownloadTracker(
             stopPolling();
             downloads.onCreated.removeListener(onCreated);
             downloads.onChanged.removeListener(onChanged);
+            downloads.onErased?.removeListener(onErased);
         },
     };
 }

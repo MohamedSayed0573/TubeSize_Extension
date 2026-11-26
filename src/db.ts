@@ -27,10 +27,26 @@ export type VideoMetadataInput = Omit<VideoMetadata, "videoKey"> & {
     mediaId: string;
 };
 
+type DownloadCheckpointState = "in_progress" | "interrupted";
+
+export interface DownloadCheckpoint {
+    id: number;
+    startTime: string;
+    bytesReceived: number;
+    state: DownloadCheckpointState;
+}
+
+export interface DownloadCommitBatch {
+    usage: Record<Origin, number>;
+    upserts: DownloadCheckpoint[];
+    deletes: number[];
+}
+
 class TubeSizeDatabase extends Dexie {
     siteUsage!: Table<SiteUsage, DateKey>;
     watchHistory!: Table<WatchHistory, DateKey>;
     videoMetaData!: Table<VideoMetadata, VideoKey>;
+    downloadCheckpoints!: Table<DownloadCheckpoint, number>;
 
     constructor() {
         super("TubeSize");
@@ -38,6 +54,12 @@ class TubeSizeDatabase extends Dexie {
             siteUsage: "day",
             watchHistory: "day",
             videoMetaData: "videoKey",
+        });
+        this.version(2).stores({
+            siteUsage: "day",
+            watchHistory: "day",
+            videoMetaData: "videoKey",
+            downloadCheckpoints: "id",
         });
     }
 }
@@ -160,14 +182,101 @@ export async function getVideoMetadataByVideoKey(videoKey: VideoKey | VideoKey[]
         : database.videoMetaData.get(videoKey);
 }
 
+export async function getDownloadCheckpoints(): Promise<DownloadCheckpoint[]> {
+    const stored = await database.downloadCheckpoints.toArray();
+    const valid: DownloadCheckpoint[] = [];
+    for (const checkpoint of stored) {
+        if (
+            Number.isSafeInteger(checkpoint.id) &&
+            checkpoint.id >= 0 &&
+            typeof checkpoint.startTime === "string" &&
+            typeof checkpoint.bytesReceived === "number" &&
+            Number.isFinite(checkpoint.bytesReceived) &&
+            checkpoint.bytesReceived >= 0 &&
+            (checkpoint.state === "in_progress" || checkpoint.state === "interrupted")
+        ) {
+            valid.push({
+                id: checkpoint.id,
+                startTime: checkpoint.startTime,
+                bytesReceived: Math.min(Math.floor(checkpoint.bytesReceived), MAX_SAFE_BYTES),
+                state: checkpoint.state,
+            });
+        }
+    }
+    return valid;
+}
+
+export async function commitDownloadProgress(batch: DownloadCommitBatch) {
+    const validUsage: Array<[Origin, number]> = [];
+    for (const [origin, bytes] of typedEntries(batch.usage)) {
+        const clamped = addSafeBytes(0, bytes);
+        if (clamped > 0) validUsage.push([origin, clamped]);
+    }
+
+    const validUpserts: DownloadCheckpoint[] = [];
+    for (const checkpoint of batch.upserts) {
+        if (!Number.isSafeInteger(checkpoint.id) || checkpoint.id < 0) continue;
+        validUpserts.push({
+            id: checkpoint.id,
+            startTime: checkpoint.startTime,
+            bytesReceived: addSafeBytes(0, Math.floor(checkpoint.bytesReceived)),
+            state: checkpoint.state,
+        });
+    }
+
+    const validDeletes = batch.deletes.filter((id) => Number.isSafeInteger(id) && id >= 0);
+
+    if (validUsage.length === 0 && validUpserts.length === 0 && validDeletes.length === 0) {
+        return;
+    }
+
+    const day = getDateKey();
+
+    await database.transaction(
+        "readwrite",
+        [database.siteUsage, database.downloadCheckpoints],
+        async () => {
+            if (validUsage.length > 0) {
+                const existing = await database.siteUsage.get(day);
+                if (existing) {
+                    for (const [origin, bytes] of validUsage) {
+                        existing.usage[origin] = addSafeBytes(existing.usage[origin] ?? 0, bytes);
+                    }
+                    await database.siteUsage.put(existing);
+                } else {
+                    const usage: Record<Origin, number> = {};
+                    for (const [origin, bytes] of validUsage) {
+                        usage[origin] = bytes;
+                    }
+                    await database.siteUsage.add({ day, usage });
+                }
+            }
+
+            if (validUpserts.length > 0) {
+                await database.downloadCheckpoints.bulkPut(validUpserts);
+            }
+
+            if (validDeletes.length > 0) {
+                await database.downloadCheckpoints.bulkDelete(validDeletes);
+            }
+        },
+    );
+}
+
 export async function clearDatabaseData() {
     await database.transaction(
         "readwrite",
-        [database.siteUsage, database.watchHistory, database.videoMetaData],
+        [
+            database.siteUsage,
+            database.watchHistory,
+            database.videoMetaData,
+            database.downloadCheckpoints,
+        ],
         async () => {
             await database.siteUsage.clear();
             await database.watchHistory.clear();
             await database.videoMetaData.clear();
+            await database.downloadCheckpoints.clear();
         },
     );
 }

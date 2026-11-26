@@ -3,7 +3,13 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { toOrigin } from "@lib/domain";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
-import { clearDatabaseData, getAllSiteUsage, getAllWatchHistory } from "@/db";
+import {
+    clearDatabaseData,
+    commitDownloadProgress,
+    getAllSiteUsage,
+    getAllWatchHistory,
+    getDownloadCheckpoints,
+} from "@/db";
 import {
     createDownloadDeduplicator,
     createDownloadTracker,
@@ -24,6 +30,9 @@ function origin(url: string) {
     return parsed;
 }
 
+const DEFAULT_TIME_ISO = "2026-11-25T00:00:00.000Z";
+const DEFAULT_TIME_MS = Date.parse(DEFAULT_TIME_ISO);
+
 function makeDownloadItem(
     overrides: Partial<chrome.downloads.DownloadItem> & { id: number },
 ): chrome.downloads.DownloadItem {
@@ -39,7 +48,7 @@ function makeDownloadItem(
         mime: "application/octet-stream",
         paused: false,
         referrer: "",
-        startTime: "2026-11-25T00:00:00.000Z",
+        startTime: DEFAULT_TIME_ISO,
         state: "in_progress",
         totalBytes: -1,
         url: "https://cdn.example.com/file.bin",
@@ -58,7 +67,7 @@ function makeWebRequestDetails(
         parentFrameId: -1,
         requestId: "req-1",
         tabId: 1,
-        timeStamp: 1_700_000_000_000,
+        timeStamp: DEFAULT_TIME_MS,
         type: "main_frame",
         url: "https://cdn.example.com/file.bin",
         fromCache: false,
@@ -72,6 +81,8 @@ class FakeDownloadsController {
     readonly items = new Map<number, chrome.downloads.DownloadItem>();
     private readonly createdListeners = new Set<(item: chrome.downloads.DownloadItem) => void>();
     private readonly changedListeners = new Set<(delta: chrome.downloads.DownloadDelta) => void>();
+    private readonly erasedListeners = new Set<(downloadId: number) => void>();
+    searchError: Error | undefined;
 
     readonly api: DownloadApi = {
         onCreated: {
@@ -90,7 +101,18 @@ class FakeDownloadsController {
                 this.changedListeners.delete(cb);
             },
         },
+        onErased: {
+            addListener: (cb) => {
+                this.erasedListeners.add(cb);
+            },
+            removeListener: (cb) => {
+                this.erasedListeners.delete(cb);
+            },
+        },
         search: async (query) => {
+            if (this.searchError) {
+                throw this.searchError;
+            }
             const results: chrome.downloads.DownloadItem[] = [];
             for (const item of this.items.values()) {
                 if (query.id !== undefined && item.id !== query.id) continue;
@@ -114,6 +136,11 @@ class FakeDownloadsController {
 
     emitChanged(delta: chrome.downloads.DownloadDelta) {
         for (const cb of this.changedListeners) cb(delta);
+    }
+
+    emitErased(id: number) {
+        this.items.delete(id);
+        for (const cb of this.erasedListeners) cb(id);
     }
 }
 
@@ -396,7 +423,7 @@ describe("createDownloadTracker", () => {
         expect(await getAllSiteUsage()).toEqual([]);
     });
 
-    test("resumes from session checkpoints after MV3 service worker restart without double-counting", async () => {
+    test("resumes from IndexedDB checkpoints after MV3 service worker restart without double-counting", async () => {
         const fakeDownloads = new FakeDownloadsController();
         const ingestion1 = createUsageIngestion();
         const tracker1 = createDownloadTracker(ingestion1, createDownloadDeduplicator(), {
@@ -436,7 +463,7 @@ describe("createDownloadTracker", () => {
         fakeDownloads.updateItem(10, { bytesReceived: 70_000, state: "in_progress" });
         fakeDownloads.updateItem(11, { bytesReceived: 40_000, state: "complete" });
 
-        // Restart SW with fresh in-memory ingestion & tracker (session storage persists!).
+        // Restart SW with fresh in-memory ingestion & tracker (IndexedDB checkpoints persist).
         const ingestion2 = createUsageIngestion();
         const tracker2 = createDownloadTracker(ingestion2, createDownloadDeduplicator(), {
             downloads: fakeDownloads.api,
@@ -467,7 +494,7 @@ describe("createDownloadTracker", () => {
 
     test("baselines pre-existing downloads re-discovered without checkpoints so prior bytes are not double-counted", async () => {
         const fakeDownloads = new FakeDownloadsController();
-        // Download was already at 60_000 bytes before extension loaded (no session checkpoint).
+        // Download was already at 60_000 bytes before extension loaded (no stored checkpoint).
         fakeDownloads.items.set(
             20,
             makeDownloadItem({
@@ -686,7 +713,7 @@ describe("webRequest.onCompleted deduplication", () => {
     });
 
     test("skips late webRequest.onCompleted after download finishes, evicts after TTL, and never suppresses XHR", async () => {
-        let nowMs = 1_000_000;
+        let nowMs = DEFAULT_TIME_MS;
         const fakeDownloads = new FakeDownloadsController();
         const ingestion = createUsageIngestion();
         const deduplicator = createDownloadDeduplicator({
@@ -814,5 +841,688 @@ describe("webRequest.onCompleted deduplication", () => {
         expect((await getAllSiteUsage())[0]?.usage).toEqual({
             [origin("https://example.com")]: 88_000,
         });
+    });
+
+    test("counts separate transfers to the same URL when a user views a PDF then downloads it later", async () => {
+        let nowMs = DEFAULT_TIME_MS;
+        const fakeDownloads = new FakeDownloadsController();
+        const ingestion = createUsageIngestion();
+        const deduplicator = createDownloadDeduplicator({ now: () => nowMs });
+        const tracker = createDownloadTracker(ingestion, deduplicator, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 1_000,
+        });
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/report.pdf" });
+
+        // User loads the PDF inline in a tab.
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "main_frame",
+                url: "https://example.com/report.pdf",
+                timeStamp: nowMs,
+                responseHeaders: [
+                    { name: "Content-Length", value: "50000" },
+                    { name: "Content-Type", value: "application/pdf" },
+                ],
+            }),
+            deduplicator,
+        );
+
+        // Two seconds later, user saves the same URL, triggering a second network transfer.
+        nowMs += 2_000;
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 51,
+                url: "https://example.com/report.pdf",
+                finalUrl: "https://example.com/report.pdf",
+                referrer: "https://example.com/report.pdf",
+                mime: "application/pdf",
+                startTime: new Date(nowMs).toISOString(),
+                bytesReceived: 0,
+                totalBytes: 50_000,
+                state: "in_progress",
+            }),
+        );
+        fakeDownloads.updateItem(51, { bytesReceived: 50_000, state: "complete" });
+        fakeDownloads.emitChanged({
+            id: 51,
+            state: { previous: "in_progress", current: "complete" },
+        });
+        await tracker.whenIdle();
+        await ingestion.flush();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 100_000,
+        });
+    });
+
+    test("does not suppress separate navigations to an active download URL", async () => {
+        const fakeDownloads = new FakeDownloadsController();
+        const ingestion = createUsageIngestion();
+        const deduplicator = createDownloadDeduplicator();
+        const tracker = createDownloadTracker(ingestion, deduplicator, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 1_000,
+        });
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        const filesTab = await fakeBrowser.tabs.create({ url: "https://example.com/files" });
+        const navTab = await fakeBrowser.tabs.create({ url: "https://example.com/report.pdf" });
+
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 52,
+                url: "https://example.com/report.pdf",
+                finalUrl: "https://example.com/report.pdf",
+                referrer: "https://example.com/files",
+                mime: "application/pdf",
+                bytesReceived: 10_000,
+                totalBytes: 50_000,
+                state: "in_progress",
+            }),
+        );
+        await tracker.whenIdle();
+
+        // The download's own webRequest matches once.
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: filesTab.id,
+                type: "other",
+                url: "https://example.com/report.pdf",
+                responseHeaders: [
+                    { name: "Content-Length", value: "50000" },
+                    { name: "Content-Type", value: "application/pdf" },
+                ],
+            }),
+            deduplicator,
+        );
+
+        // A separate main_frame navigation to the same URL while the download is active IS counted.
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: navTab.id,
+                type: "main_frame",
+                url: "https://example.com/report.pdf",
+                responseHeaders: [
+                    { name: "Content-Length", value: "50000" },
+                    { name: "Content-Type", value: "application/pdf" },
+                ],
+            }),
+            deduplicator,
+        );
+
+        fakeDownloads.updateItem(52, { bytesReceived: 50_000, state: "complete" });
+        fakeDownloads.emitChanged({
+            id: 52,
+            state: { previous: "in_progress", current: "complete" },
+        });
+        await tracker.whenIdle();
+        await ingestion.flush();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 100_000,
+        });
+    });
+
+    test("does not suppress inline navigation after an attachment download to the same URL", async () => {
+        const fakeDownloads = new FakeDownloadsController();
+        const ingestion = createUsageIngestion();
+        const deduplicator = createDownloadDeduplicator();
+        const tracker = createDownloadTracker(ingestion, deduplicator, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 1_000,
+        });
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/doc" });
+        const url = "https://example.com/doc";
+
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "main_frame",
+                url,
+                initiator: "https://example.com",
+                responseHeaders: [
+                    { name: "Content-Disposition", value: 'attachment; filename="doc.pdf"' },
+                    { name: "Content-Length", value: "60000" },
+                    { name: "Content-Type", value: "application/pdf" },
+                ],
+            }),
+            deduplicator,
+        );
+
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 53,
+                url,
+                finalUrl: url,
+                referrer: "https://example.com/files",
+                mime: "application/pdf",
+                bytesReceived: 60_000,
+                totalBytes: 60_000,
+                state: "complete",
+            }),
+        );
+        await tracker.whenIdle();
+
+        // Separate inline navigation to the same URL right after attachment download is counted.
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "main_frame",
+                url,
+                initiator: "https://example.com",
+                responseHeaders: [
+                    { name: "Content-Length", value: "60000" },
+                    { name: "Content-Type", value: "application/pdf" },
+                ],
+            }),
+            deduplicator,
+        );
+        await ingestion.flush();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 120_000,
+        });
+    });
+
+    test("does not pollute deduplicator when an extension downloads a web URL", async () => {
+        const fakeDownloads = new FakeDownloadsController();
+        const ingestion = createUsageIngestion();
+        const deduplicator = createDownloadDeduplicator();
+        const tracker = createDownloadTracker(ingestion, deduplicator, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 1_000,
+        });
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/report.json" });
+
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 54,
+                url: "https://example.com/report.json",
+                finalUrl: "https://example.com/report.json",
+                referrer: "chrome-extension://abcdef/popup.html",
+                bytesReceived: 25_000,
+                totalBytes: 25_000,
+                state: "complete",
+            }),
+        );
+        await tracker.whenIdle();
+
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "main_frame",
+                url: "https://example.com/report.json",
+                responseHeaders: [{ name: "Content-Length", value: "25000" }],
+            }),
+            deduplicator,
+        );
+        await ingestion.flush();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 25_000,
+        });
+    });
+
+    test("does not consume a download dedup slot for requests without Content-Length", async () => {
+        const fakeDownloads = new FakeDownloadsController();
+        const ingestion = createUsageIngestion();
+        const deduplicator = createDownloadDeduplicator();
+        const tracker = createDownloadTracker(ingestion, deduplicator, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 1_000,
+        });
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/files" });
+        const url = "https://example.com/late.bin";
+
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 55,
+                url,
+                finalUrl: url,
+                referrer: "https://example.com/files",
+                bytesReceived: 40_000,
+                totalBytes: 40_000,
+                state: "complete",
+            }),
+        );
+        await tracker.whenIdle();
+
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "other",
+                url,
+                responseHeaders: [],
+            }),
+            deduplicator,
+        );
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "other",
+                url,
+                responseHeaders: [{ name: "Content-Length", value: "40000" }],
+            }),
+            deduplicator,
+        );
+        await ingestion.flush();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 40_000,
+        });
+    });
+
+    test("flushes credited webRequest usage before persisting checkpoint so SW restart never loses credited bytes", async () => {
+        const fakeDownloads = new FakeDownloadsController();
+        const ingestion1 = createUsageIngestion();
+        const deduplicator1 = createDownloadDeduplicator();
+        const tracker1 = createDownloadTracker(ingestion1, deduplicator1, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 1_000,
+        });
+        await tracker1.whenIdle();
+
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/page" });
+        await trackRequest(
+            ingestion1,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "other",
+                url: "https://example.com/fast.bin",
+                responseHeaders: [{ name: "Content-Length", value: "90000" }],
+            }),
+            deduplicator1,
+        );
+
+        // Do NOT manually flush ingestion1 before downloads.onCreated or SW termination.
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 56,
+                url: "https://example.com/fast.bin",
+                finalUrl: "https://example.com/fast.bin",
+                referrer: "https://example.com/page",
+                bytesReceived: 0,
+                totalBytes: 90_000,
+                state: "in_progress",
+            }),
+        );
+        await tracker1.whenIdle();
+        tracker1.dispose();
+
+        fakeDownloads.updateItem(56, { bytesReceived: 90_000, state: "complete" });
+        const tracker2 = createDownloadTracker(
+            createUsageIngestion(),
+            createDownloadDeduplicator(),
+            {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 1_000,
+            },
+        );
+        cleanups.push(() => tracker2.dispose());
+        await tracker2.whenIdle();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 90_000,
+        });
+    });
+});
+
+describe("downloadTracker durability, resume, pause, and error resilience", () => {
+    test("never double-counts on SW restart when refreshBadge throws or retries after atomic commit failure", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        const fakeDownloads = new FakeDownloadsController();
+        let failCommit = true;
+        let failBadge = false;
+
+        const tracker1 = createDownloadTracker(
+            createUsageIngestion(),
+            createDownloadDeduplicator(),
+            {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 1_000,
+                commitProgress: async (batch) => {
+                    if (failCommit) throw new Error("transient IDB failure");
+                    await commitDownloadProgress(batch);
+                },
+                refreshBadge: async () => {
+                    if (failBadge) throw new Error("badge unavailable");
+                },
+            },
+        );
+        await tracker1.whenIdle();
+
+        // Initial commit fails transiently; tracker keeps lastBytesReceived at 0 and retries on next event.
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 60,
+                url: "https://cdn.example.com/retry.bin",
+                bytesReceived: 40_000,
+                totalBytes: 100_000,
+                state: "in_progress",
+            }),
+        );
+        await tracker1.whenIdle();
+        expect(await getAllSiteUsage()).toEqual([]);
+        expect(tracker1.activeCount).toBe(1);
+
+        // Next update commits atomically even though refreshBadge throws afterward.
+        failCommit = false;
+        failBadge = true;
+        fakeDownloads.updateItem(60, { bytesReceived: 40_000, state: "in_progress" });
+        fakeDownloads.emitChanged({
+            id: 60,
+            state: { previous: "in_progress", current: "in_progress" },
+        });
+        await tracker1.whenIdle();
+        tracker1.dispose();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://cdn.example.com")]: 40_000,
+        });
+
+        // Restart SW: download finished at 100_000 -> only the remaining 60_000 is counted.
+        fakeDownloads.updateItem(60, { bytesReceived: 100_000, state: "complete" });
+        const tracker2 = createDownloadTracker(
+            createUsageIngestion(),
+            createDownloadDeduplicator(),
+            {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 1_000,
+            },
+        );
+        cleanups.push(() => tracker2.dispose());
+        await tracker2.whenIdle();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://cdn.example.com")]: 100_000,
+        });
+        expect(await getDownloadCheckpoints()).toEqual([]);
+    });
+
+    test("preserves checkpoints for resumable interrupted downloads without polling and counts resumed bytes", async () => {
+        const fakeDownloads = new FakeDownloadsController();
+        const tracker1 = createDownloadTracker(
+            createUsageIngestion(),
+            createDownloadDeduplicator(),
+            {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 1_000,
+            },
+        );
+        await tracker1.whenIdle();
+
+        // Download #61 reaches 60_000 then is interrupted (canResume: true).
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 61,
+                url: "https://cdn.example.com/resumable.bin",
+                bytesReceived: 60_000,
+                totalBytes: 100_000,
+                canResume: true,
+                state: "in_progress",
+            }),
+        );
+        await tracker1.whenIdle();
+
+        fakeDownloads.updateItem(61, {
+            state: "interrupted",
+            canResume: true,
+            bytesReceived: 60_000,
+        });
+        fakeDownloads.emitChanged({
+            id: 61,
+            state: { previous: "in_progress", current: "interrupted" },
+        });
+        await tracker1.whenIdle();
+
+        expect(tracker1.activeCount).toBe(0);
+        expect(tracker1.isPolling).toBe(false);
+        expect(await getDownloadCheckpoints()).toHaveLength(1);
+
+        // Simulate SW restart while interrupted: polling stays inactive and checkpoint remains.
+        tracker1.dispose();
+        const tracker2 = createDownloadTracker(
+            createUsageIngestion(),
+            createDownloadDeduplicator(),
+            {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 1_000,
+            },
+        );
+        cleanups.push(() => tracker2.dispose());
+        await tracker2.whenIdle();
+
+        expect(tracker2.activeCount).toBe(0);
+        expect(tracker2.isPolling).toBe(false);
+
+        // User resumes #61 and it already reached 80_000 before search returns -> 20_000 delta counted.
+        fakeDownloads.updateItem(61, { state: "in_progress", bytesReceived: 80_000 });
+        fakeDownloads.emitChanged({
+            id: 61,
+            state: { previous: "interrupted", current: "in_progress" },
+        });
+        await tracker2.whenIdle();
+        expect(tracker2.activeCount).toBe(1);
+        expect(tracker2.isPolling).toBe(true);
+
+        // Completes at 100_000 -> final 20_000 delta counted.
+        fakeDownloads.updateItem(61, { state: "complete", bytesReceived: 100_000 });
+        fakeDownloads.emitChanged({
+            id: 61,
+            state: { previous: "in_progress", current: "complete" },
+        });
+        await tracker2.whenIdle();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://cdn.example.com")]: 100_000,
+        });
+        expect(await getDownloadCheckpoints()).toEqual([]);
+        expect(tracker2.isPolling).toBe(false);
+    });
+
+    test("counts restarted transfer from zero when a resumed download cannot use Range requests", async () => {
+        const fakeDownloads = new FakeDownloadsController();
+        const tracker = createDownloadTracker(
+            createUsageIngestion(),
+            createDownloadDeduplicator(),
+            {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 1_000,
+            },
+        );
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 62,
+                url: "https://cdn.example.com/no-range.bin",
+                bytesReceived: 60_000,
+                totalBytes: 100_000,
+                canResume: true,
+                state: "in_progress",
+            }),
+        );
+        await tracker.whenIdle();
+
+        fakeDownloads.updateItem(62, {
+            state: "interrupted",
+            canResume: true,
+            bytesReceived: 60_000,
+        });
+        fakeDownloads.emitChanged({
+            id: 62,
+            state: { previous: "in_progress", current: "interrupted" },
+        });
+        await tracker.whenIdle();
+
+        // Server restarts from 0 and already delivered 20_000 before search returns.
+        fakeDownloads.updateItem(62, { state: "in_progress", bytesReceived: 20_000 });
+        fakeDownloads.emitChanged({
+            id: 62,
+            state: { previous: "interrupted", current: "in_progress" },
+        });
+        await tracker.whenIdle();
+
+        fakeDownloads.updateItem(62, { state: "complete", bytesReceived: 100_000 });
+        fakeDownloads.emitChanged({
+            id: 62,
+            state: { previous: "in_progress", current: "complete" },
+        });
+        await tracker.whenIdle();
+
+        // 60_000 before interruption + 100_000 full redownload = 160_000 actual wire bytes.
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://cdn.example.com")]: 160_000,
+        });
+    });
+
+    test("stops polling while a download is paused and resumes counting when unpaused or cleans up when erased", async () => {
+        const fakeDownloads = new FakeDownloadsController();
+        const tracker = createDownloadTracker(
+            createUsageIngestion(),
+            createDownloadDeduplicator(),
+            {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 1_000,
+            },
+        );
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 63,
+                url: "https://cdn.example.com/pausable.bin",
+                bytesReceived: 15_000,
+                totalBytes: 100_000,
+                paused: false,
+                state: "in_progress",
+            }),
+        );
+        await tracker.whenIdle();
+        expect(tracker.isPolling).toBe(true);
+
+        fakeDownloads.updateItem(63, { paused: true, canResume: true, bytesReceived: 25_000 });
+        fakeDownloads.emitChanged({
+            id: 63,
+            paused: { previous: false, current: true },
+        });
+        await tracker.whenIdle();
+
+        expect(tracker.activeCount).toBe(0);
+        expect(tracker.isPolling).toBe(false);
+        expect(await getDownloadCheckpoints()).toHaveLength(1);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://cdn.example.com")]: 25_000,
+        });
+
+        // Unpause and receive more bytes.
+        fakeDownloads.updateItem(63, { paused: false, bytesReceived: 45_000 });
+        fakeDownloads.emitChanged({
+            id: 63,
+            paused: { previous: true, current: false },
+        });
+        await tracker.whenIdle();
+        expect(tracker.activeCount).toBe(1);
+        expect(tracker.isPolling).toBe(true);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://cdn.example.com")]: 45_000,
+        });
+
+        // Pause again, then erase from browser history -> checkpoint is cleaned up.
+        fakeDownloads.updateItem(63, { paused: true });
+        fakeDownloads.emitChanged({
+            id: 63,
+            paused: { previous: false, current: true },
+        });
+        await tracker.whenIdle();
+
+        fakeDownloads.emitErased(63);
+        await tracker.whenIdle();
+        expect(await getDownloadCheckpoints()).toEqual([]);
+        expect(tracker.isPolling).toBe(false);
+    });
+
+    test("preserves active downloads, checkpoints, and polling across transient downloads.search errors", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        const fakeDownloads = new FakeDownloadsController();
+        const tracker = createDownloadTracker(
+            createUsageIngestion(),
+            createDownloadDeduplicator(),
+            {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 15,
+            },
+        );
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 64,
+                url: "https://cdn.example.com/flaky.bin",
+                bytesReceived: 10_000,
+                totalBytes: 100_000,
+                state: "in_progress",
+            }),
+        );
+        await tracker.whenIdle();
+
+        // Transient query error during both handleChanged and polling must not drop the download.
+        fakeDownloads.searchError = new Error("transient search failure");
+        fakeDownloads.emitChanged({
+            id: 64,
+            finalUrl: { previous: "", current: "https://cdn.example.com/flaky.bin" },
+        });
+        await new Promise((resolve) => setTimeout(resolve, 40));
+        await tracker.whenIdle();
+
+        expect(tracker.activeCount).toBe(1);
+        expect(tracker.isPolling).toBe(true);
+        expect(await getDownloadCheckpoints()).toHaveLength(1);
+
+        // Once search recovers, remaining bytes are counted and download completes cleanly.
+        fakeDownloads.searchError = undefined;
+        fakeDownloads.updateItem(64, { bytesReceived: 100_000, state: "complete" });
+        fakeDownloads.emitChanged({
+            id: 64,
+            state: { previous: "in_progress", current: "complete" },
+        });
+        await tracker.whenIdle();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://cdn.example.com")]: 100_000,
+        });
+        expect(tracker.activeCount).toBe(0);
+        expect(tracker.isPolling).toBe(false);
+        expect(await getDownloadCheckpoints()).toEqual([]);
     });
 });

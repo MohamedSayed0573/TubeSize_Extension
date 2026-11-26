@@ -252,10 +252,7 @@
             }
         },
         {
-            "files": [
-                "src/entrypoints/background/migrations.ts",
-                "src/entrypoints/background/downloadCheckpoints.ts"
-            ],
+            "files": ["src/entrypoints/background/migrations.ts"],
             "rules": {
                 "no-restricted-imports": [
                     "error",

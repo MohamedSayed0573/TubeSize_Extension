@@ -52,18 +52,30 @@ export async function trackRequest(
     deduplicator?: DownloadDeduplicator,
 ) {
     try {
+        if (isAttachmentNavigation(details)) {
+            if (
+                !details.fromCache &&
+                details.method !== "HEAD" &&
+                !isExtensionUrl(details.url) &&
+                !isExtensionUrl(details.initiator) &&
+                !isExtensionUrl(details.originUrl) &&
+                !isExtensionUrl(details.documentUrl)
+            ) {
+                deduplicator?.recordAttachmentNavigation(details);
+            }
+            return;
+        }
         if (!isCountableRequest(details)) return;
-        if (deduplicator?.shouldSkipWebRequest(details)) return;
 
         const bytes = getContentLength(details);
         if (bytes === undefined) return;
 
         const tabUrl = await resolveRequestTabUrl(details);
         if (!tabUrl) return;
-        if (deduplicator?.shouldSkipWebRequest(details)) return;
+        if (deduplicator?.shouldSkipWebRequest(details, bytes, tabUrl)) return;
 
         if (ingestion.bufferTabUsage(tabUrl, bytes)) {
-            deduplicator?.recordCountedWebRequest(details, bytes);
+            deduplicator?.recordCountedWebRequest(details, bytes, tabUrl);
         }
     } catch (err) {
         console.error("Failed to track request usage:", err);
