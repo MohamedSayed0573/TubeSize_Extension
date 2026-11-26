@@ -1895,4 +1895,232 @@ describe("downloadTracker durability, resume, pause, and error resilience", () =
         expect(await getDownloadCheckpoints()).toEqual([]);
         expect(tracker.isPolling).toBe(false);
     });
+
+    test("counts a same-origin inline PDF navigation arriving before an active attachment download's webRequest", async () => {
+        const fakeDownloads = new FakeDownloadsController();
+        const ingestion = createUsageIngestion();
+        const deduplicator = createDownloadDeduplicator();
+        const tracker = createDownloadTracker(ingestion, deduplicator, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 1_000,
+        });
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/report.pdf" });
+        const url = "https://example.com/report.pdf";
+
+        // Attachment PDF download starts before its own webRequest.onCompleted is processed.
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 70,
+                url,
+                finalUrl: url,
+                referrer: "https://example.com/files",
+                mime: "application/pdf",
+                bytesReceived: 10_000,
+                totalBytes: 50_000,
+                state: "in_progress",
+            }),
+        );
+        await tracker.whenIdle();
+
+        // Separate inline main_frame navigation to the same PDF from the same origin completes first.
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "main_frame",
+                url,
+                initiator: "https://example.com",
+                responseHeaders: [
+                    { name: "Content-Length", value: "50000" },
+                    { name: "Content-Type", value: "application/pdf" },
+                ],
+            }),
+            deduplicator,
+        );
+
+        // Attachment's own completion arrives afterwards.
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "main_frame",
+                url,
+                initiator: "https://example.com",
+                responseHeaders: [
+                    { name: "Content-Disposition", value: 'attachment; filename="report.pdf"' },
+                    { name: "Content-Length", value: "50000" },
+                    { name: "Content-Type", value: "application/pdf" },
+                ],
+            }),
+            deduplicator,
+        );
+
+        fakeDownloads.updateItem(70, { bytesReceived: 50_000, state: "complete" });
+        fakeDownloads.emitChanged({
+            id: 70,
+            state: { previous: "in_progress", current: "complete" },
+        });
+        await tracker.whenIdle();
+        await ingestion.flush();
+
+        // Both the inline PDF navigation (50_000) and the attachment download (50_000) are counted.
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 100_000,
+        });
+    });
+
+    test("retries initial commit when onCreated receives an already-complete download during a transient IDB error", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        const fakeDownloads = new FakeDownloadsController();
+        let failCommitOnce = true;
+
+        const tracker = createDownloadTracker(
+            createUsageIngestion(),
+            createDownloadDeduplicator(),
+            {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 15,
+                commitProgress: async (batch) => {
+                    if (failCommitOnce) {
+                        failCommitOnce = false;
+                        throw new Error("transient IDB failure");
+                    }
+                    await commitDownloadProgress(batch);
+                },
+            },
+        );
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 71,
+                url: "https://cdn.example.com/instant.bin",
+                finalUrl: "https://cdn.example.com/instant.bin",
+                bytesReceived: 25_000,
+                totalBytes: 25_000,
+                state: "complete",
+            }),
+        );
+        await tracker.whenIdle();
+
+        expect(await getAllSiteUsage()).toEqual([]);
+
+        // Retry loop must commit the already-finished download's bytes and stop polling afterward.
+        await new Promise((resolve) => setTimeout(resolve, 45));
+        await tracker.whenIdle();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://cdn.example.com")]: 25_000,
+        });
+        expect(await getDownloadCheckpoints()).toEqual([]);
+        expect(tracker.activeCount).toBe(0);
+        expect(tracker.isPolling).toBe(false);
+    });
+
+    test("retries failed resume handling when no downloads are polling so live tracking resumes automatically", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        const fakeDownloads = new FakeDownloadsController();
+        let failResumeCommit = false;
+
+        const tracker = createDownloadTracker(
+            createUsageIngestion(),
+            createDownloadDeduplicator(),
+            {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 15,
+                commitProgress: async (batch) => {
+                    if (failResumeCommit) {
+                        failResumeCommit = false;
+                        throw new Error("transient resume commit failure");
+                    }
+                    await commitDownloadProgress(batch);
+                },
+            },
+        );
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        // Start download #72, then interrupt it so polling stops while checkpoint remains.
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 72,
+                url: "https://cdn.example.com/resume-retry.bin",
+                bytesReceived: 30_000,
+                totalBytes: 100_000,
+                canResume: true,
+                state: "in_progress",
+            }),
+        );
+        await tracker.whenIdle();
+
+        fakeDownloads.updateItem(72, {
+            state: "interrupted",
+            canResume: true,
+            bytesReceived: 30_000,
+        });
+        fakeDownloads.emitChanged({
+            id: 72,
+            state: { previous: "in_progress", current: "interrupted" },
+        });
+        await tracker.whenIdle();
+        expect(tracker.activeCount).toBe(0);
+        expect(tracker.isPolling).toBe(false);
+
+        // Case 1: resume event hits a transient downloads.search error while polling is inactive.
+        fakeDownloads.searchError = new Error("transient search failure");
+        fakeDownloads.updateItem(72, { state: "in_progress", bytesReceived: 45_000 });
+        fakeDownloads.emitChanged({
+            id: 72,
+            state: { previous: "interrupted", current: "in_progress" },
+        });
+        await tracker.whenIdle();
+
+        fakeDownloads.searchError = undefined;
+        await new Promise((resolve) => setTimeout(resolve, 45));
+        await tracker.whenIdle();
+
+        expect(tracker.activeCount).toBe(1);
+        expect(tracker.isPolling).toBe(true);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://cdn.example.com")]: 45_000,
+        });
+
+        // Interrupt again so polling stops, then fail commitBatch on the next resume.
+        fakeDownloads.updateItem(72, {
+            state: "interrupted",
+            canResume: true,
+            bytesReceived: 55_000,
+        });
+        fakeDownloads.emitChanged({
+            id: 72,
+            state: { previous: "in_progress", current: "interrupted" },
+        });
+        await tracker.whenIdle();
+        expect(tracker.isPolling).toBe(false);
+
+        failResumeCommit = true;
+        fakeDownloads.updateItem(72, { state: "in_progress", bytesReceived: 75_000 });
+        fakeDownloads.emitChanged({
+            id: 72,
+            state: { previous: "interrupted", current: "in_progress" },
+        });
+        await tracker.whenIdle();
+
+        await new Promise((resolve) => setTimeout(resolve, 45));
+        await tracker.whenIdle();
+
+        expect(tracker.activeCount).toBe(1);
+        expect(tracker.isPolling).toBe(true);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://cdn.example.com")]: 75_000,
+        });
+    });
 });

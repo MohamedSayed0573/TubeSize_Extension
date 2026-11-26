@@ -19,6 +19,7 @@ const CONTENT_LENGTH_HEADER = "content-length";
 const CONTENT_RANGE_HEADER = "content-range";
 const CONTENT_TYPE_HEADER = "content-type";
 const ATTACHMENT_DISPOSITION_RE = /^\s*attachment(?:\s*;|\s*$)/i;
+const INLINE_DISPOSITION_RE = /^\s*inline(?:\s*;|\s*$)/i;
 const CONTENT_RANGE_RE = /^\s*bytes\s+(?:\d+-\d+|\*)\/(\d+|\*)\s*$/i;
 const DEFAULT_POLL_INTERVAL_MS = 1_000;
 const DEFAULT_FINISHED_DOWNLOAD_TTL_MS = 10_000;
@@ -169,8 +170,32 @@ export function isAttachmentNavigation(
     );
 }
 
-function isDownloadableRequestType(type: WebRequestDedupDetails["type"]): boolean {
-    return type === "main_frame" || type === "sub_frame" || type === "other";
+function isInlineRenderableMime(mime: string | undefined): boolean {
+    if (!mime) return true;
+    return (
+        mime.startsWith("text/") ||
+        mime.startsWith("image/") ||
+        mime.startsWith("audio/") ||
+        mime.startsWith("video/") ||
+        mime === "application/pdf" ||
+        mime === "application/xhtml+xml" ||
+        mime === "application/xml" ||
+        mime === "application/json" ||
+        mime === "application/javascript" ||
+        mime === "application/ecmascript"
+    );
+}
+
+// `main_frame`/`sub_frame` navigations without `Content-Disposition: attachment` only become
+// downloads when their Content-Type cannot be rendered inline (e.g. archives/binaries);
+// inline-renderable navigations (HTML, PDF, media, text) must never be suppressed as downloads.
+function isDownloadableWebRequest(details: WebRequestDedupDetails): boolean {
+    if (details.type === "other") return true;
+    if (details.type !== "main_frame" && details.type !== "sub_frame") return false;
+    const disposition = getHeaderValue(details.responseHeaders, CONTENT_DISPOSITION_HEADER);
+    if (disposition && INLINE_DISPOSITION_RE.test(disposition)) return false;
+    const mime = normalizeMime(getHeaderValue(details.responseHeaders, CONTENT_TYPE_HEADER));
+    return !isInlineRenderableMime(mime);
 }
 
 function collectNonEmptyUrls(urls: ReadonlyArray<string | undefined>): string[] {
@@ -506,7 +531,7 @@ export function createDownloadDeduplicator(
         bytes: number,
         tabUrl?: string,
     ): boolean {
-        if (!isDownloadableRequestType(details.type)) return false;
+        if (!isDownloadableWebRequest(details)) return false;
 
         const currentTime = now();
         pruneExpired(currentTime);
@@ -535,7 +560,7 @@ export function createDownloadDeduplicator(
         bytes: number,
         tabUrl?: string,
     ) {
-        if (!isDownloadableRequestType(details.type)) return;
+        if (!isDownloadableWebRequest(details)) return;
         const safeBytes = toOptionalPositiveBytes(bytes);
         if (!details.url || safeBytes === undefined) return;
 
@@ -994,7 +1019,7 @@ export function createDownloadTracker(
 
         const committed = await commitBatch(batch);
         if (!committed) {
-            if (isActive || pendingCredit > 0) {
+            if (isActive || pendingCredit > 0 || delta > 0 || shouldKeepCheckpoint) {
                 activeDownloads.set(item.id, makeTrackedEntry(item, origin, baseline, existing));
                 ensurePolling();
             }
@@ -1022,8 +1047,20 @@ export function createDownloadTracker(
     }
 
     async function handleChanged(delta: chrome.downloads.DownloadDelta) {
+        const isTrackedOrActivating =
+            activeDownloads.has(delta.id) ||
+            checkpoints.has(delta.id) ||
+            pendingWebCredits.has(delta.id) ||
+            delta.state?.current === "in_progress" ||
+            delta.paused?.current === false;
+
         const found = await safeSearch({ id: delta.id });
-        if (!found) return;
+        if (!found) {
+            if (isTrackedOrActivating && !activeDownloads.has(delta.id)) {
+                scheduleHydrateRetry();
+            }
+            return;
+        }
 
         const [item] = found;
         if (!item) {
@@ -1035,7 +1072,10 @@ export function createDownloadTracker(
                     upserts: [],
                     deletes: [delta.id],
                 });
-                if (!committed) return;
+                if (!committed) {
+                    if (!activeDownloads.has(delta.id)) scheduleHydrateRetry();
+                    return;
+                }
             }
             activeDownloads.delete(delta.id);
             seenCreatedIds.delete(delta.id);
@@ -1148,7 +1188,12 @@ export function createDownloadTracker(
         addOriginBytes(batch.usage, origin, deltaBytes);
 
         const committed = await commitBatch(batch);
-        if (!committed) return;
+        if (!committed) {
+            if (!activeDownloads.has(item.id)) {
+                scheduleHydrateRetry();
+            }
+            return;
+        }
 
         pendingWebCredits.delete(item.id);
 
