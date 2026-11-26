@@ -1,6 +1,7 @@
 import type { DisplayFormat, MediaEstimate } from "@app-types/platforms.types";
 import { getAv1Support } from "@lib/codecSupport";
 import { humanizeDuration } from "@lib/humanize";
+import { isMediaEstimateErrorCode, MediaEstimateError } from "@lib/mediaEstimateError";
 import { getPlatformDisplayName, parsePlatformUrl } from "@lib/platformUrl";
 
 import { getLanguage } from "@/i18n/language";
@@ -27,7 +28,7 @@ export async function requestMediaEstimate(
 ): Promise<MediaEstimate> {
     const parsed = parsePlatformUrl(url);
     if (parsed?.kind !== "media") {
-        throw new Error("Unsupported or non-media URL");
+        throw new MediaEstimateError("unsupported_url", "Unsupported or non-media URL");
     }
 
     let av1Supported: boolean | undefined;
@@ -45,7 +46,8 @@ export async function requestMediaEstimate(
     });
 
     if (!response.success) {
-        throw new Error(response.message);
+        const code = isMediaEstimateErrorCode(response.errorCode) ? response.errorCode : "unknown";
+        throw new MediaEstimateError(code, response.message);
     }
 
     return response.data;

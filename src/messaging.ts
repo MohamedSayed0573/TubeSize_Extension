@@ -1,5 +1,6 @@
 import type { MediaEstimate } from "@app-types/platforms.types";
 import type { AddUsageMessage, EstimateMediaMessage } from "@app-types/types";
+import type { MediaEstimateErrorCode } from "@lib/mediaEstimateError";
 import {
     defineExtensionMessaging,
     type ExtensionMessage,
@@ -13,7 +14,7 @@ import {
 
 export type BackgroundResponse<T> =
     | { success: true; data: T }
-    | { success: false; message: string };
+    | { success: false; message: string; errorCode?: MediaEstimateErrorCode };
 
 interface BackgroundProtocolMap {
     estimateMedia(data: EstimateMediaMessage): BackgroundResponse<MediaEstimate>;

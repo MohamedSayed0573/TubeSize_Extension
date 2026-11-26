@@ -180,10 +180,7 @@ describe("estimateTwitch (live)", () => {
         });
     });
 
-    test("rejects when client ID or playback access token is missing", async () => {
-        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
-        cleanups.push(() => consoleErrorSpy.mockRestore());
-
+    test("rejects with classified MediaEstimateError for offline, forbidden, missing clientId/token, and network failures", async () => {
         const offlineMedia: ParsedTwitchMedia = {
             kind: "media",
             platform: "twitch",
@@ -193,9 +190,11 @@ describe("estimateTwitch (live)", () => {
         };
 
         stubFetch(async () => new Response("<html>offline</html>", { status: 200 }));
-        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toThrow(
-            "Failed to extract client ID from Twitch page",
-        );
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "unknown",
+            message: "Failed to extract client ID from Twitch page",
+        });
 
         stubFetch(async (input) => {
             if (input.toString() === "https://www.twitch.tv/offline") {
@@ -203,9 +202,11 @@ describe("estimateTwitch (live)", () => {
             }
             return Response.json({ data: {} });
         });
-        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toThrow(
-            "Failed to get stream playback access token",
-        );
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "unavailable",
+            message: "Failed to get stream playback access token",
+        });
 
         stubFetch(async (input) => {
             if (input.toString() === "https://www.twitch.tv/offline") {
@@ -213,8 +214,133 @@ describe("estimateTwitch (live)", () => {
             }
             return Response.json({ data: { streamPlaybackAccessToken: null } });
         });
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "unavailable",
+            message: "Failed to get stream playback access token",
+        });
+
+        stubFetch(async (input) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/offline") {
+                return new Response('clientId = "cid"', { status: 200 });
+            }
+            if (url === "https://gql.twitch.tv/gql") {
+                return Response.json({
+                    data: {
+                        streamPlaybackAccessToken: {
+                            value: '{"channel":"offline"}',
+                            signature: "sig",
+                            authorization: { isForbidden: false, forbiddenReasonCode: "NONE" },
+                        },
+                    },
+                });
+            }
+            return new Response("Channel offline", { status: 404 });
+        });
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "stream_offline",
+        });
+
+        stubFetch(async (input) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/offline") {
+                return new Response('clientId = "cid"', { status: 200 });
+            }
+            return Response.json({
+                data: {
+                    streamPlaybackAccessToken: {
+                        value: "",
+                        signature: "",
+                        authorization: {
+                            isForbidden: true,
+                            forbiddenReasonCode: "SUBSCRIBER_ONLY",
+                        },
+                    },
+                },
+            });
+        });
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "members_only",
+            message: "Twitch stream playback forbidden: SUBSCRIBER_ONLY",
+        });
+
+        stubFetch(async (input) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/offline") {
+                return new Response('clientId = "cid"', { status: 200 });
+            }
+            return Response.json({
+                data: {
+                    streamPlaybackAccessToken: {
+                        value: "",
+                        signature: "",
+                        authorization: {
+                            isForbidden: true,
+                            forbiddenReasonCode: "GEOBLOCKED",
+                        },
+                    },
+                },
+            });
+        });
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "geo_blocked",
+            message: "Twitch stream playback forbidden: GEOBLOCKED",
+        });
+
+        stubFetch(async (input) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/offline") {
+                return new Response('clientId = "cid"', { status: 200 });
+            }
+            return Response.json({
+                data: {
+                    streamPlaybackAccessToken: {
+                        value: "",
+                        signature: "",
+                        authorization: {
+                            isForbidden: true,
+                            forbiddenReasonCode: "DMCA",
+                        },
+                    },
+                },
+            });
+        });
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "restricted_content",
+            message: "Twitch stream playback forbidden: DMCA",
+        });
+
+        stubFetch(async () => new Response("Too Many Requests", { status: 429 }));
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "rate_limited",
+        });
+
+        stubFetch(async () => {
+            const response = new Response("", { status: 200 });
+            response.text = async () => {
+                throw new DOMException("The operation timed out.", "TimeoutError");
+            };
+            return response;
+        });
+        await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "network_error",
+        });
+
+        stubFetch(async (input) => {
+            if (input.toString() === "https://www.twitch.tv/offline") {
+                return new Response('clientId = "cid"', { status: 200 });
+            }
+            return new Response("<html>not json</html>", { status: 200 });
+        });
         await expect(estimateTwitch(offlineMedia, { isFromPopup: false })).rejects.toThrow(
-            "Failed to get stream playback access token",
+            SyntaxError,
         );
     });
 });
@@ -343,10 +469,7 @@ describe("estimateTwitch (vod)", () => {
         ).rejects.toThrow("No playlists found in master M3U8");
     });
 
-    test("rejects with domain errors when GQL returns null video or null videoPlaybackAccessToken", async () => {
-        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
-        cleanups.push(() => consoleErrorSpy.mockRestore());
-
+    test("rejects with domain errors when GQL returns null video, null token, 403 sub-only VOD, 404 VOD, or network error", async () => {
         stubFetch(async (input) => {
             if (input.toString() === "https://www.twitch.tv/videos/3333") {
                 return new Response('clientId = "vod-client-id"', { status: 200 });
@@ -365,7 +488,11 @@ describe("estimateTwitch (vod)", () => {
                 contentType: "vod",
                 mediaId: "3333",
             }),
-        ).rejects.toThrow("Failed to get Twitch VOD duration");
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "unavailable",
+            message: "Failed to get Twitch VOD duration",
+        });
 
         stubFetch(async (input) => {
             if (input.toString() === "https://www.twitch.tv/videos/4444") {
@@ -385,7 +512,83 @@ describe("estimateTwitch (vod)", () => {
                 contentType: "vod",
                 mediaId: "4444",
             }),
-        ).rejects.toThrow("Failed to get stream playback access token");
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "unavailable",
+            message: "Failed to get stream playback access token",
+        });
+
+        stubFetch(async (input) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/videos/5555") {
+                return new Response('clientId = "vod-client-id"', { status: 200 });
+            }
+            if (url === "https://gql.twitch.tv/gql") {
+                return Response.json({
+                    data: {
+                        videoPlaybackAccessToken: { value: "tok", signature: "sig" },
+                        video: { lengthSeconds: 600 },
+                    },
+                });
+            }
+            return new Response("Subscriber only", { status: 403 });
+        });
+        await expect(
+            estimateTwitch({
+                kind: "media",
+                platform: "twitch",
+                contentType: "vod",
+                mediaId: "5555",
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "restricted_content",
+        });
+
+        stubFetch(async (input) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/videos/6666") {
+                return new Response('clientId = "vod-client-id"', { status: 200 });
+            }
+            if (url === "https://gql.twitch.tv/gql") {
+                return Response.json({
+                    data: {
+                        videoPlaybackAccessToken: { value: "tok", signature: "sig" },
+                        video: { lengthSeconds: 600 },
+                    },
+                });
+            }
+            return new Response("Not Found", { status: 404 });
+        });
+        await expect(
+            estimateTwitch({
+                kind: "media",
+                platform: "twitch",
+                contentType: "vod",
+                mediaId: "6666",
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "unavailable",
+        });
+
+        stubFetch(async (input) => {
+            if (input.toString() === "https://www.twitch.tv/videos/7777") {
+                return new Response('clientId = "vod-client-id"', { status: 200 });
+            }
+            return new Response("Rate limited", { status: 429 });
+        });
+        await expect(
+            estimateTwitch({
+                kind: "media",
+                platform: "twitch",
+                contentType: "vod",
+                mediaId: "7777",
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "rate_limited",
+        });
     });
 });
 

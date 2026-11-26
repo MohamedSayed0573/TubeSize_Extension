@@ -3,6 +3,14 @@
         "message": "Something went wrong",
         "description": "Generic error title"
     },
+    "common_retry": {
+        "message": "Retry",
+        "description": "Retry action button label"
+    },
+    "common_retrying": {
+        "message": "Retrying...",
+        "description": "Retry button label while a retry request is in progress"
+    },
     "common_backToDashboard": {
         "message": "Back to Dashboard",
         "description": "Link back to the dashboard"
@@ -192,6 +200,94 @@
     "popup_noRunningVideo": {
         "message": "No video is playing. Open a video or stream to see estimated data usage.",
         "description": "Info shown when the page has no video or stream to load"
+    },
+    "popup_error_streamOffline_title": {
+        "message": "Stream is offline",
+        "description": "Popup error title when a live channel or premiere is offline"
+    },
+    "popup_error_streamOffline_description": {
+        "message": "This channel isn't live right now. Try again once the stream starts.",
+        "description": "Popup error description when a live channel or premiere is offline"
+    },
+    "popup_error_signInRequired_title": {
+        "message": "Sign in required",
+        "description": "Popup error title when media requires signing in or age confirmation"
+    },
+    "popup_error_signInRequired_description": {
+        "message": "Sign in to your account on this platform to confirm access, then try again.",
+        "description": "Popup error description when media requires signing in or age confirmation"
+    },
+    "popup_error_membersOnly_title": {
+        "message": "Members-only content",
+        "description": "Popup error title when media requires channel membership, subscription, or purchase"
+    },
+    "popup_error_membersOnly_description": {
+        "message": "This video requires a channel membership, subscription, or purchase.",
+        "description": "Popup error description when media requires channel membership, subscription, or purchase"
+    },
+    "popup_error_geoBlocked_title": {
+        "message": "Not available in your region",
+        "description": "Popup error title when media is geo-blocked in the user's region"
+    },
+    "popup_error_geoBlocked_description": {
+        "message": "The uploader or platform restricted this content in your location.",
+        "description": "Popup error description when media is geo-blocked in the user's region"
+    },
+    "popup_error_restrictedContent_title": {
+        "message": "Restricted content",
+        "description": "Popup error title when media access is restricted without a more specific reason"
+    },
+    "popup_error_restrictedContent_description": {
+        "message": "Access to this video is restricted by the platform or uploader.",
+        "description": "Popup error description when media access is restricted"
+    },
+    "popup_error_unavailable_title": {
+        "message": "Video unavailable",
+        "description": "Popup error title when a video, VOD, or channel is unavailable or deleted"
+    },
+    "popup_error_unavailable_description": {
+        "message": "This video or channel was removed or could not be found.",
+        "description": "Popup error description when a video, VOD, or channel is unavailable or deleted"
+    },
+    "popup_error_rateLimited_title": {
+        "message": "Too many requests",
+        "description": "Popup error title when the platform responds with HTTP 429 rate limiting"
+    },
+    "popup_error_rateLimited_description": {
+        "message": "The platform temporarily rate-limited requests. Wait a moment and try again.",
+        "description": "Popup error description when the platform responds with HTTP 429 rate limiting"
+    },
+    "popup_error_networkError_title": {
+        "message": "Connection issue",
+        "description": "Popup error title when a network error, timeout, or upstream server error occurs"
+    },
+    "popup_error_networkError_description": {
+        "message": "Couldn't reach the platform right now. Check your connection and try again.",
+        "description": "Popup error description when a network or upstream server error occurs"
+    },
+    "popup_error_noFormats_title": {
+        "message": "No formats available",
+        "description": "Popup error title when media has no estimable video formats"
+    },
+    "popup_error_noFormats_description": {
+        "message": "No estimable video qualities were found for this media.",
+        "description": "Popup error description when media has no estimable video formats"
+    },
+    "popup_error_unsupportedUrl_title": {
+        "message": "Unsupported page",
+        "description": "Popup error title when the URL is not a supported media page"
+    },
+    "popup_error_unsupportedUrl_description": {
+        "message": "Open a supported video or live stream page to estimate data usage.",
+        "description": "Popup error description when the URL is not a supported media page"
+    },
+    "popup_error_unknown_title": {
+        "message": "Couldn't estimate size",
+        "description": "Popup fallback error title when estimation fails for an unexpected reason"
+    },
+    "popup_error_unknown_description": {
+        "message": "An unexpected error prevented reading this video's formats.",
+        "description": "Popup fallback error description when estimation fails for an unexpected reason"
     },
     "popup_current": {
         "message": "Current",

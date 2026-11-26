@@ -28,6 +28,7 @@ describe("fetchAndRetry", () => {
         );
         expect(result).toEqual({
             success: false,
+            kind: "network",
             error: new Error("failed"),
         });
         expect(fetchMock).toHaveBeenCalledTimes(4);
@@ -81,11 +82,43 @@ describe("fetchAndRetry", () => {
         );
         expect(result).toEqual({
             success: false,
+            kind: "http",
+            status: 400,
             error: new Error("Client Error: 400, won't retry"),
         });
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(delays).toEqual([]);
+    });
+
+    test("preserves HTTP status on 429 rate-limit and exhausted 5xx responses", async () => {
+        const rateLimitResult = await fetchAndRetry(
+            "https://www.youtube.com/watch?v=yaodD79Q4iE",
+            {},
+            CONFIG.DEFAULT_MAX_RETRIES,
+            async () => {},
+            async () => new Response("Too Many Requests", { status: 429 }),
+        );
+        expect(rateLimitResult).toEqual({
+            success: false,
+            kind: "http",
+            status: 429,
+            error: new Error("Client Error: 429, won't retry"),
+        });
+
+        const serverErrorResult = await fetchAndRetry(
+            "https://www.youtube.com/watch?v=yaodD79Q4iE",
+            {},
+            2,
+            async () => {},
+            async () => new Response("Service Unavailable", { status: 503 }),
+        );
+        expect(serverErrorResult).toEqual({
+            success: false,
+            kind: "http",
+            status: 503,
+            error: new Error("Server Error: 503"),
+        });
     });
 
     test("should retry on server errors 5xx", async () => {
@@ -137,6 +170,7 @@ describe("fetchAndRetry", () => {
         );
         expect(result).toEqual({
             success: false,
+            kind: "aborted",
             error: new Error("Request aborted"),
         });
         expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -169,7 +203,11 @@ describe("fetchAndRetry", () => {
             fetchMock,
         );
 
-        expect(result.success).toBe(false);
+        expect(result).toEqual({
+            success: false,
+            kind: "timeout",
+            error: new Error("Request timed out"),
+        });
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(delays).toEqual([]);
     });
@@ -192,7 +230,11 @@ describe("fetchAndRetry", () => {
             fetchMock,
         );
 
-        expect(result.success).toBe(false);
+        expect(result).toEqual({
+            success: false,
+            kind: "aborted",
+            error: new Error("Request aborted"),
+        });
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(delays).toEqual([]);
     });

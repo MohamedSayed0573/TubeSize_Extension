@@ -4,6 +4,8 @@ import path from "node:path";
 
 import { toOrigin } from "@lib/domain";
 import { getMediaCache } from "@lib/mediaCache";
+import { requestMediaEstimate } from "@lib/mediaEstimate";
+import { MediaEstimateError } from "@lib/mediaEstimateError";
 import { toVideoKey } from "@lib/platformUrl";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
@@ -133,6 +135,7 @@ describe("attachMessageHandler RPC seam", () => {
         expect(bad).toEqual({
             success: false,
             message: "Unsupported or non-media URL",
+            errorCode: "unsupported_url",
         });
 
         const emptyHtml = `<script>var ytInitialPlayerResponse = ${JSON.stringify({
@@ -153,7 +156,23 @@ describe("attachMessageHandler RPC seam", () => {
         expect(emptyFormats).toEqual({
             success: false,
             message: "No video formats found for this video",
+            errorCode: "no_formats",
         });
+
+        const restrictedHtml = `<script>var ytInitialPlayerResponse = ${JSON.stringify({
+            playabilityStatus: {
+                status: "LOGIN_REQUIRED",
+                reason: "Sign in to confirm your age",
+            },
+            videoDetails: { videoId: "age12345678" },
+        })};</script>`;
+        await expect(
+            requestMediaEstimate("https://www.youtube.com/watch?v=age12345678", {
+                html: restrictedHtml,
+            }),
+        ).rejects.toEqual(
+            new MediaEstimateError("sign_in_required", "Sign in to confirm your age"),
+        );
     });
 
     test("routes Twitch live URLs through estimateMedia for BANDWIDTH and popup HLS sampling and wraps errors", async () => {
@@ -239,6 +258,31 @@ describe("attachMessageHandler RPC seam", () => {
         expect(errRes).toEqual({
             success: false,
             message: "Failed to extract client ID from Twitch page",
+            errorCode: "unknown",
+        });
+
+        stubFetch(async (input) => {
+            const url = input.toString();
+            if (url === "https://www.twitch.tv/offline") {
+                return new Response('clientId = "live-client-id"', { status: 200 });
+            }
+            if (url === "https://gql.twitch.tv/gql") {
+                return Response.json({
+                    data: {
+                        streamPlaybackAccessToken: {
+                            value: '{"channel":"offline"}',
+                            signature: "sig-offline",
+                        },
+                    },
+                });
+            }
+            return new Response("Offline", { status: 404 });
+        });
+        await expect(
+            requestMediaEstimate("https://www.twitch.tv/offline", { isFromPopup: false }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "stream_offline",
         });
     });
 
@@ -321,6 +365,7 @@ describe("attachMessageHandler RPC seam", () => {
         expect(missingDuration).toEqual({
             success: false,
             message: "Failed to get Twitch VOD duration",
+            errorCode: "unavailable",
         });
     });
 
@@ -382,6 +427,7 @@ describe("attachMessageHandler RPC seam", () => {
         expect(liveErr).toEqual({
             success: false,
             message: "Failed to extract stream ID from the page",
+            errorCode: "stream_offline",
         });
     });
 

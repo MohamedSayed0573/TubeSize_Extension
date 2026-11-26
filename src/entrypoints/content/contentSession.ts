@@ -1,4 +1,5 @@
 import { projectEstimateFormats, requestMediaEstimate } from "@lib/mediaEstimate";
+import { isExpectedMediaEstimateError } from "@lib/mediaEstimateError";
 import { parsePlatformUrl } from "@lib/platformUrl";
 import { getSettings } from "@lib/settings";
 
@@ -73,6 +74,7 @@ export function createContentSession(): ContentSession {
             }, signal);
         } catch (err) {
             if (signal.aborted) return;
+            if (isExpectedMediaEstimateError(err)) return;
             console.error("[content] Error handling page navigation", err);
         }
     };
