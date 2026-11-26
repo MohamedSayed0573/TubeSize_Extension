@@ -6,6 +6,8 @@ import { storage } from "@wxt-dev/storage";
 
 import { createToast } from "./toast";
 
+import toastCss from "@styles/toast.css?inline";
+
 const HOST_ID = "TubeSize-Toast-Host";
 const toasterSuppressedDate = storage.defineItem<DateKey>("local:toasterSuppressedDate");
 
@@ -36,7 +38,15 @@ function mountToast(
         document.body.append(host);
     }
 
-    host.replaceChildren(
+    const shadowRoot = host.shadowRoot ?? host.attachShadow({ mode: "open" });
+    let style = shadowRoot.querySelector("style");
+    if (!style) {
+        style = document.createElement("style");
+        style.textContent = toastCss;
+    }
+
+    shadowRoot.replaceChildren(
+        style,
         createToast({
             ...options,
             okOnClick: dismiss,
