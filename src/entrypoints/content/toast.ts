@@ -4,8 +4,6 @@ import { formatBytes, formatRate } from "@lib/format";
 import { getLanguage } from "@/i18n/language";
 import { t } from "@/i18n/t";
 
-import "@styles/toast.css";
-
 export type ToastOptions = {
     currentQuality: number;
     thresholdMbph: number;

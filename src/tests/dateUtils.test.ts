@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, setSystemTime, test } from "bun:test";
 
-import { getDateKey, getLastNDays, isValidDateKey, parseDateKey, toDateKey } from "@lib/dateUtils";
+import {
+    getDateKey,
+    getLastNDays,
+    getNextLocalMidnightMs,
+    isValidDateKey,
+    parseDateKey,
+    toDateKey,
+} from "@lib/dateUtils";
 
 afterEach(() => {
     setSystemTime();
@@ -83,5 +90,44 @@ describe("getLastNDays", () => {
             "2026-02-27",
         ]);
         expect(getLastNDays(0)).toEqual([]);
+    });
+});
+
+describe("getNextLocalMidnightMs", () => {
+    test("targets just past next local midnight across normal, month, year, and leap-day rollovers", () => {
+        const cases = [
+            { now: new Date(2026, 2, 15, 14, 30, 0), expectedKey: "2026-03-16" },
+            { now: new Date(2026, 2, 15, 23, 59, 59, 999), expectedKey: "2026-03-16" },
+            { now: new Date(2026, 2, 16, 0, 0, 0, 0), expectedKey: "2026-03-17" },
+            { now: new Date(2024, 1, 28, 18, 0, 0), expectedKey: "2024-02-29" },
+            { now: new Date(2026, 11, 31, 23, 0, 0), expectedKey: "2027-01-01" },
+        ];
+
+        for (const { now, expectedKey } of cases) {
+            const nextMs = getNextLocalMidnightMs(now);
+            const nextDate = new Date(nextMs);
+
+            expect(nextMs).toBeGreaterThan(now.getTime());
+            expect<string>(getDateKey(nextDate)).toBe(expectedKey);
+            expect(nextDate.getHours()).toBe(0);
+            expect(nextDate.getMinutes()).toBe(0);
+            expect(nextDate.getSeconds()).toBe(1);
+        }
+    });
+
+    test("uses local calendar midnight across DST transition dates rather than fixed 24h offsets", () => {
+        const springForwardDay = new Date(2026, 2, 8, 0, 30, 0);
+        const fallBackDay = new Date(2026, 10, 1, 0, 30, 0);
+
+        for (const [now, expectedKey] of [
+            [springForwardDay, "2026-03-09"],
+            [fallBackDay, "2026-11-02"],
+        ] as const) {
+            const nextDate = new Date(getNextLocalMidnightMs(now));
+            expect<string>(getDateKey(nextDate)).toBe(expectedKey);
+            expect(nextDate.getHours()).toBe(0);
+            expect(nextDate.getMinutes()).toBe(0);
+            expect(nextDate.getSeconds()).toBe(1);
+        }
     });
 });

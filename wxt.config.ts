@@ -78,6 +78,7 @@ export default defineConfig({
         host_permissions: ["<all_urls>"],
         permissions: [
             "activeTab",
+            "alarms",
             "downloads",
             "storage",
             "webRequest",

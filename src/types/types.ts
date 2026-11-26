@@ -29,8 +29,6 @@ export type EstimateMediaMessage = {
     av1Supported?: boolean;
 };
 
-export type UsageMessage = { type: "TUBESIZE_SITE_USAGE"; bytes: number };
-
 export type PlatformId = (typeof CONFIG.PLATFORMS)[number];
 
 export type VideoContentType = "live" | "vod";

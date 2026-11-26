@@ -18,15 +18,32 @@ export type CompletedRequestDetails = chrome.webRequest.OnCompletedDetails & {
 export function setupTrackUsage(
     ingestion: UsageIngestion = createUsageIngestion(),
     deduplicator?: DownloadDeduplicator,
-) {
+): () => void {
+    const onRequestCompleted = (details: CompletedRequestDetails) => {
+        void trackRequest(ingestion, details, deduplicator);
+    };
+    const onTabRemoved = () => {
+        if (!ingestion.hasPendingUsage) return;
+        void ingestion.flush().catch((err: unknown) => {
+            console.error("Failed to flush usage on tab close:", err);
+        });
+    };
+
     // `extraHeaders` is Chromium-only; Firefox rejects it.
     chrome.webRequest.onCompleted.addListener(
-        (details) => void trackRequest(ingestion, details, deduplicator),
+        onRequestCompleted,
         { urls: ["<all_urls>"] },
         isFirefox() ? ["responseHeaders"] : ["responseHeaders", "extraHeaders"],
     );
+    chrome.tabs.onRemoved.addListener(onTabRemoved);
 
-    ingestion.startAutoFlush();
+    const stopAutoFlush = ingestion.startAutoFlush();
+
+    return () => {
+        chrome.webRequest.onCompleted.removeListener(onRequestCompleted);
+        chrome.tabs.onRemoved.removeListener(onTabRemoved);
+        stopAutoFlush();
+    };
 }
 
 async function resolveRequestTabUrl(details: CompletedRequestDetails): Promise<string | undefined> {

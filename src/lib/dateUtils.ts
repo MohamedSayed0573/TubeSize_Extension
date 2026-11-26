@@ -40,6 +40,20 @@ export function isValidDateKey(value: string): value is DateKey {
     return date.getFullYear() === year && date.getMonth() + 1 === month && date.getDate() === day;
 }
 
+const MIDNIGHT_ROLLOVER_BUFFER_MS = 1_000;
+
+export function getNextLocalMidnightMs(now: Date = new Date()): number {
+    const todayKey = getDateKey(now);
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+    let targetMs = nextMidnight.getTime() + MIDNIGHT_ROLLOVER_BUFFER_MS;
+
+    while (targetMs <= now.getTime() || getDateKey(new Date(targetMs)) === todayKey) {
+        targetMs += 60_000;
+    }
+
+    return targetMs;
+}
+
 export function toDateKey(value: string): DateKey | undefined {
     return isValidDateKey(value) ? value : undefined;
 }

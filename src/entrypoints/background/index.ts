@@ -1,5 +1,6 @@
 import { defineBackground } from "wxt/utils/define-background";
 
+import { setupBadgeRollover } from "./badgeRollover";
 import { createDownloadDeduplicator } from "./downloadDedup";
 import { createDownloadTracker } from "./downloadTracker";
 import { setupInstallCleanup } from "./installCleanup";
@@ -17,4 +18,6 @@ export default defineBackground(() => {
     createDownloadTracker(usageIngestion, downloadDeduplicator);
 
     setupInstallCleanup();
+
+    setupBadgeRollover();
 });
