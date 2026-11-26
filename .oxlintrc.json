@@ -277,8 +277,35 @@
             }
         },
         {
-            "files": ["src/entrypoints/content/**/*.{ts,tsx}"],
+            "files": [
+                "src/entrypoints/content/**/*.{ts,tsx}",
+                "src/entrypoints/**/*.content.{ts,tsx}"
+            ],
             "rules": {
+                "import/no-unassigned-import": "error",
+                "no-restricted-syntax": [
+                    "error",
+                    {
+                        "selector": "MemberExpression[object.property.name=/^(chrome|browser)$/][property.name='storage']",
+                        "message": "Direct chrome.storage / browser.storage access is forbidden; use @wxt-dev/storage inside dedicated storage-owning modules."
+                    },
+                    {
+                        "selector": "MemberExpression[object.property.name='runtime'][property.name=/^(sendMessage|onMessage|connect|onConnect)$/]",
+                        "message": "Direct runtime messaging APIs are forbidden; use typed context-scoped helpers from @/messaging."
+                    },
+                    {
+                        "selector": "MemberExpression[object.property.name='tabs'][property.name=/^(sendMessage|connect)$/]",
+                        "message": "Direct tabs messaging APIs are forbidden; use sendTabMessage from @/messaging."
+                    },
+                    {
+                        "selector": "JSXElement",
+                        "message": "Content scripts (including the toaster) must use vanilla DOM APIs, not JSX/React."
+                    },
+                    {
+                        "selector": "JSXFragment",
+                        "message": "Content scripts (including the toaster) must use vanilla DOM APIs, not JSX/React."
+                    }
+                ],
                 "no-restricted-imports": [
                     "error",
                     {
@@ -299,6 +326,14 @@
                                 "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
                                 "importNames": ["onBackgroundMessage", "sendTabMessage"],
                                 "message": "Content scripts cannot import onBackgroundMessage or sendTabMessage from @/messaging; use sendBackgroundMessage or onTabMessage."
+                            },
+                            {
+                                "regex": "^(?:react(?:-dom|-router)?|@base-ui/react|lucide-react|recharts|shadcn|tailwindcss|tw-animate-css|class-variance-authority|clsx|tailwind-merge|@tanstack/react-query|dexie(?:-react-hooks)?|cheerio|m3u8-parser|tldts-icann|zod|@fontsource-variable)(?:/|$)",
+                                "message": "Content scripts must stay lightweight and vanilla DOM; do not import React, UI libraries, or heavy dependencies (offload heavy work to background via @/messaging)."
+                            },
+                            {
+                                "regex": "^(?:@(?:components|pages|layouts|hooks)|@/(?:components|pages|layouts|hooks|db)|(?:\\.\\./)+(?:components|pages|layouts|hooks|db))(?:/|$)",
+                                "message": "Content scripts must stay vanilla DOM and cannot import React components, pages, layouts, hooks, or db directly."
                             }
                         ]
                     }
@@ -324,6 +359,14 @@
                                 "regex": "^(?:@/messaging|(?:\\.\\./)+messaging|\\./messaging)(?:\\.[cm]?[jt]sx?)?$",
                                 "importNames": ["onBackgroundMessage", "sendTabMessage"],
                                 "message": "Content scripts cannot import onBackgroundMessage or sendTabMessage from @/messaging; use sendBackgroundMessage or onTabMessage."
+                            },
+                            {
+                                "regex": "^(?:react(?:-dom|-router)?|@base-ui/react|lucide-react|recharts|shadcn|tailwindcss|tw-animate-css|class-variance-authority|clsx|tailwind-merge|@tanstack/react-query|dexie(?:-react-hooks)?|cheerio|m3u8-parser|tldts-icann|zod|@fontsource-variable)(?:/|$)",
+                                "message": "Content scripts must stay lightweight and vanilla DOM; do not import React, UI libraries, or heavy dependencies (offload heavy work to background via @/messaging)."
+                            },
+                            {
+                                "regex": "^(?:@(?:components|pages|layouts|hooks)|@/(?:components|pages|layouts|hooks|db)|(?:\\.\\./)+(?:components|pages|layouts|hooks|db))(?:/|$)",
+                                "message": "Content scripts must stay vanilla DOM and cannot import React components, pages, layouts, hooks, or db directly."
                             }
                         ]
                     }
@@ -361,6 +404,14 @@
                                     "sendTabMessage"
                                 ],
                                 "message": "usageBridge.content.ts may only import sendBackgroundMessage from @/messaging."
+                            },
+                            {
+                                "regex": "^(?:react(?:-dom|-router)?|@base-ui/react|lucide-react|recharts|shadcn|tailwindcss|tw-animate-css|class-variance-authority|clsx|tailwind-merge|@tanstack/react-query|dexie(?:-react-hooks)?|cheerio|m3u8-parser|tldts-icann|zod|@fontsource-variable)(?:/|$)",
+                                "message": "Content scripts must stay lightweight and vanilla DOM; do not import React, UI libraries, or heavy dependencies (offload heavy work to background via @/messaging)."
+                            },
+                            {
+                                "regex": "^(?:@(?:components|pages|layouts|hooks)|@/(?:components|pages|layouts|hooks|db)|(?:\\.\\./)+(?:components|pages|layouts|hooks|db))(?:/|$)",
+                                "message": "Content scripts must stay vanilla DOM and cannot import React components, pages, layouts, hooks, or db directly."
                             }
                         ]
                     }
