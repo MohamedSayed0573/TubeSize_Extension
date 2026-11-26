@@ -773,7 +773,7 @@ export function createDownloadTracker(
         const batch: DownloadCommitBatch = { usage: {}, upserts: [], deletes: [] };
         const postCommitActions: Array<() => void> = [];
         const inProgressIds = new Set<number>();
-        let hadCheckpointSearchError = false;
+        let needsRetry = false;
 
         for (const item of items) {
             inProgressIds.add(item.id);
@@ -795,11 +795,22 @@ export function createDownloadTracker(
                 continue;
             }
 
+            const pendingCredit = pendingWebCredits.get(item.id) ?? 0;
+            if (pendingCredit > 0) {
+                const creditFlushed = await flushIngestionForCredit();
+                if (!creditFlushed) {
+                    needsRetry = true;
+                    continue;
+                }
+            }
+
             const isResume = matching?.state === "interrupted";
-            const baseline =
+            const baseline = Math.max(
                 existing?.lastBytesReceived ??
-                matching?.bytesReceived ??
-                sanitizeBytes(item.bytesReceived);
+                    matching?.bytesReceived ??
+                    sanitizeBytes(item.bytesReceived),
+                pendingCredit,
+            );
             const { delta, nextLastBytes } = computeDelta(item, baseline, isResume);
 
             addOriginBytes(batch.usage, origin, delta);
@@ -819,6 +830,7 @@ export function createDownloadTracker(
 
             const nextEntry = makeTrackedEntry(item, origin, nextLastBytes, existing);
             postCommitActions.push(() => {
+                pendingWebCredits.delete(item.id);
                 if (item.paused) {
                     activeDownloads.delete(item.id);
                     deduplicator.cancelDownload(item.id);
@@ -832,20 +844,35 @@ export function createDownloadTracker(
         for (const [id, checkpoint] of Array.from(checkpoints.entries())) {
             if (inProgressIds.has(id) || activeDownloads.has(id)) continue;
 
+            const pendingCredit = pendingWebCredits.get(id) ?? 0;
+            if (pendingCredit > 0) {
+                const creditFlushed = await flushIngestionForCredit();
+                if (!creditFlushed) {
+                    needsRetry = true;
+                    continue;
+                }
+            }
+
             const found = await safeSearch({ id });
             if (!found) {
-                hadCheckpointSearchError = true;
+                needsRetry = true;
                 continue;
             }
 
             const [item] = found;
             if (!item) {
                 batch.deletes.push(id);
+                postCommitActions.push(() => {
+                    pendingWebCredits.delete(id);
+                });
                 continue;
             }
 
             if (checkpoint.startTime && item.startTime && checkpoint.startTime !== item.startTime) {
                 batch.deletes.push(id);
+                postCommitActions.push(() => {
+                    pendingWebCredits.delete(id);
+                });
                 continue;
             }
 
@@ -853,7 +880,11 @@ export function createDownloadTracker(
 
             const origin = resolveDownloadOrigin(item);
             const isResume = checkpoint.state === "interrupted";
-            const { delta, nextLastBytes } = computeDelta(item, checkpoint.bytesReceived, isResume);
+            const { delta, nextLastBytes } = computeDelta(
+                item,
+                Math.max(checkpoint.bytesReceived, pendingCredit),
+                isResume,
+            );
             if (origin) {
                 addOriginBytes(batch.usage, origin, delta);
             }
@@ -870,20 +901,22 @@ export function createDownloadTracker(
                         state: "interrupted",
                     });
                 }
-                if (checkpoint.state === "in_progress") {
-                    postCommitActions.push(() => {
+                postCommitActions.push(() => {
+                    pendingWebCredits.delete(id);
+                    if (checkpoint.state === "in_progress") {
                         deduplicator.finishDownload(toDedupItem(item));
-                    });
-                }
+                    }
+                });
                 continue;
             }
 
             batch.deletes.push(id);
-            if (checkpoint.state === "in_progress" && origin) {
-                postCommitActions.push(() => {
+            postCommitActions.push(() => {
+                pendingWebCredits.delete(id);
+                if (checkpoint.state === "in_progress" && origin) {
                     deduplicator.finishDownload(toDedupItem(item));
-                });
-            }
+                }
+            });
         }
 
         const committed = await commitBatch(batch);
@@ -898,7 +931,7 @@ export function createDownloadTracker(
         } else {
             stopPollingIfIdle();
         }
-        if (hadCheckpointSearchError) {
+        if (needsRetry) {
             scheduleHydrateRetry();
         }
     }

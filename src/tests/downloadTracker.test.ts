@@ -1801,4 +1801,98 @@ describe("downloadTracker durability, resume, pause, and error resilience", () =
             [origin("https://example.com")]: 80_000,
         });
     });
+
+    test("does not persist a download checkpoint during startup retry before pending webRequest credits flush", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        const fakeDownloads = new FakeDownloadsController();
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/page" });
+
+        let failLoadOnce = true;
+        let failWrite = true;
+        const flakyIngestion = createUsageIngestion({
+            writeSiteUsage: async (batch) => {
+                if (failWrite) throw new Error("transient IDB write failure");
+                await addSiteUsage(batch);
+            },
+        });
+        const deduplicator = createDownloadDeduplicator();
+        const tracker = createDownloadTracker(flakyIngestion, deduplicator, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 15,
+            loadCheckpoints: async () => {
+                if (failLoadOnce) {
+                    failLoadOnce = false;
+                    throw new Error("transient checkpoint load failure");
+                }
+                return getDownloadCheckpoints();
+            },
+        });
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        // Startup hydration failed once and scheduled a retry. Before retry runs, a download
+        // consumes a webRequest credit whose flush fails transiently.
+        await trackRequest(
+            flakyIngestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "other",
+                url: "https://example.com/startup-credit.bin",
+                responseHeaders: [{ name: "Content-Length", value: "70000" }],
+            }),
+            deduplicator,
+        );
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 69,
+                url: "https://example.com/startup-credit.bin",
+                finalUrl: "https://example.com/startup-credit.bin",
+                referrer: "https://example.com/page",
+                bytesReceived: 20_000,
+                totalBytes: 70_000,
+                state: "in_progress",
+            }),
+        );
+        await tracker.whenIdle();
+
+        // Let the scheduled hydrateAndReconcile retry run while siteUsage writes still fail.
+        await new Promise((resolve) => setTimeout(resolve, 45));
+        await tracker.whenIdle();
+
+        // Must NOT persist a 70_000 checkpoint before the credited 70_000 bytes are flushed.
+        expect(await getAllSiteUsage()).toEqual([]);
+        expect(await getDownloadCheckpoints()).toEqual([]);
+
+        // Once writes recover, the pending credit flushes, checkpoint commits, and completion keeps 70_000 total.
+        failWrite = false;
+        await new Promise((resolve) => setTimeout(resolve, 45));
+        await tracker.whenIdle();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 70_000,
+        });
+        expect(await getDownloadCheckpoints()).toEqual([
+            {
+                id: 69,
+                startTime: DEFAULT_TIME_ISO,
+                bytesReceived: 70_000,
+                state: "in_progress",
+            },
+        ]);
+
+        fakeDownloads.updateItem(69, { bytesReceived: 70_000, state: "complete" });
+        fakeDownloads.emitChanged({
+            id: 69,
+            state: { previous: "in_progress", current: "complete" },
+        });
+        await tracker.whenIdle();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 70_000,
+        });
+        expect(await getDownloadCheckpoints()).toEqual([]);
+        expect(tracker.isPolling).toBe(false);
+    });
 });
