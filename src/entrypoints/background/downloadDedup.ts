@@ -81,6 +81,11 @@ export interface DownloadDeduplicatorOptions {
     recentWebRequestTtlMs?: number;
 }
 
+interface ConsumedWebRequestCredit {
+    bytes: number;
+    attributedOrigin?: Origin;
+}
+
 export interface DownloadDeduplicator {
     setHydrationGate(promise: Promise<void>): void;
     whenReady(): Promise<void>;
@@ -101,7 +106,7 @@ export interface DownloadDeduplicator {
         tabUrl?: string,
         committedTabUrl?: string,
     ): void;
-    consumeRecentWebRequestBytes(item: DownloadDedupItem): number;
+    consumeRecentWebRequestBytes(item: DownloadDedupItem): ConsumedWebRequestCredit | undefined;
 }
 
 interface DownloadTransferProfile {
@@ -135,6 +140,7 @@ interface WebRequestProfile {
 
 interface RecentWebRequestEntry extends WebRequestProfile {
     bytes: number;
+    attributedOrigin?: Origin;
     expiresAt: number;
 }
 
@@ -276,7 +282,7 @@ function hasNonIdentityEncoding(headers: chrome.webRequest.HttpHeader[] | undefi
         .some((encoding) => encoding.length > 0 && encoding !== "identity");
 }
 
-export function resolveRequestInitiatingOrigin(
+function resolveRequestInitiatingOrigin(
     details: WebRequestDedupDetails,
     tabUrl?: string,
 ): Origin | undefined {
@@ -572,6 +578,7 @@ export function createDownloadDeduplicator(
         recentWebRequests.push({
             ...profile,
             bytes: safeBytes,
+            attributedOrigin: toWebOrigin(tabUrl),
             expiresAt: currentTime + recentWebRequestTtlMs,
         });
         if (recentWebRequests.length > MAX_RECENT_ENTRIES) {
@@ -579,9 +586,11 @@ export function createDownloadDeduplicator(
         }
     }
 
-    function consumeRecentWebRequestBytes(item: DownloadDedupItem): number {
+    function consumeRecentWebRequestBytes(
+        item: DownloadDedupItem,
+    ): ConsumedWebRequestCredit | undefined {
         const profile = buildDownloadProfile(item);
-        if (profile.urls.size === 0) return 0;
+        if (profile.urls.size === 0) return undefined;
 
         const currentTime = now();
         pruneExpired(currentTime);
@@ -589,12 +598,16 @@ export function createDownloadDeduplicator(
         const matchIdx = recentWebRequests.findIndex((entry) =>
             matchesTransfer(profile, entry, "credit"),
         );
-        if (matchIdx === -1) return 0;
+        if (matchIdx === -1) return undefined;
 
         const [matched] = recentWebRequests.splice(matchIdx, 1);
         const active = activeById.get(item.id);
         if (active) active.webRequestMatched = true;
-        return matched?.bytes ?? 0;
+        if (!matched || matched.bytes <= 0) return undefined;
+        return {
+            bytes: matched.bytes,
+            attributedOrigin: matched.attributedOrigin,
+        };
     }
 
     return {

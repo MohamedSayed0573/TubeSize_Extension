@@ -2632,4 +2632,174 @@ describe("downloadTracker durability, resume, pause, and error resilience", () =
             tracker.dispose();
         }
     });
+
+    test("keeps destination origin consistent for empty-referrer cross-origin downloads and unmatched downloadable navigations", async () => {
+        for (const order of ["created-first", "request-first"] as const) {
+            await clearDatabaseData();
+            const fakeDownloads = new FakeDownloadsController();
+            const ingestion = createUsageIngestion();
+            const deduplicator = createDownloadDeduplicator();
+            const tracker = createDownloadTracker(ingestion, deduplicator, {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 1_000,
+            });
+            cleanups.push(() => tracker.dispose());
+            await tracker.whenIdle();
+
+            const tab = await fakeBrowser.tabs.create({ url: "https://example.com/downloads" });
+            const fileUrl = "https://cdn.example.net/noreferrer-bundle.zip";
+            const id = order === "created-first" ? 95 : 96;
+
+            const fireRequest = () =>
+                trackRequest(
+                    ingestion,
+                    makeWebRequestDetails({
+                        tabId: tab.id,
+                        type: "main_frame",
+                        url: fileUrl,
+                        initiator: "https://example.com",
+                        responseHeaders: [
+                            { name: "Content-Length", value: "80000" },
+                            { name: "Content-Type", value: "application/zip" },
+                        ],
+                    }),
+                    deduplicator,
+                );
+            const fireDownload = () => {
+                fakeDownloads.emitCreated(
+                    makeDownloadItem({
+                        id,
+                        url: fileUrl,
+                        finalUrl: fileUrl,
+                        referrer: "",
+                        mime: "application/zip",
+                        bytesReceived: 0,
+                        totalBytes: 80_000,
+                        state: "in_progress",
+                    }),
+                );
+                fakeDownloads.updateItem(id, { bytesReceived: 80_000, state: "complete" });
+                fakeDownloads.emitChanged({
+                    id,
+                    state: { previous: "in_progress", current: "complete" },
+                });
+            };
+
+            if (order === "created-first") {
+                fireDownload();
+                await tracker.whenIdle();
+                await fireRequest();
+            } else {
+                await fireRequest();
+                fireDownload();
+                await tracker.whenIdle();
+            }
+
+            // Unmatched downloadable main_frame navigation also attributes to its destination origin.
+            await trackRequest(
+                ingestion,
+                makeWebRequestDetails({
+                    tabId: tab.id,
+                    type: "main_frame",
+                    url: "https://cdn.example.net/unmatched.bin",
+                    initiator: "https://example.com",
+                    responseHeaders: [
+                        { name: "Content-Length", value: "15000" },
+                        { name: "Content-Type", value: "application/octet-stream" },
+                    ],
+                }),
+                deduplicator,
+            );
+            await ingestion.flush();
+
+            expect((await getAllSiteUsage())[0]?.usage).toEqual({
+                [origin("https://cdn.example.net")]: 80_000 + 15_000,
+            });
+            tracker.dispose();
+        }
+    });
+
+    test("holds startup hydration gate across a transient load failure so recovered downloads do not double-count", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        const fakeDownloads = new FakeDownloadsController();
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/files" });
+        const url = "https://example.com/transient-recovered.bin";
+
+        await commitDownloadProgress({
+            usage: { [origin("https://example.com")]: 30_000 },
+            upserts: [
+                {
+                    id: 97,
+                    startTime: DEFAULT_TIME_ISO,
+                    bytesReceived: 30_000,
+                    state: "in_progress",
+                },
+            ],
+            deletes: [],
+        });
+
+        fakeDownloads.items.set(
+            97,
+            makeDownloadItem({
+                id: 97,
+                url,
+                finalUrl: url,
+                referrer: "https://example.com/files",
+                bytesReceived: 100_000,
+                totalBytes: 100_000,
+                state: "complete",
+            }),
+        );
+
+        let failLoadOnce = true;
+        const ingestion = createUsageIngestion();
+        const deduplicator = createDownloadDeduplicator();
+        const tracker = createDownloadTracker(ingestion, deduplicator, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 15,
+            loadCheckpoints: async () => {
+                if (failLoadOnce) {
+                    failLoadOnce = false;
+                    throw new Error("transient startup load failure");
+                }
+                return getDownloadCheckpoints();
+            },
+        });
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        // First hydration failed and scheduled retry; concurrent webRequest events wait for retry.
+        const matchedPromise = trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "other",
+                url,
+                responseHeaders: [{ name: "Content-Length", value: "100000" }],
+            }),
+            deduplicator,
+        );
+        const unmatchedPromise = trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "other",
+                url: "https://example.com/unrelated-after-retry.bin",
+                responseHeaders: [{ name: "Content-Length", value: "5000" }],
+            }),
+            deduplicator,
+        );
+
+        await Promise.all([matchedPromise, unmatchedPromise]);
+        await tracker.whenIdle();
+        await ingestion.flush();
+
+        // 30_000 prior + 70_000 recovered delta + 5_000 unmatched = 105_000 (not 205_000).
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 105_000,
+        });
+        expect(await getDownloadCheckpoints()).toEqual([]);
+    });
 });

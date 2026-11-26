@@ -485,7 +485,9 @@ export function createDownloadTracker(
         syncPollingState();
         if (needsRetry) {
             scheduleHydrateRetry();
+            return;
         }
+        releaseInitialHydration();
     }
 
     async function handleCreated(item: chrome.downloads.DownloadItem, recentWebBytes: number) {
@@ -580,10 +582,17 @@ export function createDownloadTracker(
             const recentCredit = deduplicator.consumeRecentWebRequestBytes(
                 toDownloadDedupItem(item, [delta.finalUrl.current]),
             );
-            if (recentCredit > 0) {
+            if (recentCredit && recentCredit.bytes > 0) {
+                if (recentCredit.attributedOrigin && recentCredit.attributedOrigin !== origin) {
+                    ingestion.reattributeBufferedOrigin(
+                        recentCredit.attributedOrigin,
+                        origin,
+                        recentCredit.bytes,
+                    );
+                }
                 pendingWebCredits.set(
                     item.id,
-                    Math.max(pendingWebCredits.get(item.id) ?? 0, recentCredit),
+                    Math.max(pendingWebCredits.get(item.id) ?? 0, recentCredit.bytes),
                 );
             }
         }
@@ -681,13 +690,21 @@ export function createDownloadTracker(
 
     const onCreated = (item: chrome.downloads.DownloadItem) => {
         if (isDisposed) return;
-        if (!resolveDownloadOrigin(item)) return;
+        const origin = resolveDownloadOrigin(item);
+        if (!origin) return;
 
         const dedupItem = toDownloadDedupItem(item);
         deduplicator.trackActiveDownload(dedupItem);
-        const recentWebBytes = deduplicator.consumeRecentWebRequestBytes(dedupItem);
+        const recentCredit = deduplicator.consumeRecentWebRequestBytes(dedupItem);
+        if (recentCredit?.attributedOrigin && recentCredit.attributedOrigin !== origin) {
+            ingestion.reattributeBufferedOrigin(
+                recentCredit.attributedOrigin,
+                origin,
+                recentCredit.bytes,
+            );
+        }
         seenCreatedIds.add(item.id);
-        enqueue(() => handleCreated(item, recentWebBytes));
+        enqueue(() => handleCreated(item, recentCredit?.bytes ?? 0));
     };
 
     const onChanged = (delta: chrome.downloads.DownloadDelta) => {
@@ -721,7 +738,21 @@ export function createDownloadTracker(
     });
     deduplicator.setHydrationGate(initialHydrationGate);
 
+    // Bounded safety fallback so permanently failing IDB/downloads APIs cannot stall webRequest
+    // tracking indefinitely, while transient startup failures still hold the gate across retries.
+    let hydrationGateTimerId: ReturnType<typeof setTimeout> | undefined = setTimeout(
+        () => {
+            hydrationGateTimerId = undefined;
+            releaseInitialHydration();
+        },
+        Math.max(pollIntervalMs * 4, 2_000),
+    );
+
     function releaseInitialHydration() {
+        if (hydrationGateTimerId !== undefined) {
+            clearTimeout(hydrationGateTimerId);
+            hydrationGateTimerId = undefined;
+        }
         resolveInitialHydration?.();
         resolveInitialHydration = undefined;
     }
@@ -730,11 +761,7 @@ export function createDownloadTracker(
     downloads.onChanged.addListener(onChanged);
     downloads.onErased?.addListener(onErased);
     enqueue(async () => {
-        try {
-            await hydrateAndReconcile();
-        } finally {
-            releaseInitialHydration();
-        }
+        await hydrateAndReconcile();
     });
 
     return {

@@ -7,7 +7,6 @@ import {
     isAttachmentNavigation,
     isDownloadableWebRequest,
     isPdfMainFrameNavigation,
-    resolveRequestInitiatingOrigin,
 } from "./downloadDedup";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
@@ -100,13 +99,7 @@ export async function trackRequest(
             await deduplicator.whenReady();
         }
 
-        // Attribute downloadable main_frame requests to their initiating origin (falling back to
-        // details.url) so request-first and downloads.onCreated-first paths record the same origin.
-        const tabUrl =
-            downloadable && details.type === "main_frame"
-                ? (resolveRequestInitiatingOrigin(details) ??
-                  (isExtensionUrl(details.url) ? undefined : details.url))
-                : await resolveRequestTabUrl(details);
+        const tabUrl = await resolveRequestTabUrl(details);
         if (!tabUrl) return;
         if (deduplicator?.shouldSkipWebRequest(details, bytes, tabUrl, committedMainFrameUrl)) {
             return;
