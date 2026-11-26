@@ -4,6 +4,7 @@ import { toOrigin } from "@lib/domain";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
 import {
+    addSiteUsage,
     clearDatabaseData,
     commitDownloadProgress,
     getAllSiteUsage,
@@ -1524,5 +1525,280 @@ describe("downloadTracker durability, resume, pause, and error resilience", () =
         expect(tracker.activeCount).toBe(0);
         expect(tracker.isPolling).toBe(false);
         expect(await getDownloadCheckpoints()).toEqual([]);
+    });
+
+    test("preserves credited webRequest bytes when ingestion.flush throws on badge refresh or transient IDB failure", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        const fakeDownloads = new FakeDownloadsController();
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/page" });
+
+        // Case 1: badge refresh throws after siteUsage write already committed.
+        const badgeFailIngestion = createUsageIngestion({
+            refreshBadge: async () => {
+                throw new Error("badge unavailable");
+            },
+        });
+        const badgeFailDedup = createDownloadDeduplicator();
+        const badgeFailTracker = createDownloadTracker(badgeFailIngestion, badgeFailDedup, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 15,
+        });
+        cleanups.push(() => badgeFailTracker.dispose());
+        await badgeFailTracker.whenIdle();
+
+        await trackRequest(
+            badgeFailIngestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "other",
+                url: "https://example.com/badge-fail.bin",
+                responseHeaders: [{ name: "Content-Length", value: "50000" }],
+            }),
+            badgeFailDedup,
+        );
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 65,
+                url: "https://example.com/badge-fail.bin",
+                finalUrl: "https://example.com/badge-fail.bin",
+                referrer: "https://example.com/page",
+                bytesReceived: 0,
+                totalBytes: 50_000,
+                state: "in_progress",
+            }),
+        );
+        await badgeFailTracker.whenIdle();
+
+        fakeDownloads.updateItem(65, { bytesReceived: 50_000, state: "complete" });
+        fakeDownloads.emitChanged({
+            id: 65,
+            state: { previous: "in_progress", current: "complete" },
+        });
+        await badgeFailTracker.whenIdle();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 50_000,
+        });
+        badgeFailTracker.dispose();
+        await clearDatabaseData();
+
+        // Case 2: siteUsage write fails transiently on initial credit flush, then succeeds on retry.
+        let failWriteOnce = true;
+        const flakyIngestion = createUsageIngestion({
+            writeSiteUsage: async (batch) => {
+                if (failWriteOnce) {
+                    failWriteOnce = false;
+                    throw new Error("transient IDB write failure");
+                }
+                await addSiteUsage(batch);
+            },
+        });
+        const flakyDedup = createDownloadDeduplicator();
+        const flakyTracker = createDownloadTracker(flakyIngestion, flakyDedup, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 15,
+        });
+        cleanups.push(() => flakyTracker.dispose());
+        await flakyTracker.whenIdle();
+
+        await trackRequest(
+            flakyIngestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "other",
+                url: "https://example.com/retry-credit.bin",
+                responseHeaders: [{ name: "Content-Length", value: "70000" }],
+            }),
+            flakyDedup,
+        );
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 66,
+                url: "https://example.com/retry-credit.bin",
+                finalUrl: "https://example.com/retry-credit.bin",
+                referrer: "https://example.com/page",
+                bytesReceived: 20_000,
+                totalBytes: 70_000,
+                state: "in_progress",
+            }),
+        );
+        await flakyTracker.whenIdle();
+        expect(flakyTracker.isPolling).toBe(true);
+
+        // Wait for poll retry to flush the pending webRequest credit and commit the checkpoint.
+        await new Promise((resolve) => setTimeout(resolve, 45));
+        await flakyTracker.whenIdle();
+
+        fakeDownloads.updateItem(66, { bytesReceived: 70_000, state: "complete" });
+        fakeDownloads.emitChanged({
+            id: 66,
+            state: { previous: "in_progress", current: "complete" },
+        });
+        await flakyTracker.whenIdle();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 70_000,
+        });
+        expect(flakyTracker.isPolling).toBe(false);
+    });
+
+    test("deduplicates resumed 206 Range webRequest responses using Content-Range full size without suppressing different resources", async () => {
+        const fakeDownloads = new FakeDownloadsController();
+        const ingestion = createUsageIngestion();
+        const deduplicator = createDownloadDeduplicator();
+        const tracker = createDownloadTracker(ingestion, deduplicator, {
+            downloads: fakeDownloads.api,
+            pollIntervalMs: 1_000,
+        });
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/downloads" });
+        const fileUrl = "https://cdn.example.com/archive.bin";
+
+        fakeDownloads.emitCreated(
+            makeDownloadItem({
+                id: 67,
+                url: fileUrl,
+                finalUrl: fileUrl,
+                referrer: "https://example.com/downloads",
+                bytesReceived: 60_000,
+                totalBytes: 100_000,
+                canResume: true,
+                state: "in_progress",
+            }),
+        );
+        await tracker.whenIdle();
+
+        fakeDownloads.updateItem(67, { state: "interrupted", canResume: true });
+        fakeDownloads.emitChanged({
+            id: 67,
+            state: { previous: "in_progress", current: "interrupted" },
+        });
+        await tracker.whenIdle();
+
+        // Resume download for the remaining 40_000 bytes.
+        fakeDownloads.updateItem(67, { state: "in_progress", bytesReceived: 60_000 });
+        fakeDownloads.emitChanged({
+            id: 67,
+            state: { previous: "interrupted", current: "in_progress" },
+        });
+        await tracker.whenIdle();
+
+        // Resumed 206 Range response carries Content-Length for remaining slice and full size in Content-Range.
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "other",
+                url: fileUrl,
+                statusCode: 206,
+                responseHeaders: [
+                    { name: "Content-Length", value: "40000" },
+                    { name: "Content-Range", value: "bytes 60000-99999/100000" },
+                ],
+            }),
+            deduplicator,
+        );
+
+        // Separate 206 response with a mismatched full size is NOT suppressed.
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "other",
+                url: fileUrl,
+                statusCode: 206,
+                responseHeaders: [
+                    { name: "Content-Length", value: "10000" },
+                    { name: "Content-Range", value: "bytes 0-9999/50000" },
+                ],
+            }),
+            deduplicator,
+        );
+
+        fakeDownloads.updateItem(67, { state: "complete", bytesReceived: 100_000 });
+        fakeDownloads.emitChanged({
+            id: 67,
+            state: { previous: "in_progress", current: "complete" },
+        });
+        await tracker.whenIdle();
+        await ingestion.flush();
+
+        // 100_000 (download total, resumed 206 skipped) + 10_000 (mismatched 206 counted) = 110_000.
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 110_000,
+        });
+    });
+
+    test("retries startup hydration after a transient commit failure so recovered downloads resume live polling", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        const fakeDownloads = new FakeDownloadsController();
+        fakeDownloads.items.set(
+            68,
+            makeDownloadItem({
+                id: 68,
+                url: "https://cdn.example.com/startup-retry.bin",
+                finalUrl: "https://cdn.example.com/startup-retry.bin",
+                referrer: "https://example.com/downloads",
+                bytesReceived: 50_000,
+                totalBytes: 100_000,
+                state: "in_progress",
+            }),
+        );
+        await commitDownloadProgress({
+            usage: { [origin("https://example.com")]: 20_000 },
+            upserts: [
+                {
+                    id: 68,
+                    startTime: DEFAULT_TIME_ISO,
+                    bytesReceived: 20_000,
+                    state: "in_progress",
+                },
+            ],
+            deletes: [],
+        });
+
+        let failStartupCommit = true;
+        const tracker = createDownloadTracker(
+            createUsageIngestion(),
+            createDownloadDeduplicator(),
+            {
+                downloads: fakeDownloads.api,
+                pollIntervalMs: 15,
+                commitProgress: async (batch) => {
+                    if (failStartupCommit) {
+                        failStartupCommit = false;
+                        throw new Error("transient startup IDB failure");
+                    }
+                    await commitDownloadProgress(batch);
+                },
+            },
+        );
+        cleanups.push(() => tracker.dispose());
+        await tracker.whenIdle();
+
+        // Startup commit failed once, so a retry must recover the download and start polling automatically.
+        await new Promise((resolve) => setTimeout(resolve, 45));
+        await tracker.whenIdle();
+
+        expect(tracker.activeCount).toBe(1);
+        expect(tracker.isPolling).toBe(true);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 50_000,
+        });
+
+        // Live progress continues via polling without needing any browser change event.
+        fakeDownloads.updateItem(68, { bytesReceived: 80_000 });
+        await new Promise((resolve) => setTimeout(resolve, 40));
+        await tracker.whenIdle();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 80_000,
+        });
     });
 });

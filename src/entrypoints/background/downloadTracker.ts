@@ -16,8 +16,10 @@ import { isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 const CONTENT_DISPOSITION_HEADER = "content-disposition";
 const CONTENT_ENCODING_HEADER = "content-encoding";
 const CONTENT_LENGTH_HEADER = "content-length";
+const CONTENT_RANGE_HEADER = "content-range";
 const CONTENT_TYPE_HEADER = "content-type";
 const ATTACHMENT_DISPOSITION_RE = /^\s*attachment(?:\s*;|\s*$)/i;
+const CONTENT_RANGE_RE = /^\s*bytes\s+(?:\d+-\d+|\*)\/(\d+|\*)\s*$/i;
 const DEFAULT_POLL_INTERVAL_MS = 1_000;
 const DEFAULT_FINISHED_DOWNLOAD_TTL_MS = 10_000;
 const DEFAULT_RECENT_WEB_REQUEST_TTL_MS = 5_000;
@@ -27,7 +29,7 @@ const MAX_RECENT_ENTRIES = 256;
 
 type WebRequestDedupDetails = Pick<
     chrome.webRequest.OnCompletedDetails,
-    "url" | "type" | "responseHeaders" | "timeStamp" | "initiator"
+    "url" | "type" | "responseHeaders" | "timeStamp" | "initiator" | "statusCode"
 > & {
     originUrl?: string;
     documentUrl?: string;
@@ -107,6 +109,8 @@ interface WebRequestProfile {
     url: string;
     type: WebRequestDedupDetails["type"];
     bytes?: number;
+    rangeTotalBytes?: number;
+    isPartialContent: boolean;
     mime?: string;
     isCompressed: boolean;
     initiatingOrigin?: Origin;
@@ -241,6 +245,20 @@ function resolveRequestInitiatingOrigin(
     );
 }
 
+function parseContentRange(headers: chrome.webRequest.HttpHeader[] | undefined): {
+    isPartial: boolean;
+    totalBytes?: number;
+} {
+    const value = getHeaderValue(headers, CONTENT_RANGE_HEADER);
+    if (!value) return { isPartial: false };
+    const match = CONTENT_RANGE_RE.exec(value);
+    if (!match) return { isPartial: false };
+    const totalToken = match[1];
+    const totalBytes =
+        totalToken && totalToken !== "*" ? toOptionalPositiveBytes(Number(totalToken)) : undefined;
+    return { isPartial: true, totalBytes };
+}
+
 function buildWebRequestProfile(
     details: WebRequestDedupDetails,
     bytes?: number,
@@ -249,10 +267,13 @@ function buildWebRequestProfile(
     const headerLength = toOptionalPositiveBytes(
         Number(getHeaderValue(details.responseHeaders, CONTENT_LENGTH_HEADER)),
     );
+    const contentRange = parseContentRange(details.responseHeaders);
     return {
         url: details.url,
         type: details.type,
         bytes: toOptionalPositiveBytes(bytes) ?? headerLength,
+        rangeTotalBytes: contentRange.totalBytes,
+        isPartialContent: contentRange.isPartial || details.statusCode === 206,
         mime: normalizeMime(getHeaderValue(details.responseHeaders, CONTENT_TYPE_HEADER)),
         isCompressed: hasNonIdentityEncoding(details.responseHeaders),
         initiatingOrigin: resolveRequestInitiatingOrigin(details, tabUrl),
@@ -283,13 +304,14 @@ function matchesTransfer(
 ): boolean {
     if (!download.urls.has(request.url)) return false;
 
-    if (
-        download.totalBytes !== undefined &&
-        request.bytes !== undefined &&
-        !request.isCompressed &&
-        request.bytes !== download.totalBytes
-    ) {
-        return false;
+    if (download.totalBytes !== undefined && !request.isCompressed) {
+        if (request.rangeTotalBytes !== undefined) {
+            if (request.rangeTotalBytes !== download.totalBytes) return false;
+        } else if (request.isPartialContent) {
+            if (request.bytes !== undefined && request.bytes > download.totalBytes) return false;
+        } else if (request.bytes !== undefined && request.bytes !== download.totalBytes) {
+            return false;
+        }
     }
 
     if (download.mime && request.mime && download.mime !== request.mime) {
@@ -574,8 +596,10 @@ export function createDownloadTracker(
     const activeDownloads = new Map<number, TrackedDownload>();
     const checkpoints = new Map<number, DownloadCheckpoint>();
     const seenCreatedIds = new Set<number>();
+    const pendingWebCredits = new Map<number, number>();
 
     let pollTimerId: ReturnType<typeof setInterval> | undefined;
+    let startupRetryTimerId: ReturnType<typeof setTimeout> | undefined;
     let pollQueued = false;
     let isDisposed = false;
     let operationQueue: Promise<void> = Promise.resolve();
@@ -597,6 +621,21 @@ export function createDownloadTracker(
         if (pollTimerId === undefined) return;
         clearInterval(pollTimerId);
         pollTimerId = undefined;
+    }
+
+    function clearHydrateRetry() {
+        if (startupRetryTimerId === undefined) return;
+        clearTimeout(startupRetryTimerId);
+        startupRetryTimerId = undefined;
+    }
+
+    function scheduleHydrateRetry() {
+        if (isDisposed || startupRetryTimerId !== undefined) return;
+        startupRetryTimerId = setTimeout(() => {
+            startupRetryTimerId = undefined;
+            if (isDisposed) return;
+            enqueue(() => hydrateAndReconcile());
+        }, pollIntervalMs);
     }
 
     function stopPollingIfIdle() {
@@ -675,7 +714,7 @@ export function createDownloadTracker(
             return true;
         } catch (err) {
             console.error("Failed to flush credited webRequest usage:", err);
-            return false;
+            return !ingestion.hasPendingUsage;
         }
     }
 
@@ -710,11 +749,14 @@ export function createDownloadTracker(
     }
 
     async function hydrateAndReconcile() {
+        clearHydrateRetry();
+
         let stored: DownloadCheckpoint[];
         try {
             stored = await loadCheckpoints();
         } catch (err) {
             console.error("Failed to load download checkpoints:", err);
+            scheduleHydrateRetry();
             return;
         }
 
@@ -723,11 +765,15 @@ export function createDownloadTracker(
         }
 
         const items = await safeSearch({ state: "in_progress" });
-        if (!items) return;
+        if (!items) {
+            scheduleHydrateRetry();
+            return;
+        }
 
         const batch: DownloadCommitBatch = { usage: {}, upserts: [], deletes: [] };
         const postCommitActions: Array<() => void> = [];
         const inProgressIds = new Set<number>();
+        let hadCheckpointSearchError = false;
 
         for (const item of items) {
             inProgressIds.add(item.id);
@@ -739,6 +785,7 @@ export function createDownloadTracker(
                 if (checkpoints.has(item.id)) batch.deletes.push(item.id);
                 postCommitActions.push(() => {
                     activeDownloads.delete(item.id);
+                    pendingWebCredits.delete(item.id);
                     deduplicator.cancelDownload(item.id);
                 });
                 continue;
@@ -786,7 +833,10 @@ export function createDownloadTracker(
             if (inProgressIds.has(id) || activeDownloads.has(id)) continue;
 
             const found = await safeSearch({ id });
-            if (!found) continue;
+            if (!found) {
+                hadCheckpointSearchError = true;
+                continue;
+            }
 
             const [item] = found;
             if (!item) {
@@ -837,7 +887,10 @@ export function createDownloadTracker(
         }
 
         const committed = await commitBatch(batch);
-        if (!committed) return;
+        if (!committed) {
+            scheduleHydrateRetry();
+            return;
+        }
 
         for (const apply of postCommitActions) apply();
         if (activeDownloads.size > 0) {
@@ -845,12 +898,16 @@ export function createDownloadTracker(
         } else {
             stopPollingIfIdle();
         }
+        if (hadCheckpointSearchError) {
+            scheduleHydrateRetry();
+        }
     }
 
     async function handleCreated(item: chrome.downloads.DownloadItem, recentWebBytes: number) {
         const origin = resolveDownloadOrigin(item);
         if (!origin) {
             seenCreatedIds.delete(item.id);
+            pendingWebCredits.delete(item.id);
             deduplicator.cancelDownload(item.id);
             if (checkpoints.has(item.id)) {
                 await commitBatch({ usage: {}, upserts: [], deletes: [item.id] });
@@ -858,26 +915,28 @@ export function createDownloadTracker(
             return;
         }
 
-        let effectiveCredit = 0;
-        if (recentWebBytes > 0) {
-            const creditFlushed = await flushIngestionForCredit();
-            if (!creditFlushed) {
-                if (item.state === "in_progress" && !item.paused) {
-                    activeDownloads.set(
-                        item.id,
-                        makeTrackedEntry(item, origin, 0, activeDownloads.get(item.id)),
-                    );
-                    ensurePolling();
-                }
-                return;
-            }
-            effectiveCredit = recentWebBytes;
-        }
-
         const existing = activeDownloads.get(item.id);
         const matching = getMatchingCheckpoint(item);
         const priorBytes = existing?.lastBytesReceived ?? matching?.bytesReceived ?? 0;
-        const baseline = Math.max(priorBytes, effectiveCredit);
+
+        if (recentWebBytes > 0) {
+            pendingWebCredits.set(
+                item.id,
+                Math.max(pendingWebCredits.get(item.id) ?? 0, recentWebBytes),
+            );
+        }
+
+        const pendingCredit = pendingWebCredits.get(item.id) ?? 0;
+        const baseline = Math.max(priorBytes, pendingCredit);
+        if (pendingCredit > 0) {
+            const creditFlushed = await flushIngestionForCredit();
+            if (!creditFlushed) {
+                activeDownloads.set(item.id, makeTrackedEntry(item, origin, baseline, existing));
+                ensurePolling();
+                return;
+            }
+        }
+
         const { delta, nextLastBytes } = computeDelta(item, baseline, false);
 
         const isActive = item.state === "in_progress" && !item.paused;
@@ -902,12 +961,14 @@ export function createDownloadTracker(
 
         const committed = await commitBatch(batch);
         if (!committed) {
-            if (isActive) {
+            if (isActive || pendingCredit > 0) {
                 activeDownloads.set(item.id, makeTrackedEntry(item, origin, baseline, existing));
                 ensurePolling();
             }
             return;
         }
+
+        pendingWebCredits.delete(item.id);
 
         const nextEntry = makeTrackedEntry(item, origin, nextLastBytes, existing);
         if (isActive) {
@@ -945,6 +1006,7 @@ export function createDownloadTracker(
             }
             activeDownloads.delete(delta.id);
             seenCreatedIds.delete(delta.id);
+            pendingWebCredits.delete(delta.id);
             if (removed) {
                 deduplicator.finishDownload({
                     id: delta.id,
@@ -976,6 +1038,7 @@ export function createDownloadTracker(
             }
             activeDownloads.delete(item.id);
             seenCreatedIds.delete(item.id);
+            pendingWebCredits.delete(item.id);
             deduplicator.cancelDownload(item.id);
             stopPollingIfIdle();
             return;
@@ -1001,9 +1064,24 @@ export function createDownloadTracker(
                 toDedupItem(item, [delta.finalUrl.current]),
             );
             if (recentCredit > 0) {
-                const creditFlushed = await flushIngestionForCredit();
-                if (!creditFlushed) return;
-                baseline = Math.max(baseline, recentCredit);
+                pendingWebCredits.set(
+                    item.id,
+                    Math.max(pendingWebCredits.get(item.id) ?? 0, recentCredit),
+                );
+            }
+        }
+
+        const pendingCredit = pendingWebCredits.get(item.id) ?? 0;
+        if (pendingCredit > 0) {
+            baseline = Math.max(baseline, pendingCredit);
+            const creditFlushed = await flushIngestionForCredit();
+            if (!creditFlushed) {
+                activeDownloads.set(
+                    item.id,
+                    makeTrackedEntry(item, origin, baseline, existingActive),
+                );
+                ensurePolling();
+                return;
             }
         }
 
@@ -1039,6 +1117,8 @@ export function createDownloadTracker(
         const committed = await commitBatch(batch);
         if (!committed) return;
 
+        pendingWebCredits.delete(item.id);
+
         const nextEntry = makeTrackedEntry(item, origin, nextLastBytes, existingActive);
         if (isActive) {
             activeDownloads.set(item.id, nextEntry);
@@ -1062,7 +1142,13 @@ export function createDownloadTracker(
     }
 
     async function handleErased(downloadId: number) {
-        if (!checkpoints.has(downloadId) && !activeDownloads.has(downloadId)) return;
+        if (
+            !checkpoints.has(downloadId) &&
+            !activeDownloads.has(downloadId) &&
+            !pendingWebCredits.has(downloadId)
+        ) {
+            return;
+        }
 
         if (checkpoints.has(downloadId)) {
             const committed = await commitBatch({
@@ -1075,6 +1161,7 @@ export function createDownloadTracker(
 
         activeDownloads.delete(downloadId);
         seenCreatedIds.delete(downloadId);
+        pendingWebCredits.delete(downloadId);
         deduplicator.cancelDownload(downloadId);
         stopPollingIfIdle();
     }
@@ -1096,11 +1183,19 @@ export function createDownloadTracker(
             const matching = getMatchingCheckpoint(item);
             if (!existing && !matching && seenCreatedIds.has(item.id)) continue;
 
+            const pendingCredit = pendingWebCredits.get(item.id) ?? 0;
+            if (pendingCredit > 0) {
+                const creditFlushed = await flushIngestionForCredit();
+                if (!creditFlushed) continue;
+            }
+
             const isResume = matching?.state === "interrupted";
-            const baseline =
+            const baseline = Math.max(
                 existing?.lastBytesReceived ??
-                matching?.bytesReceived ??
-                sanitizeBytes(item.bytesReceived);
+                    matching?.bytesReceived ??
+                    sanitizeBytes(item.bytesReceived),
+                pendingCredit,
+            );
             const { delta, nextLastBytes } = computeDelta(item, baseline, isResume);
 
             addOriginBytes(batch.usage, origin, delta);
@@ -1120,6 +1215,7 @@ export function createDownloadTracker(
 
             const nextEntry = makeTrackedEntry(item, origin, nextLastBytes, existing);
             postCommitActions.push(() => {
+                pendingWebCredits.delete(item.id);
                 if (item.paused) {
                     activeDownloads.delete(item.id);
                     deduplicator.cancelDownload(item.id);
@@ -1133,6 +1229,12 @@ export function createDownloadTracker(
         for (const [id, entry] of Array.from(activeDownloads.entries())) {
             if (seenInProgress.has(id)) continue;
 
+            const pendingCredit = pendingWebCredits.get(id) ?? 0;
+            if (pendingCredit > 0) {
+                const creditFlushed = await flushIngestionForCredit();
+                if (!creditFlushed) continue;
+            }
+
             const found = await safeSearch({ id });
             if (!found) continue;
 
@@ -1143,7 +1245,7 @@ export function createDownloadTracker(
                 const origin = resolveDownloadOrigin(finished) ?? entry.origin;
                 const { delta, nextLastBytes } = computeDelta(
                     finished,
-                    entry.lastBytesReceived,
+                    Math.max(entry.lastBytesReceived, pendingCredit),
                     false,
                 );
                 addOriginBytes(batch.usage, origin, delta);
@@ -1160,6 +1262,7 @@ export function createDownloadTracker(
                 }
 
                 postCommitActions.push(() => {
+                    pendingWebCredits.delete(id);
                     activeDownloads.delete(id);
                     seenCreatedIds.delete(id);
                     deduplicator.finishDownload(toDedupItem(finished, [...entry.urls]));
@@ -1167,6 +1270,7 @@ export function createDownloadTracker(
             } else {
                 batch.deletes.push(id);
                 postCommitActions.push(() => {
+                    pendingWebCredits.delete(id);
                     activeDownloads.delete(id);
                     seenCreatedIds.delete(id);
                     deduplicator.finishDownload({
@@ -1246,6 +1350,7 @@ export function createDownloadTracker(
         dispose() {
             if (isDisposed) return;
             isDisposed = true;
+            clearHydrateRetry();
             stopPolling();
             downloads.onCreated.removeListener(onCreated);
             downloads.onChanged.removeListener(onChanged);
