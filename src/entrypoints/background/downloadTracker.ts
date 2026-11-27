@@ -107,7 +107,7 @@ export function createDownloadTracker(
     }
 
     function syncPolling() {
-        if (isDisposed || pollingIds.size === 0) {
+        if (isDisposed || (pollingIds.size === 0 && createdIds.size === 0)) {
             stopPolling();
             return;
         }
@@ -117,7 +117,8 @@ export function createDownloadTracker(
             pollQueued = true;
             enqueue(async () => {
                 try {
-                    await syncActiveAndTracked(Array.from(pollingIds));
+                    const tracked = new Set([...pollingIds, ...createdIds]);
+                    await syncActiveAndTracked(Array.from(tracked));
                 } finally {
                     pollQueued = false;
                 }
@@ -201,7 +202,7 @@ export function createDownloadTracker(
             const received = sanitizeBytes(item.bytesReceived);
             const prior = existing
                 ? existing.bytesReceived
-                : baselineIfNew === "zero"
+                : baselineIfNew === "zero" || createdIds.has(item.id)
                   ? 0
                   : received;
             const delta = computeDelta(received, prior);
@@ -260,7 +261,10 @@ export function createDownloadTracker(
             });
         }
 
-        if (!(await commitBatch(batch))) return;
+        if (!(await commitBatch(batch))) {
+            syncPolling();
+            return;
+        }
 
         for (const [id, checkpoint] of nextCheckpoints) checkpoints.set(id, checkpoint);
         for (const id of deletedCheckpoints) checkpoints.delete(id);
@@ -278,13 +282,6 @@ export function createDownloadTracker(
 
         for (const item of inProgress) {
             seenInProgress.add(item.id);
-            if (
-                !pollingIds.has(item.id) &&
-                !getMatchingCheckpoint(item) &&
-                createdIds.has(item.id)
-            ) {
-                continue;
-            }
             itemsToReconcile.push(item);
         }
 
@@ -327,13 +324,16 @@ export function createDownloadTracker(
 
         const [item] = found;
         if (!item) {
-            if (checkpoints.has(delta.id) || pollingIds.has(delta.id)) {
+            if (checkpoints.has(delta.id) || pollingIds.has(delta.id) || createdIds.has(delta.id)) {
                 await reconcile([], [delta.id], "received");
             }
             return;
         }
 
-        const isTracked = pollingIds.has(item.id) || getMatchingCheckpoint(item) !== undefined;
+        const isTracked =
+            pollingIds.has(item.id) ||
+            getMatchingCheckpoint(item) !== undefined ||
+            createdIds.has(item.id);
         const isActivating =
             delta.state?.current === "in_progress" || delta.paused?.current === false;
         if (!isTracked && !isActivating) return;
@@ -345,7 +345,12 @@ export function createDownloadTracker(
         if (isDisposed || !resolveDownloadOrigin(item)) return;
         dedup.track(item.id, collectUrls([item.finalUrl, item.url]));
         createdIds.add(item.id);
-        enqueue(() => reconcile([item], [], "zero"));
+        enqueue(async () => {
+            if (!createdIds.has(item.id)) return;
+            const found = await safeSearch({ id: item.id });
+            const current = found?.[0] ?? item;
+            await reconcile([current], [], "zero");
+        });
     };
 
     const onChanged = (delta: chrome.downloads.DownloadDelta) => {
@@ -374,7 +379,13 @@ export function createDownloadTracker(
     const onErased = (downloadId: number) => {
         if (isDisposed) return;
         enqueue(async () => {
-            if (!checkpoints.has(downloadId) && !pollingIds.has(downloadId)) return;
+            if (
+                !checkpoints.has(downloadId) &&
+                !pollingIds.has(downloadId) &&
+                !createdIds.has(downloadId)
+            ) {
+                return;
+            }
             await reconcile([], [downloadId], "received");
         });
     };

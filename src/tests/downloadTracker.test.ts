@@ -611,6 +611,94 @@ describe("createDownloadTracker", () => {
             [origin("https://files.example.com")]: 40_000,
         });
     });
+
+    test("retries new downloads from zero baseline when the initial commit fails and later completes", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        let failOnce = true;
+        const { controller, tracker } = createTestHarness({
+            trackerDeps: {
+                pollIntervalMs: 5_000,
+                commitProgress: async (batch) => {
+                    if (failOnce) {
+                        failOnce = false;
+                        throw new Error("initial idb failure");
+                    }
+                    await commitDownloadProgress(batch);
+                },
+            },
+        });
+        await tracker.whenIdle();
+
+        controller.emitCreated(
+            makeDownloadItem({
+                id: 14,
+                url: "https://files.example.com/initial-fail.bin",
+                finalUrl: "https://files.example.com/initial-fail.bin",
+                bytesReceived: 12_000,
+            }),
+        );
+        await tracker.whenIdle();
+
+        expect(tracker.isPolling).toBe(true);
+        expect(await getAllSiteUsage()).toEqual([]);
+
+        controller.updateItem(14, { bytesReceived: 30_000, state: "complete" });
+        controller.emitChanged({
+            id: 14,
+            state: { previous: "in_progress", current: "complete" },
+        });
+        await tracker.whenIdle();
+
+        expect(tracker.isPolling).toBe(false);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://files.example.com")]: 30_000,
+        });
+        expect(await getDownloadCheckpoints()).toEqual([]);
+    });
+
+    test("retries new downloads from zero baseline on next poll when the initial commit fails without further events", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        let failOnce = true;
+        const { controller, tracker } = createTestHarness({
+            trackerDeps: {
+                commitProgress: async (batch) => {
+                    if (failOnce) {
+                        failOnce = false;
+                        throw new Error("initial idb failure");
+                    }
+                    await commitDownloadProgress(batch);
+                },
+            },
+        });
+        await tracker.whenIdle();
+
+        controller.emitCreated(
+            makeDownloadItem({
+                id: 15,
+                url: "https://files.example.com/already-complete.bin",
+                finalUrl: "https://files.example.com/already-complete.bin",
+                bytesReceived: 18_000,
+                state: "complete",
+            }),
+        );
+        await tracker.whenIdle();
+
+        expect(tracker.isPolling).toBe(true);
+        expect(await getAllSiteUsage()).toEqual([]);
+
+        await waitMs(40);
+        await tracker.whenIdle();
+
+        expect(tracker.isPolling).toBe(false);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://files.example.com")]: 18_000,
+        });
+        expect(await getDownloadCheckpoints()).toEqual([]);
+    });
 });
 
 describe("webRequest deduplication", () => {
