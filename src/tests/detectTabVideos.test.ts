@@ -676,7 +676,7 @@ describe("mergeDetectedVideos", () => {
             },
             {
                 kind: "hls",
-                url: "https://cdn.example.com/a/b/master.m3u8",
+                url: "https://cdn.example.com/a/stream_1/master.m3u8",
                 frameId: 0,
                 observedAt: 2,
             },
@@ -685,8 +685,47 @@ describe("mergeDetectedVideos", () => {
         const nested = mergeDetectedVideos(nestedFrames, nestedObserved);
         expect(nested.map((video) => ({ id: video.id, title: video.title }))).toEqual([
             { id: "hls:https://cdn.example.com/a/master.m3u8", title: "Root Stream" },
-            { id: "hls:https://cdn.example.com/a/b/master.m3u8", title: "Nested Stream" },
+            { id: "hls:https://cdn.example.com/a/stream_1/master.m3u8", title: "Nested Stream" },
         ]);
+
+        // Removed direct videos from already-scanned frames must not linger via observed direct fallback.
+        const replacedDirectFrames: FrameScanResult[] = [
+            {
+                frameId: 0,
+                frameUrl: "https://example.com/gallery",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "https://cdn.example.com/b.mp4",
+                        sources: [],
+                        durationSeconds: 30,
+                        isPlaying: true,
+                        inViewport: true,
+                        viewportArea: 200_000,
+                        title: "Current Clip",
+                    },
+                ],
+            },
+        ];
+        const replacedDirectObserved: ObservedMedia[] = [
+            {
+                kind: "direct",
+                url: "https://cdn.example.com/a.mp4",
+                frameId: 0,
+                mimeType: "video/mp4",
+                observedAt: 1,
+            },
+            {
+                kind: "direct",
+                url: "https://cdn.example.com/b.mp4",
+                frameId: 0,
+                mimeType: "video/mp4",
+                observedAt: 2,
+            },
+        ];
+        expect(
+            mergeDetectedVideos(replacedDirectFrames, replacedDirectObserved).map((v) => v.id),
+        ).toEqual(["direct:https://cdn.example.com/b.mp4"]);
 
         // Real-world Mux/hls.js layout: master + url_0/193039199_mp4_h264_aac_hd_7.m3u8
         const muxFrames: FrameScanResult[] = [

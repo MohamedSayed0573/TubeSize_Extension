@@ -143,9 +143,10 @@ type PendingMseVideo = {
     domOrder: number;
 };
 
+const EXPLICIT_MASTER_NAME_REGEX = /^(master|manifest)$/i;
 const MASTER_NAME_REGEX = /^(master|manifest|index|playlist|main)$/i;
 const VARIANT_NAME_REGEX =
-    /(chunklist|variant|rendition|media|audio|subtitle|caption|prog_index|(?:level|stream|url|track|quality|bitrate|profile)[_-]?\d|\b\d{3,4}p\b|\d{3,4}x\d{3,4}|\b\d+k(?:bps)?\b|(?:^|[_-])(?:ld|sd|hd|fhd|uhd|hq|lq|h264|h265|hevc|avc|vp9|av1|aac)(?:$|[_-]))/i;
+    /(chunklist|variant|rendition|media|audio|subtitle|caption|prog_index|(?:level|url|track|quality|bitrate|profile)[_-]?\d|\b\d{3,4}p\b|\d{3,4}x\d{3,4}|\b\d+k(?:bps)?\b|(?:^|[_-])(?:ld|sd|hd|fhd|uhd|hq|lq|h264|h265|hevc|avc|vp9|av1|aac)(?:$|[_-]))/i;
 
 function normalizeMimeType(mimeType: string | undefined): string | undefined {
     const base = mimeType?.split(";", 1)[0]?.trim().toLowerCase();
@@ -187,6 +188,10 @@ function parseUrlParts(rawUrl: string): { origin: string; dir: string; stem: str
     }
 }
 
+function isExplicitMasterName(stem: string): boolean {
+    return EXPLICIT_MASTER_NAME_REGEX.test(stem);
+}
+
 function isLikelyMasterName(stem: string): boolean {
     return MASTER_NAME_REGEX.test(stem);
 }
@@ -205,6 +210,14 @@ function isRelatedHlsManifest(primaryUrl: string, candidateUrl: string): boolean
     const primary = parseUrlParts(primaryUrl);
     const candidate = parseUrlParts(candidateUrl);
     if (!primary || !candidate || primary.origin !== candidate.origin) return false;
+
+    if (
+        candidate.dir !== primary.dir &&
+        isExplicitMasterName(primary.stem) &&
+        isExplicitMasterName(candidate.stem)
+    ) {
+        return false;
+    }
 
     if (candidate.dir.length > primary.dir.length && candidate.dir.startsWith(primary.dir)) {
         const relativeSubdir = candidate.dir.slice(primary.dir.length);
@@ -594,9 +607,17 @@ export function mergeDetectedVideos(
     }
 
     // Direct video loads observed via webRequest from frames that could not be
-    // DOM-scanned (e.g. closed Shadow DOM or opaque sandboxed iframes).
+    // DOM-scanned (e.g. opaque sandboxed iframes). Frames that were scanned
+    // report their live `<video>` elements directly so removed videos do not linger.
+    const scannedFrameIds = new Set(frames.map((frame) => frame.frameId));
     for (const entry of observedMedia) {
-        if (entry.kind !== "direct" || embedFrameIds.has(entry.frameId)) continue;
+        if (
+            entry.kind !== "direct" ||
+            embedFrameIds.has(entry.frameId) ||
+            scannedFrameIds.has(entry.frameId)
+        ) {
+            continue;
+        }
         add({
             source: toGenericSource("direct", entry.url, undefined, entry.mimeType),
             isPlaying: false,
