@@ -24,6 +24,12 @@ type ObservedSubFrameRequestDetails = Pick<
     "tabId" | "frameId" | "requestId" | "documentId"
 >;
 
+type CommittedSubFrameDetails = Pick<
+    chrome.webRequest.OnCompletedDetails,
+    "tabId" | "frameId" | "url" | "statusCode"
+> &
+    Partial<Pick<chrome.webRequest.OnCompletedDetails, "requestId">>;
+
 export type TabMediaStorage = {
     get(): Promise<unknown>;
     set(value: unknown): Promise<void>;
@@ -32,6 +38,7 @@ export type TabMediaStorage = {
 export type TabMediaRegistry = {
     observeRequest(details: ObservedRequestDetails): void;
     observeSubFrame(tabId: number, frameId: number, url: string, requestId?: string): void;
+    commitSubFrame(details: CommittedSubFrameDetails): void;
     observeSubFrameRequest(details: ObservedSubFrameRequestDetails): void;
     resolveRequestFrameUrl(details: ObservedSubFrameRequestDetails): Promise<string | undefined>;
     forgetRequest(requestId: string): void;
@@ -256,9 +263,15 @@ type InFlightSubFrameRequest = {
     tabId: number;
     frameId: number;
     navSeq: number;
+    committedSeq: number;
     url: string | undefined;
     documentId?: string;
     authoritative: boolean;
+};
+
+type PendingSubFrameNavigation = {
+    startedAt: number;
+    requestId?: string;
 };
 
 function enforceMapLimit<K, V>(map: Map<K, V>, limit: number) {
@@ -283,11 +296,15 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
     const redirectedFrameInitialUrls = new Map<number, Map<number, string>>();
     const frameDocuments = new Map<number, Map<number, FrameDocumentState>>();
     const documentFrames = new Map<number, Map<string, string | undefined>>();
+    const pendingSubFrames = new Map<number, Map<number, PendingSubFrameNavigation>>();
+    const committedFrameSeqs = new Map<number, Map<number, number>>();
     const inFlightRequests = new Map<string, InFlightSubFrameRequest>();
     const clearedBeforeHydration = new Set<number>();
     const clearedFramesBeforeHydration = new Map<number, Set<number>>();
+    const clearedMediaFramesBeforeHydration = new Map<number, Set<number>>();
 
     let nextNavSeq = 0;
+    let nextCommittedSeq = 0;
     let hydrated = !storage;
     let hydratePromise: Promise<void> | null = null;
     let dirtyDuringHydration = false;
@@ -297,6 +314,10 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
 
     function getFrameNavSeq(tabId: number, frameId: number): number {
         return frameDocuments.get(tabId)?.get(frameId)?.navSeq ?? 0;
+    }
+
+    function getCommittedFrameSeq(tabId: number, frameId: number): number {
+        return committedFrameSeqs.get(tabId)?.get(frameId) ?? 0;
     }
 
     function isFrameKnownLive(tabId: number, frameId: number): boolean {
@@ -378,25 +399,11 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
         if (details.frameId <= MAIN_FRAME_ID) return false;
         if (details.requestId) {
             const tracked = inFlightRequests.get(details.requestId);
-            if (tracked && tracked.navSeq !== getFrameNavSeq(details.tabId, details.frameId)) {
+            if (
+                tracked &&
+                tracked.committedSeq !== getCommittedFrameSeq(details.tabId, details.frameId)
+            ) {
                 return true;
-            }
-        }
-        if (details.documentId) {
-            const frameState = frameDocuments.get(details.tabId)?.get(details.frameId);
-            if (frameState) {
-                if (
-                    frameState.documentId !== undefined &&
-                    frameState.documentId !== details.documentId
-                ) {
-                    return true;
-                }
-                if (
-                    frameState.documentId === undefined &&
-                    documentFrames.get(details.tabId)?.has(details.documentId)
-                ) {
-                    return true;
-                }
             }
         }
         return false;
@@ -471,10 +478,10 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
 
                     for (const [tabId, persistedEntries] of persisted.media) {
                         if (clearedBeforeHydration.has(tabId)) continue;
-                        const clearedFrames = clearedFramesBeforeHydration.get(tabId);
+                        const clearedMediaFrames = clearedMediaFramesBeforeHydration.get(tabId);
                         const combined: ObservedMedia[] = [];
                         for (const entry of persistedEntries.slice(-maxEntriesPerTab)) {
-                            if (clearedFrames?.has(entry.frameId)) continue;
+                            if (clearedMediaFrames?.has(entry.frameId)) continue;
                             upsertEntry(combined, entry, maxEntriesPerTab);
                         }
                         const liveEntries = tabs.get(tabId);
@@ -619,6 +626,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
 
                     clearedBeforeHydration.clear();
                     clearedFramesBeforeHydration.clear();
+                    clearedMediaFramesBeforeHydration.clear();
                     hydrated = true;
 
                     if (dirtyDuringHydration) {
@@ -628,6 +636,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                 } catch {
                     clearedBeforeHydration.clear();
                     clearedFramesBeforeHydration.clear();
+                    clearedMediaFramesBeforeHydration.clear();
                     hydrated = true;
                 }
             })();
@@ -676,20 +685,17 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
 
             let persistedChanged = false;
 
-            // Invalidate any previously observed media belonging to this
-            // subframe so stale manifests do not linger after navigation.
-            const existingMedia = tabs.get(tabId);
-            if (existingMedia) {
-                const remaining = existingMedia.filter((entry) => entry.frameId !== frameId);
-                if (remaining.length !== existingMedia.length) {
-                    persistedChanged = true;
-                    if (remaining.length > 0) {
-                        tabs.set(tabId, remaining);
-                    } else {
-                        tabs.delete(tabId);
-                    }
-                }
-            }
+            const pending =
+                pendingSubFrames.get(tabId) ?? new Map<number, PendingSubFrameNavigation>();
+            pendingSubFrames.delete(tabId);
+            pending.delete(frameId);
+            pending.set(frameId, {
+                startedAt: now(),
+                ...(requestId ? { requestId } : {}),
+            });
+            enforceMapLimit(pending, maxFramesPerTab);
+            pendingSubFrames.set(tabId, pending);
+            enforceMapLimit(pendingSubFrames, maxTabs);
 
             if (!hydrated) {
                 const cleared = clearedFramesBeforeHydration.get(tabId) ?? new Set<number>();
@@ -762,11 +768,79 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             enforceMapLimit(embedFrames, maxTabs);
             schedulePersist();
         },
+        commitSubFrame(details) {
+            if (
+                details.tabId === NO_TAB_ID ||
+                details.frameId <= MAIN_FRAME_ID ||
+                isExtensionUrl(details.url)
+            ) {
+                return;
+            }
+            if (
+                details.statusCode < 200 ||
+                details.statusCode >= 400 ||
+                details.statusCode === 204 ||
+                details.statusCode === 205
+            ) {
+                return;
+            }
+
+            const pendingMap = pendingSubFrames.get(details.tabId);
+            const pendingNav = pendingMap?.get(details.frameId);
+            if (
+                pendingNav &&
+                (!details.requestId ||
+                    !pendingNav.requestId ||
+                    pendingNav.requestId === details.requestId)
+            ) {
+                pendingMap?.delete(details.frameId);
+                if (pendingMap?.size === 0) pendingSubFrames.delete(details.tabId);
+            }
+
+            const seqs = committedFrameSeqs.get(details.tabId) ?? new Map<number, number>();
+            committedFrameSeqs.delete(details.tabId);
+            seqs.delete(details.frameId);
+            seqs.set(details.frameId, ++nextCommittedSeq);
+            enforceMapLimit(seqs, maxFramesPerTab);
+            committedFrameSeqs.set(details.tabId, seqs);
+            enforceMapLimit(committedFrameSeqs, maxTabs);
+
+            let persistedChanged = false;
+            const existingMedia = tabs.get(details.tabId);
+            if (existingMedia) {
+                const cutoff = pendingNav?.startedAt;
+                const remaining = existingMedia.filter(
+                    (entry) =>
+                        entry.frameId !== details.frameId ||
+                        (cutoff !== undefined && entry.observedAt > cutoff),
+                );
+                if (remaining.length !== existingMedia.length) {
+                    persistedChanged = true;
+                    if (remaining.length > 0) {
+                        tabs.set(details.tabId, remaining);
+                    } else {
+                        tabs.delete(details.tabId);
+                    }
+                }
+            }
+
+            if (!hydrated) {
+                const clearedMedia =
+                    clearedMediaFramesBeforeHydration.get(details.tabId) ?? new Set<number>();
+                clearedMedia.add(details.frameId);
+                clearedMediaFramesBeforeHydration.set(details.tabId, clearedMedia);
+            }
+
+            if (persistedChanged || !hydrated) {
+                schedulePersist();
+            }
+        },
         observeSubFrameRequest(details) {
             if (details.tabId === NO_TAB_ID || details.frameId <= MAIN_FRAME_ID) return;
             if (!details.requestId) return;
 
             const navSeq = getFrameNavSeq(details.tabId, details.frameId);
+            const committedSeq = getCommittedFrameSeq(details.tabId, details.frameId);
             const docs = documentFrames.get(details.tabId);
             if (details.documentId && docs?.has(details.documentId)) {
                 inFlightRequests.delete(details.requestId);
@@ -774,6 +848,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                     tabId: details.tabId,
                     frameId: details.frameId,
                     navSeq,
+                    committedSeq,
                     documentId: details.documentId,
                     url: docs.get(details.documentId),
                     authoritative: true,
@@ -794,6 +869,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                     tabId: details.tabId,
                     frameId: details.frameId,
                     navSeq,
+                    committedSeq,
                     ...(details.documentId ? { documentId: details.documentId } : {}),
                     url: resolvedUrl,
                     authoritative: true,
@@ -808,6 +884,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                 tabId: details.tabId,
                 frameId: details.frameId,
                 navSeq,
+                committedSeq,
                 ...(details.documentId ? { documentId: details.documentId } : {}),
                 url: undefined,
                 authoritative: false,
@@ -877,11 +954,14 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
         clearTab(tabId) {
             if (!hydrated) clearedBeforeHydration.add(tabId);
             clearedFramesBeforeHydration.delete(tabId);
+            clearedMediaFramesBeforeHydration.delete(tabId);
             tabs.delete(tabId);
             embedFrames.delete(tabId);
             redirectedFrameInitialUrls.delete(tabId);
             frameDocuments.delete(tabId);
             documentFrames.delete(tabId);
+            pendingSubFrames.delete(tabId);
+            committedFrameSeqs.delete(tabId);
             for (const [requestId, entry] of inFlightRequests) {
                 if (entry.tabId === tabId) inFlightRequests.delete(requestId);
             }
