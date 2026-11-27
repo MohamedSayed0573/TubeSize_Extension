@@ -46,7 +46,7 @@ export function PopupPreview({ copy }: { copy: Copy }) {
 
             {/* Today's Usage & Site Usage — above resolutions */}
             <div className="flex flex-col gap-1.5 border-b border-[#edf1f6] px-2.5 pt-2.5 pb-2">
-                <div className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                <div className="group flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 transition-colors hover:border-teal-600 hover:bg-slate-100">
                     <div className="flex size-6 shrink-0 items-center justify-center rounded-md border-[1.5px] border-slate-600 bg-white text-[10px] font-bold text-[#14181f] tabular-nums">
                         {todayDate}
                     </div>
@@ -61,12 +61,15 @@ export function PopupPreview({ copy }: { copy: Copy }) {
                             </span>
                         </span>
                     </div>
-                    <span className="text-sm text-slate-400" aria-hidden="true">
+                    <span
+                        className="text-sm text-slate-400 transition-colors group-hover:text-teal-700"
+                        aria-hidden="true"
+                    >
                         ›
                     </span>
                 </div>
 
-                <div className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                <div className="group flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 transition-colors hover:border-teal-600 hover:bg-slate-100">
                     <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-red-600">
                         <svg
                             width="11"
@@ -87,7 +90,10 @@ export function PopupPreview({ copy }: { copy: Copy }) {
                             </span>
                         </span>
                     </div>
-                    <span className="text-sm text-slate-400" aria-hidden="true">
+                    <span
+                        className="text-sm text-slate-400 transition-colors group-hover:text-teal-700"
+                        aria-hidden="true"
+                    >
                         ›
                     </span>
                 </div>
