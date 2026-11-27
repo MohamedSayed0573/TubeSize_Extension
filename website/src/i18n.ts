@@ -119,7 +119,7 @@ export const COPY: Record<Lang, Copy> = {
         trust1Body: "Usage totals and watch history stay locally in your browser.",
         trust2Title: "Works inside YouTube, Twitch & Kick",
         trust2Body:
-            "Injects file sizes into YouTube's quality menu and warns you when a stream crosses your bitrate limit.",
+            "Shows estimated sizes right in the player and alerts you before a stream uses too much data.",
         trust3Title: "MIT open source",
         trust3Body: "Full source code on GitHub for Chromium and Firefox.",
         builtBy: "Built by",
@@ -155,7 +155,7 @@ export const COPY: Record<Lang, Copy> = {
         trust1Body: "بيانات الاستهلاك وسجل المشاهدة محفوظة محلياً في المتصفح فقط.",
         trust2Title: "مدمج في يوتيوب وتويتش وكيك",
         trust2Body:
-            "يعرض الأحجام مباشرة داخل قائمة الجودة في يوتيوب وينبهك عند تجاوز حد استهلاك البث.",
+            "يعرض الحجم المتوقع داخل المشغّل مباشرة وينبهك قبل ما البث يستهلك بيانات أكتر من اللازم.",
         trust3Title: "مفتوح المصدر (MIT)",
         trust3Body: "الكود المصدري كامل على GitHub لمتصفحات كروميوم وفايرفوكس.",
         builtBy: "تطوير",
