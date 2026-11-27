@@ -553,4 +553,79 @@ describe("setupTrackUsage", () => {
         }
         expect(await registry.getTabMedia(tabId)).toEqual([]);
     });
+
+    test("attributes webRequest subresource bytes inside an embedded YouTube sub_frame to watchHistory", async () => {
+        const webRequest = stubWebRequestCompleted();
+        const beforeListeners = new Set<
+            (
+                details: chrome.webRequest.OnBeforeRequestDetails,
+            ) => chrome.webRequest.BlockingResponse | undefined
+        >();
+        const addBeforeSpy = spyOn(
+            chrome.webRequest.onBeforeRequest,
+            "addListener",
+        ).mockImplementation((listener) => {
+            beforeListeners.add(listener);
+        });
+        const removeBeforeSpy = spyOn(
+            chrome.webRequest.onBeforeRequest,
+            "removeListener",
+        ).mockImplementation((listener) => {
+            beforeListeners.delete(listener);
+        });
+        cleanups.push(() => {
+            addBeforeSpy.mockRestore();
+            removeBeforeSpy.mockRestore();
+        });
+
+        await addVideoMetadata({
+            type: "youtube",
+            mediaId: "bHQqvYy5KYo",
+            title: "Google I/O 2011",
+            channelName: "Google Developers",
+            channelUrl: "https://www.youtube.com/@googledevelopers",
+            thumbnailUrl: "",
+        });
+
+        const ingestion = createUsageIngestion({ flushIntervalMs: 60_000 });
+        const registry = createTabMediaRegistry({ storage: null });
+        const teardown = setupTrackUsage(ingestion, undefined, registry);
+        cleanups.push(teardown);
+
+        const tab = await fakeBrowser.tabs.create({
+            url: "https://developers.google.com/youtube/iframe_api_reference",
+        });
+        const tabId = tab.id!;
+
+        for (const listener of beforeListeners) {
+            listener({
+                ...makeDetails({
+                    tabId,
+                    frameId: 7,
+                    type: "sub_frame",
+                    url: "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1",
+                }),
+            });
+        }
+
+        webRequest.emit(
+            makeDetails({
+                tabId,
+                frameId: 7,
+                type: "xmlhttprequest",
+                url: "https://rr1---sn-example.googlevideo.com/videoplayback?id=1",
+                initiator: "https://www.youtube.com",
+                responseHeaders: [{ name: "Content-Length", value: "250000" }],
+            }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        await ingestion.flush();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://developers.google.com")]: 250_000,
+        });
+        expect((await getAllWatchHistory())[0]?.videos).toEqual({
+            [toVideoKey("youtube", "bHQqvYy5KYo")]: 250_000,
+        });
+    });
 });

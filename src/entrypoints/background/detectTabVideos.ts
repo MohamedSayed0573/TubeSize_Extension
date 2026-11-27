@@ -415,10 +415,71 @@ function sourceId(source: DetectedVideoSource): string {
         : `${source.kind}:${source.url}`;
 }
 
+function parseFrameLocation(rawUrl: string): { pathname: string; search: string } | undefined {
+    try {
+        const parsed = new URL(rawUrl);
+        return { pathname: parsed.pathname, search: parsed.search };
+    } catch {
+        return undefined;
+    }
+}
+
+function hasMultiplePathSegments(pathname: string): boolean {
+    return pathname.split("/").filter(Boolean).length >= 2;
+}
+
+function findOffscreenFrameIds(frames: readonly FrameScanResult[]): Set<number> {
+    const allIframes: Array<{
+        url: string;
+        inViewport: boolean;
+        loc?: { pathname: string; search: string };
+    }> = [];
+    for (const frame of frames) {
+        for (const iframe of frame.iframes) {
+            allIframes.push({
+                url: iframe.url,
+                inViewport: iframe.inViewport,
+                loc: parseFrameLocation(iframe.url),
+            });
+        }
+    }
+
+    const offscreenFrameIds = new Set<number>();
+    if (allIframes.length === 0) return offscreenFrameIds;
+
+    for (const frame of frames) {
+        if (frame.frameId === 0) continue;
+        const exactMatches = allIframes.filter((iframe) => iframe.url === frame.frameUrl);
+        let matches = exactMatches;
+
+        if (matches.length === 0) {
+            const frameLoc = parseFrameLocation(frame.frameUrl);
+            if (frameLoc && hasMultiplePathSegments(frameLoc.pathname)) {
+                matches = allIframes.filter(
+                    (iframe) =>
+                        iframe.loc !== undefined &&
+                        iframe.loc.search === frameLoc.search &&
+                        hasMultiplePathSegments(iframe.loc.pathname) &&
+                        (iframe.loc.pathname === frameLoc.pathname ||
+                            iframe.loc.pathname.endsWith(frameLoc.pathname) ||
+                            frameLoc.pathname.endsWith(iframe.loc.pathname)),
+                );
+            }
+        }
+
+        if (matches.length > 0 && matches.every((iframe) => !iframe.inViewport)) {
+            offscreenFrameIds.add(frame.frameId);
+        }
+    }
+
+    return offscreenFrameIds;
+}
+
 export function mergeDetectedVideos(
     frames: readonly FrameScanResult[],
     observedMedia: readonly ObservedMedia[],
 ): DetectedVideo[] {
+    const offscreenFrameIds = findOffscreenFrameIds(frames);
     const ranked = new Map<string, { video: DetectedVideo; order: number }>();
     let discovery = 0;
 
@@ -469,6 +530,7 @@ export function mergeDetectedVideos(
     let domOrder = 0;
 
     for (const frame of frames) {
+        const frameOffscreen = offscreenFrameIds.has(frame.frameId);
         for (const iframe of frame.iframes) {
             const embedded = parseEmbeddedPlatformUrl(iframe.url);
             if (!embedded) continue;
@@ -482,8 +544,8 @@ export function mergeDetectedVideos(
                 },
                 title: iframe.title,
                 isPlaying: playerState?.isPlaying ?? false,
-                inViewport: iframe.inViewport,
-                viewportArea: iframe.viewportArea,
+                inViewport: frameOffscreen ? false : iframe.inViewport,
+                viewportArea: frameOffscreen ? 0 : iframe.viewportArea,
                 currentResolution: playerState?.videoHeight,
                 frameId: frame.frameId,
             });
@@ -492,6 +554,8 @@ export function mergeDetectedVideos(
         if (embedFrameIds.has(frame.frameId)) continue;
 
         for (const video of frame.videos) {
+            const effectiveInViewport = frameOffscreen ? false : video.inViewport;
+            const effectiveViewportArea = frameOffscreen ? 0 : video.viewportArea;
             const title = video.title ?? (frame.videos.length === 1 ? frame.pageTitle : undefined);
             const sourceTypeByUrl = new Map<string, string>();
             for (const source of video.sources) {
@@ -534,7 +598,16 @@ export function mergeDetectedVideos(
                 if (candidates.some((candidate) => candidate.url.startsWith("blob:"))) {
                     framesWithMseVideos.add(frame.frameId);
                     const list = pendingMseByFrame.get(frame.frameId) ?? [];
-                    list.push({ frame, video: { ...video, title }, domOrder: domOrder++ });
+                    list.push({
+                        frame,
+                        video: {
+                            ...video,
+                            title,
+                            inViewport: effectiveInViewport,
+                            viewportArea: effectiveViewportArea,
+                        },
+                        domOrder: domOrder++,
+                    });
                     pendingMseByFrame.set(frame.frameId, list);
                 }
                 continue;
@@ -550,8 +623,8 @@ export function mergeDetectedVideos(
                 source: toGenericSource(playable.kind, playable.url, video, playable.mimeType),
                 title,
                 isPlaying: video.isPlaying,
-                inViewport: video.inViewport,
-                viewportArea: video.viewportArea,
+                inViewport: effectiveInViewport,
+                viewportArea: effectiveViewportArea,
                 currentResolution: video.videoHeight,
                 frameId: frame.frameId,
             });

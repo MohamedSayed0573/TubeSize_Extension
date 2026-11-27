@@ -1,3 +1,4 @@
+import { parseEmbeddedPlatformUrl } from "@lib/platformUrl";
 import { storage as wxtStorage } from "@wxt-dev/storage";
 
 import { isExtensionUrl } from "./usageIngestion";
@@ -24,18 +25,22 @@ export type TabMediaStorage = {
 
 export type TabMediaRegistry = {
     observeRequest(details: ObservedRequestDetails): void;
+    observeSubFrame(tabId: number, frameId: number, url: string): void;
     getTabMedia(tabId: number): Promise<ObservedMedia[]>;
+    getFrameUrl(tabId: number, frameId: number): Promise<string | undefined>;
     clearTab(tabId: number): void;
 };
 
 type RegistryOptions = {
     maxEntriesPerTab?: number;
+    maxFramesPerTab?: number;
     maxTabs?: number;
     now?: () => number;
     storage?: TabMediaStorage | null;
 };
 
 const NO_TAB_ID = -1;
+const MAIN_FRAME_ID = 0;
 const MEDIA_REQUEST_TYPES = new Set(["xmlhttprequest", "media", "other"]);
 const SEGMENT_EXTENSIONS = [".ts", ".m4s", ".cmfv", ".cmfa", ".m4a"];
 const SEGMENT_MIME_TYPES = new Set(["video/mp2t", "video/iso.segment"]);
@@ -108,7 +113,7 @@ function parseObservedMedia(value: unknown): ObservedMedia | undefined {
     };
 }
 
-function parsePersistedSnapshot(raw: unknown): Array<[number, ObservedMedia[]]> {
+function parseMediaEntries(raw: unknown): Array<[number, ObservedMedia[]]> {
     if (!Array.isArray(raw)) return [];
     const parsed: Array<[number, ObservedMedia[]]> = [];
     for (const item of raw) {
@@ -125,6 +130,51 @@ function parsePersistedSnapshot(raw: unknown): Array<[number, ObservedMedia[]]> 
         if (entries.length > 0) parsed.push([tabId, entries]);
     }
     return parsed;
+}
+
+function parseFrameEntries(raw: unknown): Array<[number, Array<[number, string]>]> {
+    if (!Array.isArray(raw)) return [];
+    const parsed: Array<[number, Array<[number, string]>]> = [];
+    for (const item of raw) {
+        if (!Array.isArray(item) || item.length !== 2) continue;
+        const [tabId, rawFrames] = item;
+        if (typeof tabId !== "number" || !Number.isFinite(tabId) || !Array.isArray(rawFrames)) {
+            continue;
+        }
+        const frames: Array<[number, string]> = [];
+        for (const rawFrame of rawFrames) {
+            if (!Array.isArray(rawFrame) || rawFrame.length !== 2) continue;
+            const [frameId, url] = rawFrame;
+            if (
+                typeof frameId !== "number" ||
+                !Number.isFinite(frameId) ||
+                typeof url !== "string"
+            ) {
+                continue;
+            }
+            frames.push([frameId, url]);
+        }
+        if (frames.length > 0) parsed.push([tabId, frames]);
+    }
+    return parsed;
+}
+
+function parsePersistedSnapshot(raw: unknown): {
+    media: Array<[number, ObservedMedia[]]>;
+    frames: Array<[number, Array<[number, string]>]>;
+} {
+    if (Array.isArray(raw)) {
+        return { media: parseMediaEntries(raw), frames: [] };
+    }
+    if (typeof raw !== "object" || raw === null) {
+        return { media: [], frames: [] };
+    }
+    const rawMedia = "media" in raw ? raw.media : undefined;
+    const rawFrames = "frames" in raw ? raw.frames : undefined;
+    return {
+        media: parseMediaEntries(rawMedia),
+        frames: parseFrameEntries(rawFrames),
+    };
 }
 
 function upsertEntry(entries: ObservedMedia[], entry: ObservedMedia, maxEntriesPerTab: number) {
@@ -153,12 +203,15 @@ function upsertEntry(entries: ObservedMedia[], entry: ObservedMedia, maxEntriesP
 
 export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaRegistry {
     const maxEntriesPerTab = options.maxEntriesPerTab ?? 20;
+    const maxFramesPerTab = options.maxFramesPerTab ?? 32;
     const maxTabs = options.maxTabs ?? 100;
     const now = options.now ?? Date.now;
     const storage =
         options.storage === null ? undefined : (options.storage ?? defaultSessionStorage);
     const tabs = new Map<number, ObservedMedia[]>();
+    const embedFrames = new Map<number, Map<number, string>>();
     const clearedBeforeHydration = new Set<number>();
+    const deletedFramesBeforeHydration = new Map<number, Set<number>>();
 
     let hydrated = !storage;
     let hydratePromise: Promise<void> | null = null;
@@ -167,11 +220,19 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
     let persistInFlight = false;
     let persistAgain = false;
 
-    function enforceTabLimit(map: Map<number, ObservedMedia[]>) {
+    function enforceTabLimit<V>(map: Map<number, V>) {
         while (map.size > maxTabs) {
             const oldest = map.keys().next().value;
             if (oldest === undefined) break;
             map.delete(oldest);
+        }
+    }
+
+    function enforceFrameLimit(frames: Map<number, string>) {
+        while (frames.size > maxFramesPerTab) {
+            const oldest = frames.keys().next().value;
+            if (oldest === undefined) break;
+            frames.delete(oldest);
         }
     }
 
@@ -183,10 +244,16 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             return;
         }
         persistInFlight = true;
-        const snapshot = [...tabs.entries()].map(([tabId, entries]) => [
-            tabId,
-            entries.map((entry) => ({ ...entry })),
-        ]);
+        const snapshot = {
+            media: [...tabs.entries()].map(([tabId, entries]) => [
+                tabId,
+                entries.map((entry) => ({ ...entry })),
+            ]),
+            frames: [...embedFrames.entries()].map(([tabId, frames]) => [
+                tabId,
+                [...frames.entries()],
+            ]),
+        };
         void storage
             .set(snapshot)
             .catch(() => {})
@@ -224,7 +291,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                     const persisted = parsePersistedSnapshot(await activeStorage.get());
                     const merged = new Map<number, ObservedMedia[]>();
 
-                    for (const [tabId, persistedEntries] of persisted) {
+                    for (const [tabId, persistedEntries] of persisted.media) {
                         if (clearedBeforeHydration.has(tabId)) continue;
                         const combined: ObservedMedia[] = [];
                         for (const entry of persistedEntries.slice(-maxEntriesPerTab)) {
@@ -257,7 +324,46 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                     for (const [tabId, entries] of merged) {
                         tabs.set(tabId, entries);
                     }
+
+                    const mergedFrames = new Map<number, Map<number, string>>();
+                    for (const [tabId, persistedFrames] of persisted.frames) {
+                        if (clearedBeforeHydration.has(tabId)) continue;
+                        const deleted = deletedFramesBeforeHydration.get(tabId);
+                        const combined = new Map<number, string>();
+                        for (const [frameId, url] of persistedFrames.slice(-maxFramesPerTab)) {
+                            if (!deleted?.has(frameId)) combined.set(frameId, url);
+                        }
+                        const liveFrames = embedFrames.get(tabId);
+                        if (liveFrames) {
+                            for (const [frameId, url] of liveFrames) {
+                                combined.delete(frameId);
+                                combined.set(frameId, url);
+                            }
+                        }
+                        enforceFrameLimit(combined);
+                        if (combined.size > 0) mergedFrames.set(tabId, combined);
+                    }
+
+                    for (const [tabId, liveFrames] of embedFrames) {
+                        const existing = mergedFrames.get(tabId);
+                        if (existing) {
+                            mergedFrames.delete(tabId);
+                            mergedFrames.set(tabId, existing);
+                        } else if (liveFrames.size > 0) {
+                            const copy = new Map(liveFrames);
+                            enforceFrameLimit(copy);
+                            mergedFrames.set(tabId, copy);
+                        }
+                    }
+
+                    enforceTabLimit(mergedFrames);
+                    embedFrames.clear();
+                    for (const [tabId, frames] of mergedFrames) {
+                        embedFrames.set(tabId, frames);
+                    }
+
                     clearedBeforeHydration.clear();
+                    deletedFramesBeforeHydration.clear();
                     hydrated = true;
 
                     if (dirtyDuringHydration) {
@@ -266,6 +372,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                     }
                 } catch {
                     clearedBeforeHydration.clear();
+                    deletedFramesBeforeHydration.clear();
                     hydrated = true;
                 }
             })();
@@ -308,13 +415,47 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                 observedAt: now(),
             });
         },
+        observeSubFrame(tabId, frameId, url) {
+            if (tabId === NO_TAB_ID || frameId <= MAIN_FRAME_ID || isExtensionUrl(url)) return;
+
+            const embedded = parseEmbeddedPlatformUrl(url);
+            if (!embedded) {
+                const existing = embedFrames.get(tabId);
+                if (existing?.delete(frameId) && existing.size === 0) {
+                    embedFrames.delete(tabId);
+                }
+                if (!hydrated) {
+                    const deleted = deletedFramesBeforeHydration.get(tabId) ?? new Set<number>();
+                    deleted.add(frameId);
+                    deletedFramesBeforeHydration.set(tabId, deleted);
+                }
+                schedulePersist();
+                return;
+            }
+
+            const frames = embedFrames.get(tabId) ?? new Map<number, string>();
+            embedFrames.delete(tabId);
+            frames.delete(frameId);
+            frames.set(frameId, url);
+            enforceFrameLimit(frames);
+            embedFrames.set(tabId, frames);
+            enforceTabLimit(embedFrames);
+            schedulePersist();
+        },
         async getTabMedia(tabId) {
             await ensureHydrated();
             return (tabs.get(tabId) ?? []).map((entry) => ({ ...entry }));
         },
+        async getFrameUrl(tabId, frameId) {
+            if (tabId === NO_TAB_ID || frameId <= MAIN_FRAME_ID) return undefined;
+            await ensureHydrated();
+            return embedFrames.get(tabId)?.get(frameId);
+        },
         clearTab(tabId) {
             if (!hydrated) clearedBeforeHydration.add(tabId);
+            deletedFramesBeforeHydration.delete(tabId);
             tabs.delete(tabId);
+            embedFrames.delete(tabId);
             schedulePersist();
         },
     };

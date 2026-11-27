@@ -1,6 +1,11 @@
 import type { Origin, VideoKey } from "@app-types/types";
 import { toOrigin } from "@lib/domain";
-import { type ParsedPlatformMedia, parsePlatformUrl, toVideoKey } from "@lib/platformUrl";
+import {
+    parseEmbeddedPlatformUrl,
+    type ParsedPlatformMedia,
+    parsePlatformUrl,
+    toVideoKey,
+} from "@lib/platformUrl";
 import { typedEntries } from "@lib/utils";
 import { recordVideoMetadata } from "@lib/videoMetadata";
 
@@ -35,13 +40,22 @@ export function isExtensionUrl(url: string | undefined): boolean {
 }
 
 function resolvePlatformMedia(
-    candidateUrls: ReadonlyArray<string | undefined>,
+    tabUrl: string,
+    frameUrl?: string,
 ): { media: ParsedPlatformMedia; url: string } | undefined {
-    for (const url of candidateUrls) {
-        if (!url) continue;
-        const parsed = parsePlatformUrl(url);
-        if (parsed?.kind === "media") {
-            return { media: parsed, url };
+    const tabParsed = parsePlatformUrl(tabUrl);
+    if (tabParsed?.kind === "media") {
+        return { media: tabParsed, url: tabUrl };
+    }
+
+    if (frameUrl) {
+        const frameParsed = parsePlatformUrl(frameUrl);
+        if (frameParsed?.kind === "media") {
+            return { media: frameParsed, url: frameUrl };
+        }
+        const embedded = parseEmbeddedPlatformUrl(frameUrl);
+        if (embedded) {
+            return { media: embedded.parsed, url: embedded.canonicalUrl };
         }
     }
 
@@ -123,7 +137,7 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
         origins[origin] = addSafeBytes(origins[origin] ?? 0, bytes);
 
         try {
-            const matched = resolvePlatformMedia([tabUrl, frameUrl]);
+            const matched = resolvePlatformMedia(tabUrl, frameUrl);
             if (matched) {
                 const videoKey = toVideoKey(matched.media.platform, matched.media.mediaId);
                 videos[videoKey] = addSafeBytes(videos[videoKey] ?? 0, bytes);

@@ -21,17 +21,21 @@ export function setupTrackUsage(
     dedup?: DownloadDedup,
     tabMediaRegistry?: TabMediaRegistry,
 ): () => void {
-    const onBeforeMainFrameRequest = (
+    const onBeforeFrameRequest = (
         details: chrome.webRequest.OnBeforeRequestDetails,
     ): chrome.webRequest.BlockingResponse | undefined => {
         if (details.tabId !== NO_TAB_ID) {
-            tabMediaRegistry?.clearTab(details.tabId);
+            if (details.type === "main_frame") {
+                tabMediaRegistry?.clearTab(details.tabId);
+            } else if (details.type === "sub_frame") {
+                tabMediaRegistry?.observeSubFrame(details.tabId, details.frameId, details.url);
+            }
         }
         return undefined;
     };
     const onRequestCompleted = (details: CompletedRequestDetails) => {
         tabMediaRegistry?.observeRequest(details);
-        void trackRequest(ingestion, details, dedup);
+        void trackRequest(ingestion, details, dedup, tabMediaRegistry);
     };
     const onTabRemoved = (tabId: number) => {
         tabMediaRegistry?.clearTab(tabId);
@@ -42,9 +46,9 @@ export function setupTrackUsage(
     };
 
     if (tabMediaRegistry) {
-        chrome.webRequest.onBeforeRequest.addListener(onBeforeMainFrameRequest, {
+        chrome.webRequest.onBeforeRequest.addListener(onBeforeFrameRequest, {
             urls: ["<all_urls>"],
-            types: ["main_frame"],
+            types: ["main_frame", "sub_frame"],
         });
     }
     // `extraHeaders` is Chromium-only; Firefox rejects it.
@@ -59,7 +63,7 @@ export function setupTrackUsage(
 
     return () => {
         if (tabMediaRegistry) {
-            chrome.webRequest.onBeforeRequest.removeListener(onBeforeMainFrameRequest);
+            chrome.webRequest.onBeforeRequest.removeListener(onBeforeFrameRequest);
         }
         chrome.webRequest.onCompleted.removeListener(onRequestCompleted);
         chrome.tabs.onRemoved.removeListener(onTabRemoved);
@@ -88,6 +92,7 @@ export async function trackRequest(
     ingestion: UsageIngestion,
     details: CompletedRequestDetails,
     dedup?: DownloadDedup,
+    tabMediaRegistry?: TabMediaRegistry,
 ) {
     try {
         if (!isCountableRequest(details)) return;
@@ -100,7 +105,13 @@ export async function trackRequest(
 
         if (dedup?.interceptWebRequest(details, tabUrl, bytes)) return;
 
-        ingestion.bufferTabUsage(tabUrl, bytes);
+        const frameUrl =
+            details.frameId > 0
+                ? (details.documentUrl ??
+                  (await tabMediaRegistry?.getFrameUrl(details.tabId, details.frameId)))
+                : undefined;
+
+        ingestion.bufferTabUsage(tabUrl, bytes, frameUrl);
     } catch (err) {
         console.error("Failed to track request usage:", err);
     }

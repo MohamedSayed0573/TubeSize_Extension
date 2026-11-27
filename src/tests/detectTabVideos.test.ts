@@ -226,6 +226,31 @@ describe("createTabMediaRegistry", () => {
         expect(await thirdWorker.getTabMedia(7)).toEqual([]);
         expect(await thirdWorker.getTabMedia(8)).toHaveLength(1);
     });
+
+    test("tracks and persists embedded platform sub_frame URLs across restarts and clears on non-embed navigation", async () => {
+        const storage = createMemoryStorage();
+        const firstWorker = createTabMediaRegistry({ storage });
+        firstWorker.observeSubFrame(
+            12,
+            5,
+            "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1",
+        );
+        firstWorker.observeSubFrame(12, 6, "https://example.com/non-embed");
+        expect(await firstWorker.getFrameUrl(12, 5)).toBe(
+            "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1",
+        );
+        expect(await firstWorker.getFrameUrl(12, 6)).toBeUndefined();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        const secondWorker = createTabMediaRegistry({ storage });
+        expect(await secondWorker.getFrameUrl(12, 5)).toBe(
+            "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1",
+        );
+
+        // Navigating that sub_frame to a non-embed URL removes the association.
+        secondWorker.observeSubFrame(12, 5, "https://example.com/other");
+        expect(await secondWorker.getFrameUrl(12, 5)).toBeUndefined();
+    });
 });
 
 describe("mergeDetectedVideos", () => {
@@ -778,6 +803,52 @@ describe("mergeDetectedVideos", () => {
         expect(muxMerged.map((video) => video.id)).toEqual([
             "hls:https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
             "direct:https://cdn.example.com/sandboxed/clip.webm",
+        ]);
+    });
+
+    test("clamps inViewport for nested embeds hosted inside offscreen parent iframes", () => {
+        const frames: FrameScanResult[] = [
+            {
+                frameId: 0,
+                frameUrl: "https://developers.google.com/youtube/iframe_api_reference",
+                iframes: [
+                    {
+                        url: "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1",
+                        title: "Top Visible Embed",
+                        inViewport: true,
+                        viewportArea: 82_000,
+                    },
+                    {
+                        url: "https://developers.google.com/frame/youtube/iframe_api_reference_demo.frame",
+                        title: "",
+                        inViewport: false,
+                        viewportArea: 0,
+                    },
+                ],
+                videos: [],
+            },
+            {
+                frameId: 4,
+                frameUrl:
+                    "https://developers-dot-devsite-v2-prod.appspot.com/youtube/iframe_api_reference_demo.frame",
+                iframes: [
+                    {
+                        url: "https://www.youtube.com/embed/FAtdv94yzp4?enablejsapi=1",
+                        title: "Offscreen Nested Embed",
+                        inViewport: true,
+                        viewportArea: 230_400,
+                    },
+                ],
+                videos: [],
+            },
+        ];
+
+        const merged = mergeDetectedVideos(frames, []);
+        expect(
+            merged.map((video) => ({ title: video.title, inViewport: video.inViewport })),
+        ).toEqual([
+            { title: "Top Visible Embed", inViewport: true },
+            { title: "Offscreen Nested Embed", inViewport: false },
         ]);
     });
 
