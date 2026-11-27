@@ -1,7 +1,7 @@
 import type { MediaEstimate } from "@app-types/platforms.types";
+import { SquarePlay } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
-import InfoCard from "@/components/infoCard";
 import Spinner from "@/components/spinner";
 import { useMediaEstimate } from "@/hooks/useMediaEstimate";
 import { t } from "@/i18n/t";
@@ -33,7 +33,25 @@ export function PlatformView({ tabUrl }: Props) {
     let content: ReactNode;
 
     if (!isRunningVideo) {
-        content = <InfoCard message={t("popup_noRunningVideo")} />;
+        content = (
+            <div
+                data-popup-state="no-video"
+                className="flex flex-col items-center gap-1.5 px-1.5 pt-3 pb-1.5 text-center"
+            >
+                <div
+                    className="mb-0.5 flex size-8 items-center justify-center rounded-lg border border-white/10 bg-white/5"
+                    aria-hidden="true"
+                >
+                    <SquarePlay className="size-3.5 shrink-0 text-zinc-300" />
+                </div>
+                <div className="text-[12.5px] font-semibold text-neutral-50">
+                    {t("popup_noRunningVideo_title")}
+                </div>
+                <p className="max-w-[202px] text-[11px] leading-relaxed text-zinc-400">
+                    {t("popup_noRunningVideo")}
+                </p>
+            </div>
+        );
     } else if (activeError !== null) {
         content = (
             <MediaEstimateErrorCard
