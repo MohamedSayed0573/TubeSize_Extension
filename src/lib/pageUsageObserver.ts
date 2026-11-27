@@ -45,7 +45,7 @@ export interface PageUsageObserver {
 
 type RtcStatsTier = "transport" | "candidate-pair" | "stream";
 
-export interface RtcCounterState {
+interface RtcCounterState {
     tier?: RtcStatsTier;
     counters: Map<string, { rx: number; tx: number }>;
 }
@@ -121,16 +121,6 @@ export function isCountableRequestUrl(
     return matchUrlProtocol(responseUrl, requestInput, baseUrl, /^https?:$/);
 }
 
-export function isCountableWebSocketUrl(
-    socketUrl: string | undefined,
-    inputUrl: unknown,
-    baseUrl?: string,
-): boolean {
-    return matchUrlProtocol(socketUrl, inputUrl, baseUrl, /^(?:wss?|https?):$/);
-}
-
-let sharedTextEncoder: TextEncoder | undefined;
-
 function readBinaryBytes(data: unknown): number | undefined {
     if (ArrayBuffer.isView(data)) return data.byteLength;
     if (typeof data !== "object" || data === null) return undefined;
@@ -145,20 +135,7 @@ function readBinaryBytes(data: unknown): number | undefined {
     return typeof n === "number" ? n : undefined;
 }
 
-export function measurePayloadBytes(data: unknown, coerceNonString?: boolean): number {
-    const bin = readBinaryBytes(data);
-    if (bin !== undefined) return bin;
-    // WebSocket.send() converts any other argument (null included) to a USVString.
-    const text = typeof data === "string" ? data : coerceNonString ? String(data) : "";
-    if (!text) return 0;
-    sharedTextEncoder ??= new TextEncoder();
-    return sharedTextEncoder.encode(text).byteLength;
-}
-
-export function computeRtcStatsDelta(
-    report: RTCStatsReport | Iterable<unknown>,
-    state: RtcCounterState,
-): number {
+function computeRtcStatsDelta(report: RTCStatsReport, state: RtcCounterState): number {
     const rows: Array<[tier: RtcStatsTier, id: string, rx: number, tx: number]> = [];
     for (const item of report) {
         const isPair = Array.isArray(item);
