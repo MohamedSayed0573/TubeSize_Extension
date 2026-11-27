@@ -1,87 +1,21 @@
 import { describe, expect, test } from "bun:test";
 
-import { estimateDirectVideo, estimateGenericMedia, probeContentLength } from "@lib/genericMedia";
+import { estimateDirectVideo, estimateGenericMedia } from "@lib/genericMedia";
 
 const VIDEO_URL = "https://cdn.example.com/clips/sample.mp4";
-
-const fetchWithSize24Mb = async () =>
-    new Response(null, {
-        status: 200,
-        headers: { "content-length": "24000000" },
-    });
-
-describe("probeContentLength", () => {
-    test("uses HEAD Content-Length with credentials: include without issuing a Range GET", async () => {
-        const calls: Array<{ method: string; credentials: RequestCredentials | undefined }> = [];
-        const size = await probeContentLength(VIDEO_URL, async (_input, init) => {
-            calls.push({ method: init?.method ?? "GET", credentials: init?.credentials });
-            return new Response(null, {
-                status: 200,
-                headers: { "content-length": "52428800" },
-            });
-        });
-
-        expect(size).toBe(52_428_800);
-        expect(calls).toEqual([{ method: "HEAD", credentials: "include" }]);
-    });
-
-    test("falls back to Range bytes=0-0 GET with credentials: include when HEAD fails and cancels the body", async () => {
-        const calls: Array<{
-            method: string;
-            range: string | null;
-            credentials: RequestCredentials | undefined;
-        }> = [];
-        let cancelled = false;
-
-        const size = await probeContentLength(VIDEO_URL, async (_input, init) => {
-            const method = init?.method ?? "GET";
-            const range = new Headers(init?.headers).get("range");
-            calls.push({ method, range, credentials: init?.credentials });
-
-            if (method === "HEAD") {
-                return new Response(null, { status: 405 });
-            }
-
-            const stream = new ReadableStream({
-                cancel() {
-                    cancelled = true;
-                },
-            });
-            return new Response(stream, {
-                status: 206,
-                headers: { "content-range": "bytes 0-0/18000000" },
-            });
-        });
-
-        expect(size).toBe(18_000_000);
-        expect(calls).toEqual([
-            { method: "HEAD", range: null, credentials: "include" },
-            { method: "GET", range: "bytes=0-0", credentials: "include" },
-        ]);
-        expect(cancelled).toBe(true);
-    });
-
-    test("reads 200 Content-Length on GET fallback and returns undefined when size is unavailable", async () => {
-        const size = await probeContentLength(VIDEO_URL, async (_input, init) => {
-            if (init?.method === "HEAD") {
-                throw new TypeError("HEAD blocked");
-            }
-            return new Response("body", {
-                status: 200,
-                headers: { "content-length": "9000000" },
-            });
-        });
-        expect(size).toBe(9_000_000);
-
-        const missing = await probeContentLength(VIDEO_URL, async () => {
-            return new Response(null, { status: 200 });
-        });
-        expect(missing).toBeUndefined();
-    });
-});
+const instantSleep = async () => {};
 
 describe("estimateDirectVideo and estimateGenericMedia", () => {
-    test("builds VodMediaEstimate with duration rate or zero rate when duration is missing", async () => {
+    test("estimates direct video size from HEAD Content-Length with credentials and computes rate only when duration is known", async () => {
+        const seenCredentials: Array<RequestCredentials | undefined> = [];
+        const headFetch = async (_input: string | URL | Request, init?: RequestInit) => {
+            seenCredentials.push(init?.credentials);
+            return new Response(null, {
+                status: 200,
+                headers: { "content-length": "24000000" },
+            });
+        };
+
         const withDuration = await estimateDirectVideo(
             {
                 kind: "direct",
@@ -90,7 +24,7 @@ describe("estimateDirectVideo and estimateGenericMedia", () => {
                 videoHeight: 1080,
                 videoWidth: 1920,
             },
-            { title: "Product Demo", fetch: fetchWithSize24Mb },
+            { title: "Product Demo", fetch: headFetch },
         );
 
         expect(withDuration).toEqual({
@@ -110,7 +44,7 @@ describe("estimateDirectVideo and estimateGenericMedia", () => {
 
         const withoutDuration = await estimateDirectVideo(
             { kind: "direct", url: VIDEO_URL },
-            { fetch: fetchWithSize24Mb },
+            { fetch: headFetch },
         );
 
         expect(withoutDuration).toEqual({
@@ -126,6 +60,50 @@ describe("estimateDirectVideo and estimateGenericMedia", () => {
                 },
             ],
         });
+        expect(seenCredentials.every((c) => c === "include")).toBe(true);
+    });
+
+    test("falls back to 206 Content-Range or 200 Content-Length GET when HEAD fails and cancels the stream", async () => {
+        let cancelled = false;
+        const fromRange = await estimateDirectVideo(
+            { kind: "direct", url: VIDEO_URL, durationSeconds: 60, videoHeight: 720 },
+            {
+                fetch: async (_input, init) => {
+                    if (init?.method === "HEAD") {
+                        return new Response(null, { status: 405 });
+                    }
+                    expect(init?.credentials).toBe("include");
+                    const stream = new ReadableStream({
+                        cancel() {
+                            cancelled = true;
+                        },
+                    });
+                    return new Response(stream, {
+                        status: 206,
+                        headers: { "content-range": "bytes 0-0/18000000" },
+                    });
+                },
+            },
+        );
+
+        expect(fromRange.formats[0]?.sizeBytes).toBe(18_000_000);
+        expect(cancelled).toBe(true);
+
+        const fromGet200 = await estimateDirectVideo(
+            { kind: "direct", url: VIDEO_URL },
+            {
+                fetch: async (_input, init) => {
+                    if (init?.method === "HEAD") {
+                        throw new TypeError("HEAD blocked");
+                    }
+                    return new Response("body", {
+                        status: 200,
+                        headers: { "content-length": "9000000" },
+                    });
+                },
+            },
+        );
+        expect(fromGet200.formats[0]?.sizeBytes).toBe(9_000_000);
     });
 
     test("throws MediaEstimateError no_formats when direct file size cannot be determined", async () => {
@@ -138,12 +116,22 @@ describe("estimateDirectVideo and estimateGenericMedia", () => {
             name: "MediaEstimateError",
             code: "no_formats",
         });
+
+        await expect(
+            estimateDirectVideo(
+                { kind: "direct", url: VIDEO_URL },
+                { fetch: async () => new Response(null, { status: 200 }) },
+            ),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "no_formats",
+        });
     });
 
-    test("dispatches generic sources cleanly by kind", async () => {
+    test("dispatches direct, HLS, and DASH sources through estimateGenericMedia", async () => {
         const directResult = await estimateGenericMedia(
             { kind: "direct", url: VIDEO_URL, durationSeconds: 60, videoHeight: 720 },
-            "Clip",
+            "Direct Clip",
             {
                 fetch: async () =>
                     new Response(null, {
@@ -152,12 +140,49 @@ describe("estimateDirectVideo and estimateGenericMedia", () => {
                     }),
             },
         );
-
         expect(directResult).toMatchObject({
             platform: "generic",
             contentType: "vod",
-            title: "Clip",
-            durationSeconds: 60,
+            title: "Direct Clip",
+            formats: [{ resolution: 720, sizeBytes: 12_000_000 }],
+        });
+
+        const hlsResult = await estimateGenericMedia(
+            { kind: "hls", url: "https://cdn.example.com/master.m3u8", durationSeconds: 10 },
+            "HLS Clip",
+            {
+                sleep: instantSleep,
+                fetch: async () =>
+                    new Response(
+                        "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=1280x720\n720p.m3u8",
+                        { status: 200 },
+                    ),
+            },
+        );
+        expect(hlsResult).toMatchObject({
+            platform: "generic",
+            contentType: "vod",
+            title: "HLS Clip",
+            formats: [{ resolution: 720, sizeBytes: 1_000_000 }],
+        });
+
+        const dashResult = await estimateGenericMedia(
+            { kind: "dash", url: "https://cdn.example.com/manifest.mpd" },
+            "DASH Clip",
+            {
+                sleep: instantSleep,
+                fetch: async () =>
+                    new Response(
+                        '<MPD type="static" mediaPresentationDuration="PT10S"><Period><AdaptationSet mimeType="video/mp4"><Representation height="1080" bandwidth="1600000" /></AdaptationSet></Period></MPD>',
+                        { status: 200 },
+                    ),
+            },
+        );
+        expect(dashResult).toMatchObject({
+            platform: "generic",
+            contentType: "vod",
+            title: "DASH Clip",
+            formats: [{ resolution: 1080, sizeBytes: 2_000_000 }],
         });
     });
 });

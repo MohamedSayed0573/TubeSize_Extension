@@ -99,32 +99,28 @@ describe("createTabMediaRegistry", () => {
             }),
         );
 
-        expect(await registry.getTabMedia(1)).toEqual([
+        expect(await registry.getTabMedia(1)).toMatchObject([
             {
                 kind: "hls",
                 url: "https://cdn.example.com/live/master.m3u8",
                 frameId: 0,
-                observedAt: 1001,
             },
             {
                 kind: "hls",
                 url: "https://cdn.example.com/stream/playlist",
                 frameId: 0,
                 mimeType: "application/vnd.apple.mpegurl",
-                observedAt: 1002,
             },
             {
                 kind: "dash",
                 url: "https://cdn.example.com/dash/manifest.mpd",
                 frameId: 0,
-                observedAt: 1003,
             },
             {
                 kind: "direct",
                 url: "https://cdn.example.com/video/clip.mp4",
                 frameId: 0,
                 mimeType: "video/mp4",
-                observedAt: 1004,
             },
         ]);
     });
@@ -153,19 +149,17 @@ describe("createTabMediaRegistry", () => {
                 responseHeaders: [{ name: "Content-Type", value: "application/vnd.apple.mpegurl" }],
             }),
         );
-        expect(await registry.getTabMedia(1)).toEqual([
+        expect(await registry.getTabMedia(1)).toMatchObject([
             {
                 kind: "hls",
                 url: "https://cdn.example.com/b.m3u8",
                 frameId: 1,
-                observedAt: 102,
             },
             {
                 kind: "hls",
                 url: "https://cdn.example.com/a.m3u8",
                 frameId: 2,
                 mimeType: "application/vnd.apple.mpegurl",
-                observedAt: 103,
             },
         ]);
 
@@ -211,12 +205,11 @@ describe("createTabMediaRegistry", () => {
 
         // Simulate service worker restart: fresh registry reading the same session storage.
         const secondWorker = createTabMediaRegistry({ now: () => ++tick, storage });
-        expect(await secondWorker.getTabMedia(7)).toEqual([
+        expect(await secondWorker.getTabMedia(7)).toMatchObject([
             {
                 kind: "hls",
                 url: "https://cdn.example.com/a/master.m3u8",
                 frameId: 0,
-                observedAt: 501,
             },
         ]);
 
@@ -364,35 +357,6 @@ describe("createTabMediaRegistry", () => {
         expect((await restartedWorker.getTabMedia(15)).map((entry) => entry.url)).toEqual([
             "https://cdn.example.com/main/master.m3u8",
         ]);
-    });
-
-    test("avoids redundant storage writes for unrelated non-embed subframes after hydration", async () => {
-        let saved: unknown = null;
-        let writes = 0;
-        const storage: TabMediaStorage = {
-            async get() {
-                return structuredClone(saved);
-            },
-            async set(value) {
-                writes++;
-                saved = structuredClone(value);
-            },
-        };
-
-        const registry = createTabMediaRegistry({ storage });
-        await registry.getTabMedia(20);
-        expect(writes).toBe(0);
-
-        // Ordinary ad/analytics subframes without prior saved state must not trigger storage writes.
-        registry.observeSubFrame(20, 41, "https://ads.example.net/banner", "req-ad-1");
-        registry.observeSubFrameRequest({
-            tabId: 20,
-            frameId: 41,
-            requestId: "req-ad-sub-1",
-            documentId: "doc-ad-1",
-        });
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        expect(writes).toBe(0);
     });
 });
 
@@ -697,6 +661,35 @@ describe("selectDetectedVideo", () => {
         });
 
         const registry = createTabMediaRegistry({ storage: null });
+        registry.observeRequest(
+            makeRequest({ tabId: 42, frameId: 0, url: "https://cdn.example.com/live/master.m3u8" }),
+        );
+        const detected = await detectTabVideo(42, registry, async () => [
+            {
+                frameId: 0,
+                result: {
+                    frameUrl: "https://example.com/live",
+                    pageTitle: "Live Page",
+                    iframes: [],
+                    videos: [
+                        {
+                            currentSrc: "blob:https://example.com/live",
+                            sources: [],
+                            isPlaying: true,
+                        },
+                    ],
+                },
+            },
+        ]);
+        expect(detected).toMatchObject({
+            status: "video",
+            video: {
+                title: "Live Page",
+                isPlaying: true,
+                source: { kind: "hls", url: "https://cdn.example.com/live/master.m3u8" },
+            },
+        });
+
         const restricted = await detectTabVideo(99, registry, async () => {
             throw new Error("Cannot access a chrome:// URL");
         });

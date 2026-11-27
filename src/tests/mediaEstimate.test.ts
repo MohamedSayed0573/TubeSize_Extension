@@ -379,7 +379,7 @@ describe("formatEstimateHeader", () => {
             }),
         );
 
-        await requestGenericMediaEstimate({
+        const estimate = await requestGenericMediaEstimate({
             id: "direct:https://cdn.example.com/clip.mp4",
             source: { kind: "direct", url: "https://cdn.example.com/clip.mp4", videoHeight: 720 },
             title: "Clip",
@@ -387,6 +387,7 @@ describe("formatEstimateHeader", () => {
             frameId: 0,
         });
 
+        expect(estimate).toEqual(genericEstimate);
         expect(received).toEqual([
             {
                 url: "https://cdn.example.com/clip.mp4",

@@ -1,26 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { estimateGenericDash, parseIsoDuration } from "@lib/dash";
+import { estimateGenericDash } from "@lib/dash";
 
 const instantSleep = async () => {};
-
-describe("parseIsoDuration", () => {
-    test("parses valid ISO 8601 durations including fractional seconds and days", () => {
-        expect(parseIsoDuration("PT1H2M3.5S")).toBe(3723.5);
-        expect(parseIsoDuration("PT45S")).toBe(45);
-        expect(parseIsoDuration("PT10M")).toBe(600);
-        expect(parseIsoDuration("P1DT2H")).toBe(93_600);
-        expect(parseIsoDuration(" pt0h5m30s ")).toBe(330);
-    });
-
-    test("returns undefined for empty, zero, or malformed durations", () => {
-        expect(parseIsoDuration("")).toBeUndefined();
-        expect(parseIsoDuration("P")).toBeUndefined();
-        expect(parseIsoDuration("PT")).toBeUndefined();
-        expect(parseIsoDuration("PT0S")).toBeUndefined();
-        expect(parseIsoDuration("120")).toBeUndefined();
-    });
-});
 
 describe("estimateGenericDash", () => {
     test("parses static VOD MPD with deduplicated video resolutions and separate audio track", async () => {
@@ -126,6 +108,42 @@ describe("estimateGenericDash", () => {
             platform: "generic",
             contentType: "live",
             formats: [{ kind: "live", resolution: 720, sizePerSecondBytes: 400_000 }],
+        });
+
+        // Fractional / hours ISO 8601 duration computes VOD size accurately; malformed duration falls back to live.
+        const fractionalVodMpd = `<?xml version="1.0"?>
+<MPD type="static" mediaPresentationDuration="PT1H2M3.5S">
+  <Period>
+    <AdaptationSet mimeType="video/mp4">
+      <Representation height="720" bandwidth="800000" />
+    </AdaptationSet>
+  </Period>
+</MPD>`;
+        const fractionalVod = await estimateGenericDash("https://cdn.example.com/long.mpd", {
+            sleep: instantSleep,
+            fetch: async () => new Response(fractionalVodMpd, { status: 200 }),
+        });
+        expect(fractionalVod).toMatchObject({
+            contentType: "vod",
+            durationSeconds: 3723.5,
+            formats: [{ kind: "vod", resolution: 720, sizeBytes: 372_350_000 }],
+        });
+
+        const malformedDurationMpd = `<?xml version="1.0"?>
+<MPD type="static" mediaPresentationDuration="PT0S">
+  <Period>
+    <AdaptationSet mimeType="video/mp4">
+      <Representation height="720" bandwidth="800000" />
+    </AdaptationSet>
+  </Period>
+</MPD>`;
+        const malformedFallback = await estimateGenericDash("https://cdn.example.com/zero.mpd", {
+            sleep: instantSleep,
+            fetch: async () => new Response(malformedDurationMpd, { status: 200 }),
+        });
+        expect(malformedFallback).toMatchObject({
+            contentType: "live",
+            formats: [{ kind: "live", resolution: 720, sizePerSecondBytes: 100_000 }],
         });
     });
 

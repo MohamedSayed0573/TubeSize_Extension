@@ -42,7 +42,7 @@ function parseIsoSeconds(iso: string, allowZero: boolean): number | undefined {
     return allowZero ? (total >= 0 ? total : undefined) : total > 0 ? total : undefined;
 }
 
-export function parseIsoDuration(iso: string): number | undefined {
+function parseIsoDuration(iso: string): number | undefined {
     return parseIsoSeconds(iso, false);
 }
 

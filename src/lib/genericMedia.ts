@@ -15,7 +15,7 @@ function parsePositiveByteLength(raw: string | null | undefined): number | undef
     return Number.isFinite(value) && value > 0 ? Math.round(value) : undefined;
 }
 
-export async function probeContentLength(
+async function probeContentLength(
     url: string,
     fetchFn: FetchLike = defaultFetch,
 ): Promise<number | undefined> {
