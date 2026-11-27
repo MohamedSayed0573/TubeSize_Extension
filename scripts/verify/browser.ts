@@ -654,7 +654,7 @@ async function readPageTargetId(page: Page): Promise<string> {
 export async function launchExtension(
     extDir: string,
     timeoutMs = 30_000,
-    options?: { enableCdp?: boolean },
+    options?: { enableCdp?: boolean; extraArgs?: string[] },
 ): Promise<{
     extId: string;
     profileDir: string;
@@ -692,6 +692,7 @@ export async function launchExtension(
             "--no-first-run",
             "--no-default-browser-check",
             "--disable-gpu",
+            ...(options?.extraArgs ?? []),
         ],
         env: { ...process.env, TMPDIR: safeTmp },
         viewport: { width: 1280, height: 800 },

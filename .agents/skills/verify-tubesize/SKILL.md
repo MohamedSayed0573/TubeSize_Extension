@@ -61,6 +61,14 @@ bun run verify smoke [--build] [--timeout <ms>] [--json]
 5. `settings-and-rtl` — `advancedView` toggle + Arabic (`العربية`) RTL persistence across reload.
 6. `dashboard-lifecycle` — 14-day seed, JSON export, Clear All Usage Data (confirm + badge reset), and JSON import restore.
 
+For an opt-in live-internet WebRTC + WebSocket end-to-end check against VDO.Ninja (`https://vdo.ninja`), run:
+
+```bash
+bun run verify live-rtc [--build] [--timeout <ms>] [--json]
+```
+
+`live-rtc` launches isolated headless Chromium with synthetic camera/audio streams (`--use-fake-device-for-media-stream`), connects a publisher tab and a viewer tab over VDO.Ninja's live WebSocket signaling + WebRTC RTP transport, compares the 6-second steady-state `RTCTransport` byte delta against TubeSize's IndexedDB `siteUsage["https://vdo.ninja"]` delta, checks the toolbar badge, and asserts zero extension errors (exiting `2` inconclusive if VDO.Ninja is unreachable).
+
 Exit codes across all `verify` commands:
 
 - `0` — Verified / passed.

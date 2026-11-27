@@ -19,6 +19,7 @@ import {
     type RuntimeIssue,
     waitForSettle,
 } from "./verify/browser";
+import { type LiveRtcReport, runLiveRtc } from "./verify/liveRtc";
 import {
     type BundleBudgetEvaluation,
     type BundlePerfReport,
@@ -46,6 +47,8 @@ Commands:
   doctor [--timeout <ms>]       Health check: Bun, Chromium, build freshness, MV3 boot
   smoke [--build] [--timeout <ms>] [--json]
                                 End-to-end offline runtime smoke suite across 6 core flows
+  live-rtc [--build] [--timeout <ms>] [--json]
+                                Opt-in live WebRTC + WebSocket check against VDO.Ninja
   start [opts]                  Launch isolated Playwright session (--target, --seed, --lang, --prev-version, --build, --timeout)
   status                        Check active session URL, surface, dir, and error count
   stop                          Close active session & delete temp profile (keeps .verify-evidence/)
@@ -408,10 +411,89 @@ async function runSmokeCommand(opts: {
         );
     }
 
-    const smokeReport = await runSmoke({ extDir: EXT_DIR, timeoutMs: opts.timeoutMs });
+    const smokeReport = await runSmoke({
+        extDir: EXT_DIR,
+        timeoutMs: opts.timeoutMs,
+    });
     if (opts.json) out(JSON.stringify(smokeReport, null, 2));
     else printSmokeReport(smokeReport);
     return smokeReport.passed ? 0 : 1;
+}
+
+function printLiveRtcReport(rep: LiveRtcReport): void {
+    const label =
+        rep.status === "passed" ? "PASS" : rep.status === "inconclusive" ? "INCONCLUSIVE" : "FAIL";
+    const totalSeconds = (rep.durationMs / 1000).toFixed(1);
+    out(`TubeSize Live WebRTC Verification (${rep.origin}, ext ${rep.extId || "n/a"})`);
+    out(`  Stream:        ${rep.streamId}`);
+    out(
+        `  Peer states:   publisher=${JSON.stringify(rep.publisherStates)} viewer=${JSON.stringify(rep.viewerStates)}`,
+    );
+    out(`  RTCTransport:  +${formatSiBytes(rep.rtcTransportDeltaBytes)} (steady-state delta)`);
+    out(
+        `  TubeSize:      +${formatSiBytes(rep.tubeSizeDeltaBytes)} (total ${formatSiBytes(rep.tubeSizeTotalBytes)}, badge ${JSON.stringify(rep.badgeText)})`,
+    );
+    out(`  Accuracy:      ${rep.ratio === null ? "n/a" : `${(rep.ratio * 100).toFixed(1)}%`}`);
+    for (const issue of rep.issues) {
+        out(`  [✗] ${issue.source}/${issue.level}: ${issue.message}`);
+    }
+    if (rep.error) {
+        out(`${label}: ${rep.error} (${totalSeconds}s)`);
+    } else {
+        out(`${label}: live WebRTC + WebSocket tracking verified in ${totalSeconds}s.`);
+    }
+}
+
+async function runLiveRtcCommand(opts: {
+    build: boolean;
+    timeoutMs: number;
+    json: boolean;
+}): Promise<number> {
+    const emitInconclusive = (msg: string): number => {
+        if (opts.json) process.stderr.write(`${msg}\n`);
+        else out(msg);
+        return 2;
+    };
+
+    if (opts.build) {
+        const b = Bun.spawnSync({
+            cmd: ["bun", "run", "build"],
+            cwd: ROOT,
+            stdout: opts.json ? "pipe" : "inherit",
+            stderr: "inherit",
+        });
+        if (b.exitCode !== 0) {
+            if (opts.json && b.stdout && b.stdout.length > 0) {
+                process.stderr.write(b.stdout);
+            }
+            return 1;
+        }
+    }
+
+    if (!findChromiumExecutable()) {
+        return emitInconclusive(
+            "INCONCLUSIVE: Chromium not found (set CHROME_PATH or install Playwright Chromium).",
+        );
+    }
+
+    if (!existsSync(join(EXT_DIR, "manifest.json"))) {
+        return emitInconclusive(
+            'INCONCLUSIVE: Missing .output/chrome-mv3/manifest.json — run "bun run build" or pass --build.',
+        );
+    }
+
+    if (!opts.build && getLatestMtimeMs(join(ROOT, "src")) > getLatestMtimeMs(EXT_DIR)) {
+        return emitInconclusive(
+            'INCONCLUSIVE: Build is STALE — run "bun run build" or pass --build.',
+        );
+    }
+
+    const rep = await runLiveRtc({ extDir: EXT_DIR, timeoutMs: opts.timeoutMs });
+    if (opts.json) out(JSON.stringify(rep, null, 2));
+    else printLiveRtcReport(rep);
+    if (rep.status === "passed") return 0;
+    if (rep.status === "inconclusive") return 2;
+    return 1;
 }
 
 async function runDoctor(timeoutMs: number): Promise<number> {
@@ -582,6 +664,13 @@ async function main(): Promise<number> {
 
         case "smoke":
             return await runSmokeCommand({
+                build: values.build,
+                timeoutMs: parsePositiveInt(values.timeout, 30_000, "--timeout"),
+                json: values.json,
+            });
+
+        case "live-rtc":
+            return await runLiveRtcCommand({
                 build: values.build,
                 timeoutMs: parsePositiveInt(values.timeout, 30_000, "--timeout"),
                 json: values.json,
