@@ -221,7 +221,7 @@ async function readBoundedResponseText(
 export async function fetchBoundedText(
     url: string | URL,
     options: FetchBoundedTextOptions,
-): Promise<string> {
+): Promise<{ text: string; url: string }> {
     const timeoutMs = options.timeoutMs ?? DEFAULT_MANIFEST_TIMEOUT_MS;
     const maxBytes = options.maxBytes ?? DEFAULT_MAX_MANIFEST_BYTES;
     const controller = new AbortController();
@@ -243,12 +243,13 @@ export async function fetchBoundedText(
                 forbiddenCode: options.forbiddenCode,
             });
         }
-        return await readBoundedResponseText(
+        const text = await readBoundedResponseText(
             res.response,
             controller.signal,
             maxBytes,
             options.readErrorPrefix,
         );
+        return { text, url: res.response.url || url.toString() };
     } finally {
         clearTimeout(timeout);
     }

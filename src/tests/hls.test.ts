@@ -740,4 +740,55 @@ describe("estimateGenericHls", () => {
             formats: [{ kind: "live", resolution: 720, sizePerSecondBytes: 500_000 }],
         });
     });
+
+    test("resolves relative variant playlists and segments against the final redirected playlist URL", async () => {
+        const mediaPlaylist = [
+            "#EXTM3U",
+            "#EXT-X-TARGETDURATION:4",
+            "#EXTINF:4.0,",
+            "chunks/0.ts",
+            "#EXT-X-ENDLIST",
+        ].join("\n");
+
+        const requestedUrls: string[] = [];
+        const estimate = await estimateGenericHls("https://entry.example.com/start/index.m3u8", {
+            sleep: instantSleep,
+            fetch: async (input) => {
+                const url = input.toString();
+                requestedUrls.push(url);
+                if (url === "https://entry.example.com/start/index.m3u8") {
+                    const response = new Response(mediaPlaylist, { status: 200 });
+                    Object.defineProperty(response, "url", {
+                        value: "https://cdn.example.com/assets/hls/index.m3u8",
+                    });
+                    return response;
+                }
+                if (url === "https://cdn.example.com/assets/hls/chunks/0.ts") {
+                    return new Response("x", {
+                        status: 206,
+                        headers: { "content-range": "bytes 0-0/400000" },
+                    });
+                }
+                return new Response("Not found", { status: 404 });
+            },
+        });
+
+        expect(requestedUrls).toEqual([
+            "https://entry.example.com/start/index.m3u8",
+            "https://cdn.example.com/assets/hls/chunks/0.ts",
+        ]);
+        expect(estimate).toEqual({
+            platform: "generic",
+            contentType: "vod",
+            durationSeconds: 4,
+            formats: [
+                {
+                    kind: "vod",
+                    resolution: 0,
+                    sizeBytes: 400_000,
+                    sizePerSecondBytes: 100_000,
+                },
+            ],
+        });
+    });
 });

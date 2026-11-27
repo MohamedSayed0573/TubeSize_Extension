@@ -638,10 +638,118 @@ describe("mergeDetectedVideos", () => {
         });
     });
 
-    test("scanFrameDom collects document and open shadowRoot iframes and video sources", async () => {
+    test("keeps independent nested-directory HLS masters separate while grouping real rendition subdirs and observed direct videos", () => {
+        const nestedFrames: FrameScanResult[] = [
+            {
+                frameId: 0,
+                frameUrl: "https://example.com/nested",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "blob:https://example.com/first",
+                        sources: [],
+                        durationSeconds: 100,
+                        isPlaying: false,
+                        inViewport: true,
+                        viewportArea: 250_000,
+                        title: "Root Stream",
+                    },
+                    {
+                        currentSrc: "blob:https://example.com/second",
+                        sources: [],
+                        durationSeconds: 200,
+                        isPlaying: false,
+                        inViewport: true,
+                        viewportArea: 200_000,
+                        title: "Nested Stream",
+                    },
+                ],
+            },
+        ];
+
+        const nestedObserved: ObservedMedia[] = [
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/a/master.m3u8",
+                frameId: 0,
+                observedAt: 1,
+            },
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/a/b/master.m3u8",
+                frameId: 0,
+                observedAt: 2,
+            },
+        ];
+
+        const nested = mergeDetectedVideos(nestedFrames, nestedObserved);
+        expect(nested.map((video) => ({ id: video.id, title: video.title }))).toEqual([
+            { id: "hls:https://cdn.example.com/a/master.m3u8", title: "Root Stream" },
+            { id: "hls:https://cdn.example.com/a/b/master.m3u8", title: "Nested Stream" },
+        ]);
+
+        // Real-world Mux/hls.js layout: master + url_0/193039199_mp4_h264_aac_hd_7.m3u8
+        const muxFrames: FrameScanResult[] = [
+            {
+                frameId: 0,
+                frameUrl: "https://hlsjs.video-dev.org/demo/",
+                pageTitle: "hls.js demo",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "blob:https://hlsjs.video-dev.org/stream",
+                        sources: [],
+                        durationSeconds: 634,
+                        isPlaying: true,
+                        inViewport: true,
+                        viewportArea: 300_000,
+                    },
+                ],
+            },
+        ];
+        const muxObserved: ObservedMedia[] = [
+            {
+                kind: "hls",
+                url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+                frameId: 0,
+                observedAt: 10,
+            },
+            {
+                kind: "hls",
+                url: "https://test-streams.mux.dev/x36xhzz/url_0/193039199_mp4_h264_aac_hd_7.m3u8",
+                frameId: 0,
+                observedAt: 11,
+            },
+            {
+                kind: "hls",
+                url: "https://test-streams.mux.dev/x36xhzz/url_8/193039199_mp4_h264_aac_fhd_7.m3u8",
+                frameId: 0,
+                observedAt: 12,
+            },
+            {
+                kind: "direct",
+                url: "https://cdn.example.com/sandboxed/clip.webm",
+                frameId: 9,
+                mimeType: "video/webm",
+                observedAt: 13,
+            },
+        ];
+
+        const muxMerged = mergeDetectedVideos(muxFrames, muxObserved);
+        expect(muxMerged.map((video) => video.id)).toEqual([
+            "hls:https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+            "direct:https://cdn.example.com/sandboxed/clip.webm",
+        ]);
+    });
+
+    test("scanFrameDom collects document and open shadowRoot iframes and video sources and resolves relative URLs against document.baseURI", async () => {
         const cleanupDom = installDomEnv();
         try {
             document.title = "Shadow Page";
+            const base = document.createElement("base");
+            base.href = "https://assets.example.com/media/";
+            document.head.append(base);
+
             const iframe = document.createElement("iframe");
             iframe.setAttribute("data-src", "https://www.youtube.com/embed/yaodD79Q4iE");
             iframe.title = "Lazy YouTube";
@@ -652,7 +760,7 @@ describe("mergeDetectedVideos", () => {
             const video = document.createElement("video");
             video.setAttribute("aria-label", "Shadow Clip");
             const source = document.createElement("source");
-            source.setAttribute("src", "https://cdn.example.com/shadow.mp4");
+            source.setAttribute("src", "clips/shadow.mp4");
             source.type = "video/mp4";
             video.append(source);
             shadow.append(video);
@@ -668,7 +776,9 @@ describe("mergeDetectedVideos", () => {
             expect(scan.videos).toHaveLength(1);
             expect(scan.videos[0]).toMatchObject({
                 title: "Shadow Clip",
-                sources: [{ url: "https://cdn.example.com/shadow.mp4", type: "video/mp4" }],
+                sources: [
+                    { url: "https://assets.example.com/media/clips/shadow.mp4", type: "video/mp4" },
+                ],
             });
         } finally {
             await cleanupDom();

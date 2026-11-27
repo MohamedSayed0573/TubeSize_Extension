@@ -239,7 +239,7 @@ export async function estimateGenericDash(
     options: GenericDashOptions = {},
 ): Promise<MediaEstimate> {
     const fetchFn = options.fetch ?? defaultFetch;
-    const xml = await fetchBoundedText(url, {
+    const { text: xml } = await fetchBoundedText(url, {
         fetch: fetchFn,
         sleep: options.sleep,
         init: { cache: "no-store", credentials: "include" },

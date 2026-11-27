@@ -41,7 +41,8 @@ type FrameScanExecutor = (
 export function scanFrameDom(): FrameDomScan {
     const MAX_SHADOW_DEPTH = 4;
     const MAX_TITLE_LENGTH = 200;
-    const baseHref = window.location.href;
+    const frameHref = window.location.href;
+    const resolveBaseHref = document.baseURI || frameHref;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const iframes: ScannedIframe[] = [];
@@ -55,7 +56,7 @@ export function scanFrameDom(): FrameDomScan {
     const toAbsoluteUrl = (value: string | null | undefined) => {
         if (!value) return undefined;
         try {
-            const url = new URL(value, baseHref);
+            const url = new URL(value, resolveBaseHref);
             return url.protocol === "http:" || url.protocol === "https:" || url.protocol === "blob:"
                 ? url.href
                 : undefined;
@@ -117,7 +118,7 @@ export function scanFrameDom(): FrameDomScan {
     };
 
     collect(document, 0);
-    return { frameUrl: baseHref, pageTitle: cleanTitle(document.title), iframes, videos };
+    return { frameUrl: frameHref, pageTitle: cleanTitle(document.title), iframes, videos };
 }
 
 const executeFrameScan: FrameScanExecutor = (tabId) =>
@@ -144,7 +145,7 @@ type PendingMseVideo = {
 
 const MASTER_NAME_REGEX = /^(master|manifest|index|playlist|main)$/i;
 const VARIANT_NAME_REGEX =
-    /(chunklist|variant|rendition|media|audio|subtitle|caption|prog_index|level[_-]?\d|stream[_-]?\d|\b\d{3,4}p\b|\d{3,4}x\d{3,4}|\b\d+k(?:bps)?\b)/i;
+    /(chunklist|variant|rendition|media|audio|subtitle|caption|prog_index|(?:level|stream|url|track|quality|bitrate|profile)[_-]?\d|\b\d{3,4}p\b|\d{3,4}x\d{3,4}|\b\d+k(?:bps)?\b|(?:^|[_-])(?:ld|sd|hd|fhd|uhd|hq|lq|h264|h265|hevc|avc|vp9|av1|aac)(?:$|[_-]))/i;
 
 function normalizeMimeType(mimeType: string | undefined): string | undefined {
     const base = mimeType?.split(";", 1)[0]?.trim().toLowerCase();
@@ -194,17 +195,20 @@ function isLikelyVariantName(stem: string): boolean {
     return VARIANT_NAME_REGEX.test(stem);
 }
 
+function isLikelyVariantPath(relativeSubdir: string): boolean {
+    return relativeSubdir
+        .split("/")
+        .some((segment) => segment.length > 0 && isLikelyVariantName(segment));
+}
+
 function isRelatedHlsManifest(primaryUrl: string, candidateUrl: string): boolean {
     const primary = parseUrlParts(primaryUrl);
     const candidate = parseUrlParts(candidateUrl);
     if (!primary || !candidate || primary.origin !== candidate.origin) return false;
 
-    if (
-        candidate.dir.length > primary.dir.length &&
-        candidate.dir.startsWith(primary.dir) &&
-        (primary.dir !== "/" || !isLikelyMasterName(candidate.stem))
-    ) {
-        return true;
+    if (candidate.dir.length > primary.dir.length && candidate.dir.startsWith(primary.dir)) {
+        const relativeSubdir = candidate.dir.slice(primary.dir.length);
+        return isLikelyVariantName(candidate.stem) || isLikelyVariantPath(relativeSubdir);
     }
 
     if (candidate.dir === primary.dir) {
@@ -233,10 +237,10 @@ function isRelatedHlsManifest(primaryUrl: string, candidateUrl: string): boolean
     if (
         primary.dir.length > candidate.dir.length &&
         primary.dir.startsWith(candidate.dir) &&
-        (candidate.dir !== "/" || !isLikelyMasterName(primary.stem)) &&
         isLikelyMasterName(candidate.stem)
     ) {
-        return true;
+        const relativeSubdir = primary.dir.slice(candidate.dir.length);
+        return isLikelyVariantName(primary.stem) || isLikelyVariantPath(relativeSubdir);
     }
 
     return false;
@@ -586,6 +590,19 @@ export function mergeDetectedVideos(
             inViewport: false,
             viewportArea: 0,
             frameId: group.frameId,
+        });
+    }
+
+    // Direct video loads observed via webRequest from frames that could not be
+    // DOM-scanned (e.g. closed Shadow DOM or opaque sandboxed iframes).
+    for (const entry of observedMedia) {
+        if (entry.kind !== "direct" || embedFrameIds.has(entry.frameId)) continue;
+        add({
+            source: toGenericSource("direct", entry.url, undefined, entry.mimeType),
+            isPlaying: false,
+            inViewport: false,
+            viewportArea: 0,
+            frameId: entry.frameId,
         });
     }
 

@@ -493,7 +493,7 @@ describe("setupTrackUsage", () => {
         expect(writeSiteUsage).toHaveBeenCalledTimes(1);
     });
 
-    test("clears tabMediaRegistry on SPA URL changes while preserving entries across hash-only changes", async () => {
+    test("preserves tabMediaRegistry across same-page pushState URL updates and clears on main_frame navigation", async () => {
         const webRequest = stubWebRequestCompleted();
         const beforeListeners = new Set<
             (
@@ -524,15 +524,6 @@ describe("setupTrackUsage", () => {
 
         const tab = await fakeBrowser.tabs.create({ url: "https://course.example.com/lesson/1" });
         const tabId = tab.id!;
-        for (const listener of beforeListeners) {
-            listener({
-                ...makeDetails({
-                    tabId,
-                    type: "main_frame",
-                    url: "https://course.example.com/lesson/1",
-                }),
-            });
-        }
         webRequest.emit(
             makeDetails({
                 tabId,
@@ -542,20 +533,24 @@ describe("setupTrackUsage", () => {
         );
         expect(await registry.getTabMedia(tabId)).toHaveLength(1);
 
-        // Hash-only change keeps observed manifests.
+        // Same-page history.pushState query/hash updates must not wipe loaded video manifests.
         await fakeBrowser.tabs.onUpdated.trigger(
             tabId,
-            { url: "https://course.example.com/lesson/1#comments" },
+            { url: "https://course.example.com/lesson/1?t=45" },
             tab,
         );
         expect(await registry.getTabMedia(tabId)).toHaveLength(1);
 
-        // SPA path change clears stale manifests from the previous route.
-        await fakeBrowser.tabs.onUpdated.trigger(
-            tabId,
-            { url: "https://course.example.com/lesson/2" },
-            tab,
-        );
+        // Full main_frame document navigation clears stale manifests for the tab.
+        for (const listener of beforeListeners) {
+            listener({
+                ...makeDetails({
+                    tabId,
+                    type: "main_frame",
+                    url: "https://course.example.com/lesson/2",
+                }),
+            });
+        }
         expect(await registry.getTabMedia(tabId)).toEqual([]);
     });
 });

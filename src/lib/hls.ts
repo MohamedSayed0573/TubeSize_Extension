@@ -390,7 +390,7 @@ export async function estimateGenericHls(
     options: GenericHlsOptions = {},
 ): Promise<MediaEstimate> {
     const fetchFn = options.fetch ?? defaultFetch;
-    const playlistText = await fetchBoundedText(url, {
+    const { text: playlistText, url: fetchedPlaylistUrl } = await fetchBoundedText(url, {
         fetch: fetchFn,
         sleep: options.sleep,
         init: { cache: "no-store", credentials: "include" },
@@ -429,8 +429,8 @@ export async function estimateGenericHls(
         const firstVariantUri = variants.find((variant) => variant.uri)?.uri;
         if (firstVariantUri) {
             try {
-                const variantUrl = resolveRelativeUrl(firstVariantUri, url);
-                const variantText = await fetchBoundedText(variantUrl, {
+                const variantUrl = resolveRelativeUrl(firstVariantUri, fetchedPlaylistUrl);
+                const { text: variantText } = await fetchBoundedText(variantUrl, {
                     fetch: fetchFn,
                     sleep: options.sleep,
                     init: { cache: "no-store", credentials: "include" },
@@ -464,7 +464,11 @@ export async function estimateGenericHls(
     }
 
     if (manifest.segments && manifest.segments.length > 0) {
-        const sizePerSecondBytes = await sampleGenericMediaPlaylistRate(manifest, url, fetchFn);
+        const sizePerSecondBytes = await sampleGenericMediaPlaylistRate(
+            manifest,
+            fetchedPlaylistUrl,
+            fetchFn,
+        );
         if (!(sizePerSecondBytes > 0)) {
             throw new MediaEstimateError(
                 "no_formats",

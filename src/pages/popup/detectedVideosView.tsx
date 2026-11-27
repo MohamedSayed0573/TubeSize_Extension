@@ -138,7 +138,7 @@ export function DetectedVideosView({ videos }: Props) {
     const activeVideo = videos[activeIndex];
 
     const query = useQuery({
-        queryKey: ["detectedVideoEstimate", activeVideo?.id],
+        queryKey: ["detectedVideoEstimate", activeVideo?.id, activeVideo?.source],
         queryFn: () => {
             if (!activeVideo) {
                 throw new Error("No detected video selected");
