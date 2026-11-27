@@ -1068,15 +1068,35 @@ describe("webRequest deduplication", () => {
     });
 
     test("holds webRequest across tab close until downloads.onCreated cancels it or hold expires", async () => {
+        const addBeforeSendSpy = spyOn(
+            chrome.webRequest.onBeforeSendHeaders,
+            "addListener",
+        ).mockImplementation(() => {});
+        const removeBeforeSendSpy = spyOn(
+            chrome.webRequest.onBeforeSendHeaders,
+            "removeListener",
+        ).mockImplementation(() => {});
         const addSpy = spyOn(chrome.webRequest.onCompleted, "addListener").mockImplementation(
             () => {},
         );
         const removeSpy = spyOn(chrome.webRequest.onCompleted, "removeListener").mockImplementation(
             () => {},
         );
+        const addErrorSpy = spyOn(
+            chrome.webRequest.onErrorOccurred,
+            "addListener",
+        ).mockImplementation(() => {});
+        const removeErrorSpy = spyOn(
+            chrome.webRequest.onErrorOccurred,
+            "removeListener",
+        ).mockImplementation(() => {});
         cleanups.push(() => {
+            addBeforeSendSpy.mockRestore();
+            removeBeforeSendSpy.mockRestore();
             addSpy.mockRestore();
             removeSpy.mockRestore();
+            addErrorSpy.mockRestore();
+            removeErrorSpy.mockRestore();
         });
 
         const { controller, dedup, ingestion, tracker } = createTestHarness({

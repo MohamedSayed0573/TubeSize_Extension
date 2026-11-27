@@ -1,13 +1,17 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 
+import * as browserModule from "@lib/browser";
 import { toOrigin } from "@lib/domain";
 import { toVideoKey } from "@lib/platformUrl";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
 import { addVideoMetadata, clearDatabaseData, getAllSiteUsage, getAllWatchHistory } from "@/db";
+import { createDownloadDedup } from "@/entrypoints/background/downloadDedup";
 import { createUsageIngestion } from "@/entrypoints/background/usageIngestion";
 import {
+    type BeforeSendHeadersDetails,
     type CompletedRequestDetails,
+    createRequestUsageTracker,
     isCountableRequest,
     setupTrackUsage,
     trackRequest,
@@ -34,6 +38,24 @@ function makeDetails(overrides: Partial<CompletedRequestDetails> = {}): Complete
         fromCache: false,
         statusCode: 200,
         statusLine: "HTTP/1.1 200 OK",
+        ...overrides,
+    };
+}
+
+function makeBeforeSendDetails(
+    overrides: Partial<BeforeSendHeadersDetails> = {},
+): BeforeSendHeadersDetails {
+    return {
+        documentLifecycle: "active",
+        frameId: 0,
+        frameType: "outermost_frame",
+        method: "POST",
+        parentFrameId: -1,
+        requestId: "req-upload-1",
+        tabId: 1,
+        timeStamp: 1_700_000_000_000,
+        type: "main_frame",
+        url: "https://example.com/submit",
         ...overrides,
     };
 }
@@ -387,8 +409,326 @@ describe("trackRequest", () => {
     });
 });
 
+describe("createRequestUsageTracker upload lifecycle", () => {
+    test("commits staged request Content-Length on completion with or without response Content-Length", async () => {
+        const ingestion = createUsageIngestion();
+        const tracker = createRequestUsageTracker(ingestion);
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/form" });
+
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "up-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                url: "https://example.com/upload",
+                requestHeaders: [{ name: "Content-Length", value: "15000" }],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "up-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                method: "POST",
+                url: "https://example.com/upload",
+                responseHeaders: [{ name: "Content-Length", value: "2500" }],
+            }),
+        );
+
+        // Response without Content-Length (e.g. 204 or chunked) still commits staged upload bytes.
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "up-2",
+                tabId: tab.id,
+                type: "sub_frame",
+                url: "https://example.com/upload-204",
+                requestHeaders: [{ name: "content-length", value: "8000" }],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "up-2",
+                tabId: tab.id,
+                type: "sub_frame",
+                method: "POST",
+                statusCode: 204,
+                url: "https://example.com/upload-204",
+                responseHeaders: [],
+            }),
+        );
+
+        await ingestion.flush();
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 25_500,
+        });
+    });
+
+    test("preserves upload bytes when a POST triggers an attachment download or DownloadDedup intercept", async () => {
+        const ingestion = createUsageIngestion();
+        const dedup = createDownloadDedup((tabUrl, bytes) => {
+            ingestion.bufferTabUsage(tabUrl, bytes);
+        });
+        cleanups.push(() => dedup.dispose());
+        const tracker = createRequestUsageTracker(ingestion, 1000, dedup);
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/export" });
+
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "up-attach",
+                tabId: tab.id,
+                type: "main_frame",
+                url: "https://example.com/export/download",
+                requestHeaders: [{ name: "Content-Length", value: "6000" }],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "up-attach",
+                tabId: tab.id,
+                type: "main_frame",
+                method: "POST",
+                url: "https://example.com/export/download",
+                responseHeaders: [
+                    { name: "Content-Length", value: "50000" },
+                    { name: "Content-Disposition", value: 'attachment; filename="report.csv"' },
+                ],
+            }),
+        );
+
+        dedup.track(42, ["https://example.com/export/binary"]);
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "up-dedup",
+                tabId: tab.id,
+                type: "main_frame",
+                url: "https://example.com/export/binary",
+                requestHeaders: [{ name: "Content-Length", value: "4000" }],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "up-dedup",
+                tabId: tab.id,
+                type: "main_frame",
+                method: "POST",
+                url: "https://example.com/export/binary",
+                responseHeaders: [{ name: "Content-Length", value: "90000" }],
+            }),
+        );
+
+        await ingestion.flush();
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 10_000,
+        });
+    });
+
+    test("avoids overcounting on 307/308 and 302 redirects sharing a requestId", async () => {
+        const ingestion = createUsageIngestion();
+        const tracker = createRequestUsageTracker(ingestion);
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/form" });
+
+        // 307 redirect: onBeforeSendHeaders fires twice with the same requestId and Content-Length.
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "redir-307",
+                tabId: tab.id,
+                type: "sub_frame",
+                url: "https://example.com/step1",
+                requestHeaders: [{ name: "Content-Length", value: "5000" }],
+            }),
+        );
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "redir-307",
+                tabId: tab.id,
+                type: "sub_frame",
+                url: "https://example.com/step2",
+                requestHeaders: [{ name: "Content-Length", value: "5000" }],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "redir-307",
+                tabId: tab.id,
+                type: "sub_frame",
+                method: "POST",
+                url: "https://example.com/step2",
+                responseHeaders: [],
+            }),
+        );
+
+        // 302 redirect: POST -> GET drops request Content-Length on hop 2, keeping hop 1 upload bytes.
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "redir-302",
+                tabId: tab.id,
+                type: "sub_frame",
+                url: "https://example.com/post",
+                requestHeaders: [{ name: "Content-Length", value: "3000" }],
+            }),
+        );
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "redir-302",
+                tabId: tab.id,
+                type: "sub_frame",
+                method: "GET",
+                url: "https://example.com/done",
+                requestHeaders: [],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "redir-302",
+                tabId: tab.id,
+                type: "sub_frame",
+                method: "GET",
+                url: "https://example.com/done",
+                responseHeaders: [],
+            }),
+        );
+
+        await ingestion.flush();
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 8_000,
+        });
+    });
+
+    test("discards failed or cached requests and evicts oldest pending upload past cap", async () => {
+        const ingestion = createUsageIngestion();
+        const tracker = createRequestUsageTracker(ingestion, 2);
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/form" });
+
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "err-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                requestHeaders: [{ name: "Content-Length", value: "9000" }],
+            }),
+        );
+        tracker.handleErrorOccurred({ requestId: "err-1" });
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "err-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                responseHeaders: [],
+            }),
+        );
+
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "cached-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                requestHeaders: [{ name: "Content-Length", value: "4000" }],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "cached-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                fromCache: true,
+                responseHeaders: [],
+            }),
+        );
+
+        // Evicts oldest entry when maxPendingUploads (2) is exceeded: leak-1 is dropped, leak-3 remains.
+        for (const id of ["leak-1", "leak-2", "leak-3"]) {
+            tracker.handleBeforeSendHeaders(
+                makeBeforeSendDetails({
+                    requestId: id,
+                    tabId: tab.id,
+                    type: "sub_frame",
+                    requestHeaders: [{ name: "Content-Length", value: "1000" }],
+                }),
+            );
+        }
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "leak-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                responseHeaders: [],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "leak-3",
+                tabId: tab.id,
+                type: "sub_frame",
+                responseHeaders: [],
+            }),
+        );
+
+        await ingestion.flush();
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 1_000,
+        });
+    });
+
+    test("ignores page-observer-owned types, OPTIONS, HEAD, tabless, and extension uploads", async () => {
+        const ingestion = createUsageIngestion();
+        const tracker = createRequestUsageTracker(ingestion);
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/app" });
+
+        const skippedCases: Array<Partial<BeforeSendHeadersDetails>> = [
+            { requestId: "skip-xhr", type: "xmlhttprequest" },
+            { requestId: "skip-ping", type: "ping" },
+            { requestId: "skip-beacon", type: "beacon" as chrome.webRequest.ResourceType },
+            { requestId: "skip-options", type: "sub_frame", method: "OPTIONS" },
+            { requestId: "skip-head", type: "sub_frame", method: "HEAD" },
+            { requestId: "skip-tabless", tabId: -1, type: "sub_frame" },
+            {
+                requestId: "skip-ext-url",
+                type: "sub_frame",
+                url: "chrome-extension://abcdef/form",
+            },
+            {
+                requestId: "skip-ext-origin",
+                type: "sub_frame",
+                originUrl: "moz-extension://1234/page.html",
+            },
+        ];
+
+        for (const overrides of skippedCases) {
+            tracker.handleBeforeSendHeaders(
+                makeBeforeSendDetails({
+                    tabId: tab.id,
+                    requestHeaders: [{ name: "Content-Length", value: "50000" }],
+                    ...overrides,
+                }),
+            );
+            await tracker.handleCompleted(
+                makeDetails({
+                    tabId: overrides.tabId ?? tab.id,
+                    requestId: overrides.requestId!,
+                    type: overrides.type ?? "sub_frame",
+                    method: overrides.method ?? "POST",
+                    url: overrides.url ?? "https://example.com/submit",
+                    originUrl: overrides.originUrl,
+                    responseHeaders: [],
+                }),
+            );
+        }
+
+        await ingestion.flush();
+        expect(await getAllSiteUsage()).toEqual([]);
+    });
+});
+
 function stubWebRequestCompleted() {
     const listeners = new Set<(details: CompletedRequestDetails) => void>();
+    const addBeforeSendSpy = spyOn(
+        chrome.webRequest.onBeforeSendHeaders,
+        "addListener",
+    ).mockImplementation(() => {});
+    const removeBeforeSendSpy = spyOn(
+        chrome.webRequest.onBeforeSendHeaders,
+        "removeListener",
+    ).mockImplementation(() => {});
     const addSpy = spyOn(chrome.webRequest.onCompleted, "addListener").mockImplementation(
         (listener) => {
             listeners.add(listener);
@@ -399,9 +739,20 @@ function stubWebRequestCompleted() {
             listeners.delete(listener);
         },
     );
+    const addErrorSpy = spyOn(chrome.webRequest.onErrorOccurred, "addListener").mockImplementation(
+        () => {},
+    );
+    const removeErrorSpy = spyOn(
+        chrome.webRequest.onErrorOccurred,
+        "removeListener",
+    ).mockImplementation(() => {});
     cleanups.push(() => {
+        addBeforeSendSpy.mockRestore();
+        removeBeforeSendSpy.mockRestore();
         addSpy.mockRestore();
         removeSpy.mockRestore();
+        addErrorSpy.mockRestore();
+        removeErrorSpy.mockRestore();
     });
     return {
         emit: (details: CompletedRequestDetails) => {
@@ -412,6 +763,65 @@ function stubWebRequestCompleted() {
 }
 
 describe("setupTrackUsage", () => {
+    test("registers Chromium extraHeaders and omits extraHeaders on Firefox", () => {
+        const beforeSendCalls: unknown[][] = [];
+        const completedCalls: unknown[][] = [];
+        const errorCalls: unknown[][] = [];
+
+        const webRequestMock = {
+            onBeforeSendHeaders: {
+                addListener: (...args: unknown[]) => beforeSendCalls.push(args),
+                removeListener: () => {},
+            },
+            onCompleted: {
+                addListener: (...args: unknown[]) => completedCalls.push(args),
+                removeListener: () => {},
+            },
+            onErrorOccurred: {
+                addListener: (...args: unknown[]) => errorCalls.push(args),
+                removeListener: () => {},
+            },
+        };
+        const originalWebRequest = chrome.webRequest;
+        Object.defineProperty(chrome, "webRequest", {
+            value: webRequestMock,
+            configurable: true,
+            writable: true,
+        });
+        cleanups.push(() => {
+            Object.defineProperty(chrome, "webRequest", {
+                value: originalWebRequest,
+                configurable: true,
+                writable: true,
+            });
+        });
+
+        const noopIngestion = {
+            hasPendingUsage: false,
+            bufferTabUsage: () => true,
+            recordTabUsage: async () => true,
+            flush: async () => {},
+            startAutoFlush: () => () => {},
+        };
+
+        const isFirefoxSpy = spyOn(browserModule, "isFirefox");
+        cleanups.push(() => isFirefoxSpy.mockRestore());
+
+        isFirefoxSpy.mockReturnValue(false);
+        const teardownChromium = setupTrackUsage(noopIngestion);
+        cleanups.push(teardownChromium);
+        expect(beforeSendCalls[0]?.[2]).toEqual(["requestHeaders", "extraHeaders"]);
+        expect(completedCalls[0]?.[2]).toEqual(["responseHeaders", "extraHeaders"]);
+        expect(errorCalls).toHaveLength(1);
+
+        isFirefoxSpy.mockReturnValue(true);
+        const teardownFirefox = setupTrackUsage(noopIngestion);
+        cleanups.push(teardownFirefox);
+        expect(beforeSendCalls[1]?.[2]).toEqual(["requestHeaders"]);
+        expect(completedCalls[1]?.[2]).toEqual(["responseHeaders"]);
+        expect(errorCalls).toHaveLength(2);
+    });
+
     test("flushes pending buffered usage immediately when a tab closes", async () => {
         const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
         cleanups.push(() => consoleErrorSpy.mockRestore());

@@ -67,10 +67,10 @@ export interface BundleBudgetEvaluation {
 
 const BUNDLE_BUDGETS = {
     totalBytes: 3_200_000,
-    contentScriptsTotalBytes: 80_000,
+    contentScriptsTotalBytes: 82_000,
     files: {
         "background.js": 800_000,
-        "content-scripts/genericObserver.js": 8_000,
+        "content-scripts/genericObserver.js": 10_500,
         "content-scripts/usageBridge.js": 10_000,
         "content-scripts/content.js": 65_000,
     },
