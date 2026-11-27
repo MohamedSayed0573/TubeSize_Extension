@@ -28,7 +28,7 @@ What `start` does:
 - Discovers Chromium via `CHROME_PATH`, newest `~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome`, or system `google-chrome` / `chromium`.
 - Launches `chromium.launchPersistentContext` in `--headless=new` with an ephemeral profile (`ts-verify-*` under a short safe `TMPDIR`), `--remote-debugging-port` on an ephemeral port (for real toolbar popup attachment via `chrome.action.openPopup()`), `acceptDownloads: true`, and `--disable-extensions-except=.output/chrome-mv3 --load-extension=.output/chrome-mv3`.
 - **Readiness criteria:** waits for the MV3 background service worker (`chrome-extension://<extId>/background.js`) to come online, seeds IndexedDB via the service worker (`full` = 14 deterministic days + 6 video metadata records, or `empty`), sets `chrome.storage.sync.language` (and optional `lastSeenVersion` when `--prev-version` is passed), opens the initial target, and waits until content renders with no `[data-slot="skeleton"]` or `.animate-spin` elements and `document.fonts.ready` settles.
-- **Network-boundary fixtures (`fixture:*`):** `fixture:usage-site` is served locally by `scripts/verify/server.ts` over real HTTP (`/__fixture__/*`); platform targets (`fixture:youtube-*`, `fixture:twitch-*`, `fixture:kick-*`, `fixture:google-drive`) install Playwright `context.route(...)` handlers so 100% of TubeSize's real built MV3 content scripts, background service worker parsers, IndexedDB writers, badge updater, quality menu injector, toaster, and popup execute offline without bot checks or external network flakiness. Routes are removed again on the next live (`http`/`https`) `goto`, so a later live-site check never receives fixture HTML.
+- **Network-boundary fixtures (`fixture:*`):** `fixture:usage-site` and `fixture:realtime-call` are served locally by `scripts/verify/server.ts` over real HTTP and WebSocket (`/__fixture__/*`); platform targets (`fixture:youtube-*`, `fixture:twitch-*`, `fixture:kick-*`, `fixture:google-drive`) install Playwright `context.route(...)` handlers so 100% of TubeSize's real built MV3 content scripts, background service worker parsers, IndexedDB writers, badge updater, quality menu injector, toaster, and popup execute offline without bot checks or external network flakiness. Routes are removed again on the next live (`http`/`https`) `goto`, so a later live-site check never receives fixture HTML.
 - **Isolation:** Uses an ephemeral profile and ephemeral localhost ports (`127.0.0.1:0`), never touching the user's personal browser. One active session runs at a time; calling `start` again cleanly stops any prior session first.
 
 ## Doctor & Smoke
@@ -52,13 +52,22 @@ Run `smoke` for a fast automated end-to-end check across TubeSize's core runtime
 bun run verify smoke [--build] [--timeout <ms>] [--json]
 ```
 
-`smoke` launches a single isolated Chromium session against the built `.output/chrome-mv3` extension and offline fixtures, auditing runtime issues after each of 5 deterministic flows:
+`smoke` launches a single isolated Chromium session against the built `.output/chrome-mv3` extension and offline fixtures, auditing runtime issues after each of 6 deterministic flows:
 
 1. `usage-tracking` — dual-path byte accounting (`webRequest` fixed `Content-Length`, chunked `fetch`/`XHR`/`blob:` `Worker`, `HEAD` exclusion) + toolbar badge (`"570K"`).
-2. `youtube-vod` — in-page usage warning toaster trigger & `OK` dismissal, `.ytp-quality-menu` size badge injection (skipping `Auto` and `1080p Premium`), and real toolbar popup estimation.
-3. `twitch-and-kick-live` — real toolbar popup estimation across Twitch and Kick live streams (`1080p`/`720p`/`480p` SI rates).
-4. `settings-and-rtl` — `advancedView` toggle + Arabic (`العربية`) RTL persistence across reload.
-5. `dashboard-lifecycle` — 14-day seed, JSON export, Clear All Usage Data (confirm + badge reset), and JSON import restore.
+2. `realtime-call` — bidirectional `WebSocket` text/binary frames, `type: "module"` `blob:` `Worker` (with immediate `URL.revokeObjectURL`, chunked `fetch`, and `WebSocket`), and a local loopback `RTCPeerConnection` call (DataChannel + animated canvas RTP video) without double counting.
+3. `youtube-vod` — in-page usage warning toaster trigger & `OK` dismissal, `.ytp-quality-menu` size badge injection (skipping `Auto` and `1080p Premium`), and real toolbar popup estimation.
+4. `twitch-and-kick-live` — real toolbar popup estimation across Twitch and Kick live streams (`1080p`/`720p`/`480p` SI rates).
+5. `settings-and-rtl` — `advancedView` toggle + Arabic (`العربية`) RTL persistence across reload.
+6. `dashboard-lifecycle` — 14-day seed, JSON export, Clear All Usage Data (confirm + badge reset), and JSON import restore.
+
+For an opt-in live-internet WebRTC + WebSocket end-to-end check against VDO.Ninja (`https://vdo.ninja`), run:
+
+```bash
+bun run verify live-rtc [--build] [--timeout <ms>] [--json]
+```
+
+`live-rtc` launches isolated headless Chromium with synthetic camera/audio streams (`--use-fake-device-for-media-stream`), connects a publisher tab and a viewer tab over VDO.Ninja's live WebSocket signaling + WebRTC RTP transport, compares the 6-second steady-state `RTCTransport` byte delta against TubeSize's IndexedDB `siteUsage["https://vdo.ninja"]` delta, checks the toolbar badge, and asserts zero extension errors (exiting `2` inconclusive if VDO.Ninja is unreachable).
 
 Exit codes across all `verify` commands:
 
@@ -99,7 +108,7 @@ bun run verify screenshot .verify-evidence/<name>.png         # Capture 2x PNG p
 
 ### Fixture Targets
 
-- **Usage tracking:** `fixture:usage-site`
+- **Usage tracking:** `fixture:usage-site`, `fixture:realtime-call`
 - **YouTube:** `fixture:youtube-vod`, `fixture:youtube-shorts`, `fixture:youtube-live`, `fixture:youtube-home`
 - **Twitch:** `fixture:twitch-live`, `fixture:twitch-live-ads`, `fixture:twitch-vod`, `fixture:twitch-directory`
 - **Kick:** `fixture:kick-live`, `fixture:kick-vod`, `fixture:kick-vod-slug`, `fixture:kick-browse`
@@ -142,8 +151,8 @@ bun run verify stop
 
 - [scripts/verify.ts](../../../scripts/verify.ts) — CLI entrypoint (`bun run verify --help`).
 - [scripts/verify/browser.ts](../../../scripts/verify/browser.ts) — Chromium discovery, isolated Playwright MV3 launcher with CDP port support, route resolution, settle & DOM audit helpers.
-- [scripts/verify/fixtures.ts](../../../scripts/verify/fixtures.ts) — Local HTTP `/__fixture__/*` handler and Playwright `context.route(...)` platform network-boundary fixtures.
+- [scripts/verify/fixtures.ts](../../../scripts/verify/fixtures.ts) — Local HTTP/WebSocket `/__fixture__/*` handler and Playwright `context.route(...)` platform network-boundary fixtures.
 - [scripts/verify/perf.ts](../../../scripts/verify/perf.ts) — Performance benchmarks for bundle size, uncached/cached popup size-estimation latency, cold Dashboard load latency, and extension memory/storage footprint.
 - [scripts/verify/seed.ts](../../../scripts/verify/seed.ts) — Deterministic 14-day (`full`) and 90-day (`heavy`) SI-unit IndexedDB seeder (compatible with Dexie `version(1)` / IndexedDB `10+`) and `inspectDb` via the MV3 service worker.
 - [scripts/verify/server.ts](../../../scripts/verify/server.ts) — Detached localhost HTTP server keeping the Playwright session warm between CLI commands and attaching to toolbar popups via `chrome.action.openPopup()`.
-- [scripts/verify/smoke.ts](../../../scripts/verify/smoke.ts) — Automated single-session end-to-end smoke suite (`bun run verify smoke`) covering usage tracking, YouTube toaster/quality menu/popup, Twitch & Kick live popups, Settings + Arabic RTL persistence, and Dashboard export/clear/import.
+- [scripts/verify/smoke.ts](../../../scripts/verify/smoke.ts) — Automated single-session end-to-end smoke suite (`bun run verify smoke`) covering usage tracking, realtime call (`WebSocket`/`WebRTC`/module `blob:` `Worker`), YouTube toaster/quality menu/popup, Twitch & Kick live popups, Settings + Arabic RTL persistence, and Dashboard export/clear/import.

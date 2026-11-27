@@ -10,6 +10,14 @@ import {
     type PageUsageObserverGlobal,
 } from "@lib/pageUsageObserver";
 
+const flushAsync = () => new Promise<void>((resolve) => setTimeout(resolve, 10));
+
+const readProp = (proto: object, key: string) =>
+    Object.getOwnPropertyDescriptor(proto, key)?.value as unknown;
+
+const rtcStats = (...rows: Array<Record<string, unknown> & { id: string }>) =>
+    new Map(rows.map((row) => [row.id, row]));
+
 function toRequestUrl(input: RequestInfo | URL): string {
     return input instanceof Request ? input.url : input.toString();
 }
@@ -55,20 +63,20 @@ class FakeXMLHttpRequest extends EventTarget {
 }
 
 class FakeWorker extends EventTarget {
-    static constructed: Array<{ url: string; options?: WorkerOptions }> = [];
+    static constructed: Array<{ url: unknown; options?: WorkerOptions }> = [];
     static throwOnUrl?: (url: string) => boolean;
 
-    readonly url: string;
+    readonly url: unknown;
     readonly options?: WorkerOptions;
 
     constructor(url: string | URL, options?: WorkerOptions) {
         super();
-        this.url = String(url);
+        this.url = url;
         this.options = options;
-        if (FakeWorker.throwOnUrl?.(this.url)) {
+        if (typeof url === "string" && FakeWorker.throwOnUrl?.(url)) {
             throw new Error("CSP blocked blob worker");
         }
-        FakeWorker.constructed.push({ url: this.url, options });
+        FakeWorker.constructed.push({ url, options });
     }
 
     emitMessage(data: unknown): { propagationStopped: boolean } {
@@ -84,6 +92,74 @@ class FakeWorker extends EventTarget {
 
     emitError() {
         this.dispatchEvent(new Event("error"));
+    }
+}
+
+class FakeWebSocket extends EventTarget {
+    static readonly CONNECTING = 0;
+    static readonly OPEN = 1;
+    static readonly CLOSING = 2;
+    static readonly CLOSED = 3;
+
+    readonly url: string;
+    readonly sent: unknown[] = [];
+    readyState: number = FakeWebSocket.OPEN;
+    throwOnSend?: Error;
+
+    constructor(url: string | URL) {
+        super();
+        this.url = String(url);
+    }
+
+    send(data: unknown) {
+        if (this.throwOnSend) throw this.throwOnSend;
+        if (this.readyState === FakeWebSocket.CONNECTING) {
+            throw new Error("InvalidStateError");
+        }
+        if (this.readyState !== FakeWebSocket.OPEN) return;
+        this.sent.push(data);
+    }
+
+    emitMessage(data: unknown): { propagationStopped: boolean } {
+        let propagationStopped = false;
+        const event = new Event("message");
+        Object.defineProperty(event, "data", { value: data });
+        event.stopImmediatePropagation = () => {
+            propagationStopped = true;
+        };
+        this.dispatchEvent(event);
+        return { propagationStopped };
+    }
+
+    emitClose() {
+        this.readyState = FakeWebSocket.CLOSED;
+        this.dispatchEvent(new Event("close"));
+    }
+}
+
+class FakeRTCPeerConnection extends EventTarget {
+    connectionState: RTCPeerConnectionState = "connected";
+    closed = false;
+    nextStats: Map<string, Record<string, unknown>> = new Map();
+    statsQueue: Array<() => Promise<Map<string, Record<string, unknown>>>> = [];
+    getStatsCalls = 0;
+
+    getStats(): Promise<RTCStatsReport> {
+        this.getStatsCalls += 1;
+        const queued = this.statsQueue.shift();
+        if (queued) return queued();
+        if (this.closed) return Promise.reject(new Error("Peer connection is closed"));
+        return Promise.resolve(new Map(this.nextStats));
+    }
+
+    close() {
+        this.closed = true;
+        this.connectionState = "closed";
+    }
+
+    emitConnectionState(state: RTCPeerConnectionState) {
+        this.connectionState = state;
+        this.dispatchEvent(new Event("connectionstatechange"));
     }
 }
 
@@ -108,7 +184,7 @@ function collectUsageEvents(target: EventTarget): number[] {
     return posted;
 }
 
-function createHarness(baseFetch?: FetchFn) {
+function createHarness(baseFetch?: FetchFn, options?: { includeWebkitRtc?: boolean }) {
     FakeXMLHttpRequest.sources.clear();
     FakeWorker.constructed = [];
     FakeWorker.throwOnUrl = undefined;
@@ -125,6 +201,14 @@ function createHarness(baseFetch?: FetchFn) {
     const globalObject: PageUsageObserverGlobal = {
         fetch: defaultFetch,
         Worker: FakeWorker as unknown as typeof Worker,
+        WebSocket: FakeWebSocket as unknown as typeof WebSocket,
+        RTCPeerConnection: FakeRTCPeerConnection as unknown as typeof RTCPeerConnection,
+        ...(options?.includeWebkitRtc
+            ? {
+                  webkitRTCPeerConnection:
+                      FakeRTCPeerConnection as unknown as typeof RTCPeerConnection,
+              }
+            : {}),
     };
 
     const windowTarget = new EventTarget();
@@ -405,7 +489,7 @@ describe("createPageUsageObserver", () => {
 
         const worker = new harness.globalObject.Worker(originalBlobUrl) as unknown as FakeWorker;
         expect(FakeWorker.constructed).toHaveLength(1);
-        const wrappedUrl = FakeWorker.constructed[0]?.url ?? "";
+        const wrappedUrl = FakeWorker.constructed[0]?.url as string;
         expect(wrappedUrl).not.toBe(originalBlobUrl);
         expect(wrappedUrl.startsWith("blob:https://example.com/wrapped-")).toBe(true);
 
@@ -470,16 +554,139 @@ describe("createPageUsageObserver", () => {
         harness.observer.dispose();
     });
 
-    test("leaves module and non-blob workers native and falls back cleanly if blob worker construction throws", () => {
+    test("re-hosts module blob: workers in a single blob, revokes on ready/error/throw, and meters worker fetch/XHR/WebSocket", async () => {
         const harness = createHarness();
         harness.observer.install();
 
+        const makeModWorker = (
+            id: string,
+            source: string,
+            options: WorkerOptions = { type: "module" },
+        ) => {
+            const url = `blob:https://example.com/${id}`;
+            FakeXMLHttpRequest.sources.set(url, { status: 200, responseText: source });
+            const worker = new harness.globalObject.Worker(url, options) as unknown as FakeWorker;
+            FakeXMLHttpRequest.sources.delete(url);
+            return { url, worker };
+        };
+
+        const { worker } = makeModWorker("mod-ok", "export const loaded = true;", {
+            type: "module",
+            name: "stream-mod",
+        });
+        const wrapperUrl = FakeWorker.constructed[0]?.url as string;
+        expect(FakeWorker.constructed[0]?.options).toEqual({ type: "module", name: "stream-mod" });
+        expect(harness.createdBlobs.size).toBe(1);
+        const wrappedText = await harness.createdBlobs.get(wrapperUrl)!.text();
+        expect(wrappedText.endsWith(";\nexport const loaded = true;")).toBe(true);
+        expect(worker.emitMessage({ type: "WORKER_READY" }).propagationStopped).toBe(true);
+        expect(harness.revokedUrls).toEqual([wrapperUrl]);
+
+        const { worker: errWorker } = makeModWorker("mod-err", "export {};");
+        errWorker.emitError();
+        expect(harness.revokedUrls).toHaveLength(2);
+
+        FakeWorker.throwOnUrl = (url) => url.startsWith("blob:https://example.com/wrapped-");
+        const { url: blockedUrl, worker: fallback } = makeModWorker("mod-csp", "export {};");
+        expect(fallback).toBeInstanceOf(FakeWorker);
+        expect(FakeWorker.constructed.at(-1)).toEqual({
+            url: blockedUrl,
+            options: { type: "module" },
+        });
+        expect(harness.revokedUrls).toHaveLength(3);
+
+        class WorkerXhr extends FakeXMLHttpRequest {
+            override send() {
+                super.send();
+            }
+        }
+        class WorkerWs extends FakeWebSocket {
+            override send(data: unknown) {
+                super.send(data);
+            }
+        }
+        const workerPosted: unknown[] = [];
+        const fakeSelf: Record<string, unknown> = {
+            location: { href: wrapperUrl },
+            postMessage: (msg: unknown) => workerPosted.push(msg),
+            fetch: async (input: string) =>
+                input.endsWith("/fixed")
+                    ? new Response(new Uint8Array(1_000), { headers: { "content-length": "1000" } })
+                    : makeStreamResponse([400]),
+            XMLHttpRequest: WorkerXhr,
+            WebSocket: WorkerWs,
+        };
+        const bootstrapSource = wrappedText.slice(0, -";\nexport const loaded = true;".length);
+        vm.runInNewContext(bootstrapSource, {
+            self: fakeSelf,
+            URL,
+            TextEncoder,
+            Blob,
+            ArrayBuffer,
+            Uint8Array,
+        });
+
+        await (
+            await (fakeSelf.fetch as (u: string) => Promise<Response>)("https://example.com/live")
+        ).arrayBuffer();
+        await (
+            await (fakeSelf.fetch as (u: string) => Promise<Response>)("https://example.com/fixed")
+        ).arrayBuffer();
+
+        const xhr = new (fakeSelf.XMLHttpRequest as typeof WorkerXhr)();
+        xhr.open("GET", "https://example.com/chunked");
+        xhr.send();
+        xhr.emitProgress(250, "progress");
+        xhr.emitProgress(600, "loadend");
+
+        const fixedXhr = new (fakeSelf.XMLHttpRequest as typeof WorkerXhr)();
+        fixedXhr.open("GET", "https://example.com/fixed");
+        fixedXhr.setResponseHeader("Content-Length", "900");
+        fixedXhr.send();
+        fixedXhr.emitProgress(900, "loadend");
+
+        const PatchedWorkerWs = fakeSelf.WebSocket as typeof WorkerWs;
+        const ws = new PatchedWorkerWs("wss://stream.example.com/ws");
+        ws.send("hello");
+        ws.emitMessage("🚀");
+        ws.emitMessage(new Uint8Array(new ArrayBuffer(10), 2, 3));
+        ws.throwOnSend = new Error("closed");
+        expect(() => ws.send("dropped")).toThrow("closed");
+
+        const extWs = new PatchedWorkerWs("chrome-extension://abcdef/ws");
+        extWs.send("ignored");
+        extWs.emitMessage("ignored");
+
+        await flushAsync();
+        expect(workerPosted).toEqual([
+            { type: "WORKER_READY" },
+            { type: "WORKER_USAGE", bytes: 400 },
+            { type: "WORKER_USAGE", bytes: 250 },
+            { type: "WORKER_USAGE", bytes: 350 },
+            { type: "WORKER_USAGE", bytes: 5 },
+            { type: "WORKER_USAGE", bytes: 4 },
+            { type: "WORKER_USAGE", bytes: 3 },
+        ]);
+
+        harness.observer.dispose();
+    });
+
+    test("leaves non-blob workers and TrustedScriptURL-like objects native and falls back cleanly if classic blob worker construction throws", () => {
+        const harness = createHarness();
+        harness.observer.install();
+
+        const trustedScriptUrl = {
+            toString: () => "blob:https://example.com/trusted-worker",
+        };
         const nativeHttpWorker = new harness.globalObject.Worker("https://example.com/worker.js");
-        const moduleBlobWorker = new harness.globalObject.Worker(
-            "blob:https://example.com/mod-worker",
-            {
-                type: "module",
-            },
+        const nativePlainHttpWorker = new harness.globalObject.Worker(
+            "http://localhost:8080/worker.js",
+        );
+        const nativeDataWorker = new harness.globalObject.Worker(
+            "data:text/javascript,postMessage(1)",
+        );
+        const nativeTrustedWorker = new harness.globalObject.Worker(
+            trustedScriptUrl as unknown as string,
         );
 
         const blockedBlobUrl = "blob:https://example.com/csp-blocked";
@@ -492,11 +699,15 @@ describe("createPageUsageObserver", () => {
         const fallbackWorker = new harness.globalObject.Worker(blockedBlobUrl);
 
         expect(nativeHttpWorker).toBeInstanceOf(FakeWorker);
-        expect(moduleBlobWorker).toBeInstanceOf(FakeWorker);
+        expect(nativePlainHttpWorker).toBeInstanceOf(FakeWorker);
+        expect(nativeDataWorker).toBeInstanceOf(FakeWorker);
+        expect(nativeTrustedWorker).toBeInstanceOf(FakeWorker);
         expect(fallbackWorker).toBeInstanceOf(FakeWorker);
         expect(FakeWorker.constructed.map((entry) => entry.url)).toEqual([
             "https://example.com/worker.js",
-            "blob:https://example.com/mod-worker",
+            "http://localhost:8080/worker.js",
+            "data:text/javascript,postMessage(1)",
+            trustedScriptUrl,
             blockedBlobUrl,
         ]);
         expect(harness.revokedUrls).toHaveLength(1);
@@ -505,31 +716,51 @@ describe("createPageUsageObserver", () => {
         harness.observer.dispose();
     });
 
-    test("dispose restores patched globals, clears the interval, detaches worker listeners, and is idempotent", async () => {
+    test("dispose restores patched globals, clears the interval, detaches listeners, and is idempotent", async () => {
         const baseFetch = jest.fn(async () => makeStreamResponse([1_000]));
-        const readSend = () =>
-            Object.getOwnPropertyDescriptor(FakeXMLHttpRequest.prototype, "send")?.value as unknown;
-        const baseSend = readSend();
-        const harness = createHarness(baseFetch);
+        const baseXhrSend = readProp(FakeXMLHttpRequest.prototype, "send");
+        const baseWsSend = readProp(FakeWebSocket.prototype, "send");
+        const baseRtcClose = readProp(FakeRTCPeerConnection.prototype, "close");
+        const harness = createHarness(baseFetch, { includeWebkitRtc: true });
 
         harness.observer.install();
         harness.observer.install();
 
         expect(harness.globalObject.fetch).not.toBe(baseFetch);
-        expect(readSend()).not.toBe(baseSend);
+        expect(readProp(FakeXMLHttpRequest.prototype, "send")).not.toBe(baseXhrSend);
         expect(harness.globalObject.Worker).not.toBe(FakeWorker as unknown as typeof Worker);
+        expect(harness.globalObject.WebSocket).not.toBe(
+            FakeWebSocket as unknown as typeof WebSocket,
+        );
+        expect(readProp(FakeWebSocket.prototype, "send")).not.toBe(baseWsSend);
+        expect(harness.globalObject.RTCPeerConnection).not.toBe(
+            FakeRTCPeerConnection as unknown as typeof RTCPeerConnection,
+        );
+        expect(readProp(FakeRTCPeerConnection.prototype, "close")).not.toBe(baseRtcClose);
 
         const blobUrl = "blob:https://example.com/worker-dispose";
         FakeXMLHttpRequest.sources.set(blobUrl, { status: 200, responseText: "1;" });
         const worker = new harness.globalObject.Worker(blobUrl) as unknown as FakeWorker;
+        const ws = new harness.globalObject.WebSocket!(
+            "wss://example.com/dispose",
+        ) as unknown as FakeWebSocket;
 
         harness.observer.dispose();
         harness.observer.dispose();
 
         expect(harness.isIntervalCleared()).toBe(true);
         expect(harness.globalObject.fetch).toBe(baseFetch);
-        expect(readSend()).toBe(baseSend);
+        expect(readProp(FakeXMLHttpRequest.prototype, "send")).toBe(baseXhrSend);
         expect(harness.globalObject.Worker).toBe(FakeWorker as unknown as typeof Worker);
+        expect(harness.globalObject.WebSocket).toBe(FakeWebSocket as unknown as typeof WebSocket);
+        expect(readProp(FakeWebSocket.prototype, "send")).toBe(baseWsSend);
+        expect(harness.globalObject.RTCPeerConnection).toBe(
+            FakeRTCPeerConnection as unknown as typeof RTCPeerConnection,
+        );
+        expect(harness.globalObject.webkitRTCPeerConnection).toBe(
+            FakeRTCPeerConnection as unknown as typeof RTCPeerConnection,
+        );
+        expect(readProp(FakeRTCPeerConnection.prototype, "close")).toBe(baseRtcClose);
 
         const res = await harness.globalObject.fetch("https://example.com/after-dispose");
         await res.arrayBuffer();
@@ -539,14 +770,17 @@ describe("createPageUsageObserver", () => {
         xhr.send();
         xhr.emitProgress(2_000, "loadend");
 
-        const postDisposeWorkerMsg = worker.emitMessage({ type: "WORKER_USAGE", bytes: 3_000 });
-        expect(postDisposeWorkerMsg.propagationStopped).toBe(false);
+        expect(worker.emitMessage({ type: "WORKER_USAGE", bytes: 3_000 }).propagationStopped).toBe(
+            false,
+        );
+        ws.emitMessage("after-dispose");
+        ws.send("after-dispose");
 
         harness.observer.flush();
         expect(harness.posted).toEqual([]);
     });
 
-    test("ignores late fetch chunks and XHR events from an earlier installation after dispose and reinstall", async () => {
+    test("ignores late fetch, XHR, WebSocket, and RTCPeerConnection events from an earlier installation after dispose and reinstall", async () => {
         let firstStreamController!: ReadableStreamDefaultController<Uint8Array>;
         let firstStreamCanceled = false;
         let fetchCount = 0;
@@ -573,14 +807,31 @@ describe("createPageUsageObserver", () => {
         const staleXhr = new FakeXMLHttpRequest();
         staleXhr.open("GET", "https://example.com/stale-xhr");
         staleXhr.send();
+        const staleWs = new harness.globalObject.WebSocket!(
+            "wss://example.com/stale",
+        ) as unknown as FakeWebSocket;
+        const stalePc =
+            new harness.globalObject.RTCPeerConnection!() as unknown as FakeRTCPeerConnection;
+        let resolveStaleStats!: (map: Map<string, Record<string, unknown>>) => void;
+        stalePc.statsQueue.push(
+            () =>
+                new Promise((resolve) => {
+                    resolveStaleStats = resolve;
+                }),
+        );
+        harness.triggerTick();
 
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        await flushAsync();
 
         harness.observer.dispose();
         harness.observer.install();
 
         firstStreamController.enqueue(new Uint8Array(5_000));
         staleXhr.emitProgress(3_000, "loadend");
+        staleWs.emitMessage("stale-ws");
+        resolveStaleStats(
+            rtcStats({ id: "t1", type: "transport", bytesReceived: 9_999, bytesSent: 0 }),
+        );
 
         const freshRes = await harness.globalObject.fetch("https://example.com/fresh");
         await freshRes.arrayBuffer();
@@ -589,7 +840,8 @@ describe("createPageUsageObserver", () => {
         freshXhr.send();
         freshXhr.emitProgress(250, "loadend");
 
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        await flushAsync();
+        expect(harness.posted).toEqual([]);
 
         harness.observer.flush();
         expect(harness.posted).toEqual([1_000]);
@@ -633,7 +885,7 @@ describe("createPageUsageObserver", () => {
         const blobUrl = "blob:https://example.com/stream-worker";
         FakeXMLHttpRequest.sources.set(blobUrl, { status: 200, responseText: "1;" });
         const worker = new harness.globalObject.Worker(blobUrl) as unknown as FakeWorker;
-        const wrappedUrl = FakeWorker.constructed[0]?.url ?? "";
+        const wrappedUrl = FakeWorker.constructed[0]?.url as string;
         const bootstrapSource = await harness.createdBlobs.get(wrappedUrl)!.text();
 
         let streamController!: ReadableStreamDefaultController<Uint8Array>;
@@ -705,5 +957,235 @@ describe("createPageUsageObserver", () => {
         documentTarget.dispatchEvent(new Event("visibilitychange"));
         windowTarget.dispatchEvent(new Event("pagehide"));
         expect(posted).toEqual([]);
+    });
+
+    test("tracks WebSocket frames across types and realms, coerces objects once, and ignores non-OPEN, failed, closed, and non-network sockets", () => {
+        const harness = createHarness();
+        harness.observer.install();
+
+        const PatchedWs = harness.globalObject.WebSocket!;
+        expect([PatchedWs.CONNECTING, PatchedWs.OPEN, PatchedWs.CLOSING, PatchedWs.CLOSED]).toEqual(
+            [0, 1, 2, 3],
+        );
+
+        const ws = new PatchedWs("wss://stream.example.com/live") as unknown as FakeWebSocket;
+        const received: unknown[] = [];
+        ws.addEventListener("message", (event) => received.push((event as MessageEvent).data));
+
+        const foreignBuf = vm.runInNewContext("new ArrayBuffer(64)") as ArrayBuffer;
+        const foreignSab = vm.runInNewContext("new SharedArrayBuffer(32)") as SharedArrayBuffer;
+        const foreignView = vm.runInNewContext(
+            "new Uint8Array(new ArrayBuffer(20), 4, 9)",
+        ) as Uint8Array;
+        const foreignBlob = { [Symbol.toStringTag]: "Blob", size: 128 };
+        const foreignFile = { [Symbol.toStringTag]: "File", size: 256 };
+        expect(foreignBuf instanceof ArrayBuffer).toBe(false);
+
+        expect(ws.emitMessage("hello").propagationStopped).toBe(false);
+        ws.emitMessage("🚀");
+        ws.emitMessage(new Uint8Array(new ArrayBuffer(12), 4, 3));
+        ws.emitMessage(new ArrayBuffer(8));
+        ws.emitMessage(new Blob(["café"]));
+        ws.emitMessage(foreignBuf);
+        ws.emitMessage(foreignBlob);
+        expect(received).toHaveLength(7);
+
+        let conversions = 0;
+        const stateful = {
+            toString() {
+                conversions += 1;
+                if (conversions > 1) throw new Error("Converted twice");
+                return `seq-${conversions}`;
+            },
+        };
+        ws.send(stateful);
+        expect(conversions).toBe(1);
+        expect(ws.sent.at(-1)).toBe("seq-1");
+
+        ws.send("ping");
+        ws.send(new DataView(new ArrayBuffer(16), 2, 6));
+        ws.send(new File(["1234567"], "a.txt"));
+        ws.send(12_345);
+        ws.send(foreignBuf);
+        ws.send(foreignSab);
+        ws.send(foreignView);
+        ws.send(foreignBlob);
+        ws.send(foreignFile);
+        expect(ws.sent.slice(-5)).toEqual([
+            foreignBuf,
+            foreignSab,
+            foreignView,
+            foreignBlob,
+            foreignFile,
+        ]);
+
+        ws.throwOnSend = new Error("send-failed");
+        expect(() => ws.send("dropped")).toThrow("send-failed");
+        ws.throwOnSend = undefined;
+        ws.readyState = FakeWebSocket.CLOSING;
+        ws.send("closing");
+        ws.readyState = FakeWebSocket.CLOSED;
+        ws.send("closed");
+        ws.readyState = FakeWebSocket.CONNECTING;
+        expect(() => ws.send("connecting")).toThrow("InvalidStateError");
+
+        const rel = new PatchedWs("/socket") as unknown as FakeWebSocket;
+        rel.send("ok");
+        rel.emitMessage("hi");
+
+        for (const url of [
+            "chrome-extension://abcdef/ws",
+            "moz-extension://1234-5678/ws",
+            "data:text/plain,hello",
+            "blob:https://example.com/1234",
+        ]) {
+            const ignored = new PatchedWs(url) as unknown as FakeWebSocket;
+            ignored.send("ignored");
+            ignored.emitMessage("ignored");
+        }
+
+        class CustomSocket extends (PatchedWs as unknown as typeof FakeWebSocket) {}
+        const custom = new CustomSocket("ws://localhost:8080/feed");
+        expect(custom).toBeInstanceOf(CustomSocket);
+        custom.send("sub");
+        custom.emitMessage("msg");
+
+        harness.observer.flush();
+        const expected =
+            5 +
+            4 +
+            3 +
+            8 +
+            5 +
+            64 +
+            128 +
+            5 +
+            4 +
+            6 +
+            7 +
+            5 +
+            64 +
+            32 +
+            9 +
+            128 +
+            256 +
+            2 +
+            2 +
+            3 +
+            3;
+        expect(harness.posted).toEqual([expected]);
+
+        ws.emitClose();
+        ws.emitMessage("after-close");
+        harness.observer.flush();
+        expect(harness.posted).toEqual([expected]);
+
+        harness.observer.dispose();
+    });
+
+    test("samples RTCPeerConnection deltas across ticks, visibilitychange, and close using one monotonic tier", async () => {
+        const harness = createHarness(undefined, { includeWebkitRtc: true });
+        harness.observer.install();
+        expect(harness.globalObject.webkitRTCPeerConnection).toBe(
+            harness.globalObject.RTCPeerConnection,
+        );
+
+        const pc1 =
+            new harness.globalObject.RTCPeerConnection!() as unknown as FakeRTCPeerConnection;
+        pc1.nextStats = rtcStats(
+            { id: "t1", type: "transport", bytesReceived: 1_000, bytesSent: 500 },
+            { id: "cp1", type: "candidate-pair", bytesReceived: 999, bytesSent: 499 },
+            { id: "in1", type: "inbound-rtp", bytesReceived: 900 },
+        );
+
+        const xhr = new FakeXMLHttpRequest();
+        xhr.open("GET", "https://example.com/chunk");
+        xhr.send();
+        xhr.emitProgress(300, "loadend");
+
+        harness.triggerTick();
+        expect(harness.posted).toEqual([300]);
+        await flushAsync();
+        expect(harness.posted).toEqual([300, 1_500]);
+
+        pc1.nextStats = rtcStats(
+            { id: "t1", type: "transport", bytesReceived: 1_800, bytesSent: 900 },
+            { id: "cp1", type: "candidate-pair", bytesReceived: 5_000, bytesSent: 5_000 },
+        );
+        harness.triggerVisibilityChange("hidden");
+        await flushAsync();
+        expect(harness.posted).toEqual([300, 1_500, 1_200]);
+
+        pc1.nextStats = rtcStats({
+            id: "t1",
+            type: "transport",
+            bytesReceived: 2_000,
+            bytesSent: 1_000,
+        });
+        pc1.close();
+        expect(pc1.closed).toBe(true);
+        await flushAsync();
+        harness.observer.flush();
+        expect(harness.posted).toEqual([300, 1_500, 1_200, 300]);
+
+        const callsAfterClose = pc1.getStatsCalls;
+        harness.triggerTick();
+        await flushAsync();
+        expect(pc1.getStatsCalls).toBe(callsAfterClose);
+
+        const pc2 =
+            new harness.globalObject.RTCPeerConnection!() as unknown as FakeRTCPeerConnection;
+        pc2.nextStats = rtcStats(
+            { id: "t1", type: "transport", bytesReceived: 0, bytesSent: 0 },
+            { id: "cp1", type: "candidate-pair", bytesReceived: -50, bytesSent: Number.NaN },
+        );
+        harness.triggerTick();
+        await flushAsync();
+        expect(harness.posted).toEqual([300, 1_500, 1_200, 300]);
+
+        pc2.nextStats = rtcStats(
+            { id: "t1", type: "transport", bytesReceived: 0, bytesSent: 0 },
+            { id: "cp1", type: "candidate-pair", bytesReceived: 500, bytesSent: 250 },
+        );
+        harness.triggerTick();
+        await flushAsync();
+        expect(harness.posted).toEqual([300, 1_500, 1_200, 300, 750]);
+
+        pc2.nextStats = rtcStats({
+            id: "cp1",
+            type: "candidate-pair",
+            bytesReceived: 400,
+            bytesSent: Number.POSITIVE_INFINITY,
+        });
+        harness.triggerTick();
+        await flushAsync();
+        expect(harness.posted).toEqual([300, 1_500, 1_200, 300, 750]);
+
+        pc2.nextStats = rtcStats(
+            { id: "cp1", type: "candidate-pair", bytesReceived: 500, bytesSent: 250 },
+            { id: "cp2", type: "candidate-pair", bytesReceived: 300, bytesSent: 150 },
+        );
+        pc2.emitConnectionState("closed");
+        await flushAsync();
+        harness.observer.flush();
+        expect(harness.posted).toEqual([300, 1_500, 1_200, 300, 750, 450]);
+
+        const pc2CallsAfterClosed = pc2.getStatsCalls;
+        harness.triggerTick();
+        await flushAsync();
+        expect(pc2.getStatsCalls).toBe(pc2CallsAfterClosed);
+
+        const pc3 =
+            new harness.globalObject.RTCPeerConnection!() as unknown as FakeRTCPeerConnection;
+        pc3.nextStats = rtcStats(
+            { id: "in1", type: "inbound-rtp", bytesReceived: 600, bytesSent: 999 },
+            { id: "out1", type: "outbound-rtp", bytesSent: 300, bytesReceived: 888 },
+            { id: "dc1", type: "data-channel", bytesReceived: 100, bytesSent: 50 },
+        );
+        harness.triggerTick();
+        await flushAsync();
+        expect(harness.posted).toEqual([300, 1_500, 1_200, 300, 750, 450, 1_050]);
+
+        harness.observer.dispose();
     });
 });

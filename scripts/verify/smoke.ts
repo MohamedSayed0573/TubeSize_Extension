@@ -11,7 +11,15 @@ import {
     type RuntimeIssue,
     waitForSettle,
 } from "./browser";
-import { handleUsageFixtureRequest, installPlatformRoutes, resolveFixtureTarget } from "./fixtures";
+import {
+    FIXTURE_WEBSOCKET_HANDLER,
+    handleUsageFixtureRequest,
+    installPlatformRoutes,
+    REALTIME_MODULE_WORKER_EXPECTED_BYTES,
+    REALTIME_WS_EXPECTED_BYTES,
+    resolveFixtureTarget,
+    upgradeFixtureWebSocket,
+} from "./fixtures";
 import { applySeed, inspectDb } from "./seed";
 
 export interface SmokeStepResult {
@@ -126,7 +134,7 @@ async function navigateMainPage(
 
 export async function runSmoke(opts: { extDir: string; timeoutMs: number }): Promise<SmokeReport> {
     const suiteStartedAt = performance.now();
-    let server: ReturnType<typeof Bun.serve> | null = null;
+    let server: Bun.Server<undefined> | null = null;
     let launchPromise: Promise<Awaited<ReturnType<typeof launchExtension>>> | null = null;
     let browser: Awaited<ReturnType<typeof launchExtension>> | null = null;
     let closePopupFn: (() => Promise<void>) | null = null;
@@ -184,7 +192,9 @@ export async function runSmoke(opts: { extDir: string; timeoutMs: number }): Pro
         server = Bun.serve({
             hostname: "127.0.0.1",
             port: 0,
-            fetch(req) {
+            websocket: FIXTURE_WEBSOCKET_HANDLER,
+            fetch(req, srv) {
+                if (upgradeFixtureWebSocket(req, srv)) return undefined;
                 return handleUsageFixtureRequest(req) ?? new Response("Not found", { status: 404 });
             },
         });
@@ -322,7 +332,105 @@ export async function runSmoke(opts: { extDir: string; timeoutMs: number }): Pro
             return `${EXPECTED_USAGE_BYTES.toLocaleString("en-US")} B recorded for ${origin}, badge "${badgeText}"`;
         });
 
-        // 2. YouTube VOD: in-page warning toaster + quality menu injection + real toolbar popup
+        await runStep("realtime-call", async () => {
+            await applySeed(serviceWorker, "empty");
+            await serviceWorker.evaluate(async () => {
+                await chrome.action.setBadgeText({ text: "" });
+            });
+
+            const target = resolveFixtureTarget("fixture:realtime-call", serverPort);
+            const origin = new URL(target.url).origin;
+            await navigateMainPage(mainPage, target);
+
+            await mainPage.locator("#btn-ws").click();
+            await mainPage.waitForFunction(
+                (expected: number) =>
+                    (document.getElementById("ws-status")?.textContent ?? "").includes(
+                        `WebSocket ${expected} done`,
+                    ),
+                REALTIME_WS_EXPECTED_BYTES,
+                { timeout: 10_000 },
+            );
+            await pollUntil(
+                () => inspectDb(serviceWorker),
+                (db) => db.todayUsage[origin] === REALTIME_WS_EXPECTED_BYTES,
+                {
+                    timeoutMs: 8_000,
+                    description: `todayUsage[${origin}] === ${REALTIME_WS_EXPECTED_BYTES} after WebSocket`,
+                },
+            );
+
+            const expectedAfterWorker =
+                REALTIME_WS_EXPECTED_BYTES + REALTIME_MODULE_WORKER_EXPECTED_BYTES;
+            await mainPage.locator("#btn-module-worker").click();
+            await mainPage.waitForFunction(
+                (expected: number) =>
+                    (document.getElementById("worker-status")?.textContent ?? "").includes(
+                        `Module worker ${expected} done`,
+                    ),
+                REALTIME_MODULE_WORKER_EXPECTED_BYTES,
+                { timeout: 10_000 },
+            );
+            await pollUntil(
+                () => inspectDb(serviceWorker),
+                (db) => db.todayUsage[origin] === expectedAfterWorker,
+                {
+                    timeoutMs: 8_000,
+                    description: `todayUsage[${origin}] === ${expectedAfterWorker} after module worker`,
+                },
+            );
+
+            await mainPage.locator("#btn-webrtc").click();
+            await mainPage.waitForFunction(
+                () =>
+                    (document.getElementById("webrtc-status")?.textContent ?? "").includes(
+                        "WebRTC call done:",
+                    ),
+                undefined,
+                { timeout: 15_000 },
+            );
+            const expectedRtcBytes = await mainPage.evaluate(() => {
+                const raw = document.getElementById("webrtc-status")?.dataset.rtcBytes;
+                return raw ? Number(raw) : NaN;
+            });
+            if (!Number.isFinite(expectedRtcBytes) || expectedRtcBytes < 150_000) {
+                throw new Error(
+                    `Expected WebRTC loopback transport bytes >= 150000, got ${String(expectedRtcBytes)}`,
+                );
+            }
+
+            const minRtcBytes = Math.floor(expectedRtcBytes * 0.85);
+            const maxRtcBytes = Math.ceil(expectedRtcBytes * 1.25);
+            await pollUntil(
+                () => inspectDb(serviceWorker),
+                (db) => (db.todayUsage[origin] ?? 0) >= expectedAfterWorker + minRtcBytes,
+                {
+                    timeoutMs: 10_000,
+                    description: `todayUsage[${origin}] >= ${expectedAfterWorker + minRtcBytes} after WebRTC`,
+                },
+            );
+
+            await Bun.sleep(USAGE_FLUSH_SETTLE_MS);
+            const dbAfter = await inspectDb(serviceWorker);
+            const rtcDelta = (dbAfter.todayUsage[origin] ?? 0) - expectedAfterWorker;
+            if (rtcDelta < minRtcBytes || rtcDelta > maxRtcBytes) {
+                throw new Error(
+                    `WebRTC recorded delta ${rtcDelta} B outside expected [${minRtcBytes}, ${maxRtcBytes}] B (transport ${expectedRtcBytes} B)`,
+                );
+            }
+
+            const badgeText = await pollUntil(
+                () => getBadgeText(serviceWorker),
+                (text) => text.length > 0,
+                {
+                    timeoutMs: 4_000,
+                    description: "non-empty toolbar badge text after realtime-call",
+                },
+            );
+
+            return `WS ${REALTIME_WS_EXPECTED_BYTES.toLocaleString("en-US")} B, module worker ${REALTIME_MODULE_WORKER_EXPECTED_BYTES.toLocaleString("en-US")} B, WebRTC ${rtcDelta.toLocaleString("en-US")} B recorded vs ${expectedRtcBytes.toLocaleString("en-US")} B transport, badge "${badgeText}"`;
+        });
+
         await runStep("youtube-vod", async () => {
             const target = resolveFixtureTarget("fixture:youtube-vod", serverPort);
             await navigateMainPage(mainPage, target);
@@ -403,7 +511,6 @@ export async function runSmoke(opts: { extDir: string; timeoutMs: number }): Pro
             return `toaster triggered & dismissed, quality badges (${menuAudit.badges["1080p"]} @ 1080p, skipped Premium & Auto), popup settled`;
         });
 
-        // 3. Twitch & Kick live streams via real toolbar popup
         await runStep("twitch-and-kick-live", async () => {
             const expectedResolutions = ["1080p", "720p", "480p"] as const;
             const assertLivePopupRates = async (platform: string, popupPage: Page) => {
@@ -453,7 +560,6 @@ export async function runSmoke(opts: { extDir: string; timeoutMs: number }): Pro
             return "Twitch & Kick live popups settled with 1080p/720p/480p /hour and /min SI rates";
         });
 
-        // 4. Settings persistence + Arabic RTL reload
         await runStep("settings-and-rtl", async () => {
             lastTrackedSiteLeftAt = Date.now();
             try {
@@ -524,7 +630,6 @@ export async function runSmoke(opts: { extDir: string; timeoutMs: number }): Pro
             }
         });
 
-        // 5. Dashboard lifecycle: Seed -> Export JSON -> Clear All Usage -> Import JSON
         await runStep("dashboard-lifecycle", async () => {
             // Wait for any buffered webRequest usage from earlier platform fixture pages (3s auto-flush)
             // to settle before seeding, so late background flushes cannot perturb exact byte assertions.

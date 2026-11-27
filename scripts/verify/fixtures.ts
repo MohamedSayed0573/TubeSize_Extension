@@ -13,6 +13,7 @@ const TRANSPARENT_PNG = Buffer.from(
 
 const FIXTURE_TARGETS = [
     "fixture:usage-site",
+    "fixture:realtime-call",
     "fixture:youtube-vod",
     "fixture:youtube-shorts",
     "fixture:youtube-live",
@@ -43,6 +44,11 @@ export function resolveFixtureTarget(
         case "fixture:usage-site":
             return {
                 url: `http://127.0.0.1:${serverPort}/__fixture__/usage-site`,
+                viewport,
+            };
+        case "fixture:realtime-call":
+            return {
+                url: `http://127.0.0.1:${serverPort}/__fixture__/realtime-call`,
                 viewport,
             };
         case "fixture:youtube-vod":
@@ -168,23 +174,412 @@ function usageSiteHtml(): string {
 </html>`;
 }
 
+export const REALTIME_WS_EXPECTED_BYTES = 140_013;
+export const REALTIME_MODULE_WORKER_EXPECTED_BYTES = 140_013;
+
+export function upgradeFixtureWebSocket(
+    req: Request,
+    server: { upgrade(req: Request): boolean },
+): boolean {
+    const url = new URL(req.url);
+    if (url.pathname !== "/__fixture__/ws") return false;
+    return server.upgrade(req);
+}
+
+export const FIXTURE_WEBSOCKET_HANDLER: Bun.WebSocketHandler<undefined> = {
+    message(ws, message) {
+        if (typeof message === "string") {
+            if (message.startsWith("send:")) {
+                const raw = Number(message.slice("send:".length));
+                const size = Number.isFinite(raw)
+                    ? Math.min(Math.max(Math.floor(raw), 1), 1_000_000)
+                    : 1;
+                const payload = new Uint8Array(size);
+                for (let i = 0; i < size; i++) payload[i] = i & 0xff;
+                ws.send(payload);
+                return;
+            }
+            if (message.startsWith("echo:")) {
+                ws.send(message);
+                return;
+            }
+            ws.send("ok");
+            return;
+        }
+        ws.send("ack");
+    },
+};
+
+function chunkedHtmlResponse(html: string, extraHeaders?: Record<string, string>): Response {
+    const htmlBytes = new TextEncoder().encode(html);
+    const htmlStream = new ReadableStream<Uint8Array>({
+        start(controller) {
+            controller.enqueue(htmlBytes);
+            controller.close();
+        },
+    });
+    return new Response(htmlStream, {
+        headers: {
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store",
+            ...extraHeaders,
+        },
+    });
+}
+
+function realtimeCallHtml(): string {
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="data:," />
+  <title>TubeSize Realtime Call Fixture</title>
+</head>
+<body>
+  <h1>TubeSize Realtime Call Fixture</h1>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
+    <button type="button" id="btn-ws">Run WebSocket exchange</button>
+    <button type="button" id="btn-module-worker">Run module worker</button>
+    <button type="button" id="btn-webrtc">Run WebRTC loopback call</button>
+    <button type="button" id="btn-run-call">Run full call simulation</button>
+  </div>
+  <div style="display:flex;gap:12px;align-items:center;margin:12px 0">
+    <canvas id="rtc-canvas" width="160" height="120" style="border:1px solid #333"></canvas>
+    <video id="rtc-remote-video" muted autoplay playsinline style="width:160px;height:120px;background:#111"></video>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:4px">
+    <output id="ws-status">Idle</output>
+    <output id="worker-status">Idle</output>
+    <output id="webrtc-status">Idle</output>
+    <output id="call-status">Idle</output>
+  </div>
+  <script>
+    const wsStatusEl = document.getElementById("ws-status");
+    const workerStatusEl = document.getElementById("worker-status");
+    const webrtcStatusEl = document.getElementById("webrtc-status");
+    const callStatusEl = document.getElementById("call-status");
+
+    function createWsReader(ws) {
+      return () =>
+        new Promise((resolve, reject) => {
+          const onMessage = (ev) => {
+            cleanup();
+            resolve(ev.data);
+          };
+          const onError = () => {
+            cleanup();
+            reject(new Error("WebSocket error"));
+          };
+          const onClose = () => {
+            cleanup();
+            reject(new Error("WebSocket closed before response"));
+          };
+          const cleanup = () => {
+            ws.removeEventListener("message", onMessage);
+            ws.removeEventListener("error", onError);
+            ws.removeEventListener("close", onClose);
+          };
+          ws.addEventListener("message", onMessage);
+          ws.addEventListener("error", onError);
+          ws.addEventListener("close", onClose);
+        });
+    }
+
+    async function runWebSocket() {
+      wsStatusEl.textContent = "Running WebSocket...";
+      const ws = new WebSocket("ws://" + location.host + "/__fixture__/ws");
+      ws.binaryType = "arraybuffer";
+      await new Promise((resolve, reject) => {
+        ws.addEventListener("open", () => resolve(), { once: true });
+        ws.addEventListener("error", () => reject(new Error("WebSocket open failed")), { once: true });
+      });
+      const nextMessage = createWsReader(ws);
+
+      const echoPayload = "echo:" + "a".repeat(19995);
+      const p1 = nextMessage();
+      ws.send(echoPayload);
+      const r1 = await p1;
+      if (typeof r1 !== "string" || r1.length !== 20000) {
+        throw new Error("Unexpected WebSocket echo length");
+      }
+
+      const binOut = new Uint8Array(40000);
+      for (let i = 0; i < binOut.length; i++) binOut[i] = i & 0xff;
+      const p2 = nextMessage();
+      ws.send(binOut);
+      const r2 = await p2;
+      if (r2 !== "ack") {
+        throw new Error("Unexpected WebSocket binary ack");
+      }
+
+      const p3 = nextMessage();
+      ws.send("send:60000");
+      const r3 = await p3;
+      if (!(r3 instanceof ArrayBuffer) || r3.byteLength !== 60000) {
+        throw new Error("Unexpected WebSocket server binary frame");
+      }
+
+      await new Promise((resolve) => {
+        ws.addEventListener("close", () => resolve(), { once: true });
+        ws.close(1000, "done");
+      });
+      wsStatusEl.textContent = "WebSocket ${REALTIME_WS_EXPECTED_BYTES} done";
+    }
+
+    async function runModuleWorker() {
+      workerStatusEl.textContent = "Running module worker...";
+      const source = \`
+        export const realtimeModuleWorker = true;
+        const nextMessage = (ws) =>
+          new Promise((resolve, reject) => {
+            const onMessage = (ev) => {
+              cleanup();
+              resolve(ev.data);
+            };
+            const onError = () => {
+              cleanup();
+              reject(new Error("Worker WebSocket error"));
+            };
+            const onClose = () => {
+              cleanup();
+              reject(new Error("Worker WebSocket closed early"));
+            };
+            const cleanup = () => {
+              ws.removeEventListener("message", onMessage);
+              ws.removeEventListener("error", onError);
+              ws.removeEventListener("close", onClose);
+            };
+            ws.addEventListener("message", onMessage);
+            ws.addEventListener("error", onError);
+            ws.addEventListener("close", onClose);
+          });
+
+        self.addEventListener("message", async (ev) => {
+          const { origin, host } = ev.data;
+          const res = await fetch(origin + "/__fixture__/worker-stream?size=90000");
+          await res.arrayBuffer();
+
+          const ws = new WebSocket("ws://" + host + "/__fixture__/ws");
+          ws.binaryType = "arraybuffer";
+          await new Promise((resolve, reject) => {
+            ws.addEventListener("open", () => resolve(), { once: true });
+            ws.addEventListener("error", () => reject(new Error("Worker WebSocket open failed")), { once: true });
+          });
+
+          const binOut = new Uint8Array(20000);
+          for (let i = 0; i < binOut.length; i++) binOut[i] = i & 0xff;
+          const p1 = nextMessage(ws);
+          ws.send(binOut);
+          const r1 = await p1;
+          if (r1 !== "ack") throw new Error("Unexpected worker WebSocket ack");
+
+          const p2 = nextMessage(ws);
+          ws.send("send:30000");
+          const r2 = await p2;
+          if (!(r2 instanceof ArrayBuffer) || r2.byteLength !== 30000) {
+            throw new Error("Unexpected worker WebSocket binary frame");
+          }
+
+          await new Promise((resolve) => {
+            ws.addEventListener("close", () => resolve(), { once: true });
+            ws.close(1000, "done");
+          });
+          self.postMessage("done");
+        });
+      \`;
+      const workerUrl = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+      const worker = new Worker(workerUrl, { type: "module" });
+      URL.revokeObjectURL(workerUrl);
+      window.__tsWorkers = window.__tsWorkers || [];
+      window.__tsWorkers.push(worker);
+
+      await new Promise((resolve, reject) => {
+        worker.addEventListener("message", (ev) => {
+          if (ev.data === "done") resolve();
+        });
+        worker.addEventListener("error", (ev) => {
+          reject(new Error(ev.message || "Module worker failed"));
+        });
+        worker.postMessage({ origin: location.origin, host: location.host });
+      });
+      workerStatusEl.textContent = "Module worker ${REALTIME_MODULE_WORKER_EXPECTED_BYTES} done";
+    }
+
+    async function readPeerTransportBytes(pc) {
+      const report = await pc.getStats();
+      let transportTotal = 0;
+      let pairTotal = 0;
+      for (const stat of report.values()) {
+        const rx = typeof stat.bytesReceived === "number" && stat.bytesReceived > 0 ? stat.bytesReceived : 0;
+        const tx = typeof stat.bytesSent === "number" && stat.bytesSent > 0 ? stat.bytesSent : 0;
+        if (stat.type === "transport") {
+          transportTotal += rx + tx;
+        } else if (stat.type === "candidate-pair") {
+          pairTotal += rx + tx;
+        }
+      }
+      return transportTotal > 0 ? transportTotal : pairTotal;
+    }
+
+    async function runWebRtcCall() {
+      webrtcStatusEl.textContent = "Running WebRTC loopback call...";
+      delete webrtcStatusEl.dataset.rtcBytes;
+
+      const canvas = document.getElementById("rtc-canvas");
+      const ctx = canvas.getContext("2d");
+      const remoteVideo = document.getElementById("rtc-remote-video");
+
+      let frame = 0;
+      const drawFrame = () => {
+        if (!ctx) return;
+        ctx.fillStyle = "#111827";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < 6; i++) {
+          ctx.fillStyle = "hsl(" + ((frame * 17 + i * 55) % 360) + ", 80%, 55%)";
+          const x = (frame * 9 + i * 27) % (canvas.width - 28);
+          const y = (frame * 5 + i * 19) % (canvas.height - 28);
+          ctx.fillRect(x, y, 28, 28);
+        }
+        frame += 1;
+      };
+      drawFrame();
+      const drawTimer = setInterval(drawFrame, 50);
+
+      const localPeer = new RTCPeerConnection({ iceServers: [] });
+      const remotePeer = new RTCPeerConnection({ iceServers: [] });
+      const stream = canvas.captureStream(15);
+
+      try {
+        localPeer.addEventListener("icecandidate", (ev) => {
+          if (ev.candidate) void remotePeer.addIceCandidate(ev.candidate).catch(() => {});
+        });
+        remotePeer.addEventListener("icecandidate", (ev) => {
+          if (ev.candidate) void localPeer.addIceCandidate(ev.candidate).catch(() => {});
+        });
+
+        for (const track of stream.getTracks()) {
+          localPeer.addTrack(track, stream);
+        }
+
+        remotePeer.addEventListener("track", (ev) => {
+          remoteVideo.srcObject = ev.streams[0] || new MediaStream([ev.track]);
+          void remoteVideo.play().catch(() => {});
+        });
+
+        const dcChunk = new Uint8Array(16000);
+        for (let i = 0; i < dcChunk.length; i++) dcChunk[i] = (i * 31) & 0xff;
+
+        const dc = localPeer.createDataChannel("call-media");
+        dc.binaryType = "arraybuffer";
+
+        const dcDone = new Promise((resolve, reject) => {
+          let localReceived = 0;
+          let remoteReceived = 0;
+
+          dc.addEventListener("error", () => reject(new Error("Local data channel error")));
+          dc.addEventListener("open", () => {
+            for (let i = 0; i < 8; i++) dc.send(dcChunk);
+          });
+          dc.addEventListener("message", (ev) => {
+            localReceived += ev.data instanceof ArrayBuffer ? ev.data.byteLength : 0;
+            if (localReceived >= 4 * 16000) resolve();
+          });
+
+          remotePeer.addEventListener("datachannel", (ev) => {
+            const remoteDc = ev.channel;
+            remoteDc.binaryType = "arraybuffer";
+            remoteDc.addEventListener("error", () => reject(new Error("Remote data channel error")));
+            remoteDc.addEventListener("message", (msgEv) => {
+              remoteReceived += msgEv.data instanceof ArrayBuffer ? msgEv.data.byteLength : 0;
+              if (remoteReceived >= 8 * 16000) {
+                for (let i = 0; i < 4; i++) remoteDc.send(dcChunk);
+              }
+            });
+          });
+        });
+
+        const offer = await localPeer.createOffer();
+        await localPeer.setLocalDescription(offer);
+        await remotePeer.setRemoteDescription(offer);
+        const answer = await remotePeer.createAnswer();
+        await remotePeer.setLocalDescription(answer);
+        await localPeer.setRemoteDescription(answer);
+
+        await dcDone;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        clearInterval(drawTimer);
+        for (const track of stream.getTracks()) track.stop();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        const [localBytes, remoteBytes] = await Promise.all([
+          readPeerTransportBytes(localPeer),
+          readPeerTransportBytes(remotePeer),
+        ]);
+        const totalRtcBytes = Math.round(localBytes + remoteBytes);
+        webrtcStatusEl.dataset.rtcBytes = String(totalRtcBytes);
+
+        localPeer.close();
+        remotePeer.close();
+        remoteVideo.srcObject = null;
+
+        webrtcStatusEl.textContent = "WebRTC call done: " + totalRtcBytes + " transport bytes";
+      } catch (err) {
+        clearInterval(drawTimer);
+        for (const track of stream.getTracks()) track.stop();
+        localPeer.close();
+        remotePeer.close();
+        remoteVideo.srcObject = null;
+        throw err;
+      }
+    }
+
+    document.getElementById("btn-ws").addEventListener("click", () => {
+      void runWebSocket().catch((err) => {
+        wsStatusEl.textContent = "Error: " + (err instanceof Error ? err.message : String(err));
+        throw err;
+      });
+    });
+    document.getElementById("btn-module-worker").addEventListener("click", () => {
+      void runModuleWorker().catch((err) => {
+        workerStatusEl.textContent = "Error: " + (err instanceof Error ? err.message : String(err));
+        throw err;
+      });
+    });
+    document.getElementById("btn-webrtc").addEventListener("click", () => {
+      void runWebRtcCall().catch((err) => {
+        webrtcStatusEl.textContent = "Error: " + (err instanceof Error ? err.message : String(err));
+        throw err;
+      });
+    });
+    document.getElementById("btn-run-call").addEventListener("click", () => {
+      void (async () => {
+        callStatusEl.textContent = "Running full call simulation...";
+        await runWebSocket();
+        await runModuleWorker();
+        await runWebRtcCall();
+        callStatusEl.textContent = "Full call simulation done";
+      })().catch((err) => {
+        callStatusEl.textContent = "Error: " + (err instanceof Error ? err.message : String(err));
+        throw err;
+      });
+    });
+  </script>
+</body>
+</html>`;
+}
+
 export function handleUsageFixtureRequest(req: Request): Response | null {
     const url = new URL(req.url);
     if (!url.pathname.startsWith("/__fixture__/")) return null;
 
     if (url.pathname === "/__fixture__/usage-site") {
-        const htmlBytes = new TextEncoder().encode(usageSiteHtml());
-        const htmlStream = new ReadableStream<Uint8Array>({
-            start(controller) {
-                controller.enqueue(htmlBytes);
-                controller.close();
-            },
-        });
-        return new Response(htmlStream, {
-            headers: {
-                "content-type": "text/html; charset=utf-8",
-                "cache-control": "no-store",
-            },
+        return chunkedHtmlResponse(usageSiteHtml());
+    }
+
+    if (url.pathname === "/__fixture__/realtime-call") {
+        return chunkedHtmlResponse(realtimeCallHtml(), {
+            "content-security-policy": "worker-src blob:; script-src 'self' 'unsafe-inline'",
         });
     }
 
