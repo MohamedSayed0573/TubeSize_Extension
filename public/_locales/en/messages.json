@@ -187,6 +187,10 @@
         "message": "Usage tracking is enabled.",
         "description": "Info shown when usage tracking is enabled"
     },
+    "popup_unsupportedPage_title": {
+        "message": "Size estimates unavailable",
+        "description": "Popup heading shown on websites without pre-play size estimation"
+    },
     "popup_unsupportedPage": {
         "message": "Open a $1 video to see estimated data usage.",
         "description": "Info shown on unsupported pages",
