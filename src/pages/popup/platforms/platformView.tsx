@@ -1,4 +1,5 @@
-import { useState } from "react";
+import type { MediaEstimate } from "@app-types/platforms.types";
+import { type ReactNode, useState } from "react";
 
 import InfoCard from "@/components/infoCard";
 import Spinner from "@/components/spinner";
@@ -22,60 +23,43 @@ export function PlatformView({ tabUrl }: Props) {
         error: unknown;
     } | null>(null);
 
-    if (!isRunningVideo) {
-        return (
-            <>
-                <Header />
-                <PopupViewContainer>
-                    <InfoCard message={t("popup_noRunningVideo")} />
-                </PopupViewContainer>
-            </>
-        );
-    }
-
     const activeError = isError
         ? error
         : isFetching && retryingError?.tabUrl === tabUrl
           ? retryingError.error
           : null;
 
-    if (activeError !== null) {
-        return (
-            <>
-                <Header />
-                <PopupViewContainer>
-                    <MediaEstimateErrorCard
-                        error={activeError}
-                        isRetrying={isFetching}
-                        onRetry={() => {
-                            setRetryingError({ tabUrl, error: activeError });
-                            void refetch().finally(() => {
-                                setRetryingError((current) =>
-                                    current?.tabUrl === tabUrl ? null : current,
-                                );
-                            });
-                        }}
-                    />
-                </PopupViewContainer>
-            </>
-        );
-    }
+    let headerEstimate: MediaEstimate | undefined;
+    let content: ReactNode;
 
-    if (isPending || !estimate) {
-        return (
-            <>
-                <Header />
-                <Spinner />
-            </>
+    if (!isRunningVideo) {
+        content = <InfoCard message={t("popup_noRunningVideo")} />;
+    } else if (activeError !== null) {
+        content = (
+            <MediaEstimateErrorCard
+                error={activeError}
+                isRetrying={isFetching}
+                onRetry={() => {
+                    setRetryingError({ tabUrl, error: activeError });
+                    void refetch().finally(() => {
+                        setRetryingError((current) =>
+                            current?.tabUrl === tabUrl ? null : current,
+                        );
+                    });
+                }}
+            />
         );
+    } else if (isPending || !estimate) {
+        content = <Spinner />;
+    } else {
+        headerEstimate = estimate;
+        content = <FormatView estimate={estimate} />;
     }
 
     return (
         <>
-            <Header estimate={estimate} />
-            <PopupViewContainer>
-                <FormatView estimate={estimate} />
-            </PopupViewContainer>
+            <Header estimate={headerEstimate} />
+            <PopupViewContainer tabUrl={tabUrl}>{content}</PopupViewContainer>
         </>
     );
 }
