@@ -22,33 +22,43 @@ function getTabOrigin(tabUrl: string | undefined): Origin | undefined {
     }
 }
 
-export function PopupViewContainer({ children }: { children: React.ReactNode }) {
+type Props = {
+    children: React.ReactNode;
+    tabUrl?: string;
+};
+
+export function PopupViewContainer({ children, tabUrl }: Props) {
     const { data: tab } = useTab();
-    const origin = getTabOrigin(tab?.tabUrl);
+    const origin = getTabOrigin(tabUrl ?? tab?.tabUrl);
     const siteKey = origin ? getSiteKey(origin) : undefined;
 
     const { data: todayUsage } = useTodayUsageSummary(siteKey);
+    const hasUsageCards = Boolean(
+        todayUsage?.totalBytes || (origin && siteKey && todayUsage?.siteBytes),
+    );
 
     return (
         <div className="flex flex-col gap-2 px-3 py-2 text-xs text-zinc-400">
-            <div className="flex flex-col gap-1.5">
-                <PopupUsage
-                    text={t("popup_totalUsageToday")}
-                    usage={todayUsage?.totalBytes}
-                    navigateTo={{ page: "dashboard", path: buildRangePath("today") }}
-                    variant="todayUsage"
-                />
-
-                {origin && siteKey && (
+            {hasUsageCards && (
+                <div className="flex flex-col gap-1.5">
                     <PopupUsage
-                        text={t("popup_siteUsage", [getSiteLabel(origin)])}
-                        usage={todayUsage?.siteBytes}
-                        navigateTo={{ page: "dashboard", path: buildSitePath(siteKey) }}
-                        variant="siteUsage"
-                        origin={origin}
+                        text={t("popup_totalUsageToday")}
+                        usage={todayUsage?.totalBytes}
+                        navigateTo={{ page: "dashboard", path: buildRangePath("today") }}
+                        variant="todayUsage"
                     />
-                )}
-            </div>
+
+                    {origin && siteKey && (
+                        <PopupUsage
+                            text={t("popup_siteUsage", [getSiteLabel(origin)])}
+                            usage={todayUsage?.siteBytes}
+                            navigateTo={{ page: "dashboard", path: buildSitePath(siteKey) }}
+                            variant="siteUsage"
+                            origin={origin}
+                        />
+                    )}
+                </div>
+            )}
 
             {children}
 
