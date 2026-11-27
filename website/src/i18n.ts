@@ -103,8 +103,7 @@ export const COPY: Record<Lang, Copy> = {
         popupTodayUsage: "Today's Usage",
         popupCurrent: "Current",
         afterTitle: "After you browse",
-        afterDesc:
-            "Inspect Today, Last 7 Days, Last 30 Days, and Lifetime totals, switch between daily and per-site charts, or drill into individual YouTube videos.",
+        afterDesc: "See which websites and YouTube videos use the most data over time.",
         statToday: "Today",
         statWeek: "Last 7 Days",
         statMonth: "Last 30 Days",
@@ -140,8 +139,7 @@ export const COPY: Record<Lang, Copy> = {
         popupTodayUsage: "استهلاك اليوم",
         popupCurrent: "الحالية",
         afterTitle: "بعد التصفح",
-        afterDesc:
-            "تابع إجمالي استهلاك اليوم وآخر 7 و30 يوماً والإجمالي، وبدّل بين الرسم البياني اليومي أو حسب المواقع، مع تفصيل لكل فيديو على يوتيوب.",
+        afterDesc: "شوف أكتر المواقع وفيديوهات يوتيوب استهلاكاً لبياناتك على مدار الوقت.",
         statToday: "اليوم",
         statWeek: "آخر 7 أيام",
         statMonth: "آخر 30 يوماً",
