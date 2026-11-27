@@ -112,8 +112,6 @@ describe("popup embedded and generic video detection", () => {
             },
             title: "Standalone Clip",
             isPlaying: true,
-            inViewport: true,
-            viewportArea: 250_000,
             frameId: 0,
         };
 
@@ -152,7 +150,7 @@ describe("popup embedded and generic video detection", () => {
         expect(host?.textContent).not.toContain("Current");
     });
 
-    test("renders multi-video switcher with Playing/In view badges, switches videos, and keeps switcher visible on error", async () => {
+    test("renders multi-video switcher with Playing badge, switches videos, and keeps switcher visible on error", async () => {
         stubActiveTab("https://blog.example.com/multi");
         const videos: DetectedVideo[] = [
             {
@@ -163,8 +161,6 @@ describe("popup embedded and generic video detection", () => {
                 },
                 title: "Keynote Stream",
                 isPlaying: true,
-                inViewport: true,
-                viewportArea: 300_000,
                 currentResolution: 1080,
                 frameId: 0,
             },
@@ -178,8 +174,6 @@ describe("popup embedded and generic video detection", () => {
                 },
                 title: "Embedded YouTube Demo",
                 isPlaying: false,
-                inViewport: true,
-                viewportArea: 180_000,
                 frameId: 0,
             },
             {
@@ -189,8 +183,6 @@ describe("popup embedded and generic video detection", () => {
                     url: "https://cdn.example.com/broken.mp4",
                 },
                 isPlaying: false,
-                inViewport: false,
-                viewportArea: 0,
                 frameId: 0,
             },
         ];
@@ -262,7 +254,6 @@ describe("popup embedded and generic video detection", () => {
         expect(tabs[0]?.textContent).toContain("Keynote Stream");
         expect(tabs[0]?.textContent).toContain("Playing");
         expect(tabs[1]?.textContent).toContain("Embedded YouTube Demo");
-        expect(tabs[1]?.textContent).toContain("In view");
         expect(tabs[2]?.textContent).toContain("Video 3");
         expect(host?.textContent).toContain("Current");
 
@@ -307,16 +298,12 @@ describe("popup embedded and generic video detection", () => {
                 id: "direct:https://cdn.example.com/a.mp4",
                 source: { kind: "direct", url: "https://cdn.example.com/a.mp4" },
                 isPlaying: true,
-                inViewport: true,
-                viewportArea: 200_000,
                 frameId: 0,
             },
             {
                 id: "direct:https://cdn.example.com/b.mp4",
                 source: { kind: "direct", url: "https://cdn.example.com/b.mp4" },
                 isPlaying: false,
-                inViewport: true,
-                viewportArea: 100_000,
                 frameId: 0,
             },
         ];
@@ -346,7 +333,6 @@ describe("popup embedded and generic video detection", () => {
 
         expect(document.documentElement.dir).toBe("rtl");
         expect(host?.textContent).toContain("قيد التشغيل");
-        expect(host?.textContent).toContain("في الشاشة");
         expect(host?.textContent).toContain("فيديو 1");
     });
 });

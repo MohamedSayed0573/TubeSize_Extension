@@ -195,10 +195,6 @@
         "message": "Playing",
         "description": "Badge shown next to a currently playing detected video"
     },
-    "popup_videoBadge_inView": {
-        "message": "In view",
-        "description": "Badge shown next to a detected video visible in the viewport"
-    },
     "popup_videoItemFallback": {
         "message": "Video $1",
         "description": "Fallback label for a detected video without a title or platform name",

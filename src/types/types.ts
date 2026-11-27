@@ -67,8 +67,6 @@ export type DetectedVideo = {
     source: DetectedVideoSource;
     title?: string;
     isPlaying: boolean;
-    inViewport: boolean;
-    viewportArea: number;
     currentResolution?: number;
     frameId: number;
 };

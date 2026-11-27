@@ -384,8 +384,6 @@ describe("formatEstimateHeader", () => {
             source: { kind: "direct", url: "https://cdn.example.com/clip.mp4", videoHeight: 720 },
             title: "Clip",
             isPlaying: true,
-            inViewport: true,
-            viewportArea: 100_000,
             frameId: 0,
         });
 

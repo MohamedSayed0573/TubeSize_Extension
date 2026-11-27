@@ -44,7 +44,6 @@ export type TabMediaRegistry = {
     forgetRequest(requestId: string): void;
     getTabMedia(tabId: number): Promise<ObservedMedia[]>;
     getFrameUrl(tabId: number, frameId: number): Promise<string | undefined>;
-    getFrameInitialUrls(tabId: number): Promise<Map<number, string>>;
     clearTab(tabId: number): void;
 };
 
@@ -206,23 +205,20 @@ function parseDocumentEntries(raw: unknown): Array<[number, Array<[string, strin
 function parsePersistedSnapshot(raw: unknown): {
     media: Array<[number, ObservedMedia[]]>;
     frames: Array<[number, Array<[number, string]>]>;
-    redirects: Array<[number, Array<[number, string]>]>;
     documents: Array<[number, Array<[string, string | undefined]>]>;
 } {
     if (Array.isArray(raw)) {
-        return { media: parseMediaEntries(raw), frames: [], redirects: [], documents: [] };
+        return { media: parseMediaEntries(raw), frames: [], documents: [] };
     }
     if (typeof raw !== "object" || raw === null) {
-        return { media: [], frames: [], redirects: [], documents: [] };
+        return { media: [], frames: [], documents: [] };
     }
     const rawMedia = "media" in raw ? raw.media : undefined;
     const rawFrames = "frames" in raw ? raw.frames : undefined;
-    const rawRedirects = "redirects" in raw ? raw.redirects : undefined;
     const rawDocuments = "documents" in raw ? raw.documents : undefined;
     return {
         media: parseMediaEntries(rawMedia),
         frames: parseFrameEntries(rawFrames),
-        redirects: parseFrameEntries(rawRedirects),
         documents: parseDocumentEntries(rawDocuments),
     };
 }
@@ -255,8 +251,6 @@ type FrameDocumentState = {
     url: string | undefined;
     documentId?: string;
     navSeq: number;
-    requestId?: string;
-    initialUrl?: string;
 };
 
 type InFlightSubFrameRequest = {
@@ -293,7 +287,6 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
         options.storage === null ? undefined : (options.storage ?? defaultSessionStorage);
     const tabs = new Map<number, ObservedMedia[]>();
     const embedFrames = new Map<number, Map<number, string>>();
-    const redirectedFrameInitialUrls = new Map<number, Map<number, string>>();
     const frameDocuments = new Map<number, Map<number, FrameDocumentState>>();
     const documentFrames = new Map<number, Map<string, string | undefined>>();
     const documentNavSeqs = new Map<number, Map<string, number>>();
@@ -447,10 +440,6 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                 tabId,
                 [...frames.entries()],
             ]),
-            redirects: [...redirectedFrameInitialUrls.entries()].map(([tabId, redirects]) => [
-                tabId,
-                [...redirects.entries()],
-            ]),
             documents: [...documentFrames.entries()]
                 .map(([tabId, docs]): [number, Array<[string, string]>] => [
                     tabId,
@@ -568,45 +557,6 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                     embedFrames.clear();
                     for (const [tabId, frames] of mergedFrames) {
                         embedFrames.set(tabId, frames);
-                    }
-
-                    const mergedRedirects = new Map<number, Map<number, string>>();
-                    for (const [tabId, persistedRedirects] of persisted.redirects) {
-                        if (clearedBeforeHydration.has(tabId)) continue;
-                        const clearedFrames = clearedFramesBeforeHydration.get(tabId);
-                        const combined = new Map<number, string>();
-                        for (const [frameId, initialUrl] of persistedRedirects.slice(
-                            -maxFramesPerTab,
-                        )) {
-                            if (!clearedFrames?.has(frameId)) combined.set(frameId, initialUrl);
-                        }
-                        const liveRedirects = redirectedFrameInitialUrls.get(tabId);
-                        if (liveRedirects) {
-                            for (const [frameId, initialUrl] of liveRedirects) {
-                                combined.delete(frameId);
-                                combined.set(frameId, initialUrl);
-                            }
-                        }
-                        enforceMapLimit(combined, maxFramesPerTab);
-                        if (combined.size > 0) mergedRedirects.set(tabId, combined);
-                    }
-
-                    for (const [tabId, liveRedirects] of redirectedFrameInitialUrls) {
-                        const existing = mergedRedirects.get(tabId);
-                        if (existing) {
-                            mergedRedirects.delete(tabId);
-                            mergedRedirects.set(tabId, existing);
-                        } else if (liveRedirects.size > 0) {
-                            const copy = new Map(liveRedirects);
-                            enforceMapLimit(copy, maxFramesPerTab);
-                            mergedRedirects.set(tabId, copy);
-                        }
-                    }
-
-                    enforceMapLimit(mergedRedirects, maxTabs);
-                    redirectedFrameInitialUrls.clear();
-                    for (const [tabId, redirects] of mergedRedirects) {
-                        redirectedFrameInitialUrls.set(tabId, redirects);
                     }
 
                     const mergedDocuments = new Map<number, Map<string, string | undefined>>();
@@ -728,12 +678,6 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
 
             const embedded = parseEmbeddedPlatformUrl(url);
             const resolvedUrl = embedded ? url : undefined;
-            const previousState = frameDocuments.get(tabId)?.get(frameId);
-            const isRedirect =
-                requestId !== undefined &&
-                previousState?.requestId === requestId &&
-                previousState.initialUrl !== undefined;
-            const initialUrl = isRedirect ? previousState.initialUrl! : url;
 
             const docStates = frameDocuments.get(tabId) ?? new Map<number, FrameDocumentState>();
             frameDocuments.delete(tabId);
@@ -741,32 +685,10 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             docStates.set(frameId, {
                 url: resolvedUrl,
                 navSeq,
-                ...(requestId ? { requestId } : {}),
-                initialUrl,
             });
             enforceMapLimit(docStates, maxFramesPerTab);
             frameDocuments.set(tabId, docStates);
             enforceMapLimit(frameDocuments, maxTabs);
-
-            if (isRedirect && initialUrl !== url) {
-                const redirects =
-                    redirectedFrameInitialUrls.get(tabId) ?? new Map<number, string>();
-                redirectedFrameInitialUrls.delete(tabId);
-                redirects.delete(frameId);
-                redirects.set(frameId, initialUrl);
-                enforceMapLimit(redirects, maxFramesPerTab);
-                redirectedFrameInitialUrls.set(tabId, redirects);
-                enforceMapLimit(redirectedFrameInitialUrls, maxTabs);
-                persistedChanged = true;
-            } else {
-                const existingRedirects = redirectedFrameInitialUrls.get(tabId);
-                if (existingRedirects?.delete(frameId)) {
-                    persistedChanged = true;
-                    if (existingRedirects.size === 0) {
-                        redirectedFrameInitialUrls.delete(tabId);
-                    }
-                }
-            }
 
             if (!embedded) {
                 const existing = embedFrames.get(tabId);
@@ -972,18 +894,12 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             await ensureHydrated();
             return embedFrames.get(tabId)?.get(frameId);
         },
-        async getFrameInitialUrls(tabId) {
-            if (tabId === NO_TAB_ID) return new Map();
-            await ensureHydrated();
-            return new Map(redirectedFrameInitialUrls.get(tabId) ?? []);
-        },
         clearTab(tabId) {
             if (!hydrated) clearedBeforeHydration.add(tabId);
             clearedFramesBeforeHydration.delete(tabId);
             clearedMediaFramesBeforeHydration.delete(tabId);
             tabs.delete(tabId);
             embedFrames.delete(tabId);
-            redirectedFrameInitialUrls.delete(tabId);
             frameDocuments.delete(tabId);
             documentFrames.delete(tabId);
             documentNavSeqs.delete(tabId);

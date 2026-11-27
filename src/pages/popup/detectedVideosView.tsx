@@ -111,10 +111,6 @@ function VideoSwitcher({
                                 />
                                 <span>{t("popup_videoBadge_playing")}</span>
                             </span>
-                        ) : video.inViewport ? (
-                            <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-zinc-300">
-                                {t("popup_videoBadge_inView")}
-                            </span>
                         ) : null}
                     </button>
                 );

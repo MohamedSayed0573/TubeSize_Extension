@@ -366,7 +366,7 @@ describe("createTabMediaRegistry", () => {
         ]);
     });
 
-    test("avoids redundant storage writes for unrelated non-embed subframes after hydration and tracks redirected initial URLs", async () => {
+    test("avoids redundant storage writes for unrelated non-embed subframes after hydration", async () => {
         let saved: unknown = null;
         let writes = 0;
         const storage: TabMediaStorage = {
@@ -393,27 +393,6 @@ describe("createTabMediaRegistry", () => {
         });
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(writes).toBe(0);
-
-        // Redirected subframe navigation with matching requestId records confirmed pre-redirect URL.
-        registry.observeSubFrame(
-            20,
-            4,
-            "https://developers.google.com/frame/youtube/iframe_api_reference_demo.frame",
-            "req-frame-4",
-        );
-        registry.observeSubFrame(
-            20,
-            4,
-            "https://developers-dot-devsite-v2-prod.appspot.com/youtube/iframe_api_reference_demo.frame",
-            "req-frame-4",
-        );
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        expect(writes).toBe(1);
-
-        const restored = createTabMediaRegistry({ storage });
-        expect((await restored.getFrameInitialUrls(20)).get(4)).toBe(
-            "https://developers.google.com/frame/youtube/iframe_api_reference_demo.frame",
-        );
     });
 });
 
@@ -428,14 +407,10 @@ describe("mergeDetectedVideos", () => {
                     {
                         url: "https://www.youtube-nocookie.com/embed/yaodD79Q4iE",
                         title: "Embedded Talk",
-                        inViewport: true,
-                        viewportArea: 200_000,
                     },
                     {
                         url: "https://player.twitch.tv/?channel=shroud&parent=blog.example.com",
                         title: "Shroud Embed",
-                        inViewport: false,
-                        viewportArea: 0,
                     },
                 ],
                 videos: [
@@ -446,8 +421,6 @@ describe("mergeDetectedVideos", () => {
                         videoWidth: 1920,
                         videoHeight: 1080,
                         isPlaying: true,
-                        inViewport: true,
-                        viewportArea: 150_000,
                         title: "Hero Video",
                     },
                     {
@@ -456,9 +429,7 @@ describe("mergeDetectedVideos", () => {
                         durationSeconds: 30,
                         videoHeight: 720,
                         isPlaying: false,
-                        inViewport: true,
-                        viewportArea: 300_000,
-                        title: "Larger In-View Trailer",
+                        title: "Trailer",
                     },
                 ],
             },
@@ -472,8 +443,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         videoHeight: 720,
                         isPlaying: false,
-                        inViewport: true,
-                        viewportArea: 200_000,
                     },
                 ],
             },
@@ -493,9 +462,9 @@ describe("mergeDetectedVideos", () => {
 
         expect(videos.map((video) => video.id)).toEqual([
             "direct:https://cdn.example.com/hero.mp4",
-            "direct:https://cdn.example.com/trailer.mp4",
             "embed:https://youtube.com/watch?v=yaodD79Q4iE",
             "embed:https://www.twitch.tv/shroud",
+            "direct:https://cdn.example.com/trailer.mp4",
         ]);
         expect(videos[0]).toMatchObject({
             isPlaying: true,
@@ -509,7 +478,7 @@ describe("mergeDetectedVideos", () => {
                 videoWidth: 1920,
             },
         });
-        expect(videos[2]).toMatchObject({
+        expect(videos[1]).toMatchObject({
             title: "Embedded Talk",
             currentResolution: 720,
             source: {
@@ -534,8 +503,6 @@ describe("mergeDetectedVideos", () => {
                         durationSeconds: 240,
                         videoHeight: 1080,
                         isPlaying: true,
-                        inViewport: true,
-                        viewportArea: 400_000,
                         title: "Main Stream",
                     },
                 ],
@@ -575,8 +542,6 @@ describe("mergeDetectedVideos", () => {
                 },
                 title: "Main Stream",
                 isPlaying: true,
-                inViewport: true,
-                viewportArea: 400_000,
                 currentResolution: 1080,
                 frameId: 0,
             },
@@ -587,8 +552,6 @@ describe("mergeDetectedVideos", () => {
                     url: "https://cdn.example.com/other/manifest.mpd",
                 },
                 isPlaying: false,
-                inViewport: false,
-                viewportArea: 0,
                 frameId: 5,
             },
         ]);
@@ -605,16 +568,12 @@ describe("mergeDetectedVideos", () => {
                         currentSrc: "https://cdn.example.com/dup.mp4",
                         sources: [],
                         isPlaying: false,
-                        inViewport: false,
-                        viewportArea: 0,
                         title: "Fallback Title",
                     },
                     {
                         currentSrc: "https://cdn.example.com/dup.mp4",
                         sources: [],
                         isPlaying: true,
-                        inViewport: true,
-                        viewportArea: 100_000,
                     },
                 ],
             },
@@ -625,7 +584,6 @@ describe("mergeDetectedVideos", () => {
         expect(merged[0]).toMatchObject({
             id: "direct:https://cdn.example.com/dup.mp4",
             isPlaying: true,
-            inViewport: true,
             title: "Fallback Title",
         });
 
@@ -653,8 +611,6 @@ describe("mergeDetectedVideos", () => {
                         ],
                         durationSeconds: 180,
                         isPlaying: true,
-                        inViewport: true,
-                        viewportArea: 200_000,
                         title: "Typed Source HLS",
                     },
                     {
@@ -662,8 +618,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 90,
                         isPlaying: false,
-                        inViewport: true,
-                        viewportArea: 100_000,
                         title: "Observed Type DASH",
                     },
                 ],
@@ -723,8 +677,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 120,
                         isPlaying: false,
-                        inViewport: true,
-                        viewportArea: 300_000,
                         title: "Player A",
                     },
                     {
@@ -732,8 +684,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 240,
                         isPlaying: false,
-                        inViewport: true,
-                        viewportArea: 200_000,
                         title: "Player B",
                     },
                 ],
@@ -779,8 +729,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 120,
                         isPlaying: true,
-                        inViewport: true,
-                        viewportArea: 300_000,
                         title: "DASH A",
                     },
                     {
@@ -788,8 +736,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 240,
                         isPlaying: true,
-                        inViewport: true,
-                        viewportArea: 200_000,
                         title: "DASH B",
                     },
                 ],
@@ -841,8 +787,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 60,
                         isPlaying: false,
-                        inViewport: true,
-                        viewportArea: 300_000,
                         title: "Idle Placeholder",
                     },
                     {
@@ -850,8 +794,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 180,
                         isPlaying: true,
-                        inViewport: true,
-                        viewportArea: 200_000,
                         title: "Active Stream",
                     },
                 ],
@@ -877,8 +819,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 600,
                         isPlaying: true,
-                        inViewport: true,
-                        viewportArea: 400_000,
                         title: "Lesson 2",
                     },
                 ],
@@ -937,8 +877,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 100,
                         isPlaying: false,
-                        inViewport: true,
-                        viewportArea: 250_000,
                         title: "Root Stream",
                     },
                     {
@@ -946,8 +884,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 200,
                         isPlaying: false,
-                        inViewport: true,
-                        viewportArea: 200_000,
                         title: "Nested Stream",
                     },
                 ],
@@ -987,8 +923,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 30,
                         isPlaying: true,
-                        inViewport: true,
-                        viewportArea: 200_000,
                         title: "Current Clip",
                     },
                 ],
@@ -1027,8 +961,6 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 634,
                         isPlaying: true,
-                        inViewport: true,
-                        viewportArea: 300_000,
                     },
                 ],
             },
@@ -1065,86 +997,6 @@ describe("mergeDetectedVideos", () => {
         expect(muxMerged.map((video) => video.id)).toEqual([
             "hls:https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
             "direct:https://cdn.example.com/sandboxed/clip.webm",
-        ]);
-    });
-
-    test("clamps inViewport for nested embeds inside confirmed offscreen parent iframes without colliding across hosts", () => {
-        const frames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://developers.google.com/youtube/iframe_api_reference",
-                iframes: [
-                    {
-                        url: "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1",
-                        title: "Top Visible Embed",
-                        inViewport: true,
-                        viewportArea: 82_000,
-                    },
-                    {
-                        url: "https://developers.google.com/frame/youtube/iframe_api_reference_demo.frame",
-                        title: "",
-                        inViewport: false,
-                        viewportArea: 0,
-                    },
-                    {
-                        url: "https://hidden-other-host.example/embed/player",
-                        title: "",
-                        inViewport: false,
-                        viewportArea: 0,
-                    },
-                    {
-                        url: "https://visible-host.example/redirect-to-player",
-                        title: "",
-                        inViewport: true,
-                        viewportArea: 150_000,
-                    },
-                ],
-                videos: [],
-            },
-            {
-                frameId: 4,
-                frameUrl:
-                    "https://developers-dot-devsite-v2-prod.appspot.com/youtube/iframe_api_reference_demo.frame",
-                iframes: [
-                    {
-                        url: "https://www.youtube.com/embed/FAtdv94yzp4?enablejsapi=1",
-                        title: "Offscreen Nested Embed",
-                        inViewport: true,
-                        viewportArea: 230_400,
-                    },
-                ],
-                videos: [],
-            },
-            {
-                frameId: 8,
-                frameUrl: "https://cdn-host.example/embed/player",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "https://cdn-host.example/video.mp4",
-                        sources: [],
-                        durationSeconds: 45,
-                        isPlaying: false,
-                        inViewport: true,
-                        viewportArea: 120_000,
-                        title: "Visible Redirected Video",
-                    },
-                ],
-            },
-        ];
-
-        const frameInitialUrls = new Map<number, string>([
-            [4, "https://developers.google.com/frame/youtube/iframe_api_reference_demo.frame"],
-            [8, "https://visible-host.example/redirect-to-player"],
-        ]);
-
-        const merged = mergeDetectedVideos(frames, [], frameInitialUrls);
-        expect(
-            merged.map((video) => ({ title: video.title, inViewport: video.inViewport })),
-        ).toEqual([
-            { title: "Visible Redirected Video", inViewport: true },
-            { title: "Top Visible Embed", inViewport: true },
-            { title: "Offscreen Nested Embed", inViewport: false },
         ]);
     });
 
