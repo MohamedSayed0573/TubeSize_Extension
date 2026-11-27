@@ -1433,7 +1433,8 @@ describe("createPageUsageObserver", () => {
         reader.releaseLock();
         await expect(harness.globalObject.fetch(disturbedReq)).rejects.toThrow();
 
-        // 2. Untouched two-chunk stream Request must send both chunks and count all 300 bytes.
+        // 2. Untouched two-chunk stream Request must lock synchronously on fetch(req) so a
+        //    competing req.text() read rejects while the upload still sends and counts all 300 bytes.
         const untouched = new ReadableStream<Uint8Array>({
             start(c) {
                 c.enqueue(new Uint8Array(100));
@@ -1445,7 +1446,10 @@ describe("createPageUsageObserver", () => {
             method: "POST",
             body: untouched,
         });
-        await harness.globalObject.fetch(untouchedReq);
+        const uploadPromise = harness.globalObject.fetch(untouchedReq);
+        expect(untouched.locked).toBe(true);
+        await expect(untouchedReq.text()).rejects.toThrow();
+        await uploadPromise;
         expect(receivedChunks).toEqual([100, 200]);
 
         harness.observer.flush();

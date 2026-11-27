@@ -128,8 +128,12 @@ export function measureBodyBytes(body: unknown): number {
 function wrapReadableStreamBody(
     stream: ReadableStream<Uint8Array>,
     onBytes: (bytes: number) => void,
+    onLockReady?: (lock: () => void) => void,
 ): ReadableStream<Uint8Array> {
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    onLockReady?.(() => {
+        reader ??= stream.getReader();
+    });
     return new ReadableStream<Uint8Array>(
         {
             async pull(controller) {
@@ -320,15 +324,25 @@ function patchFetchAndRequest(
                 if (tracked) {
                     if (tracked.isStream) {
                         if (typeof baseRequest === "function" && isFreshStream(input.body)) {
+                            let lockSource: (() => void) | undefined;
                             const wrappedInit: RequestInit & { duplex: "half" } = {
-                                body: wrapStream(input.body, (bytes) => {
-                                    if (!isActive() || bytes <= 0) return;
-                                    if (fetchResolved) onBytes(bytes);
-                                    else streamUploadBytes += bytes;
-                                }),
+                                body: wrapStream(
+                                    input.body,
+                                    (bytes) => {
+                                        if (!isActive() || bytes <= 0) return;
+                                        if (fetchResolved) onBytes(bytes);
+                                        else streamUploadBytes += bytes;
+                                    },
+                                    (lock) => {
+                                        lockSource = lock;
+                                    },
+                                ),
                                 duplex: "half",
                             };
                             const wrappedReq = Reflect.construct(baseRequest, [input, wrappedInit]);
+                            // Lock the caller's original stream synchronously after constructing the
+                            // replacement Request so competing reads (e.g. `req.text()`) reject just like native fetch.
+                            lockSource?.();
                             callArgs = init !== undefined ? [wrappedReq, init] : [wrappedReq];
                         }
                     } else {
