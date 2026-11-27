@@ -2,6 +2,7 @@ import { isFirefox } from "@lib/browser";
 
 import { MAX_SAFE_BYTES } from "@/db";
 
+import { type DownloadDedup, isAttachmentNavigation } from "./downloadDedup";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 const CONTENT_LENGTH_HEADER = "content-length";
@@ -14,9 +15,12 @@ export type CompletedRequestDetails = chrome.webRequest.OnCompletedDetails & {
     documentUrl?: string;
 };
 
-export function setupTrackUsage(ingestion: UsageIngestion = createUsageIngestion()): () => void {
+export function setupTrackUsage(
+    ingestion: UsageIngestion = createUsageIngestion(),
+    dedup?: DownloadDedup,
+): () => void {
     const onRequestCompleted = (details: CompletedRequestDetails) => {
-        void trackRequest(ingestion, details);
+        void trackRequest(ingestion, details, dedup);
     };
     const onTabRemoved = () => {
         if (!ingestion.hasPendingUsage) return;
@@ -59,7 +63,11 @@ async function resolveRequestTabUrl(details: CompletedRequestDetails): Promise<s
     return tabUrl;
 }
 
-export async function trackRequest(ingestion: UsageIngestion, details: CompletedRequestDetails) {
+export async function trackRequest(
+    ingestion: UsageIngestion,
+    details: CompletedRequestDetails,
+    dedup?: DownloadDedup,
+) {
     try {
         if (!isCountableRequest(details)) return;
 
@@ -68,6 +76,8 @@ export async function trackRequest(ingestion: UsageIngestion, details: Completed
 
         const tabUrl = await resolveRequestTabUrl(details);
         if (!tabUrl) return;
+
+        if (dedup?.interceptWebRequest(details, tabUrl, bytes)) return;
 
         ingestion.bufferTabUsage(tabUrl, bytes);
     } catch (err) {
@@ -83,7 +93,8 @@ export function isCountableRequest(details: CompletedRequestDetails) {
         isExtensionUrl(details.originUrl) ||
         isExtensionUrl(details.documentUrl) ||
         details.fromCache ||
-        details.method === "HEAD"
+        details.method === "HEAD" ||
+        isAttachmentNavigation(details)
     );
 }
 
