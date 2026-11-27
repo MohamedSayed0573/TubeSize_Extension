@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { resolveHlsStreams, toVodFormats } from "@lib/hls";
+import { MediaEstimateError } from "@lib/mediaEstimateError";
 import type { FetchLike } from "@lib/utils";
 
 const MASTER_URL = "https://cdn.example.com/master.m3u8";
@@ -75,20 +76,73 @@ describe("resolveHlsStreams", () => {
         expect(streams).toEqual([]);
     });
 
-    test("throws when master M3U8 fetch fails or contains no playlists", async () => {
+    test("throws classified MediaEstimateError when master M3U8 fails or contains no playlists", async () => {
         await expect(
             resolveHlsStreams(MASTER_URL, {
                 fetch: async () => new Response("Forbidden", { status: 403 }),
                 sleep: instantSleep,
             }),
-        ).rejects.toThrow("Error fetching master M3U8");
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "restricted_content",
+            message: expect.stringContaining("Error fetching master M3U8"),
+        });
+
+        await expect(
+            resolveHlsStreams(MASTER_URL, {
+                fetch: async () => new Response("Not Found", { status: 404 }),
+                sleep: instantSleep,
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "unavailable",
+        });
+
+        await expect(
+            resolveHlsStreams(MASTER_URL, {
+                fetch: async () => new Response("Not Found", { status: 404 }),
+                notFoundCode: "stream_offline",
+                sleep: instantSleep,
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "stream_offline",
+        });
+
+        await expect(
+            resolveHlsStreams(MASTER_URL, {
+                fetch: async () => new Response("Service Unavailable", { status: 503 }),
+                sleep: instantSleep,
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "network_error",
+        });
 
         await expect(
             resolveHlsStreams(MASTER_URL, {
                 fetch: async () => new Response("#EXTM3U\n", { status: 200 }),
                 sleep: instantSleep,
             }),
-        ).rejects.toThrow("No playlists found in master M3U8");
+        ).rejects.toEqual(
+            new MediaEstimateError("no_formats", "No playlists found in master M3U8"),
+        );
+
+        await expect(
+            resolveHlsStreams(MASTER_URL, {
+                fetch: async () => {
+                    const response = new Response("", { status: 200 });
+                    response.text = async () => {
+                        throw new TypeError("Body stream interrupted");
+                    };
+                    return response;
+                },
+                sleep: instantSleep,
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "network_error",
+        });
     });
 
     test("computes bytes/sec from 206 Content-Range segment probes sorted by resolution descending without refetching the first media playlist", async () => {

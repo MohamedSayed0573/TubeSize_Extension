@@ -6,6 +6,7 @@ import { toVideoKey } from "@lib/platformUrl";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
 import { addVideoMetadata, clearDatabaseData, getAllSiteUsage, getAllWatchHistory } from "@/db";
+import { createDownloadDedup } from "@/entrypoints/background/downloadDedup";
 import { createUsageIngestion } from "@/entrypoints/background/usageIngestion";
 import {
     type BeforeSendHeadersDetails,
@@ -517,6 +518,69 @@ describe("createRequestUsageTracker upload lifecycle", () => {
         });
     });
 
+    test("preserves upload bytes when a POST triggers an attachment download or DownloadDedup intercept", async () => {
+        const ingestion = createUsageIngestion();
+        const dedup = createDownloadDedup((tabUrl, bytes) => {
+            ingestion.bufferTabUsage(tabUrl, bytes);
+        });
+        cleanups.push(() => dedup.dispose());
+        const tracker = createRequestUsageTracker(ingestion, 1000, dedup);
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/export" });
+
+        // POST -> Content-Disposition: attachment skips response bytes (owned by chrome.downloads)
+        // but still commits staged upload bytes.
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "up-attach",
+                tabId: tab.id,
+                type: "main_frame",
+                url: "https://example.com/export/download",
+                requestHeaders: [{ name: "Content-Length", value: "6000" }],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "up-attach",
+                tabId: tab.id,
+                type: "main_frame",
+                method: "POST",
+                url: "https://example.com/export/download",
+                responseHeaders: [
+                    { name: "Content-Length", value: "50000" },
+                    { name: "Content-Disposition", value: 'attachment; filename="report.csv"' },
+                ],
+            }),
+        );
+
+        // POST -> active download matched by DownloadDedup suppresses response bytes
+        // but still commits staged upload bytes immediately.
+        dedup.track(42, ["https://example.com/export/binary"]);
+        tracker.handleBeforeSendHeaders(
+            makeBeforeSendDetails({
+                requestId: "up-dedup",
+                tabId: tab.id,
+                type: "main_frame",
+                url: "https://example.com/export/binary",
+                requestHeaders: [{ name: "Content-Length", value: "4000" }],
+            }),
+        );
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "up-dedup",
+                tabId: tab.id,
+                type: "main_frame",
+                method: "POST",
+                url: "https://example.com/export/binary",
+                responseHeaders: [{ name: "Content-Length", value: "90000" }],
+            }),
+        );
+
+        await ingestion.flush();
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 10_000,
+        });
+    });
+
     test("avoids overcounting on 307/308 and 302 redirects sharing a requestId", async () => {
         const ingestion = createUsageIngestion();
         const tracker = createRequestUsageTracker(ingestion);
@@ -692,7 +756,50 @@ describe("createRequestUsageTracker upload lifecycle", () => {
     });
 });
 
-describe("setupTrackUsage listener options", () => {
+function stubWebRequestCompleted() {
+    const listeners = new Set<(details: CompletedRequestDetails) => void>();
+    const addBeforeSendSpy = spyOn(
+        chrome.webRequest.onBeforeSendHeaders,
+        "addListener",
+    ).mockImplementation(() => {});
+    const removeBeforeSendSpy = spyOn(
+        chrome.webRequest.onBeforeSendHeaders,
+        "removeListener",
+    ).mockImplementation(() => {});
+    const addSpy = spyOn(chrome.webRequest.onCompleted, "addListener").mockImplementation(
+        (listener) => {
+            listeners.add(listener);
+        },
+    );
+    const removeSpy = spyOn(chrome.webRequest.onCompleted, "removeListener").mockImplementation(
+        (listener) => {
+            listeners.delete(listener);
+        },
+    );
+    const addErrorSpy = spyOn(chrome.webRequest.onErrorOccurred, "addListener").mockImplementation(
+        () => {},
+    );
+    const removeErrorSpy = spyOn(
+        chrome.webRequest.onErrorOccurred,
+        "removeListener",
+    ).mockImplementation(() => {});
+    cleanups.push(() => {
+        addBeforeSendSpy.mockRestore();
+        removeBeforeSendSpy.mockRestore();
+        addSpy.mockRestore();
+        removeSpy.mockRestore();
+        addErrorSpy.mockRestore();
+        removeErrorSpy.mockRestore();
+    });
+    return {
+        emit: (details: CompletedRequestDetails) => {
+            for (const listener of listeners) listener(details);
+        },
+        listenerCount: () => listeners.size,
+    };
+}
+
+describe("setupTrackUsage", () => {
     test("registers Chromium extraHeaders and omits extraHeaders on Firefox", () => {
         const beforeSendCalls: unknown[][] = [];
         const completedCalls: unknown[][] = [];
@@ -701,12 +808,15 @@ describe("setupTrackUsage listener options", () => {
         const webRequestMock = {
             onBeforeSendHeaders: {
                 addListener: (...args: unknown[]) => beforeSendCalls.push(args),
+                removeListener: () => {},
             },
             onCompleted: {
                 addListener: (...args: unknown[]) => completedCalls.push(args),
+                removeListener: () => {},
             },
             onErrorOccurred: {
                 addListener: (...args: unknown[]) => errorCalls.push(args),
+                removeListener: () => {},
             },
         };
         const originalWebRequest = chrome.webRequest;
@@ -735,15 +845,97 @@ describe("setupTrackUsage listener options", () => {
         cleanups.push(() => isFirefoxSpy.mockRestore());
 
         isFirefoxSpy.mockReturnValue(false);
-        setupTrackUsage(noopIngestion);
+        const teardownChromium = setupTrackUsage(noopIngestion);
+        cleanups.push(teardownChromium);
         expect(beforeSendCalls[0]?.[2]).toEqual(["requestHeaders", "extraHeaders"]);
         expect(completedCalls[0]?.[2]).toEqual(["responseHeaders", "extraHeaders"]);
         expect(errorCalls).toHaveLength(1);
 
         isFirefoxSpy.mockReturnValue(true);
-        setupTrackUsage(noopIngestion);
+        const teardownFirefox = setupTrackUsage(noopIngestion);
+        cleanups.push(teardownFirefox);
         expect(beforeSendCalls[1]?.[2]).toEqual(["requestHeaders"]);
         expect(completedCalls[1]?.[2]).toEqual(["responseHeaders"]);
         expect(errorCalls).toHaveLength(2);
+    });
+
+    test("flushes pending buffered usage immediately when a tab closes", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+        const webRequest = stubWebRequestCompleted();
+
+        const ingestion = createUsageIngestion({ flushIntervalMs: 60_000 });
+        const teardown = setupTrackUsage(ingestion);
+        cleanups.push(teardown);
+
+        const tab = await fakeBrowser.tabs.create({ url: "https://example.com/closing" });
+        webRequest.emit(
+            makeDetails({
+                tabId: tab.id,
+                url: "https://cdn.example.net/bundle.js",
+                initiator: "https://example.com",
+                responseHeaders: [{ name: "Content-Length", value: "15000" }],
+            }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(ingestion.hasPendingUsage).toBe(true);
+
+        await fakeBrowser.tabs.onRemoved.trigger(tab.id!, {
+            windowId: tab.windowId ?? 1,
+            isWindowClosing: false,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(ingestion.hasPendingUsage).toBe(false);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://example.com")]: 15_000,
+        });
+        expect(await fakeBrowser.action.getBadgeText({})).toBe("15K");
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    test("skips flush on tab close when nothing is buffered and logs flush failures", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+        const webRequest = stubWebRequestCompleted();
+
+        const writeSiteUsage = spyOn({ write: async () => {} }, "write").mockRejectedValue(
+            new Error("idb unavailable"),
+        );
+        const ingestion = createUsageIngestion({
+            flushIntervalMs: 60_000,
+            writeSiteUsage,
+        });
+        const teardown = setupTrackUsage(ingestion);
+        cleanups.push(teardown);
+
+        await fakeBrowser.tabs.onRemoved.trigger(1, {
+            windowId: 1,
+            isWindowClosing: false,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(writeSiteUsage).not.toHaveBeenCalled();
+
+        ingestion.bufferTabUsage("https://example.com/page", 4_000);
+        await fakeBrowser.tabs.onRemoved.trigger(1, {
+            windowId: 1,
+            isWindowClosing: false,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(writeSiteUsage).toHaveBeenCalledTimes(1);
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+            "Failed to flush usage on tab close:",
+            expect.any(Error),
+        );
+
+        teardown();
+        expect(webRequest.listenerCount()).toBe(0);
+        await fakeBrowser.tabs.onRemoved.trigger(2, {
+            windowId: 1,
+            isWindowClosing: false,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(writeSiteUsage).toHaveBeenCalledTimes(1);
     });
 });

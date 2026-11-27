@@ -10,6 +10,10 @@ export function useMediaEstimate(tabUrl: string) {
         queryKey: ["mediaEstimate", tabUrl],
         queryFn: () => requestMediaEstimate(tabUrl),
         enabled: isRunningVideo,
+        // Background fetchAndRetry already retries transient 5xx/network failures;
+        // fail fast in the popup so deterministic errors and rate-limits/timeouts
+        // surface immediately with the manual Retry action.
+        retry: false,
     });
 
     return {

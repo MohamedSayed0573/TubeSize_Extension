@@ -1,6 +1,11 @@
-import type { UsageMessage } from "@app-types/types";
-
 const DEFAULT_FLUSH_INTERVAL_MS = 3000;
+
+// Window-level CustomEvent carrying a primitive byte count as `detail`. Unlike
+// window.postMessage (an async task), dispatchEvent runs the ISOLATED-world
+// usageBridge listener synchronously, so the final pagehide flush is relayed before
+// a closing tab tears down the document. A primitive `detail` crosses worlds and
+// Firefox Xrays unchanged.
+export const SITE_USAGE_EVENT = "TUBESIZE_SITE_USAGE";
 
 export type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -30,9 +35,8 @@ export interface PageUsageObserverPorts {
     urlApi?: Pick<typeof URL, "createObjectURL" | "revokeObjectURL">;
     Blob?: typeof Blob;
     getBaseURI?: () => string;
-    postMessage?: (message: UsageMessage) => void;
     scheduleInterval?: (callback: () => void, intervalMs: number) => () => void;
-    windowTarget?: Pick<EventTarget, "addEventListener" | "removeEventListener">;
+    windowTarget?: Pick<EventTarget, "addEventListener" | "removeEventListener" | "dispatchEvent">;
     documentTarget?: PageUsageObserverDocument;
     onError?: (err: unknown) => void;
     flushIntervalMs?: number;
@@ -447,6 +451,8 @@ function initWorkerUsagePatch(
                 for (;;) {
                     const { done, value } = await reader.read();
                     if (done) break;
+                    // Forward each chunk immediately: a worker-side buffer would
+                    // lose its bytes if the tab closed before the next report.
                     emitBytes(value.byteLength);
                 }
             })().catch(() => undefined);
@@ -571,8 +577,6 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
     const urlApi = ports.urlApi ?? URL;
     const BlobCtor = ports.Blob ?? Blob;
     const getBaseURI = ports.getBaseURI ?? (() => document.baseURI);
-    const postMessage =
-        ports.postMessage ?? ((message: UsageMessage) => globalThis.postMessage(message, "*"));
     const scheduleInterval = ports.scheduleInterval ?? defaultScheduleInterval;
     const windowTarget = ports.windowTarget ?? (typeof window !== "undefined" ? window : undefined);
     const documentTarget =
@@ -600,10 +604,7 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
         if (total === 0) return;
         const bytes = total;
         total = 0;
-        postMessage({
-            type: "TUBESIZE_SITE_USAGE",
-            bytes,
-        });
+        windowTarget?.dispatchEvent(new CustomEvent(SITE_USAGE_EVENT, { detail: bytes }));
     }
 
     function onPageHide() {

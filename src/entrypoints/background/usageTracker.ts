@@ -2,6 +2,7 @@ import { isFirefox } from "@lib/browser";
 
 import { MAX_SAFE_BYTES, addSafeBytes } from "@/db";
 
+import { type DownloadDedup, isAttachmentNavigation } from "./downloadDedup";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 const CONTENT_LENGTH_HEADER = "content-length";
@@ -40,6 +41,7 @@ export interface RequestUsageTracker {
 export function createRequestUsageTracker(
     ingestion: UsageIngestion = createUsageIngestion(),
     maxPendingUploads = MAX_PENDING_UPLOADS,
+    dedup?: DownloadDedup,
 ): RequestUsageTracker {
     const pendingUploads = new Map<string, number>();
 
@@ -67,14 +69,25 @@ export function createRequestUsageTracker(
             const uploadBytes = pendingUploads.get(details.requestId);
             pendingUploads.delete(details.requestId);
 
-            if (!isCountableRequest(details)) return;
+            if (!isCountableBaseRequest(details) || details.fromCache) return;
 
-            const responseBytes = getHeaderContentLength(details.responseHeaders);
-            const totalBytes = addSafeBytes(responseBytes ?? 0, uploadBytes ?? 0);
-            if (totalBytes <= 0) return;
+            const responseBytes = isAttachmentNavigation(details)
+                ? undefined
+                : getHeaderContentLength(details.responseHeaders);
+            const hasUpload = uploadBytes !== undefined && uploadBytes > 0;
+            const hasResponse = responseBytes !== undefined && responseBytes > 0;
+            if (!hasUpload && !hasResponse) return;
 
             const tabUrl = await resolveRequestTabUrl(details);
             if (!tabUrl) return;
+
+            if (hasResponse && dedup?.interceptWebRequest(details, tabUrl, responseBytes)) {
+                if (hasUpload) ingestion.bufferTabUsage(tabUrl, uploadBytes);
+                return;
+            }
+
+            const totalBytes = addSafeBytes(responseBytes ?? 0, uploadBytes ?? 0);
+            if (totalBytes <= 0) return;
 
             ingestion.bufferTabUsage(tabUrl, totalBytes);
         } catch (err) {
@@ -92,32 +105,55 @@ export function createRequestUsageTracker(
     };
 }
 
-export function setupTrackUsage(ingestion: UsageIngestion = createUsageIngestion()) {
-    const tracker = createRequestUsageTracker(ingestion);
+export function setupTrackUsage(
+    ingestion: UsageIngestion = createUsageIngestion(),
+    dedup?: DownloadDedup,
+): () => void {
+    const tracker = createRequestUsageTracker(ingestion, MAX_PENDING_UPLOADS, dedup);
     const firefox = isFirefox();
+
+    const onBeforeSendHeaders = (details: BeforeSendHeadersDetails) => {
+        tracker.handleBeforeSendHeaders(details);
+        return undefined;
+    };
+    const onRequestCompleted = (details: CompletedRequestDetails) => {
+        void tracker.handleCompleted(details);
+    };
+    const onRequestError = (details: chrome.webRequest.OnErrorOccurredDetails) => {
+        tracker.handleErrorOccurred(details);
+    };
+    const onTabRemoved = () => {
+        if (!ingestion.hasPendingUsage) return;
+        void ingestion.flush().catch((err: unknown) => {
+            console.error("Failed to flush usage on tab close:", err);
+        });
+    };
 
     // `extraHeaders` is Chromium-only; Firefox rejects it.
     chrome.webRequest.onBeforeSendHeaders.addListener(
-        (details) => {
-            tracker.handleBeforeSendHeaders(details);
-            return undefined;
-        },
+        onBeforeSendHeaders,
         { urls: ["<all_urls>"] },
         firefox ? ["requestHeaders"] : ["requestHeaders", "extraHeaders"],
     );
 
     chrome.webRequest.onCompleted.addListener(
-        (details) => void tracker.handleCompleted(details),
+        onRequestCompleted,
         { urls: ["<all_urls>"] },
         firefox ? ["responseHeaders"] : ["responseHeaders", "extraHeaders"],
     );
 
-    chrome.webRequest.onErrorOccurred.addListener(
-        (details) => tracker.handleErrorOccurred(details),
-        { urls: ["<all_urls>"] },
-    );
+    chrome.webRequest.onErrorOccurred.addListener(onRequestError, { urls: ["<all_urls>"] });
+    chrome.tabs.onRemoved.addListener(onTabRemoved);
 
-    ingestion.startAutoFlush();
+    const stopAutoFlush = ingestion.startAutoFlush();
+
+    return () => {
+        chrome.webRequest.onBeforeSendHeaders.removeListener(onBeforeSendHeaders);
+        chrome.webRequest.onCompleted.removeListener(onRequestCompleted);
+        chrome.webRequest.onErrorOccurred.removeListener(onRequestError);
+        chrome.tabs.onRemoved.removeListener(onTabRemoved);
+        stopAutoFlush();
+    };
 }
 
 async function resolveRequestTabUrl(details: CompletedRequestDetails): Promise<string | undefined> {
@@ -137,8 +173,12 @@ async function resolveRequestTabUrl(details: CompletedRequestDetails): Promise<s
     return tabUrl;
 }
 
-export async function trackRequest(ingestion: UsageIngestion, details: CompletedRequestDetails) {
-    await createRequestUsageTracker(ingestion).handleCompleted(details);
+export async function trackRequest(
+    ingestion: UsageIngestion,
+    details: CompletedRequestDetails,
+    dedup?: DownloadDedup,
+) {
+    await createRequestUsageTracker(ingestion, MAX_PENDING_UPLOADS, dedup).handleCompleted(details);
 }
 
 function isCountableBaseRequest(details: CountableBaseDetails) {
@@ -153,7 +193,9 @@ function isCountableBaseRequest(details: CountableBaseDetails) {
 }
 
 export function isCountableRequest(details: CompletedRequestDetails) {
-    return isCountableBaseRequest(details) && !details.fromCache;
+    return (
+        isCountableBaseRequest(details) && !details.fromCache && !isAttachmentNavigation(details)
+    );
 }
 
 export function isCountableUploadRequest(details: BeforeSendHeadersDetails) {

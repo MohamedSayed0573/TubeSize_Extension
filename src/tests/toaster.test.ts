@@ -34,6 +34,13 @@ const vodFormats: DisplayFormat[] = [
     },
     {
         kind: "vod",
+        key: 271,
+        resolution: 1440,
+        sizeBytes: 600_000_000,
+        sizePerSecondBytes: 180_000,
+    },
+    {
+        kind: "vod",
         key: 136,
         resolution: 720,
         sizeBytes: 300_000_000,
@@ -50,56 +57,106 @@ const liveFormats: DisplayFormat[] = [
     },
 ];
 
+function getToastHost(): HTMLElement | null {
+    return document.querySelector("#TubeSize-Toast-Host");
+}
+
+function getToastShadowRoot(): ShadowRoot | null {
+    return getToastHost()?.shadowRoot ?? null;
+}
+
 describe("createToaster", () => {
-    test("mounts total and hourly usage for VOD exceeding threshold and skips below threshold", async () => {
+    test("mounts total and hourly usage inside an open Shadow DOM with encapsulated styles and skips below threshold", async () => {
         const toaster = createToaster();
 
         await toaster.show({ formats: vodFormats, currentQuality: 720, thresholdMbph: 500 });
-        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+        expect(getToastHost()).toBeNull();
 
         await toaster.show({ formats: vodFormats, currentQuality: 480, thresholdMbph: 500 });
-        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+        expect(getToastHost()).toBeNull();
 
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
-        const host = document.querySelector("#TubeSize-Toast-Host");
+        const host = getToastHost();
         expect(host).not.toBeNull();
-        expect(host?.textContent).toContain("Current Quality: 2160p");
-        expect(host?.textContent).toContain("Total Usage: 900 MB");
-        expect(host?.textContent).toContain("Per Hour Usage: 900 MB");
-        expect(host?.querySelector(".container")?.getAttribute("dir")).toBe("ltr");
+        expect(host?.childNodes).toHaveLength(0);
+        expect(host?.querySelector(".container")).toBeNull();
+
+        const shadowRoot = host?.shadowRoot;
+        expect(shadowRoot).not.toBeNull();
+
+        const styles = shadowRoot?.querySelectorAll("style");
+        expect(styles).toHaveLength(1);
+        expect(styles?.[0]?.textContent).toContain(":host");
+        expect(styles?.[0]?.textContent).toContain("all: initial");
+        expect(styles?.[0]?.textContent).toContain(".container");
+
+        const container = shadowRoot?.querySelector(".container");
+        expect(container).not.toBeNull();
+        expect(container?.textContent).toContain("Current Quality: 2160p");
+        expect(container?.textContent).toContain("Total Usage: 900 MB");
+        expect(container?.textContent).toContain("Per Hour Usage: 900 MB");
+        expect(container?.getAttribute("dir")).toBe("ltr");
     });
 
-    test("renders hourly usage without total size on live streams and supports Arabic RTL", async () => {
+    test("re-mounting updates toast content inside the existing Shadow DOM without duplicating style nodes", async () => {
+        const toaster = createToaster();
+
+        await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
+        const initialHost = getToastHost();
+        const initialShadowRoot = getToastShadowRoot();
+        const initialStyle = initialShadowRoot?.querySelector("style");
+        expect(initialShadowRoot?.querySelector(".container")?.textContent).toContain(
+            "Current Quality: 2160p",
+        );
+
+        await toaster.show({ formats: vodFormats, currentQuality: 1440, thresholdMbph: 500 });
+        const updatedHost = getToastHost();
+        const updatedShadowRoot = getToastShadowRoot();
+        expect(updatedHost).toBe(initialHost);
+        expect(updatedShadowRoot).toBe(initialShadowRoot);
+        expect(updatedShadowRoot?.querySelectorAll("style")).toHaveLength(1);
+        expect(updatedShadowRoot?.querySelector("style")).toBe(initialStyle);
+        expect(updatedShadowRoot?.querySelectorAll(".container")).toHaveLength(1);
+        expect(updatedShadowRoot?.querySelector(".container")?.textContent).toContain(
+            "Current Quality: 1440p",
+        );
+        expect(updatedShadowRoot?.querySelector(".container")?.textContent).toContain(
+            "Total Usage: 600 MB",
+        );
+    });
+
+    test("renders hourly usage without total size on live streams and supports Arabic RTL inside Shadow DOM", async () => {
         await setLanguage("ar");
         const toaster = createToaster();
 
         await toaster.show({ formats: liveFormats, currentQuality: 1080, thresholdMbph: 500 });
-        const host = document.querySelector("#TubeSize-Toast-Host");
+        const host = getToastHost();
         expect(host).not.toBeNull();
-        expect(host?.querySelector(".container")?.getAttribute("dir")).toBe("rtl");
-        expect(host?.querySelector(".container")?.getAttribute("lang")).toBe("ar");
-        expect(host?.textContent).not.toContain("Total Usage:");
+        expect(host?.childNodes).toHaveLength(0);
+
+        const container = host?.shadowRoot?.querySelector(".container");
+        expect(container?.getAttribute("dir")).toBe("rtl");
+        expect(container?.getAttribute("lang")).toBe("ar");
+        expect(container?.textContent).not.toContain("Total Usage:");
     });
 
-    test("OK button unmounts toast without suppressing future alerts on the same day", async () => {
+    test("OK button inside Shadow DOM unmounts toast without suppressing future alerts on the same day", async () => {
         const controller = new AbortController();
         const toaster = createToaster(controller.signal);
 
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
-        const okBtn = document.querySelector<HTMLButtonElement>(
-            "#TubeSize-Toast-Host button.firstBtn",
-        );
+        const okBtn = getToastShadowRoot()?.querySelector<HTMLButtonElement>("button.firstBtn");
         expect(okBtn?.textContent).toBe("OK");
 
         okBtn?.click();
-        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+        expect(getToastHost()).toBeNull();
         expect(await storage.getItem("local:toasterSuppressedDate")).toBeNull();
 
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
-        expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+        expect(getToastHost()).not.toBeNull();
 
         controller.abort();
-        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+        expect(getToastHost()).toBeNull();
     });
 
     test("clicking OK cancels a pending show call while keeping future resolution alerts active", async () => {
@@ -107,9 +164,7 @@ describe("createToaster", () => {
         const toaster = createToaster(controller.signal);
 
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
-        const okBtn = document.querySelector<HTMLButtonElement>(
-            "#TubeSize-Toast-Host button.firstBtn",
-        );
+        const okBtn = getToastShadowRoot()?.querySelector<HTMLButtonElement>("button.firstBtn");
 
         const pendingShow = toaster.show({
             formats: vodFormats,
@@ -119,31 +174,31 @@ describe("createToaster", () => {
         okBtn?.click();
         await pendingShow;
 
-        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+        expect(getToastHost()).toBeNull();
 
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
-        expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+        expect(getToastHost()).not.toBeNull();
     });
 
-    test("Don't show again persists today's DateKey and suppresses further toasts for that day", async () => {
+    test("Don't show again inside Shadow DOM persists today's DateKey and suppresses further toasts for that day", async () => {
         const expectedDate = toDateKey("2026-06-04");
         expect(expectedDate).toBeDefined();
         const toaster = createToaster();
 
         setSystemTime(new Date(2026, 5, 4, 12, 0, 0));
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
-        const buttons = document.querySelectorAll<HTMLButtonElement>("#TubeSize-Toast-Host button");
-        const suppressBtn = buttons[1];
+        const buttons = getToastShadowRoot()?.querySelectorAll<HTMLButtonElement>("button");
+        const suppressBtn = buttons?.[1];
         expect(suppressBtn?.textContent).toBe("Don't show again for today");
 
         suppressBtn?.click();
         await Promise.resolve();
 
-        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+        expect(getToastHost()).toBeNull();
         expect(await storage.getItem("local:toasterSuppressedDate")).toBe(expectedDate!);
 
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
-        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+        expect(getToastHost()).toBeNull();
     });
 
     test("does not leak suppression state across tests on the same calendar day", async () => {
@@ -151,31 +206,31 @@ describe("createToaster", () => {
         const toaster = createToaster();
 
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
-        expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+        expect(getToastHost()).not.toBeNull();
     });
 
     test("unmounts an existing toast when quality drops at or below threshold or becomes unmapped", async () => {
         const toaster = createToaster();
 
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
-        expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+        expect(getToastHost()).not.toBeNull();
 
         await toaster.show({ formats: vodFormats, currentQuality: 720, thresholdMbph: 500 });
-        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+        expect(getToastHost()).toBeNull();
 
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
-        expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+        expect(getToastHost()).not.toBeNull();
 
         // Exact threshold boundary (250_000 B/s * 3600 = 900 MB/h <= 900)
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 900 });
-        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+        expect(getToastHost()).toBeNull();
 
         await toaster.show({ formats: vodFormats, currentQuality: 2160, thresholdMbph: 500 });
-        expect(document.querySelector("#TubeSize-Toast-Host")).not.toBeNull();
+        expect(getToastHost()).not.toBeNull();
 
         // Unmapped resolution (not present in vodFormats)
         await toaster.show({ formats: vodFormats, currentQuality: 480, thresholdMbph: 500 });
-        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+        expect(getToastHost()).toBeNull();
     });
 
     test("aborting signal cancels an in-flight show call", async () => {
@@ -190,6 +245,6 @@ describe("createToaster", () => {
         controller.abort();
         await pending;
 
-        expect(document.querySelector("#TubeSize-Toast-Host")).toBeNull();
+        expect(getToastHost()).toBeNull();
     });
 });

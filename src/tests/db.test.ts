@@ -9,8 +9,10 @@ import {
     addVideoMetadata,
     addWatchHistory,
     clearDatabaseData,
+    commitDownloadProgress,
     getAllSiteUsage,
     getAllWatchHistory,
+    getDownloadCheckpoints,
     getSiteUsage,
     getSiteUsageByDate,
     getVideoMetadataByVideoKey,
@@ -247,8 +249,44 @@ describe("videoMetaData table", () => {
     });
 });
 
+describe("downloadCheckpoints table", () => {
+    test("commits siteUsage and download checkpoint upserts and deletes atomically", async () => {
+        const example = origin("https://example.com");
+
+        await commitDownloadProgress({
+            usage: { [example]: 12_500 },
+            upserts: [
+                {
+                    id: 1,
+                    startTime: "2026-11-25T00:00:00.000Z",
+                    bytesReceived: 12_500,
+                },
+            ],
+            deletes: [],
+        });
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({ [example]: 12_500 });
+        expect(await getDownloadCheckpoints()).toEqual([
+            {
+                id: 1,
+                startTime: "2026-11-25T00:00:00.000Z",
+                bytesReceived: 12_500,
+            },
+        ]);
+
+        await commitDownloadProgress({
+            usage: { [example]: 7_500 },
+            upserts: [],
+            deletes: [1],
+        });
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({ [example]: 20_000 });
+        expect(await getDownloadCheckpoints()).toEqual([]);
+    });
+});
+
 describe("clearDatabaseData", () => {
-    test("empties siteUsage, watchHistory, and videoMetaData together", async () => {
+    test("empties siteUsage, watchHistory, videoMetaData, and downloadCheckpoints together", async () => {
         const yt = origin("https://www.youtube.com");
         const ytKey = toVideoKey("youtube", "dQw4w9WgXcQ");
 
@@ -262,11 +300,23 @@ describe("clearDatabaseData", () => {
             channelUrl: "https://www.youtube.com/@channel",
             thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
         });
+        await commitDownloadProgress({
+            usage: {},
+            upserts: [
+                {
+                    id: 7,
+                    startTime: "2026-11-25T00:00:00.000Z",
+                    bytesReceived: 4_000,
+                },
+            ],
+            deletes: [],
+        });
 
         await clearDatabaseData();
 
         expect(await getAllSiteUsage()).toEqual([]);
         expect(await getAllWatchHistory()).toEqual([]);
         expect(await getVideoMetadataByVideoKey(ytKey)).toBeUndefined();
+        expect(await getDownloadCheckpoints()).toEqual([]);
     });
 });

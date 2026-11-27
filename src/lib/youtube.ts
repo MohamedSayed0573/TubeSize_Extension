@@ -11,6 +11,11 @@ import type {
 import { getCachedAv1Support } from "@lib/codecSupport";
 import CONFIG from "@lib/constants";
 import { getMediaCache, saveMediaCache } from "@lib/mediaCache";
+import {
+    classifyFetchFailure,
+    MediaEstimateError,
+    readResponseText,
+} from "@lib/mediaEstimateError";
 import { getPlatformDisplayName, type ParsedYoutubeMedia } from "@lib/platformUrl";
 import { fetchAndRetry } from "@lib/utils";
 import { z } from "zod";
@@ -21,6 +26,116 @@ const AUDIO_ITAG = 251;
 const LIVE_AUDIO_ITAG = 140;
 const YT_INITIAL_PLAYER_ASSIGNMENT_REGEX = /\bytInitialPlayerResponse\s*=\s*\{/g;
 const DEFAULT_YOUTUBE_THUMBNAIL = "https://www.youtube.com/img/desktop/yt_1200.png";
+
+const SIGN_IN_PLAYABILITY_STATUSES = new Set([
+    "LOGIN_REQUIRED",
+    "AGE_CHECK_REQUIRED",
+    "AGE_VERIFICATION_REQUIRED",
+]);
+
+const MEMBERS_ONLY_REASON_REGEX =
+    /\b(?:members[- ]?only|join this channel|channel(?:'s)? members|channel membership|requires? membership|requires? payment|purchase|buy or rent|youtube premium|subscribers?[- ]?only)\b|(?:للمنتسبين|المنتسبين|الانتساب إلى هذه القناة)/i;
+
+const GEO_BLOCKED_REASON_REGEX =
+    /\b(?:in your country|in your region|not available in your|blocked it in your|geo[- ]?restrict|region[- ]?block)\b|(?:في بلدك|في منطقتك)/i;
+
+const SIGN_IN_REASON_REGEX =
+    /\b(?:age[- ]?restricted|confirm your age|sign in|log in|login)\b|(?:تسجيل الدخول|تأكيد عمرك)/i;
+
+const RESTRICTED_REASON_REGEX =
+    /\b(?:private video|video is private|restricted mode)\b|(?:فيديو خاص|وضع تقييد المحتوى)/i;
+
+const MEMBERS_ONLY_ICON_TYPES = new Set(["MONETIZATION_ON", "PAID"]);
+const RESTRICTED_ICON_TYPES = new Set(["LOCK", "PRIVATE", "PRIVACY_PRIVATE"]);
+
+const OFFLINE_REASON_REGEX =
+    /\b(?:live event will begin|premiere will begin|live stream is offline|stream is offline|upcoming)/i;
+
+const ytTextRunSchema = z.object({
+    simpleText: z.string().nullish(),
+    runs: z.array(z.object({ text: z.string().nullish() })).nullish(),
+});
+
+const ytButtonNavigationSchema = z.object({
+    signInEndpoint: z.unknown().nullish(),
+    urlEndpoint: z.object({ url: z.string().nullish() }).nullish(),
+});
+
+const ytProceedButtonSchema = z.object({
+    buttonRenderer: z
+        .object({
+            navigationEndpoint: ytButtonNavigationSchema.nullish(),
+            command: ytButtonNavigationSchema.nullish(),
+            serviceEndpoint: z.unknown().nullish(),
+        })
+        .nullish(),
+});
+
+const ytInterstitialViewModelSchema = z.object({
+    title: z.object({ content: z.string().nullish() }).nullish(),
+    description: z.object({ content: z.string().nullish() }).nullish(),
+    primaryButton: z
+        .object({
+            buttonViewModel: z
+                .object({
+                    accessibilityId: z.string().nullish(),
+                    onTap: z
+                        .object({
+                            innertubeCommand: z
+                                .object({
+                                    signInEndpoint: z.unknown().nullish(),
+                                })
+                                .nullish(),
+                        })
+                        .nullish(),
+                })
+                .nullish(),
+        })
+        .nullish(),
+});
+
+const ytPlayabilityStatusSchema = z.object({
+    status: z.string().nullish(),
+    reason: z.string().nullish(),
+    messages: z.array(z.string()).nullish(),
+    desktopLegacyAgeGateReason: z.number().nullish(),
+    errorScreen: z
+        .object({
+            playerLegacyDesktopYpcOfferRenderer: z.unknown().nullish(),
+            playerLegacyDesktopYpcTrailerRenderer: z.unknown().nullish(),
+            ypcTrailerRenderer: z.unknown().nullish(),
+            playerErrorMessageRenderer: z
+                .object({
+                    reason: ytTextRunSchema.nullish(),
+                    subreason: ytTextRunSchema.nullish(),
+                    icon: z.object({ iconType: z.string().nullish() }).nullish(),
+                    proceedButton: ytProceedButtonSchema.nullish(),
+                })
+                .nullish(),
+            playerInterstitialRenderer: z
+                .object({
+                    content: z
+                        .object({
+                            interstitialViewModel: ytInterstitialViewModelSchema.nullish(),
+                        })
+                        .nullish(),
+                })
+                .nullish(),
+        })
+        .nullish(),
+});
+
+const ytEnvelopeSchema = z.object({
+    playabilityStatus: ytPlayabilityStatusSchema.nullish(),
+    videoDetails: z
+        .object({
+            videoId: z.string().nullish(),
+        })
+        .nullish(),
+    streamingData: z.unknown().nullish(),
+});
+
+type YtPlayabilityStatus = z.infer<typeof ytPlayabilityStatusSchema>;
 
 const ytInitialSchema = z.object({
     videoDetails: z.object({
@@ -119,11 +234,157 @@ export function parseLiveFormats(
 async function fetchYoutubeHtml(mediaId: string) {
     const res = await fetchAndRetry(`https://www.youtube.com/watch?v=${mediaId}`, {
         method: "GET",
+        headers: { "Accept-Language": "en-US,en;q=0.9" },
         signal: AbortSignal.timeout(CONFIG.FETCH_HTML_TIMEOUT),
     });
-    if (!res.success) throw new Error(`HTTP ${res.error.message}`);
-    const fetchedHtml = await res.response.text();
-    return fetchedHtml;
+    if (!res.success) {
+        throw classifyFetchFailure(res, `HTTP ${res.error.message}`);
+    }
+    return readResponseText(res.response, "HTTP");
+}
+
+function extractTextRun(
+    run: z.infer<typeof ytTextRunSchema> | null | undefined,
+): string | undefined {
+    if (!run) return undefined;
+    if (run.simpleText) return run.simpleText;
+    if (run.runs && run.runs.length > 0) {
+        const joined = run.runs.map((part) => part.text ?? "").join("");
+        return joined || undefined;
+    }
+    return undefined;
+}
+
+function getPlayabilityDetail(playability: YtPlayabilityStatus): string {
+    const interstitial =
+        playability.errorScreen?.playerInterstitialRenderer?.content?.interstitialViewModel;
+    const parts = [
+        playability.reason,
+        ...(playability.messages ?? []),
+        extractTextRun(playability.errorScreen?.playerErrorMessageRenderer?.reason),
+        extractTextRun(playability.errorScreen?.playerErrorMessageRenderer?.subreason),
+        interstitial?.title?.content,
+        interstitial?.description?.content,
+    ]
+        .map((part) => part?.trim())
+        .filter((part): part is string => Boolean(part));
+
+    return [...new Set(parts)].join(" — ");
+}
+
+function isSignInNavigation(
+    nav: z.infer<typeof ytButtonNavigationSchema> | null | undefined,
+): boolean {
+    if (!nav) return false;
+    if (nav.signInEndpoint != null) return true;
+    const url = nav.urlEndpoint?.url;
+    if (!url) return false;
+    return /(?:accounts\.google\.com|\/signin\b)/i.test(url);
+}
+
+function hasSignInProceedButton(
+    proceedButton: z.infer<typeof ytProceedButtonSchema> | null | undefined,
+): boolean {
+    const renderer = proceedButton?.buttonRenderer;
+    if (!renderer) return false;
+    return (
+        renderer.serviceEndpoint != null ||
+        isSignInNavigation(renderer.navigationEndpoint) ||
+        isSignInNavigation(renderer.command)
+    );
+}
+
+function hasMembersOnlyPlayabilityMarkers(playability: YtPlayabilityStatus): boolean {
+    const screen = playability.errorScreen;
+    if (!screen) return false;
+    if (
+        screen.playerLegacyDesktopYpcOfferRenderer != null ||
+        screen.playerLegacyDesktopYpcTrailerRenderer != null ||
+        screen.ypcTrailerRenderer != null
+    ) {
+        return true;
+    }
+    const iconType = screen.playerErrorMessageRenderer?.icon?.iconType;
+    return iconType != null && MEMBERS_ONLY_ICON_TYPES.has(iconType);
+}
+
+function hasSignInPlayabilityMarkers(playability: YtPlayabilityStatus): boolean {
+    if (playability.desktopLegacyAgeGateReason != null) return true;
+    const screen = playability.errorScreen;
+    if (!screen) return false;
+    const interstitialButton =
+        screen.playerInterstitialRenderer?.content?.interstitialViewModel?.primaryButton
+            ?.buttonViewModel;
+    if (
+        interstitialButton?.onTap?.innertubeCommand?.signInEndpoint != null ||
+        interstitialButton?.accessibilityId === "id.interstitial_sign_in_button"
+    ) {
+        return true;
+    }
+    return hasSignInProceedButton(screen.playerErrorMessageRenderer?.proceedButton);
+}
+
+function hasGenericRestrictedMarkers(playability: YtPlayabilityStatus): boolean {
+    const iconType = playability.errorScreen?.playerErrorMessageRenderer?.icon?.iconType;
+    return iconType != null && RESTRICTED_ICON_TYPES.has(iconType);
+}
+
+function classifyYoutubePlayability(
+    playability: YtPlayabilityStatus,
+): MediaEstimateError | undefined {
+    const status = playability.status;
+    if (!status || status === "OK") return undefined;
+
+    const detail = getPlayabilityDetail(playability);
+
+    if (status === "LIVE_STREAM_OFFLINE") {
+        return new MediaEstimateError(
+            "stream_offline",
+            detail || "Live stream is currently offline",
+        );
+    }
+
+    if (hasMembersOnlyPlayabilityMarkers(playability) || MEMBERS_ONLY_REASON_REGEX.test(detail)) {
+        return new MediaEstimateError(
+            "members_only",
+            detail || "This video requires channel membership or purchase",
+        );
+    }
+
+    if (GEO_BLOCKED_REASON_REGEX.test(detail)) {
+        return new MediaEstimateError(
+            "geo_blocked",
+            detail || "This video is not available in your region",
+        );
+    }
+
+    if (
+        SIGN_IN_PLAYABILITY_STATUSES.has(status) ||
+        hasSignInPlayabilityMarkers(playability) ||
+        SIGN_IN_REASON_REGEX.test(detail)
+    ) {
+        return new MediaEstimateError(
+            "sign_in_required",
+            detail || "This video requires signing in",
+        );
+    }
+
+    if (
+        status === "CONTENT_CHECK_REQUIRED" ||
+        hasGenericRestrictedMarkers(playability) ||
+        RESTRICTED_REASON_REGEX.test(detail)
+    ) {
+        return new MediaEstimateError(
+            "restricted_content",
+            detail || "Access to this video is restricted",
+        );
+    }
+
+    if (OFFLINE_REASON_REGEX.test(detail)) {
+        return new MediaEstimateError("stream_offline", detail);
+    }
+
+    return new MediaEstimateError("unavailable", detail || `Video unavailable (${status})`);
 }
 
 function extractJsonObject(source: string, openBraceIndex: number): string | undefined {
@@ -159,12 +420,22 @@ function extractJsonObject(source: string, openBraceIndex: number): string | und
     return undefined;
 }
 
+function hasAdaptiveFormats(streamingData: unknown): boolean {
+    return (
+        typeof streamingData === "object" &&
+        streamingData !== null &&
+        "adaptiveFormats" in streamingData &&
+        Array.isArray(streamingData.adaptiveFormats)
+    );
+}
+
 type ParseYtInitialResult =
     | { ok: true; data: ytInitialPlayerResponse }
-    | { ok: false; error: Error };
+    | { ok: false; error: Error; definitive: boolean };
 
 function tryParseYtInitialFromHtml(html: string, mediaId: string): ParseYtInitialResult {
     let lastError: Error | undefined;
+    let playabilityError: MediaEstimateError | undefined;
 
     for (const match of html.matchAll(YT_INITIAL_PLAYER_ASSIGNMENT_REGEX)) {
         const openBraceIndex = match.index + match[0].length - 1;
@@ -173,20 +444,59 @@ function tryParseYtInitialFromHtml(html: string, mediaId: string): ParseYtInitia
 
         try {
             const data = JSON.parse(jsonText) as unknown;
-            const ytInitial = ytInitialSchema.parse(data);
-            if (ytInitial.videoDetails.videoId !== mediaId) {
+            const envelope = ytEnvelopeSchema.safeParse(data);
+            if (envelope.success) {
+                const candidateVideoId = envelope.data.videoDetails?.videoId;
+                if (candidateVideoId && candidateVideoId !== mediaId) {
+                    lastError = new Error(
+                        "Video ID mismatch between extracted data and requested video",
+                    );
+                    continue;
+                }
+
+                if (envelope.data.playabilityStatus) {
+                    const classified = classifyYoutubePlayability(envelope.data.playabilityStatus);
+                    if (classified) {
+                        playabilityError = classified;
+                        continue;
+                    }
+                }
+            }
+
+            const ytInitial = ytInitialSchema.safeParse(data);
+            if (!ytInitial.success) {
+                if (
+                    envelope.success &&
+                    envelope.data.videoDetails?.videoId === mediaId &&
+                    !hasAdaptiveFormats(envelope.data.streamingData)
+                ) {
+                    lastError = new MediaEstimateError(
+                        "no_formats",
+                        "No streaming data found for this video",
+                    );
+                } else {
+                    lastError = ytInitial.error;
+                }
+                continue;
+            }
+
+            if (ytInitial.data.videoDetails.videoId !== mediaId) {
                 lastError = new Error(
                     "Video ID mismatch between extracted data and requested video",
                 );
                 continue;
             }
-            return { ok: true, data: ytInitial };
+            return { ok: true, data: ytInitial.data };
         } catch (err) {
             lastError = err instanceof Error ? err : new Error(String(err));
         }
     }
 
-    return { ok: false, error: lastError ?? new Error("No match found") };
+    if (playabilityError) {
+        return { ok: false, error: playabilityError, definitive: true };
+    }
+
+    return { ok: false, error: lastError ?? new Error("No match found"), definitive: false };
 }
 
 export async function extractYtInitialResponse(
@@ -196,6 +506,7 @@ export async function extractYtInitialResponse(
     if (html) {
         const parsed = tryParseYtInitialFromHtml(html, mediaId);
         if (parsed.ok) return parsed.data;
+        if (parsed.definitive) throw parsed.error;
     }
 
     const fetchedHtml = await fetchYoutubeHtml(mediaId);
@@ -432,7 +743,7 @@ export async function estimateYoutube(
 ): Promise<MediaEstimate> {
     const { mediaId } = media;
     if (!mediaId) {
-        throw new Error("No media ID provided");
+        throw new MediaEstimateError("unsupported_url", "No media ID provided");
     }
 
     const cached = await getMediaCache("youtube", mediaId);
