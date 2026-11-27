@@ -26,6 +26,7 @@ class FakeXMLHttpRequest extends EventTarget {
     responseURL = "";
     status = 0;
     responseText = "";
+    emitLoadStartOnSend = false;
     uploadListenerCount = 0;
     upload = {
         addEventListener: () => {
@@ -55,6 +56,11 @@ class FakeXMLHttpRequest extends EventTarget {
     }
 
     send(_body?: Document | XMLHttpRequestBodyInit | null) {
+        if (this.emitLoadStartOnSend) {
+            this.emitLoadStartOnSend = false;
+            this.dispatchEvent(new Event("loadstart"));
+            return;
+        }
         const entry = FakeXMLHttpRequest.sources.get(this.requestedUrl);
         if (!entry) return;
         if (entry.throwOnSend) throw new Error("XHR send failed");
@@ -1502,9 +1508,22 @@ describe("createPageUsageObserver", () => {
         interrupted.status = 200;
         interrupted.open("GET", "https://example.com/replacement");
 
+        // 4. Reopening from `loadstart` (synchronously inside native send()) must detach the
+        //    abandoned send's listeners so the replacement request doesn't count the abandoned body.
+        const loadStartXhr = new FakeXMLHttpRequest();
+        loadStartXhr.emitLoadStartOnSend = true;
+        loadStartXhr.addEventListener("loadstart", () => {
+            loadStartXhr.open("POST", "https://example.com/after-loadstart");
+            loadStartXhr.send(new Uint8Array(250));
+        });
+        loadStartXhr.open("POST", "https://example.com/abandoned-in-loadstart");
+        loadStartXhr.send(new Uint8Array(1_000));
+        loadStartXhr.setResponseHeader("Content-Length", "10");
+        loadStartXhr.emitLoad(200, 10);
+
         harness.observer.flush();
-        // 500 (reopenOnly) + 500 (first) + 300 (second upload) + 150 (second chunked resp) = 1450
-        expect(harness.posted).toEqual([1_450]);
+        // 500 (reopenOnly) + 500 (first) + 300 (second upload) + 150 (second chunked resp) + 250 (after-loadstart) = 1700
+        expect(harness.posted).toEqual([1_700]);
         harness.observer.dispose();
     });
 

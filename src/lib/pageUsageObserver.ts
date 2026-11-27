@@ -811,6 +811,11 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                     cleanup();
                 };
                 const prevCleanup = meta?.cleanup;
+                const prevCommitIfDone = meta?.commitIfDone;
+                if (meta) {
+                    meta.cleanup = cleanup;
+                    meta.commitIfDone = commitIfDone;
+                }
                 this.addEventListener("progress", countProgress);
                 this.addEventListener("loadend", onLoadEnd);
                 try {
@@ -819,12 +824,13 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                     if (isSync) {
                         if (this.status > 0) commitUpload();
                         cleanup();
-                    } else if (meta) {
-                        meta.cleanup = cleanup;
-                        meta.commitIfDone = commitIfDone;
                     }
                 } catch (err) {
                     cleanup();
+                    if (meta && xhrMeta.get(this) === meta && meta.cleanup === undefined) {
+                        meta.cleanup = prevCleanup;
+                        meta.commitIfDone = prevCommitIfDone;
+                    }
                     throw err;
                 }
             }),
