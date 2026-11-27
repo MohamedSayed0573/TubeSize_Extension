@@ -187,23 +187,13 @@
         "message": "Video",
         "description": "Fallback title for a generic detected video"
     },
-    "popup_detectedVideos_label": {
-        "message": "Detected videos",
-        "description": "Accessible label for the multi-video switcher in the popup"
+    "popup_playVideoPrompt_title": {
+        "message": "Multiple videos detected",
+        "description": "Popup heading shown when multiple paused videos exist on a page and none is playing"
     },
-    "popup_videoBadge_playing": {
-        "message": "Playing",
-        "description": "Badge shown next to a currently playing detected video"
-    },
-    "popup_videoItemFallback": {
-        "message": "Video $1",
-        "description": "Fallback label for a detected video without a title or platform name",
-        "placeholders": {
-            "index": {
-                "content": "$1",
-                "example": "1"
-            }
-        }
+    "popup_playVideoPrompt_body": {
+        "message": "Start playing a video on this page, then reopen TubeSize to see its size estimate.",
+        "description": "Popup guidance asking the user to play one of the videos on a multi-video page"
     },
     "popup_usageTrackingEnabled": {
         "message": "Usage tracking is enabled.",

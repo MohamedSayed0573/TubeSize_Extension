@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-    detectTabVideos,
-    mergeDetectedVideos,
+    detectTabVideo,
     scanFrameDom,
+    selectDetectedVideo,
     type FrameScanResult,
-} from "@/entrypoints/background/detectTabVideos";
+} from "@/entrypoints/background/detectTabVideo";
 import {
     createTabMediaRegistry,
     type ObservedMedia,
@@ -396,8 +396,8 @@ describe("createTabMediaRegistry", () => {
     });
 });
 
-describe("mergeDetectedVideos", () => {
-    test("merges platform embeds with iframe playback state, classifies video elements, and ranks deterministically", () => {
+describe("selectDetectedVideo", () => {
+    test("selects the playing video across embeds and direct elements and falls back to multiple_idle when none plays", () => {
         const frames: FrameScanResult[] = [
             {
                 frameId: 0,
@@ -458,39 +458,144 @@ describe("mergeDetectedVideos", () => {
             },
         ];
 
-        const videos = mergeDetectedVideos(frames, observed);
-
-        expect(videos.map((video) => video.id)).toEqual([
-            "embed:https://youtube.com/watch?v=yaodD79Q4iE",
-            "embed:https://www.twitch.tv/shroud",
-            "direct:https://cdn.example.com/hero.mp4",
-            "direct:https://cdn.example.com/trailer.mp4",
-        ]);
-        expect(videos[2]).toMatchObject({
-            isPlaying: true,
-            currentResolution: 1080,
-            source: {
-                kind: "direct",
-                url: "https://cdn.example.com/hero.mp4",
-                mimeType: "video/mp4",
-                durationSeconds: 95,
-                videoHeight: 1080,
-                videoWidth: 1920,
+        expect(selectDetectedVideo(frames, observed)).toEqual({
+            status: "video",
+            video: {
+                id: "direct:https://cdn.example.com/hero.mp4",
+                title: "Hero Video",
+                isPlaying: true,
+                currentResolution: 1080,
+                frameId: 0,
+                source: {
+                    kind: "direct",
+                    url: "https://cdn.example.com/hero.mp4",
+                    mimeType: "video/mp4",
+                    durationSeconds: 95,
+                    videoHeight: 1080,
+                    videoWidth: 1920,
+                },
             },
         });
-        expect(videos[0]).toMatchObject({
-            title: "Embedded Talk",
-            currentResolution: 720,
-            source: {
-                kind: "platform-embed",
-                platform: "youtube",
-                url: "https://youtube.com/watch?v=yaodD79Q4iE",
+
+        const embedPlayingFrames: FrameScanResult[] = [
+            {
+                ...frames[0]!,
+                videos: frames[0]!.videos.map((video) => ({ ...video, isPlaying: false })),
             },
+            {
+                ...frames[1]!,
+                videos: [{ ...frames[1]!.videos[0]!, isPlaying: true }],
+            },
+        ];
+        expect(selectDetectedVideo(embedPlayingFrames, observed)).toEqual({
+            status: "video",
+            video: {
+                id: "embed:https://youtube.com/watch?v=yaodD79Q4iE",
+                title: "Embedded Talk",
+                isPlaying: true,
+                currentResolution: 720,
+                frameId: 0,
+                source: {
+                    kind: "platform-embed",
+                    platform: "youtube",
+                    url: "https://youtube.com/watch?v=yaodD79Q4iE",
+                    embedUrl: "https://www.youtube-nocookie.com/embed/yaodD79Q4iE",
+                },
+            },
+        });
+
+        const allIdleFrames: FrameScanResult[] = [
+            {
+                ...frames[0]!,
+                videos: frames[0]!.videos.map((video) => ({ ...video, isPlaying: false })),
+            },
+            frames[1]!,
+        ];
+        expect(selectDetectedVideo(allIdleFrames, observed)).toEqual({
+            status: "multiple_idle",
+            count: 4,
         });
     });
 
-    test("associates MSE blob videos with observed manifests and includes remaining unmatched manifests without duplicating variant playlists", () => {
-        const frames: FrameScanResult[] = [
+    test("selects a sole idle video (direct, embed, or MSE with HLS variant grouping)", () => {
+        const idleDirect: FrameScanResult[] = [
+            {
+                frameId: 0,
+                frameUrl: "https://example.com/article",
+                pageTitle: "Standalone Clip",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "https://cdn.example.com/clip.mp4",
+                        sources: [],
+                        durationSeconds: 45,
+                        videoHeight: 720,
+                        isPlaying: false,
+                    },
+                ],
+            },
+        ];
+        expect(selectDetectedVideo(idleDirect, [])).toEqual({
+            status: "video",
+            video: {
+                id: "direct:https://cdn.example.com/clip.mp4",
+                title: "Standalone Clip",
+                isPlaying: false,
+                currentResolution: 720,
+                frameId: 0,
+                source: {
+                    kind: "direct",
+                    url: "https://cdn.example.com/clip.mp4",
+                    durationSeconds: 45,
+                    videoHeight: 720,
+                },
+            },
+        });
+
+        const idleEmbed: FrameScanResult[] = [
+            {
+                frameId: 0,
+                frameUrl: "https://blog.example.com/post",
+                iframes: [
+                    {
+                        url: "https://www.youtube.com/embed/yaodD79Q4iE",
+                        title: "Idle Talk",
+                    },
+                ],
+                videos: [],
+            },
+            {
+                frameId: 3,
+                frameUrl: "https://www.youtube.com/embed/yaodD79Q4iE",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "blob:https://www.youtube.com/internal",
+                        sources: [],
+                        videoHeight: 1080,
+                        isPlaying: false,
+                    },
+                ],
+            },
+        ];
+        expect(selectDetectedVideo(idleEmbed, [])).toEqual({
+            status: "video",
+            video: {
+                id: "embed:https://youtube.com/watch?v=yaodD79Q4iE",
+                title: "Idle Talk",
+                isPlaying: false,
+                currentResolution: 1080,
+                frameId: 0,
+                source: {
+                    kind: "platform-embed",
+                    platform: "youtube",
+                    url: "https://youtube.com/watch?v=yaodD79Q4iE",
+                    embedUrl: "https://www.youtube.com/embed/yaodD79Q4iE",
+                },
+            },
+        });
+
+        const mseFrames: FrameScanResult[] = [
             {
                 frameId: 0,
                 frameUrl: "https://player.example.com/watch",
@@ -502,14 +607,14 @@ describe("mergeDetectedVideos", () => {
                         sources: [],
                         durationSeconds: 240,
                         videoHeight: 1080,
-                        isPlaying: true,
+                        isPlaying: false,
                         title: "Main Stream",
                     },
                 ],
             },
         ];
 
-        const observed: ObservedMedia[] = [
+        const hlsObserved: ObservedMedia[] = [
             {
                 kind: "hls",
                 url: "https://cdn.example.com/main/master.m3u8",
@@ -522,18 +627,11 @@ describe("mergeDetectedVideos", () => {
                 frameId: 0,
                 observedAt: 2,
             },
-            {
-                kind: "dash",
-                url: "https://cdn.example.com/other/manifest.mpd",
-                frameId: 5,
-                observedAt: 3,
-            },
         ];
 
-        const videos = mergeDetectedVideos(frames, observed);
-
-        expect(videos).toEqual([
-            {
+        expect(selectDetectedVideo(mseFrames, hlsObserved)).toEqual({
+            status: "video",
+            video: {
                 id: "hls:https://cdn.example.com/main/master.m3u8",
                 source: {
                     kind: "hls",
@@ -541,23 +639,28 @@ describe("mergeDetectedVideos", () => {
                     durationSeconds: 240,
                 },
                 title: "Main Stream",
-                isPlaying: true,
+                isPlaying: false,
                 currentResolution: 1080,
                 frameId: 0,
             },
+        });
+
+        const extraObserved: ObservedMedia[] = [
+            ...hlsObserved,
             {
-                id: "dash:https://cdn.example.com/other/manifest.mpd",
-                source: {
-                    kind: "dash",
-                    url: "https://cdn.example.com/other/manifest.mpd",
-                },
-                isPlaying: false,
+                kind: "dash",
+                url: "https://cdn.example.com/other/manifest.mpd",
                 frameId: 5,
+                observedAt: 3,
             },
-        ]);
+        ];
+        expect(selectDetectedVideo(mseFrames, extraObserved)).toEqual({
+            status: "multiple_idle",
+            count: 2,
+        });
     });
 
-    test("deduplicates repeated sources keeping higher-priority state and survives restricted pages", async () => {
+    test("deduplicates repeated sources keeping playing state and returns none on restricted pages", async () => {
         const frames: FrameScanResult[] = [
             {
                 frameId: 0,
@@ -579,22 +682,28 @@ describe("mergeDetectedVideos", () => {
             },
         ];
 
-        const merged = mergeDetectedVideos(frames, []);
-        expect(merged).toHaveLength(1);
-        expect(merged[0]).toMatchObject({
-            id: "direct:https://cdn.example.com/dup.mp4",
-            isPlaying: true,
-            title: "Fallback Title",
+        expect(selectDetectedVideo(frames, [])).toEqual({
+            status: "video",
+            video: {
+                id: "direct:https://cdn.example.com/dup.mp4",
+                source: {
+                    kind: "direct",
+                    url: "https://cdn.example.com/dup.mp4",
+                },
+                isPlaying: true,
+                title: "Fallback Title",
+                frameId: 0,
+            },
         });
 
         const registry = createTabMediaRegistry({ storage: null });
-        const restricted = await detectTabVideos(99, registry, async () => {
+        const restricted = await detectTabVideo(99, registry, async () => {
             throw new Error("Cannot access a chrome:// URL");
         });
-        expect(restricted).toEqual([]);
+        expect(restricted).toEqual({ status: "none" });
     });
 
-    test("classifies extensionless currentSrc manifests using source MIME types and observed media without duplicating", () => {
+    test("classifies extensionless currentSrc manifests and selects the playing stream", () => {
         const frames: FrameScanResult[] = [
             {
                 frameId: 0,
@@ -648,24 +757,34 @@ describe("mergeDetectedVideos", () => {
             },
         ];
 
-        const videos = mergeDetectedVideos(frames, observed);
-        expect(videos.map((video) => video.id)).toEqual([
-            "hls:https://cdn.example.com/stream/playlist",
-            "dash:https://cdn.example.com/live/manifest",
-        ]);
-        expect(videos[0]?.source).toEqual({
-            kind: "hls",
-            url: "https://cdn.example.com/stream/playlist",
-            durationSeconds: 180,
+        expect(selectDetectedVideo(frames, observed)).toEqual({
+            status: "video",
+            video: {
+                id: "hls:https://cdn.example.com/stream/playlist",
+                title: "Typed Source HLS",
+                isPlaying: true,
+                frameId: 0,
+                source: {
+                    kind: "hls",
+                    url: "https://cdn.example.com/stream/playlist",
+                    durationSeconds: 180,
+                },
+            },
         });
-        expect(videos[1]?.source).toEqual({
-            kind: "dash",
-            url: "https://cdn.example.com/live/manifest",
-            durationSeconds: 90,
+
+        const idleFrames: FrameScanResult[] = [
+            {
+                ...frames[0]!,
+                videos: frames[0]!.videos.map((video) => ({ ...video, isPlaying: false })),
+            },
+        ];
+        expect(selectDetectedVideo(idleFrames, observed)).toEqual({
+            status: "multiple_idle",
+            count: 2,
         });
     });
 
-    test("groups master and variant HLS playlists so multiple blob players and in-page video switches match accurately", () => {
+    test("groups master and variant HLS playlists so playing MSE players and in-page switches resolve cleanly", () => {
         const twoPlayerFrames: FrameScanResult[] = [
             {
                 frameId: 0,
@@ -711,69 +830,10 @@ describe("mergeDetectedVideos", () => {
             },
         ];
 
-        const dual = mergeDetectedVideos(twoPlayerFrames, twoPlayerObserved);
-        expect(dual.map((video) => ({ id: video.id, title: video.title }))).toEqual([
-            { id: "hls:https://cdn.example.com/a/master.m3u8", title: "Player A" },
-            { id: "hls:https://cdn.example.com/b/master.m3u8", title: "Player B" },
-        ]);
-
-        // Two simultaneously playing blob players must preserve chronological manifest pairing.
-        const dualPlayingFrames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://example.com/dual-dash",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "blob:https://example.com/dash-a",
-                        sources: [],
-                        durationSeconds: 120,
-                        isPlaying: true,
-                        title: "DASH A",
-                    },
-                    {
-                        currentSrc: "blob:https://example.com/dash-b",
-                        sources: [],
-                        durationSeconds: 240,
-                        isPlaying: true,
-                        title: "DASH B",
-                    },
-                ],
-            },
-        ];
-        const dualDashObserved: ObservedMedia[] = [
-            {
-                kind: "dash",
-                url: "https://cdn.example.com/a/manifest.mpd",
-                frameId: 0,
-                observedAt: 1,
-            },
-            {
-                kind: "dash",
-                url: "https://cdn.example.com/b/manifest.mpd",
-                frameId: 0,
-                observedAt: 2,
-            },
-        ];
-        const dualPlaying = mergeDetectedVideos(dualPlayingFrames, dualDashObserved);
-        expect(
-            dualPlaying.map((video) => ({
-                id: video.id,
-                title: video.title,
-                duration: video.source.kind === "dash" ? video.source.durationSeconds : undefined,
-            })),
-        ).toEqual([
-            {
-                id: "dash:https://cdn.example.com/a/manifest.mpd",
-                title: "DASH A",
-                duration: 120,
-            },
-            {
-                id: "dash:https://cdn.example.com/b/manifest.mpd",
-                title: "DASH B",
-                duration: 240,
-            },
-        ]);
+        expect(selectDetectedVideo(twoPlayerFrames, twoPlayerObserved)).toEqual({
+            status: "multiple_idle",
+            count: 2,
+        });
 
         // When fewer manifests than players exist, prefer the playing player.
         const singleManifestFrames: FrameScanResult[] = [
@@ -799,12 +859,25 @@ describe("mergeDetectedVideos", () => {
                 ],
             },
         ];
-        const singleManifest = mergeDetectedVideos(singleManifestFrames, [dualDashObserved[1]!]);
-        expect(singleManifest).toHaveLength(1);
-        expect(singleManifest[0]).toMatchObject({
-            id: "dash:https://cdn.example.com/b/manifest.mpd",
-            title: "Active Stream",
-            isPlaying: true,
+        const dashManifest: ObservedMedia = {
+            kind: "dash",
+            url: "https://cdn.example.com/b/manifest.mpd",
+            frameId: 0,
+            observedAt: 2,
+        };
+        expect(selectDetectedVideo(singleManifestFrames, [dashManifest])).toEqual({
+            status: "video",
+            video: {
+                id: "dash:https://cdn.example.com/b/manifest.mpd",
+                title: "Active Stream",
+                isPlaying: true,
+                frameId: 0,
+                source: {
+                    kind: "dash",
+                    url: "https://cdn.example.com/b/manifest.mpd",
+                    durationSeconds: 180,
+                },
+            },
         });
 
         // In-page video switch (1 blob player, old stream group + newer stream group):
@@ -852,20 +925,23 @@ describe("mergeDetectedVideos", () => {
             },
         ];
 
-        const switched = mergeDetectedVideos(switchedFrames, switchedObserved);
-        expect(switched).toHaveLength(1);
-        expect(switched[0]).toMatchObject({
-            id: "hls:https://cdn.example.com/lesson-2/master.m3u8",
-            title: "Lesson 2",
-            source: {
-                kind: "hls",
-                url: "https://cdn.example.com/lesson-2/master.m3u8",
-                durationSeconds: 600,
+        expect(selectDetectedVideo(switchedFrames, switchedObserved)).toEqual({
+            status: "video",
+            video: {
+                id: "hls:https://cdn.example.com/lesson-2/master.m3u8",
+                title: "Lesson 2",
+                isPlaying: true,
+                frameId: 0,
+                source: {
+                    kind: "hls",
+                    url: "https://cdn.example.com/lesson-2/master.m3u8",
+                    durationSeconds: 600,
+                },
             },
         });
     });
 
-    test("keeps independent nested-directory HLS masters separate while grouping real rendition subdirs and observed direct videos", () => {
+    test("keeps independent nested-directory HLS masters separate and ignores removed observed direct videos", () => {
         const nestedFrames: FrameScanResult[] = [
             {
                 frameId: 0,
@@ -905,11 +981,10 @@ describe("mergeDetectedVideos", () => {
             },
         ];
 
-        const nested = mergeDetectedVideos(nestedFrames, nestedObserved);
-        expect(nested.map((video) => ({ id: video.id, title: video.title }))).toEqual([
-            { id: "hls:https://cdn.example.com/a/master.m3u8", title: "Root Stream" },
-            { id: "hls:https://cdn.example.com/a/stream_1/master.m3u8", title: "Nested Stream" },
-        ]);
+        expect(selectDetectedVideo(nestedFrames, nestedObserved)).toEqual({
+            status: "multiple_idle",
+            count: 2,
+        });
 
         // Removed direct videos from already-scanned frames must not linger via observed direct fallback.
         const replacedDirectFrames: FrameScanResult[] = [
@@ -922,7 +997,7 @@ describe("mergeDetectedVideos", () => {
                         currentSrc: "https://cdn.example.com/b.mp4",
                         sources: [],
                         durationSeconds: 30,
-                        isPlaying: true,
+                        isPlaying: false,
                         title: "Current Clip",
                     },
                 ],
@@ -944,9 +1019,10 @@ describe("mergeDetectedVideos", () => {
                 observedAt: 2,
             },
         ];
-        expect(
-            mergeDetectedVideos(replacedDirectFrames, replacedDirectObserved).map((v) => v.id),
-        ).toEqual(["direct:https://cdn.example.com/b.mp4"]);
+        expect(selectDetectedVideo(replacedDirectFrames, replacedDirectObserved)).toMatchObject({
+            status: "video",
+            video: { id: "direct:https://cdn.example.com/b.mp4" },
+        });
 
         // Real-world Mux/hls.js layout: master + url_0/193039199_mp4_h264_aac_hd_7.m3u8
         const muxFrames: FrameScanResult[] = [
@@ -993,11 +1069,10 @@ describe("mergeDetectedVideos", () => {
             },
         ];
 
-        const muxMerged = mergeDetectedVideos(muxFrames, muxObserved);
-        expect(muxMerged.map((video) => video.id)).toEqual([
-            "hls:https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-            "direct:https://cdn.example.com/sandboxed/clip.webm",
-        ]);
+        expect(selectDetectedVideo(muxFrames, muxObserved)).toMatchObject({
+            status: "video",
+            video: { id: "hls:https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+        });
     });
 
     test("scanFrameDom collects document and open shadowRoot iframes and video sources and resolves relative URLs against document.baseURI", async () => {
@@ -1072,116 +1147,5 @@ describe("mergeDetectedVideos", () => {
         } finally {
             await cleanupDom();
         }
-    });
-
-    test("orders mixed direct, MSE, embed, and subframe videos in visual page order", () => {
-        const frames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://example.com/gallery",
-                iframes: [
-                    {
-                        url: "https://player.example.com/frame-bottom",
-                        domOrder: 3,
-                        pageTop: 900,
-                        pageLeft: 20,
-                    },
-                    {
-                        url: "https://www.youtube.com/embed/yaodD79Q4iE",
-                        title: "Second Embed",
-                        domOrder: 1,
-                        pageTop: 400,
-                        pageLeft: 20,
-                    },
-                    {
-                        url: "https://player.example.com/frame-top",
-                        domOrder: 0,
-                        pageTop: 100,
-                        pageLeft: 20,
-                    },
-                ],
-                videos: [
-                    {
-                        currentSrc: "blob:https://example.com/mse-mid",
-                        sources: [],
-                        isPlaying: true,
-                        title: "Third MSE",
-                        domOrder: 2,
-                        pageTop: 650,
-                        pageLeft: 20,
-                    },
-                    {
-                        currentSrc: "https://cdn.example.com/direct-row-right.mp4",
-                        sources: [],
-                        isPlaying: false,
-                        title: "Row Right",
-                        domOrder: 4,
-                        pageTop: 1200,
-                        pageLeft: 500,
-                    },
-                    {
-                        currentSrc: "https://cdn.example.com/direct-row-left.mp4",
-                        sources: [],
-                        isPlaying: false,
-                        title: "Row Left",
-                        domOrder: 5,
-                        pageTop: 1201,
-                        pageLeft: 20,
-                    },
-                ],
-            },
-            // Subframes returned in reverse order from executeScript
-            {
-                frameId: 9,
-                frameUrl: "https://player.example.com/frame-bottom",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "https://cdn.example.com/sub-bottom.mp4",
-                        sources: [],
-                        isPlaying: false,
-                        title: "Fourth Subframe",
-                        domOrder: 0,
-                        pageTop: 0,
-                        pageLeft: 0,
-                    },
-                ],
-            },
-            {
-                frameId: 4,
-                frameUrl: "https://player.example.com/frame-top",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "https://cdn.example.com/sub-top.mp4",
-                        sources: [],
-                        isPlaying: false,
-                        title: "First Subframe",
-                        domOrder: 0,
-                        pageTop: 0,
-                        pageLeft: 0,
-                    },
-                ],
-            },
-        ];
-
-        const observed: ObservedMedia[] = [
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/mse-mid/master.m3u8",
-                frameId: 0,
-                observedAt: 10,
-            },
-        ];
-
-        const videos = mergeDetectedVideos(frames, observed);
-        expect(videos.map((video) => video.title)).toEqual([
-            "First Subframe",
-            "Second Embed",
-            "Third MSE",
-            "Fourth Subframe",
-            "Row Left",
-            "Row Right",
-        ]);
     });
 });

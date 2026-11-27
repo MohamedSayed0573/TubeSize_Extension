@@ -71,6 +71,11 @@ export type DetectedVideo = {
     frameId: number;
 };
 
+export type TabVideoDetectionResult =
+    | { status: "video"; video: DetectedVideo }
+    | { status: "multiple_idle"; count: number }
+    | { status: "none" };
+
 export type VideoContentType = "live" | "vod";
 
 export type UsageRange = (typeof CONFIG.RANGES)[number];

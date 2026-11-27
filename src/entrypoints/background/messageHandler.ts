@@ -3,7 +3,7 @@ import { isMediaEstimateError, type MediaEstimateErrorCode } from "@lib/mediaEst
 
 import { onBackgroundMessage, type BackgroundResponse } from "@/messaging";
 
-import { detectTabVideos } from "./detectTabVideos";
+import { detectTabVideo } from "./detectTabVideo";
 import { estimateMedia } from "./estimateMedia";
 import { createTabMediaRegistry, type TabMediaRegistry } from "./tabMediaRegistry";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
@@ -69,8 +69,8 @@ export function attachMessageHandler(
                 logError: true,
             }),
         ),
-        onBackgroundMessage("detectTabVideos", ({ data }) =>
-            toBackgroundResponse(() => detectTabVideos(data.tabId, tabMediaRegistry)),
+        onBackgroundMessage("detectTabVideo", ({ data }) =>
+            toBackgroundResponse(() => detectTabVideo(data.tabId, tabMediaRegistry)),
         ),
     ];
 

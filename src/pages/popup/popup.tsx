@@ -1,18 +1,18 @@
 import Spinner from "@components/spinner";
-import { useDetectedVideos } from "@hooks/useDetectedVideos";
+import { useDetectedVideo } from "@hooks/useDetectedVideo";
 import useSettings from "@hooks/useSettings";
 import useTab from "@hooks/useTab";
 import { parsePlatformUrl } from "@lib/platformUrl";
 import Header from "@pages/popup/header";
 import UnsupportedPage from "@pages/popup/unsupportedPage";
 
-import { DetectedVideosView } from "./detectedVideosView";
+import { DetectedVideoView, PlayVideoPrompt } from "./detectedVideoView";
 import { PlatformView } from "./platforms/platformView";
 
 export default function Popup() {
     useSettings();
     const { data: tab, error, isPending, isError } = useTab();
-    const detectedQuery = useDetectedVideos(tab?.tabId, tab?.tabUrl);
+    const detectedQuery = useDetectedVideo(tab?.tabId, tab?.tabUrl);
 
     if (isError) throw error;
     if (isPending) {
@@ -44,9 +44,12 @@ export default function Popup() {
         );
     }
 
-    const videos = detectedQuery.data ?? [];
-    if (videos.length > 0) {
-        return <DetectedVideosView videos={videos} />;
+    const detection = detectedQuery.data;
+    if (detection?.status === "video") {
+        return <DetectedVideoView video={detection.video} />;
+    }
+    if (detection?.status === "multiple_idle") {
+        return <PlayVideoPrompt />;
     }
 
     return <UnsupportedPage />;
