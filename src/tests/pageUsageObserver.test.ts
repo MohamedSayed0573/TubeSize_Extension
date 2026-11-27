@@ -2,12 +2,16 @@ import { describe, expect, jest, test } from "bun:test";
 import vm from "node:vm";
 
 import {
+    computeRtcStatsDelta,
     createPageUsageObserver,
     hasPositiveContentLength,
     isCountableRequestUrl,
+    isCountableWebSocketUrl,
+    measurePayloadBytes,
     SITE_USAGE_EVENT,
     type FetchFn,
     type PageUsageObserverGlobal,
+    type RtcCounterState,
 } from "@lib/pageUsageObserver";
 
 function toRequestUrl(input: RequestInfo | URL): string {
@@ -55,20 +59,20 @@ class FakeXMLHttpRequest extends EventTarget {
 }
 
 class FakeWorker extends EventTarget {
-    static constructed: Array<{ url: string; options?: WorkerOptions }> = [];
+    static constructed: Array<{ url: unknown; options?: WorkerOptions }> = [];
     static throwOnUrl?: (url: string) => boolean;
 
-    readonly url: string;
+    readonly url: unknown;
     readonly options?: WorkerOptions;
 
     constructor(url: string | URL, options?: WorkerOptions) {
         super();
-        this.url = String(url);
+        this.url = url;
         this.options = options;
-        if (FakeWorker.throwOnUrl?.(this.url)) {
+        if (typeof url === "string" && FakeWorker.throwOnUrl?.(url)) {
             throw new Error("CSP blocked blob worker");
         }
-        FakeWorker.constructed.push({ url: this.url, options });
+        FakeWorker.constructed.push({ url, options });
     }
 
     emitMessage(data: unknown): { propagationStopped: boolean } {
@@ -84,6 +88,68 @@ class FakeWorker extends EventTarget {
 
     emitError() {
         this.dispatchEvent(new Event("error"));
+    }
+}
+
+class FakeWebSocket extends EventTarget {
+    static readonly CONNECTING = 0;
+    static readonly OPEN = 1;
+    static readonly CLOSING = 2;
+    static readonly CLOSED = 3;
+
+    readonly url: string;
+    readonly sent: unknown[] = [];
+    throwOnSend?: Error;
+
+    constructor(url: string | URL) {
+        super();
+        this.url = String(url);
+    }
+
+    send(data: unknown) {
+        if (this.throwOnSend) throw this.throwOnSend;
+        this.sent.push(data);
+    }
+
+    emitMessage(data: unknown): { propagationStopped: boolean } {
+        let propagationStopped = false;
+        const event = new Event("message");
+        Object.defineProperty(event, "data", { value: data });
+        event.stopImmediatePropagation = () => {
+            propagationStopped = true;
+        };
+        this.dispatchEvent(event);
+        return { propagationStopped };
+    }
+
+    emitClose() {
+        this.dispatchEvent(new Event("close"));
+    }
+}
+
+class FakeRTCPeerConnection extends EventTarget {
+    connectionState: RTCPeerConnectionState = "connected";
+    closed = false;
+    nextStats: Map<string, Record<string, unknown>> = new Map();
+    statsQueue: Array<() => Promise<Map<string, Record<string, unknown>>>> = [];
+    getStatsCalls = 0;
+
+    getStats(): Promise<RTCStatsReport> {
+        this.getStatsCalls += 1;
+        const queued = this.statsQueue.shift();
+        if (queued) return queued();
+        if (this.closed) return Promise.reject(new Error("Peer connection is closed"));
+        return Promise.resolve(new Map(this.nextStats));
+    }
+
+    close() {
+        this.closed = true;
+        this.connectionState = "closed";
+    }
+
+    emitConnectionState(state: RTCPeerConnectionState) {
+        this.connectionState = state;
+        this.dispatchEvent(new Event("connectionstatechange"));
     }
 }
 
@@ -108,7 +174,7 @@ function collectUsageEvents(target: EventTarget): number[] {
     return posted;
 }
 
-function createHarness(baseFetch?: FetchFn) {
+function createHarness(baseFetch?: FetchFn, options?: { includeWebkitRtc?: boolean }) {
     FakeXMLHttpRequest.sources.clear();
     FakeWorker.constructed = [];
     FakeWorker.throwOnUrl = undefined;
@@ -125,6 +191,14 @@ function createHarness(baseFetch?: FetchFn) {
     const globalObject: PageUsageObserverGlobal = {
         fetch: defaultFetch,
         Worker: FakeWorker as unknown as typeof Worker,
+        WebSocket: FakeWebSocket as unknown as typeof WebSocket,
+        RTCPeerConnection: FakeRTCPeerConnection as unknown as typeof RTCPeerConnection,
+        ...(options?.includeWebkitRtc
+            ? {
+                  webkitRTCPeerConnection:
+                      FakeRTCPeerConnection as unknown as typeof RTCPeerConnection,
+              }
+            : {}),
     };
 
     const windowTarget = new EventTarget();
@@ -405,7 +479,7 @@ describe("createPageUsageObserver", () => {
 
         const worker = new harness.globalObject.Worker(originalBlobUrl) as unknown as FakeWorker;
         expect(FakeWorker.constructed).toHaveLength(1);
-        const wrappedUrl = FakeWorker.constructed[0]?.url ?? "";
+        const wrappedUrl = FakeWorker.constructed[0]?.url as string;
         expect(wrappedUrl).not.toBe(originalBlobUrl);
         expect(wrappedUrl.startsWith("blob:https://example.com/wrapped-")).toBe(true);
 
@@ -470,16 +544,206 @@ describe("createPageUsageObserver", () => {
         harness.observer.dispose();
     });
 
-    test("leaves module and non-blob workers native and falls back cleanly if blob worker construction throws", () => {
+    test("re-hosts module blob: workers with static imports, revokes all 3 URLs on ready/error/throw, and runs worker fetch/XHR/WebSocket patches", async () => {
         const harness = createHarness();
         harness.observer.install();
 
-        const nativeHttpWorker = new harness.globalObject.Worker("https://example.com/worker.js");
-        const moduleBlobWorker = new harness.globalObject.Worker(
-            "blob:https://example.com/mod-worker",
-            {
-                type: "module",
+        const originalBlobUrl = "blob:https://example.com/mod-worker";
+        FakeXMLHttpRequest.sources.set(originalBlobUrl, {
+            status: 200,
+            responseText: "export const loaded = true;",
+        });
+
+        const worker = new harness.globalObject.Worker(originalBlobUrl, {
+            type: "module",
+            name: "stream-mod",
+        }) as unknown as FakeWorker;
+        FakeXMLHttpRequest.sources.delete(originalBlobUrl);
+
+        expect(FakeWorker.constructed).toHaveLength(1);
+        const entry = FakeWorker.constructed[0]!;
+        const wrapperUrl = entry.url as string;
+        expect(entry.options).toEqual({ type: "module", name: "stream-mod" });
+        expect(harness.createdBlobs.size).toBe(3);
+
+        const createdUrls = [...harness.createdBlobs.keys()];
+        const [bootstrapUrl, payloadUrl, entryUrl] = createdUrls;
+        expect(wrapperUrl).toBe(entryUrl!);
+        expect(await harness.createdBlobs.get(wrapperUrl)!.text()).toBe(
+            `import ${JSON.stringify(bootstrapUrl)};\nimport ${JSON.stringify(payloadUrl)};\n`,
+        );
+        expect(await harness.createdBlobs.get(payloadUrl!)!.text()).toBe(
+            "export const loaded = true;",
+        );
+
+        const readyResult = worker.emitMessage({ type: "WORKER_READY" });
+        expect(readyResult.propagationStopped).toBe(true);
+        expect(harness.revokedUrls).toEqual([wrapperUrl, bootstrapUrl!, payloadUrl!]);
+
+        const errorBlobUrl = "blob:https://example.com/mod-worker-err";
+        FakeXMLHttpRequest.sources.set(errorBlobUrl, {
+            status: 200,
+            responseText: "export {};",
+        });
+        const errWorker = new harness.globalObject.Worker(errorBlobUrl, {
+            type: "module",
+        }) as unknown as FakeWorker;
+        const errCreated = [...harness.createdBlobs.keys()].slice(3);
+        expect(errCreated).toHaveLength(3);
+        errWorker.emitError();
+        expect(harness.revokedUrls.slice(3)).toEqual([
+            errCreated[2]!,
+            errCreated[0]!,
+            errCreated[1]!,
+        ]);
+
+        const blockedModUrl = "blob:https://example.com/mod-csp-blocked";
+        FakeXMLHttpRequest.sources.set(blockedModUrl, {
+            status: 200,
+            responseText: "export {};",
+        });
+        FakeWorker.throwOnUrl = (url) => url.startsWith("blob:https://example.com/wrapped-");
+        const fallbackModWorker = new harness.globalObject.Worker(blockedModUrl, {
+            type: "module",
+        });
+        expect(fallbackModWorker).toBeInstanceOf(FakeWorker);
+        expect(FakeWorker.constructed.at(-1)).toEqual({
+            url: blockedModUrl,
+            options: { type: "module" },
+        });
+        const blockedCreated = [...harness.createdBlobs.keys()].slice(6);
+        expect(blockedCreated).toHaveLength(3);
+        expect(harness.revokedUrls.slice(6)).toEqual([
+            blockedCreated[2]!,
+            blockedCreated[0]!,
+            blockedCreated[1]!,
+        ]);
+
+        const bootstrapSource = await harness.createdBlobs.get(bootstrapUrl!)!.text();
+        const workerPosted: unknown[] = [];
+
+        class WorkerFakeXhr extends EventTarget {
+            responseURL = "";
+            private headers = new Map<string, string>();
+            open(_m: string, url: string) {
+                this.responseURL = url;
+            }
+            setResponseHeader(k: string, v: string) {
+                this.headers.set(k.toLowerCase(), v);
+            }
+            getResponseHeader(k: string) {
+                return this.headers.get(k.toLowerCase()) ?? null;
+            }
+            send() {}
+            emitProgress(loaded: number, type: "progress" | "loadend" = "progress") {
+                const event = new Event(type);
+                Object.defineProperty(event, "loaded", { value: loaded });
+                this.dispatchEvent(event);
+            }
+        }
+
+        class WorkerFakeSocket extends EventTarget {
+            readonly url: string;
+            throwOnSend?: Error;
+            constructor(url: string | URL) {
+                super();
+                this.url = String(url);
+            }
+            send(_data: unknown) {
+                if (this.throwOnSend) throw this.throwOnSend;
+            }
+            emitMessage(data: unknown) {
+                const event = new Event("message");
+                Object.defineProperty(event, "data", { value: data });
+                this.dispatchEvent(event);
+            }
+        }
+
+        const fakeSelf: Record<string, unknown> = {
+            location: { href: bootstrapUrl },
+            postMessage: (msg: unknown) => workerPosted.push(msg),
+            fetch: async (input: string) => {
+                if (input.endsWith("/fixed")) {
+                    return new Response(new Uint8Array(1_000), {
+                        headers: { "content-length": "1000" },
+                    });
+                }
+                return makeStreamResponse([400]);
             },
+            XMLHttpRequest: WorkerFakeXhr,
+            WebSocket: WorkerFakeSocket,
+        };
+        vm.runInNewContext(bootstrapSource, {
+            self: fakeSelf,
+            URL,
+            TextEncoder,
+            Blob,
+            ArrayBuffer,
+            Uint8Array,
+        });
+
+        await (
+            await (fakeSelf.fetch as (u: string) => Promise<Response>)("https://example.com/live")
+        ).arrayBuffer();
+        await (
+            await (fakeSelf.fetch as (u: string) => Promise<Response>)("https://example.com/fixed")
+        ).arrayBuffer();
+
+        const workerXhr = new (fakeSelf.XMLHttpRequest as typeof WorkerFakeXhr)();
+        workerXhr.open("GET", "https://example.com/chunked");
+        workerXhr.send();
+        workerXhr.emitProgress(250, "progress");
+        workerXhr.emitProgress(600, "loadend");
+
+        const fixedWorkerXhr = new (fakeSelf.XMLHttpRequest as typeof WorkerFakeXhr)();
+        fixedWorkerXhr.open("GET", "https://example.com/fixed");
+        fixedWorkerXhr.setResponseHeader("Content-Length", "900");
+        fixedWorkerXhr.send();
+        fixedWorkerXhr.emitProgress(900, "loadend");
+
+        const WorkerWs = fakeSelf.WebSocket as typeof WorkerFakeSocket;
+        const ws = new WorkerWs("wss://stream.example.com/ws");
+        ws.send("hello");
+        ws.emitMessage("🚀");
+        ws.emitMessage(new Uint8Array(new ArrayBuffer(10), 2, 3));
+        ws.throwOnSend = new Error("closed");
+        expect(() => ws.send("dropped")).toThrow("closed");
+
+        const extWs = new WorkerWs("chrome-extension://abcdef/ws");
+        extWs.send("ignored");
+        extWs.emitMessage("ignored");
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(workerPosted).toEqual([
+            { type: "WORKER_READY" },
+            { type: "WORKER_USAGE", bytes: 400 },
+            { type: "WORKER_USAGE", bytes: 250 },
+            { type: "WORKER_USAGE", bytes: 350 },
+            { type: "WORKER_USAGE", bytes: 5 },
+            { type: "WORKER_USAGE", bytes: 4 },
+            { type: "WORKER_USAGE", bytes: 3 },
+        ]);
+
+        harness.observer.dispose();
+    });
+
+    test("leaves non-blob workers and TrustedScriptURL-like objects native and falls back cleanly if classic blob worker construction throws", () => {
+        const harness = createHarness();
+        harness.observer.install();
+
+        const trustedScriptUrl = {
+            toString: () => "blob:https://example.com/trusted-worker",
+        };
+        const nativeHttpWorker = new harness.globalObject.Worker("https://example.com/worker.js");
+        const nativePlainHttpWorker = new harness.globalObject.Worker(
+            "http://localhost:8080/worker.js",
+        );
+        const nativeDataWorker = new harness.globalObject.Worker(
+            "data:text/javascript,postMessage(1)",
+        );
+        const nativeTrustedWorker = new harness.globalObject.Worker(
+            trustedScriptUrl as unknown as string,
         );
 
         const blockedBlobUrl = "blob:https://example.com/csp-blocked";
@@ -492,11 +756,15 @@ describe("createPageUsageObserver", () => {
         const fallbackWorker = new harness.globalObject.Worker(blockedBlobUrl);
 
         expect(nativeHttpWorker).toBeInstanceOf(FakeWorker);
-        expect(moduleBlobWorker).toBeInstanceOf(FakeWorker);
+        expect(nativePlainHttpWorker).toBeInstanceOf(FakeWorker);
+        expect(nativeDataWorker).toBeInstanceOf(FakeWorker);
+        expect(nativeTrustedWorker).toBeInstanceOf(FakeWorker);
         expect(fallbackWorker).toBeInstanceOf(FakeWorker);
         expect(FakeWorker.constructed.map((entry) => entry.url)).toEqual([
             "https://example.com/worker.js",
-            "blob:https://example.com/mod-worker",
+            "http://localhost:8080/worker.js",
+            "data:text/javascript,postMessage(1)",
+            trustedScriptUrl,
             blockedBlobUrl,
         ]);
         expect(harness.revokedUrls).toHaveLength(1);
@@ -633,7 +901,7 @@ describe("createPageUsageObserver", () => {
         const blobUrl = "blob:https://example.com/stream-worker";
         FakeXMLHttpRequest.sources.set(blobUrl, { status: 200, responseText: "1;" });
         const worker = new harness.globalObject.Worker(blobUrl) as unknown as FakeWorker;
-        const wrappedUrl = FakeWorker.constructed[0]?.url ?? "";
+        const wrappedUrl = FakeWorker.constructed[0]?.url as string;
         const bootstrapSource = await harness.createdBlobs.get(wrappedUrl)!.text();
 
         let streamController!: ReadableStreamDefaultController<Uint8Array>;
@@ -705,5 +973,400 @@ describe("createPageUsageObserver", () => {
         documentTarget.dispatchEvent(new Event("visibilitychange"));
         windowTarget.dispatchEvent(new Event("pagehide"));
         expect(posted).toEqual([]);
+    });
+
+    test("tracks WebSocket incoming and outgoing frames, skips failed sends and non-countable URLs, and cleans up on close", () => {
+        const harness = createHarness();
+        harness.observer.install();
+
+        const PatchedWebSocket = harness.globalObject.WebSocket!;
+        expect(PatchedWebSocket.CONNECTING).toBe(FakeWebSocket.CONNECTING);
+        expect(PatchedWebSocket.OPEN).toBe(FakeWebSocket.OPEN);
+        expect(PatchedWebSocket.CLOSING).toBe(FakeWebSocket.CLOSING);
+        expect(PatchedWebSocket.CLOSED).toBe(FakeWebSocket.CLOSED);
+
+        const ws = new PatchedWebSocket(
+            "wss://stream.example.com/live",
+        ) as unknown as FakeWebSocket;
+        const appReceived: unknown[] = [];
+        ws.addEventListener("message", (event) => {
+            appReceived.push((event as MessageEvent).data);
+        });
+
+        const msg1 = ws.emitMessage("hello");
+        expect(msg1.propagationStopped).toBe(false);
+        ws.emitMessage("🚀");
+        ws.emitMessage(new Uint8Array(new ArrayBuffer(12), 4, 3));
+        ws.emitMessage(new ArrayBuffer(8));
+        ws.emitMessage(new Blob(["café"]));
+        expect(appReceived).toHaveLength(5);
+
+        ws.send("ping");
+        ws.send(new Uint8Array(new ArrayBuffer(16), 2, 6));
+        ws.send(new Blob(["1234567"]));
+        ws.send(12_345);
+
+        ws.throwOnSend = new Error("InvalidStateError");
+        expect(() => ws.send("should-not-count")).toThrow("InvalidStateError");
+        ws.throwOnSend = undefined;
+
+        const relWs = new PatchedWebSocket("/socket") as unknown as FakeWebSocket;
+        relWs.send("ok");
+        relWs.emitMessage("hi");
+
+        for (const ignoredUrl of [
+            "chrome-extension://abcdef/ws",
+            "moz-extension://1234-5678/ws",
+            "data:text/plain,hello",
+            "blob:https://example.com/1234",
+        ]) {
+            const ignored = new PatchedWebSocket(ignoredUrl) as unknown as FakeWebSocket;
+            ignored.send("ignored-out");
+            ignored.emitMessage("ignored-in");
+        }
+
+        class CustomSocket extends (PatchedWebSocket as unknown as typeof FakeWebSocket) {}
+        const custom = new CustomSocket("ws://localhost:8080/feed");
+        expect(custom).toBeInstanceOf(CustomSocket);
+        custom.send("sub");
+        custom.emitMessage("msg");
+
+        harness.observer.flush();
+        expect(harness.posted).toEqual([5 + 4 + 3 + 8 + 5 + 4 + 6 + 7 + 5 + 2 + 2 + 3 + 3]);
+
+        ws.emitClose();
+        ws.emitMessage("after-close");
+        harness.observer.flush();
+        expect(harness.posted).toEqual([57]);
+
+        harness.observer.dispose();
+    });
+
+    test("restores WebSocket on dispose and ignores late socket events after dispose and reinstall", () => {
+        const readWsSend = () =>
+            Object.getOwnPropertyDescriptor(FakeWebSocket.prototype, "send")?.value as unknown;
+        const baseWsSend = readWsSend();
+        const harness = createHarness();
+
+        harness.observer.install();
+        expect(harness.globalObject.WebSocket).not.toBe(
+            FakeWebSocket as unknown as typeof WebSocket,
+        );
+        expect(readWsSend()).not.toBe(baseWsSend);
+
+        const staleWs = new harness.globalObject.WebSocket!(
+            "wss://example.com/stale",
+        ) as unknown as FakeWebSocket;
+
+        harness.observer.dispose();
+        expect(harness.globalObject.WebSocket).toBe(FakeWebSocket as unknown as typeof WebSocket);
+        expect(readWsSend()).toBe(baseWsSend);
+
+        staleWs.emitMessage("ignored-after-dispose");
+        staleWs.send("ignored-send");
+        harness.observer.flush();
+        expect(harness.posted).toEqual([]);
+
+        harness.observer.install();
+        staleWs.emitMessage("stale-from-prior-install");
+        const freshWs = new harness.globalObject.WebSocket!(
+            "wss://example.com/fresh",
+        ) as unknown as FakeWebSocket;
+        freshWs.emitMessage("fresh");
+        harness.observer.flush();
+        expect(harness.posted).toEqual([5]);
+
+        harness.observer.dispose();
+    });
+
+    test("samples RTCPeerConnection deltas on interval ticks, flushes sync bytes first, and syncs webkitRTCPeerConnection", async () => {
+        const harness = createHarness(undefined, { includeWebkitRtc: true });
+        harness.observer.install();
+
+        expect(harness.globalObject.RTCPeerConnection).not.toBe(
+            FakeRTCPeerConnection as unknown as typeof RTCPeerConnection,
+        );
+        expect(harness.globalObject.webkitRTCPeerConnection).toBe(
+            harness.globalObject.RTCPeerConnection,
+        );
+
+        const pc =
+            new harness.globalObject.RTCPeerConnection!() as unknown as FakeRTCPeerConnection;
+        pc.nextStats = new Map([
+            ["t1", { id: "t1", type: "transport", bytesReceived: 1_000, bytesSent: 500 }],
+            ["cp1", { id: "cp1", type: "candidate-pair", bytesReceived: 999, bytesSent: 499 }],
+        ]);
+
+        const xhr = new FakeXMLHttpRequest();
+        xhr.open("GET", "https://example.com/chunk");
+        xhr.send();
+        xhr.emitProgress(300, "loadend");
+
+        harness.triggerTick();
+        expect(harness.posted).toEqual([300]);
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(harness.posted).toEqual([300, 1_500]);
+
+        pc.nextStats = new Map([
+            ["t1", { id: "t1", type: "transport", bytesReceived: 1_800, bytesSent: 900 }],
+        ]);
+        harness.triggerVisibilityChange("hidden");
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(harness.posted).toEqual([300, 1_500, 1_200]);
+
+        harness.triggerTick();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(harness.posted).toEqual([300, 1_500, 1_200]);
+
+        harness.observer.dispose();
+        expect(harness.globalObject.RTCPeerConnection).toBe(
+            FakeRTCPeerConnection as unknown as typeof RTCPeerConnection,
+        );
+        expect(harness.globalObject.webkitRTCPeerConnection).toBe(
+            FakeRTCPeerConnection as unknown as typeof RTCPeerConnection,
+        );
+    });
+
+    test("captures final RTCPeerConnection stats before close() and on connectionstatechange closed, then stops polling", async () => {
+        const harness = createHarness();
+        harness.observer.install();
+
+        const pc1 =
+            new harness.globalObject.RTCPeerConnection!() as unknown as FakeRTCPeerConnection;
+        pc1.nextStats = new Map([
+            ["t1", { id: "t1", type: "transport", bytesReceived: 500, bytesSent: 200 }],
+        ]);
+        harness.triggerTick();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(harness.posted).toEqual([700]);
+
+        pc1.nextStats = new Map([
+            ["t1", { id: "t1", type: "transport", bytesReceived: 900, bytesSent: 300 }],
+        ]);
+        pc1.close();
+        expect(pc1.closed).toBe(true);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        harness.observer.flush();
+        expect(harness.posted).toEqual([700, 500]);
+
+        const callsAfterClose = pc1.getStatsCalls;
+        harness.triggerTick();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(pc1.getStatsCalls).toBe(callsAfterClose);
+
+        const pc2 =
+            new harness.globalObject.RTCPeerConnection!() as unknown as FakeRTCPeerConnection;
+        pc2.nextStats = new Map([
+            ["cp1", { id: "cp1", type: "candidate-pair", bytesReceived: 400, bytesSent: 100 }],
+        ]);
+        pc2.emitConnectionState("closed");
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        harness.observer.flush();
+        expect(harness.posted).toEqual([700, 500, 500]);
+
+        const pc2CallsAfterStateClosed = pc2.getStatsCalls;
+        harness.triggerTick();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(pc2.getStatsCalls).toBe(pc2CallsAfterStateClosed);
+
+        harness.observer.dispose();
+    });
+
+    test("restores RTCPeerConnection.prototype.close on dispose and ignores late getStats resolutions after dispose and reinstall", async () => {
+        const readRtcClose = () =>
+            Object.getOwnPropertyDescriptor(FakeRTCPeerConnection.prototype, "close")
+                ?.value as unknown;
+        const baseRtcClose = readRtcClose();
+        const harness = createHarness();
+
+        harness.observer.install();
+        expect(readRtcClose()).not.toBe(baseRtcClose);
+
+        const pc =
+            new harness.globalObject.RTCPeerConnection!() as unknown as FakeRTCPeerConnection;
+        let resolveStats!: (map: Map<string, Record<string, unknown>>) => void;
+        pc.statsQueue.push(
+            () =>
+                new Promise((resolve) => {
+                    resolveStats = resolve;
+                }),
+        );
+
+        harness.triggerTick();
+        harness.observer.dispose();
+
+        expect(readRtcClose()).toBe(baseRtcClose);
+        expect(harness.globalObject.RTCPeerConnection).toBe(
+            FakeRTCPeerConnection as unknown as typeof RTCPeerConnection,
+        );
+
+        harness.observer.install();
+        const xhr = new FakeXMLHttpRequest();
+        xhr.open("GET", "https://example.com/fresh");
+        xhr.send();
+        xhr.emitProgress(120, "loadend");
+
+        resolveStats(
+            new Map([["t1", { id: "t1", type: "transport", bytesReceived: 9_999, bytesSent: 0 }]]),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(harness.posted).toEqual([]);
+
+        harness.observer.flush();
+        expect(harness.posted).toEqual([120]);
+
+        harness.observer.dispose();
+    });
+});
+
+describe("isCountableWebSocketUrl", () => {
+    test("allows ws:, wss:, http:, https:, and relative URLs on http(s) bases and rejects non-network schemes", () => {
+        expect(isCountableWebSocketUrl("wss://example.com/ws", undefined)).toBe(true);
+        expect(isCountableWebSocketUrl("ws://127.0.0.1:8080/live", undefined)).toBe(true);
+        expect(isCountableWebSocketUrl("https://example.com/ws", undefined)).toBe(true);
+        expect(isCountableWebSocketUrl("http://example.com/ws", undefined)).toBe(true);
+        expect(isCountableWebSocketUrl("", "/realtime", "https://example.com/app/")).toBe(true);
+        expect(
+            isCountableWebSocketUrl(
+                "",
+                new URL("wss://example.com/s"),
+                "blob:https://example.com/w",
+            ),
+        ).toBe(true);
+
+        expect(
+            isCountableWebSocketUrl(
+                "chrome-extension://abcdef/ws",
+                undefined,
+                "https://example.com/",
+            ),
+        ).toBe(false);
+        expect(
+            isCountableWebSocketUrl(
+                "moz-extension://1234-5678/ws",
+                undefined,
+                "https://example.com/",
+            ),
+        ).toBe(false);
+        expect(
+            isCountableWebSocketUrl("data:text/plain,hi", undefined, "https://example.com/"),
+        ).toBe(false);
+        expect(
+            isCountableWebSocketUrl(
+                "blob:https://example.com/1234",
+                undefined,
+                "https://example.com/",
+            ),
+        ).toBe(false);
+        expect(isCountableWebSocketUrl("", "/ws", "chrome-extension://abcdef/page.html")).toBe(
+            false,
+        );
+        expect(isCountableWebSocketUrl("", undefined, "https://example.com/")).toBe(false);
+    });
+});
+
+describe("measurePayloadBytes", () => {
+    test("measures ASCII, multi-byte UTF-8, subarray views, ArrayBuffer, SharedArrayBuffer, Blob, and optional non-string coercion", () => {
+        expect(measurePayloadBytes("")).toBe(0);
+        expect(measurePayloadBytes("hello")).toBe(5);
+        expect(measurePayloadBytes("café")).toBe(5);
+        expect(measurePayloadBytes("🚀")).toBe(4);
+        expect(measurePayloadBytes("مرحبا")).toBe(10);
+
+        const backing = new ArrayBuffer(20);
+        expect(measurePayloadBytes(new Uint8Array(backing, 4, 6))).toBe(6);
+        expect(measurePayloadBytes(new DataView(backing, 2, 7))).toBe(7);
+        expect(measurePayloadBytes(backing)).toBe(20);
+        expect(measurePayloadBytes(new SharedArrayBuffer(12))).toBe(12);
+        expect(measurePayloadBytes(new Blob(["hi", "🚀"]))).toBe(6);
+
+        expect(measurePayloadBytes(12_345)).toBe(0);
+        expect(measurePayloadBytes(null)).toBe(0);
+        expect(measurePayloadBytes(undefined)).toBe(0);
+        expect(measurePayloadBytes(12_345, true)).toBe(5);
+        expect(measurePayloadBytes(null, true)).toBe(4);
+        expect(measurePayloadBytes(undefined, true)).toBe(9);
+    });
+});
+
+describe("computeRtcStatsDelta", () => {
+    test("locks onto transport tier over candidate-pair and stream stats to avoid double-counting", () => {
+        const state: RtcCounterState = { counters: new Map() };
+        const report1 = new Map([
+            ["t1", { id: "t1", type: "transport", bytesReceived: 1_000, bytesSent: 400 }],
+            ["cp1", { id: "cp1", type: "candidate-pair", bytesReceived: 1_000, bytesSent: 400 }],
+            ["in1", { id: "in1", type: "inbound-rtp", bytesReceived: 900 }],
+            ["out1", { id: "out1", type: "outbound-rtp", bytesSent: 350 }],
+            ["dc1", { id: "dc1", type: "data-channel", bytesReceived: 100, bytesSent: 50 }],
+        ]);
+
+        expect(computeRtcStatsDelta(report1, state)).toBe(1_400);
+        expect(state.tier).toBe("transport");
+
+        const report2 = new Map([
+            ["t1", { id: "t1", type: "transport", bytesReceived: 1_600, bytesSent: 700 }],
+            ["cp1", { id: "cp1", type: "candidate-pair", bytesReceived: 2_500, bytesSent: 900 }],
+            ["in1", { id: "in1", type: "inbound-rtp", bytesReceived: 2_000 }],
+        ]);
+        expect(computeRtcStatsDelta(report2, state)).toBe(900);
+    });
+
+    test("falls back to candidate-pair when transport is absent and to stream stats when both are absent", () => {
+        const cpState: RtcCounterState = { counters: new Map() };
+        const cpReport = [
+            { id: "cp1", type: "candidate-pair", bytesReceived: 800, bytesSent: 200 },
+            { id: "in1", type: "inbound-rtp", bytesReceived: 750 },
+        ];
+        expect(computeRtcStatsDelta(cpReport, cpState)).toBe(1_000);
+        expect(cpState.tier).toBe("candidate-pair");
+
+        const streamState: RtcCounterState = { counters: new Map() };
+        const streamReport = [
+            { id: "in1", type: "inbound-rtp", bytesReceived: 600, bytesSent: 999 },
+            { id: "out1", type: "outbound-rtp", bytesSent: 300, bytesReceived: 888 },
+            { id: "dc1", type: "data-channel", bytesReceived: 100, bytesSent: 50 },
+        ];
+        expect(computeRtcStatsDelta(streamReport, streamState)).toBe(1_050);
+        expect(streamState.tier).toBe("stream");
+    });
+
+    test("keeps tier unset on all-zero reports, handles ICE restarts with new stat ids, and ignores jitter/invalid counters", () => {
+        const state: RtcCounterState = { counters: new Map() };
+        const zeroReport = [
+            { id: "t1", type: "transport", bytesReceived: 0, bytesSent: 0 },
+            { id: "cp1", type: "candidate-pair", bytesReceived: -50, bytesSent: Number.NaN },
+        ];
+        expect(computeRtcStatsDelta(zeroReport, state)).toBe(0);
+        expect(state.tier).toBeUndefined();
+
+        const firstActive = [
+            { id: "t1", type: "transport", bytesReceived: 0, bytesSent: 0 },
+            { id: "cp1", type: "candidate-pair", bytesReceived: 500, bytesSent: 250 },
+        ];
+        expect(computeRtcStatsDelta(firstActive, state)).toBe(750);
+        expect(state.tier).toBe("candidate-pair");
+
+        const jitter = [
+            {
+                id: "cp1",
+                type: "candidate-pair",
+                bytesReceived: 400,
+                bytesSent: Number.POSITIVE_INFINITY,
+            },
+        ];
+        expect(computeRtcStatsDelta(jitter, state)).toBe(0);
+
+        const iceRestart = [
+            { id: "cp1", type: "candidate-pair", bytesReceived: 500, bytesSent: 250 },
+            { id: "cp2", type: "candidate-pair", bytesReceived: 300, bytesSent: 150 },
+        ];
+        expect(computeRtcStatsDelta(iceRestart, state)).toBe(450);
+
+        const afterRestart = [
+            { id: "cp2", type: "candidate-pair", bytesReceived: 500, bytesSent: 200 },
+        ];
+        expect(computeRtcStatsDelta(afterRestart, state)).toBe(250);
     });
 });
