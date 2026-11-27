@@ -41,21 +41,23 @@ function perEntryVisualizer(): Plugin {
     };
 }
 
+const LOCALE_MESSAGES_RE = /[/\\]public[/\\]_locales[/\\][^/\\]+[/\\]messages\.json$/;
+
+// Locale files in public/_locales/*/messages.json include WebExtension metadata
+// (`description`, `placeholders`) that browsers read from public/ directly,
+// whereas JS bundles only need `{ message }` for runtime lookups.
 function stripLocaleMetadata(): Plugin {
-    const localeJsonPattern = /[/\\]public[/\\]_locales[/\\][^/\\]+[/\\]messages\.json$/;
     return {
         name: "strip-locale-metadata",
         enforce: "pre",
         transform(code, id) {
-            if (!localeJsonPattern.test(id)) return null;
-            const parsed = JSON.parse(code) as Record<string, { message: string }>;
-            const slim = Object.fromEntries(
-                Object.entries(parsed).map(([key, entry]) => [key, { message: entry.message }]),
-            );
-            return {
-                code: JSON.stringify(slim),
-                map: null,
-            };
+            if (!LOCALE_MESSAGES_RE.test(id)) return null;
+            const raw = JSON.parse(code) as Record<string, { message: string }>;
+            const stripped: Record<string, { message: string }> = {};
+            for (const [key, entry] of Object.entries(raw)) {
+                stripped[key] = { message: entry.message };
+            }
+            return { code: JSON.stringify(stripped), map: null };
         },
     };
 }
