@@ -183,6 +183,32 @@
             }
         }
     },
+    "popup_genericVideo": {
+        "message": "Video",
+        "description": "Fallback title for a generic detected video"
+    },
+    "popup_detectedVideos_label": {
+        "message": "Detected videos",
+        "description": "Accessible label for the multi-video switcher in the popup"
+    },
+    "popup_videoBadge_playing": {
+        "message": "Playing",
+        "description": "Badge shown next to a currently playing detected video"
+    },
+    "popup_videoBadge_inView": {
+        "message": "In view",
+        "description": "Badge shown next to a detected video visible in the viewport"
+    },
+    "popup_videoItemFallback": {
+        "message": "Video $1",
+        "description": "Fallback label for a detected video without a title or platform name",
+        "placeholders": {
+            "index": {
+                "content": "$1",
+                "example": "1"
+            }
+        }
+    },
     "popup_usageTrackingEnabled": {
         "message": "Usage tracking is enabled.",
         "description": "Info shown when usage tracking is enabled"
