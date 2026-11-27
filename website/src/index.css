@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+    --font-sans: "Plus Jakarta Sans", "Noto Kufi Arabic", system-ui, -apple-system, sans-serif;
+    --font-arabic: "Noto Kufi Arabic", "Plus Jakarta Sans", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", "Noto Kufi Arabic", ui-monospace, monospace;
+}
+
+@layer base {
+    html {
+        background-color: #f7f8fa;
+        color: #14181f;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    html[dir="rtl"] body {
+        font-family: var(--font-arabic);
+    }
+}
