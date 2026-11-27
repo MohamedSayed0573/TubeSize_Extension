@@ -4,7 +4,7 @@ const DEFAULT_HOLD_MS = 500;
 const DEFAULT_FINISHED_TTL_MS = 2_000;
 const MAX_RECENT_FINISHED = 256;
 
-type WebRequestCandidate = Pick<chrome.webRequest.OnCompletedDetails, "url" | "type" | "tabId">;
+type WebRequestCandidate = Pick<chrome.webRequest.OnCompletedDetails, "url" | "type">;
 
 export interface DownloadDedupOptions {
     now?: () => number;
@@ -17,13 +17,16 @@ export interface DownloadDedup {
     finish(downloadId: number, urls?: ReadonlyArray<string | undefined>): void;
     remove(downloadId: number): void;
     interceptWebRequest(details: WebRequestCandidate, tabUrl: string, bytes: number): boolean;
-    flushHeld(tabId?: number): void;
     dispose(): void;
+}
+
+interface ActiveDownloadEntry {
+    urls: Set<string>;
+    matched: boolean;
 }
 
 interface HeldRequest {
     url: string;
-    tabId: number;
     tabUrl: string;
     bytes: number;
     timer: ReturnType<typeof setTimeout>;
@@ -65,7 +68,7 @@ export function createDownloadDedup(
     const holdMs = options.holdMs ?? DEFAULT_HOLD_MS;
     const finishedTtlMs = options.finishedTtlMs ?? DEFAULT_FINISHED_TTL_MS;
 
-    const activeUrls = new Map<number, Set<string>>();
+    const activeDownloads = new Map<number, ActiveDownloadEntry>();
     const recentlyFinished = new Map<string, number>();
     const held: HeldRequest[] = [];
     let isDisposed = false;
@@ -89,9 +92,12 @@ export function createDownloadDedup(
         return cancelled;
     }
 
-    function hasActiveUrl(url: string): boolean {
-        for (const urls of activeUrls.values()) {
-            if (urls.has(url)) return true;
+    function matchActiveUrl(url: string): boolean {
+        for (const entry of activeDownloads.values()) {
+            if (entry.urls.has(url)) {
+                entry.matched = true;
+                return true;
+            }
         }
         return false;
     }
@@ -101,25 +107,27 @@ export function createDownloadDedup(
         const cleanUrls = collectUrls(urls);
         if (cleanUrls.length === 0) return;
 
-        let entry = activeUrls.get(downloadId);
+        let entry = activeDownloads.get(downloadId);
         if (!entry) {
-            entry = new Set<string>();
-            activeUrls.set(downloadId, entry);
+            entry = { urls: new Set<string>(), matched: false };
+            activeDownloads.set(downloadId, entry);
         }
-        for (const url of cleanUrls) entry.add(url);
-        cancelHeldMatching(cleanUrls);
+        for (const url of cleanUrls) entry.urls.add(url);
+        if (cancelHeldMatching(cleanUrls)) {
+            entry.matched = true;
+        }
     }
 
     function finish(downloadId: number, urls: ReadonlyArray<string | undefined> = []) {
-        const active = activeUrls.get(downloadId);
-        activeUrls.delete(downloadId);
+        const active = activeDownloads.get(downloadId);
+        activeDownloads.delete(downloadId);
         if (isDisposed) return;
 
-        const allUrls = collectUrls([...(active ?? []), ...urls]);
+        const allUrls = collectUrls([...(active?.urls ?? []), ...urls]);
         if (allUrls.length === 0) return;
 
         const cancelled = cancelHeldMatching(allUrls);
-        if (cancelled) return;
+        if (cancelled || active?.matched) return;
 
         const currentTime = now();
         pruneFinished(currentTime);
@@ -136,7 +144,7 @@ export function createDownloadDedup(
     }
 
     function remove(downloadId: number) {
-        activeUrls.delete(downloadId);
+        activeDownloads.delete(downloadId);
     }
 
     function interceptWebRequest(
@@ -146,14 +154,13 @@ export function createDownloadDedup(
     ): boolean {
         if (isDisposed || !isCandidateType(details.type)) return false;
 
-        if (hasActiveUrl(details.url)) return true;
+        if (matchActiveUrl(details.url)) return true;
 
         pruneFinished(now());
         if (recentlyFinished.delete(details.url)) return true;
 
         const entry: HeldRequest = {
             url: details.url,
-            tabId: details.tabId,
             tabUrl,
             bytes,
             timer: setTimeout(() => {
@@ -167,28 +174,12 @@ export function createDownloadDedup(
         return true;
     }
 
-    function flushHeld(tabId?: number) {
-        if (held.length === 0) return;
-        const released: HeldRequest[] = [];
-        for (let i = held.length - 1; i >= 0; i -= 1) {
-            const entry = held[i]!;
-            if (tabId !== undefined && entry.tabId !== tabId) continue;
-            clearTimeout(entry.timer);
-            held.splice(i, 1);
-            released.push(entry);
-        }
-        for (let i = released.length - 1; i >= 0; i -= 1) {
-            const entry = released[i]!;
-            onRelease(entry.tabUrl, entry.bytes);
-        }
-    }
-
     function dispose() {
         if (isDisposed) return;
         isDisposed = true;
         for (const entry of held) clearTimeout(entry.timer);
         held.length = 0;
-        activeUrls.clear();
+        activeDownloads.clear();
         recentlyFinished.clear();
     }
 
@@ -197,7 +188,6 @@ export function createDownloadDedup(
         finish,
         remove,
         interceptWebRequest,
-        flushHeld,
         dispose,
     };
 }

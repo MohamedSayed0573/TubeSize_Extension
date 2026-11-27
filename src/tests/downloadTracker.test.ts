@@ -699,6 +699,67 @@ describe("createDownloadTracker", () => {
         });
         expect(await getDownloadCheckpoints()).toEqual([]);
     });
+
+    test("retries startup hydration after transient load or search failure without overwriting newer checkpoints", async () => {
+        const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+        cleanups.push(() => consoleErrorSpy.mockRestore());
+
+        const controller = new FakeDownloadsController();
+        controller.items.set(
+            16,
+            makeDownloadItem({
+                id: 16,
+                url: "https://files.example.com/startup-retry.bin",
+                finalUrl: "https://files.example.com/startup-retry.bin",
+                bytesReceived: 80_000,
+                state: "in_progress",
+            }),
+        );
+
+        await commitDownloadProgress({
+            usage: { [origin("https://files.example.com")]: 30_000 },
+            upserts: [{ id: 16, startTime: DEFAULT_TIME_ISO, bytesReceived: 30_000 }],
+            deletes: [],
+        });
+
+        let failLoadOnce = true;
+        let failSearchOnce = true;
+        const originalSearch = controller.api.search;
+        controller.api.search = async (query) => {
+            if (failSearchOnce && query.state === "in_progress") {
+                failSearchOnce = false;
+                throw new Error("transient search failure");
+            }
+            return originalSearch(query);
+        };
+
+        const { tracker } = createTestHarness({
+            controller,
+            trackerDeps: {
+                pollIntervalMs: 25,
+                loadCheckpoints: async () => {
+                    if (failLoadOnce) {
+                        failLoadOnce = false;
+                        throw new Error("transient load failure");
+                    }
+                    return getDownloadCheckpoints();
+                },
+            },
+        });
+        await tracker.whenIdle();
+        expect(tracker.isPolling).toBe(false);
+
+        await waitMs(80);
+        await tracker.whenIdle();
+
+        expect(tracker.isPolling).toBe(true);
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://files.example.com")]: 80_000,
+        });
+        expect(await getDownloadCheckpoints()).toEqual([
+            { id: 16, startTime: DEFAULT_TIME_ISO, bytesReceived: 80_000 },
+        ]);
+    });
 });
 
 describe("webRequest deduplication", () => {
@@ -790,13 +851,40 @@ describe("webRequest deduplication", () => {
         });
         await tracker.whenIdle();
 
+        // Download 20 already suppressed its own webRequest while active, so a separate
+        // navigation to the same URL right after completion is counted normally.
         await trackRequest(
             ingestion,
             makeWebRequestDetails({
                 tabId: tab.id,
                 type: "main_frame",
                 url: "https://cdn.example.com/final.zip",
-                responseHeaders: [{ name: "Content-Length", value: "50000" }],
+                responseHeaders: [{ name: "Content-Length", value: "4000" }],
+            }),
+            dedup,
+        );
+
+        // Download 25 completes before its own webRequest.onCompleted arrives; the
+        // recently-finished entry suppresses that late completion once, then expires.
+        controller.emitCreated(
+            makeDownloadItem({
+                id: 25,
+                referrer: "https://app.example.com/page",
+                url: "https://cdn.example.com/late.zip",
+                finalUrl: "https://cdn.example.com/late.zip",
+                bytesReceived: 20_000,
+                state: "complete",
+            }),
+        );
+        await tracker.whenIdle();
+
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab.id,
+                type: "main_frame",
+                url: "https://cdn.example.com/late.zip",
+                responseHeaders: [{ name: "Content-Length", value: "20000" }],
             }),
             dedup,
         );
@@ -807,7 +895,7 @@ describe("webRequest deduplication", () => {
             makeWebRequestDetails({
                 tabId: tab.id,
                 type: "main_frame",
-                url: "https://cdn.example.com/final.zip",
+                url: "https://cdn.example.com/late.zip",
                 responseHeaders: [{ name: "Content-Length", value: "7000" }],
             }),
             dedup,
@@ -816,8 +904,8 @@ describe("webRequest deduplication", () => {
         await ingestion.flush();
 
         expect((await getAllSiteUsage())[0]?.usage).toEqual({
-            [origin("https://app.example.com")]: 53_000,
-            [origin("https://cdn.example.com")]: 7_000,
+            [origin("https://app.example.com")]: 73_000,
+            [origin("https://cdn.example.com")]: 11_000,
         });
     });
 
@@ -979,7 +1067,7 @@ describe("webRequest deduplication", () => {
         });
     });
 
-    test("releases unmatched navigations on hold expiry or tab close, and counts a later download separately", async () => {
+    test("holds webRequest across tab close until downloads.onCreated cancels it or hold expires", async () => {
         const addSpy = spyOn(chrome.webRequest.onCompleted, "addListener").mockImplementation(
             () => {},
         );
@@ -992,7 +1080,7 @@ describe("webRequest deduplication", () => {
         });
 
         const { controller, dedup, ingestion, tracker } = createTestHarness({
-            dedupOptions: { holdMs: 30 },
+            dedupOptions: { holdMs: 50 },
         });
         await tracker.whenIdle();
 
@@ -1001,7 +1089,9 @@ describe("webRequest deduplication", () => {
 
         const tab1 = await fakeBrowser.tabs.create({ url: "https://docs.example.com/report.pdf" });
         const tab2 = await fakeBrowser.tabs.create({ url: "https://news.example.com/story" });
+        const tab3 = await fakeBrowser.tabs.create({ url: "https://cdn.example.com/popup.zip" });
 
+        // Normal navigation releases after hold expires; a later download counts separately.
         await trackRequest(
             ingestion,
             makeWebRequestDetails({
@@ -1012,7 +1102,7 @@ describe("webRequest deduplication", () => {
             }),
             dedup,
         );
-        await waitMs(50);
+        await waitMs(70);
 
         controller.emitCreated(
             makeDownloadItem({
@@ -1026,6 +1116,34 @@ describe("webRequest deduplication", () => {
         );
         await tracker.whenIdle();
 
+        // Closing a download tab before downloads.onCreated does not prematurely flush & double-count.
+        await trackRequest(
+            ingestion,
+            makeWebRequestDetails({
+                tabId: tab3.id,
+                type: "main_frame",
+                url: "https://cdn.example.com/popup.zip",
+                responseHeaders: [{ name: "Content-Length", value: "15000" }],
+            }),
+            dedup,
+        );
+        await fakeBrowser.tabs.onRemoved.trigger(tab3.id!, {
+            windowId: tab3.windowId ?? 1,
+            isWindowClosing: false,
+        });
+        controller.emitCreated(
+            makeDownloadItem({
+                id: 26,
+                referrer: "https://app.example.com/downloads",
+                url: "https://cdn.example.com/popup.zip",
+                finalUrl: "https://cdn.example.com/popup.zip",
+                bytesReceived: 15_000,
+                state: "complete",
+            }),
+        );
+        await tracker.whenIdle();
+
+        // Closing a normal tab still releases its held navigation once the hold timer expires.
         await trackRequest(
             ingestion,
             makeWebRequestDetails({
@@ -1040,11 +1158,12 @@ describe("webRequest deduplication", () => {
             windowId: tab2.windowId ?? 1,
             isWindowClosing: false,
         });
-        await waitMs(20);
+        await waitMs(70);
         await ingestion.flush();
 
         expect((await getAllSiteUsage())[0]?.usage).toEqual({
             [origin("https://docs.example.com")]: 24_000,
+            [origin("https://app.example.com")]: 15_000,
             [origin("https://news.example.com")]: 5_000,
         });
     });

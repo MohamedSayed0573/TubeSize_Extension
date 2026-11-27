@@ -22,8 +22,7 @@ export function setupTrackUsage(
     const onRequestCompleted = (details: CompletedRequestDetails) => {
         void trackRequest(ingestion, details, dedup);
     };
-    const onTabRemoved = (tabId: number) => {
-        dedup?.flushHeld(tabId);
+    const onTabRemoved = () => {
         if (!ingestion.hasPendingUsage) return;
         void ingestion.flush().catch((err: unknown) => {
             console.error("Failed to flush usage on tab close:", err);

@@ -15,6 +15,7 @@ import { type DownloadDedup, collectUrls } from "./downloadDedup";
 import { isExtensionUrl } from "./usageIngestion";
 
 const DEFAULT_POLL_INTERVAL_MS = 1_000;
+const MAX_HYDRATE_RETRIES = 3;
 
 export interface DownloadApi {
     onCreated: Pick<typeof chrome.downloads.onCreated, "addListener" | "removeListener">;
@@ -83,6 +84,8 @@ export function createDownloadTracker(
     const createdIds = new Set<number>();
 
     let pollTimerId: ReturnType<typeof setInterval> | undefined;
+    let hydrateRetryTimerId: ReturnType<typeof setTimeout> | undefined;
+    let hydrateRetries = 0;
     let pollQueued = false;
     let isDisposed = false;
     let operationQueue: Promise<void> = Promise.resolve();
@@ -263,22 +266,24 @@ export function createDownloadTracker(
 
         if (!(await commitBatch(batch))) {
             syncPolling();
-            return;
+            return false;
         }
 
         for (const [id, checkpoint] of nextCheckpoints) checkpoints.set(id, checkpoint);
         for (const id of deletedCheckpoints) checkpoints.delete(id);
         for (const apply of postCommit) apply();
         syncPolling();
+        return true;
     }
 
-    async function syncActiveAndTracked(trackedIds: ReadonlyArray<number>) {
+    async function syncActiveAndTracked(trackedIds: ReadonlyArray<number>): Promise<boolean> {
         const inProgress = await safeSearch({ state: "in_progress" });
-        if (!inProgress) return;
+        if (!inProgress) return false;
 
         const itemsToReconcile: chrome.downloads.DownloadItem[] = [];
         const removedIds: number[] = [];
         const seenInProgress = new Set<number>();
+        let allSearchesSucceeded = true;
 
         for (const item of inProgress) {
             seenInProgress.add(item.id);
@@ -288,7 +293,10 @@ export function createDownloadTracker(
         for (const id of trackedIds) {
             if (seenInProgress.has(id)) continue;
             const found = await safeSearch({ id });
-            if (!found) continue;
+            if (!found) {
+                allSearchesSucceeded = false;
+                continue;
+            }
 
             const [item] = found;
             const checkpoint = checkpoints.get(id);
@@ -303,7 +311,24 @@ export function createDownloadTracker(
             itemsToReconcile.push(item);
         }
 
-        await reconcile(itemsToReconcile, removedIds, "received");
+        const committed = await reconcile(itemsToReconcile, removedIds, "received");
+        return allSearchesSucceeded && committed;
+    }
+
+    function scheduleHydrateRetry() {
+        if (
+            isDisposed ||
+            hydrateRetryTimerId !== undefined ||
+            hydrateRetries >= MAX_HYDRATE_RETRIES
+        ) {
+            return;
+        }
+        hydrateRetries += 1;
+        hydrateRetryTimerId = setTimeout(() => {
+            hydrateRetryTimerId = undefined;
+            if (isDisposed) return;
+            enqueue(hydrate);
+        }, pollIntervalMs);
     }
 
     async function hydrate() {
@@ -312,10 +337,16 @@ export function createDownloadTracker(
             stored = await loadCheckpoints();
         } catch (err) {
             console.error("Failed to load download checkpoints:", err);
+            scheduleHydrateRetry();
             return;
         }
-        for (const checkpoint of stored) checkpoints.set(checkpoint.id, checkpoint);
-        await syncActiveAndTracked(Array.from(checkpoints.keys()));
+        for (const checkpoint of stored) {
+            if (!checkpoints.has(checkpoint.id)) {
+                checkpoints.set(checkpoint.id, checkpoint);
+            }
+        }
+        const synced = await syncActiveAndTracked(Array.from(checkpoints.keys()));
+        if (!synced) scheduleHydrateRetry();
     }
 
     async function handleChanged(delta: chrome.downloads.DownloadDelta) {
@@ -409,6 +440,10 @@ export function createDownloadTracker(
             if (isDisposed) return;
             isDisposed = true;
             stopPolling();
+            if (hydrateRetryTimerId !== undefined) {
+                clearTimeout(hydrateRetryTimerId);
+                hydrateRetryTimerId = undefined;
+            }
             downloads.onCreated.removeListener(onCreated);
             downloads.onChanged.removeListener(onChanged);
             downloads.onErased?.removeListener(onErased);
