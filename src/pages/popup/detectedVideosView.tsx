@@ -185,7 +185,7 @@ export function DetectedVideosView({ videos }: Props) {
                 id={panelId}
                 aria-labelledby={activeTabId}
                 tabIndex={0}
-                className="focus-visible:outline-none"
+                className="flex flex-col gap-2 focus-visible:outline-none"
             >
                 {content}
             </div>

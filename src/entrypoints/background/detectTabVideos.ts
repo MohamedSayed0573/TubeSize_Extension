@@ -360,25 +360,25 @@ function pairPlayersWithGroups(
 
     if (selected.length === 0) return [];
 
-    const playingPlayers = players.filter((entry) => entry.video.isPlaying);
-    const otherPlayers = players.filter((entry) => !entry.video.isPlaying);
-    const pairs: Array<{ player: PendingMseVideo; group: ManifestGroup }> = [];
-    const remaining = [...selected];
+    // When fewer manifest groups than players exist, prefer playing players so
+    // an active stream is not assigned to an idle placeholder element. Keep the
+    // chosen players in DOM order and pair them chronologically with the
+    // selected groups so multiple players do not swap manifests.
+    const chosenPlayers = [
+        ...players.filter((entry) => entry.video.isPlaying),
+        ...players.filter((entry) => !entry.video.isPlaying),
+    ]
+        .slice(0, selected.length)
+        .toSorted((a, b) => a.domOrder - b.domOrder);
 
-    for (const player of playingPlayers) {
-        const group = remaining.shift();
-        if (!group) break;
-        pairs.push({ player, group });
-    }
-
-    const chronological = remaining.toSorted(
+    const chronologicalGroups = selected.toSorted(
         (a, b) => a.firstObservedAt - b.firstObservedAt || a.id - b.id,
     );
-    for (let index = 0; index < otherPlayers.length && index < chronological.length; index++) {
-        pairs.push({ player: otherPlayers[index]!, group: chronological[index]! });
-    }
 
-    return pairs;
+    return chosenPlayers.map((player, index) => ({
+        player,
+        group: chronologicalGroups[index]!,
+    }));
 }
 
 function toGenericSource(
@@ -415,31 +415,21 @@ function sourceId(source: DetectedVideoSource): string {
         : `${source.kind}:${source.url}`;
 }
 
-function parseFrameLocation(rawUrl: string): { pathname: string; search: string } | undefined {
-    try {
-        const parsed = new URL(rawUrl);
-        return { pathname: parsed.pathname, search: parsed.search };
-    } catch {
-        return undefined;
-    }
-}
-
-function hasMultiplePathSegments(pathname: string): boolean {
-    return pathname.split("/").filter(Boolean).length >= 2;
-}
-
-function findOffscreenFrameIds(frames: readonly FrameScanResult[]): Set<number> {
+function findOffscreenFrameIds(
+    frames: readonly FrameScanResult[],
+    frameInitialUrls?: ReadonlyMap<number, string>,
+): Set<number> {
     const allIframes: Array<{
+        ownerFrameId: number;
         url: string;
         inViewport: boolean;
-        loc?: { pathname: string; search: string };
     }> = [];
     for (const frame of frames) {
         for (const iframe of frame.iframes) {
             allIframes.push({
+                ownerFrameId: frame.frameId,
                 url: iframe.url,
                 inViewport: iframe.inViewport,
-                loc: parseFrameLocation(iframe.url),
             });
         }
     }
@@ -447,28 +437,31 @@ function findOffscreenFrameIds(frames: readonly FrameScanResult[]): Set<number> 
     const offscreenFrameIds = new Set<number>();
     if (allIframes.length === 0) return offscreenFrameIds;
 
-    for (const frame of frames) {
-        if (frame.frameId === 0) continue;
-        const exactMatches = allIframes.filter((iframe) => iframe.url === frame.frameUrl);
-        let matches = exactMatches;
+    // Match each subframe only against exact URLs observed in a parent frame:
+    // either its current URL or the confirmed pre-redirect navigation URL from
+    // webRequest, so unrelated frames sharing a path suffix cannot collide.
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const frame of frames) {
+            if (frame.frameId === 0 || offscreenFrameIds.has(frame.frameId)) continue;
+            const initialUrl = frameInitialUrls?.get(frame.frameId);
+            const matches = allIframes.filter(
+                (iframe) =>
+                    iframe.ownerFrameId !== frame.frameId &&
+                    (iframe.url === frame.frameUrl ||
+                        (initialUrl !== undefined && iframe.url === initialUrl)),
+            );
 
-        if (matches.length === 0) {
-            const frameLoc = parseFrameLocation(frame.frameUrl);
-            if (frameLoc && hasMultiplePathSegments(frameLoc.pathname)) {
-                matches = allIframes.filter(
-                    (iframe) =>
-                        iframe.loc !== undefined &&
-                        iframe.loc.search === frameLoc.search &&
-                        hasMultiplePathSegments(iframe.loc.pathname) &&
-                        (iframe.loc.pathname === frameLoc.pathname ||
-                            iframe.loc.pathname.endsWith(frameLoc.pathname) ||
-                            frameLoc.pathname.endsWith(iframe.loc.pathname)),
-                );
+            if (
+                matches.length > 0 &&
+                matches.every(
+                    (iframe) => !iframe.inViewport || offscreenFrameIds.has(iframe.ownerFrameId),
+                )
+            ) {
+                offscreenFrameIds.add(frame.frameId);
+                changed = true;
             }
-        }
-
-        if (matches.length > 0 && matches.every((iframe) => !iframe.inViewport)) {
-            offscreenFrameIds.add(frame.frameId);
         }
     }
 
@@ -478,8 +471,9 @@ function findOffscreenFrameIds(frames: readonly FrameScanResult[]): Set<number> 
 export function mergeDetectedVideos(
     frames: readonly FrameScanResult[],
     observedMedia: readonly ObservedMedia[],
+    frameInitialUrls?: ReadonlyMap<number, string>,
 ): DetectedVideo[] {
-    const offscreenFrameIds = findOffscreenFrameIds(frames);
+    const offscreenFrameIds = findOffscreenFrameIds(frames, frameInitialUrls);
     const ranked = new Map<string, { video: DetectedVideo; order: number }>();
     let discovery = 0;
 
@@ -737,5 +731,9 @@ export async function detectTabVideos(
     const frames = results.flatMap((entry) =>
         entry.result ? [{ ...entry.result, frameId: entry.frameId }] : [],
     );
-    return mergeDetectedVideos(frames, await registry.getTabMedia(tabId));
+    const [observedMedia, frameInitialUrls] = await Promise.all([
+        registry.getTabMedia(tabId),
+        registry.getFrameInitialUrls(tabId),
+    ]);
+    return mergeDetectedVideos(frames, observedMedia, frameInitialUrls);
 }

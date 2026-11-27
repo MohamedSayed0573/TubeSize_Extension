@@ -256,6 +256,7 @@ describe("popup embedded and generic video detection", () => {
         expect(tabs[2]?.tabIndex).toBe(-1);
         const panel = host?.querySelector('[role="tabpanel"]');
         expect(panel).not.toBeNull();
+        expect(panel?.className).toContain("flex flex-col gap-2");
         expect(panel?.id).toBe(tabs[0]?.getAttribute("aria-controls") ?? "");
         expect(panel?.getAttribute("aria-labelledby")).toBe(tabs[0]?.id ?? null);
         expect(tabs[0]?.textContent).toContain("Keynote Stream");

@@ -251,6 +251,118 @@ describe("createTabMediaRegistry", () => {
         secondWorker.observeSubFrame(12, 5, "https://example.com/other");
         expect(await secondWorker.getFrameUrl(12, 5)).toBeUndefined();
     });
+
+    test("invalidates stale subframe media on subframe navigation while preserving other frames (including pre-hydration)", async () => {
+        const storage = createMemoryStorage();
+        let tick = 100;
+        const firstWorker = createTabMediaRegistry({ now: () => ++tick, storage });
+
+        firstWorker.observeSubFrame(15, 7, "https://player.example.com/frame");
+        firstWorker.observeSubFrameRequest({
+            tabId: 15,
+            frameId: 7,
+            requestId: "req-old-hls",
+            documentId: "doc-old-7",
+        });
+        firstWorker.observeRequest(
+            makeRequest({
+                tabId: 15,
+                frameId: 0,
+                url: "https://cdn.example.com/main/master.m3u8",
+            }),
+        );
+        firstWorker.observeRequest(
+            makeRequest({
+                tabId: 15,
+                frameId: 7,
+                url: "https://cdn.example.com/sub/old.m3u8",
+            }),
+        );
+        await firstWorker.getTabMedia(15);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // Navigating frame 7 to a plain page drops frame 7's manifest but preserves frame 0.
+        firstWorker.observeSubFrame(15, 7, "https://example.com/plain");
+        // Late completion from the superseded request/document in frame 7 must not resurrect media.
+        firstWorker.observeRequest({
+            ...makeRequest({
+                tabId: 15,
+                frameId: 7,
+                url: "https://cdn.example.com/sub/late.m3u8",
+            }),
+            requestId: "req-old-hls",
+            documentId: "doc-old-7",
+        });
+        expect((await firstWorker.getTabMedia(15)).map((entry) => entry.url)).toEqual([
+            "https://cdn.example.com/main/master.m3u8",
+        ]);
+
+        // Re-seed persisted storage with frame 7 media, then test pre-hydration subframe navigation.
+        firstWorker.observeRequest(
+            makeRequest({
+                tabId: 15,
+                frameId: 7,
+                url: "https://cdn.example.com/sub/persisted.m3u8",
+            }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        const restartedWorker = createTabMediaRegistry({ now: () => ++tick, storage });
+        restartedWorker.observeSubFrame(15, 7, "https://example.com/plain-2");
+        expect((await restartedWorker.getTabMedia(15)).map((entry) => entry.url)).toEqual([
+            "https://cdn.example.com/main/master.m3u8",
+        ]);
+    });
+
+    test("avoids redundant storage writes for unrelated non-embed subframes after hydration and tracks redirected initial URLs", async () => {
+        let saved: unknown = null;
+        let writes = 0;
+        const storage: TabMediaStorage = {
+            async get() {
+                return structuredClone(saved);
+            },
+            async set(value) {
+                writes++;
+                saved = structuredClone(value);
+            },
+        };
+
+        const registry = createTabMediaRegistry({ storage });
+        await registry.getTabMedia(20);
+        expect(writes).toBe(0);
+
+        // Ordinary ad/analytics subframes without prior saved state must not trigger storage writes.
+        registry.observeSubFrame(20, 41, "https://ads.example.net/banner", "req-ad-1");
+        registry.observeSubFrameRequest({
+            tabId: 20,
+            frameId: 41,
+            requestId: "req-ad-sub-1",
+            documentId: "doc-ad-1",
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(writes).toBe(0);
+
+        // Redirected subframe navigation with matching requestId records confirmed pre-redirect URL.
+        registry.observeSubFrame(
+            20,
+            4,
+            "https://developers.google.com/frame/youtube/iframe_api_reference_demo.frame",
+            "req-frame-4",
+        );
+        registry.observeSubFrame(
+            20,
+            4,
+            "https://developers-dot-devsite-v2-prod.appspot.com/youtube/iframe_api_reference_demo.frame",
+            "req-frame-4",
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(writes).toBe(1);
+
+        const restored = createTabMediaRegistry({ storage });
+        expect((await restored.getFrameInitialUrls(20)).get(4)).toBe(
+            "https://developers.google.com/frame/youtube/iframe_api_reference_demo.frame",
+        );
+    });
 });
 
 describe("mergeDetectedVideos", () => {
@@ -603,6 +715,104 @@ describe("mergeDetectedVideos", () => {
             { id: "hls:https://cdn.example.com/b/master.m3u8", title: "Player B" },
         ]);
 
+        // Two simultaneously playing blob players must preserve chronological manifest pairing.
+        const dualPlayingFrames: FrameScanResult[] = [
+            {
+                frameId: 0,
+                frameUrl: "https://example.com/dual-dash",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "blob:https://example.com/dash-a",
+                        sources: [],
+                        durationSeconds: 120,
+                        isPlaying: true,
+                        inViewport: true,
+                        viewportArea: 300_000,
+                        title: "DASH A",
+                    },
+                    {
+                        currentSrc: "blob:https://example.com/dash-b",
+                        sources: [],
+                        durationSeconds: 240,
+                        isPlaying: true,
+                        inViewport: true,
+                        viewportArea: 200_000,
+                        title: "DASH B",
+                    },
+                ],
+            },
+        ];
+        const dualDashObserved: ObservedMedia[] = [
+            {
+                kind: "dash",
+                url: "https://cdn.example.com/a/manifest.mpd",
+                frameId: 0,
+                observedAt: 1,
+            },
+            {
+                kind: "dash",
+                url: "https://cdn.example.com/b/manifest.mpd",
+                frameId: 0,
+                observedAt: 2,
+            },
+        ];
+        const dualPlaying = mergeDetectedVideos(dualPlayingFrames, dualDashObserved);
+        expect(
+            dualPlaying.map((video) => ({
+                id: video.id,
+                title: video.title,
+                duration: video.source.kind === "dash" ? video.source.durationSeconds : undefined,
+            })),
+        ).toEqual([
+            {
+                id: "dash:https://cdn.example.com/a/manifest.mpd",
+                title: "DASH A",
+                duration: 120,
+            },
+            {
+                id: "dash:https://cdn.example.com/b/manifest.mpd",
+                title: "DASH B",
+                duration: 240,
+            },
+        ]);
+
+        // When fewer manifests than players exist, prefer the playing player.
+        const singleManifestFrames: FrameScanResult[] = [
+            {
+                frameId: 0,
+                frameUrl: "https://example.com/one-playing",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "blob:https://example.com/idle",
+                        sources: [],
+                        durationSeconds: 60,
+                        isPlaying: false,
+                        inViewport: true,
+                        viewportArea: 300_000,
+                        title: "Idle Placeholder",
+                    },
+                    {
+                        currentSrc: "blob:https://example.com/active",
+                        sources: [],
+                        durationSeconds: 180,
+                        isPlaying: true,
+                        inViewport: true,
+                        viewportArea: 200_000,
+                        title: "Active Stream",
+                    },
+                ],
+            },
+        ];
+        const singleManifest = mergeDetectedVideos(singleManifestFrames, [dualDashObserved[1]!]);
+        expect(singleManifest).toHaveLength(1);
+        expect(singleManifest[0]).toMatchObject({
+            id: "dash:https://cdn.example.com/b/manifest.mpd",
+            title: "Active Stream",
+            isPlaying: true,
+        });
+
         // In-page video switch (1 blob player, old stream group + newer stream group):
         const switchedFrames: FrameScanResult[] = [
             {
@@ -806,7 +1016,7 @@ describe("mergeDetectedVideos", () => {
         ]);
     });
 
-    test("clamps inViewport for nested embeds hosted inside offscreen parent iframes", () => {
+    test("clamps inViewport for nested embeds inside confirmed offscreen parent iframes without colliding across hosts", () => {
         const frames: FrameScanResult[] = [
             {
                 frameId: 0,
@@ -823,6 +1033,18 @@ describe("mergeDetectedVideos", () => {
                         title: "",
                         inViewport: false,
                         viewportArea: 0,
+                    },
+                    {
+                        url: "https://hidden-other-host.example/embed/player",
+                        title: "",
+                        inViewport: false,
+                        viewportArea: 0,
+                    },
+                    {
+                        url: "https://visible-host.example/redirect-to-player",
+                        title: "",
+                        inViewport: true,
+                        viewportArea: 150_000,
                     },
                 ],
                 videos: [],
@@ -841,12 +1063,34 @@ describe("mergeDetectedVideos", () => {
                 ],
                 videos: [],
             },
+            {
+                frameId: 8,
+                frameUrl: "https://cdn-host.example/embed/player",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "https://cdn-host.example/video.mp4",
+                        sources: [],
+                        durationSeconds: 45,
+                        isPlaying: false,
+                        inViewport: true,
+                        viewportArea: 120_000,
+                        title: "Visible Redirected Video",
+                    },
+                ],
+            },
         ];
 
-        const merged = mergeDetectedVideos(frames, []);
+        const frameInitialUrls = new Map<number, string>([
+            [4, "https://developers.google.com/frame/youtube/iframe_api_reference_demo.frame"],
+            [8, "https://visible-host.example/redirect-to-player"],
+        ]);
+
+        const merged = mergeDetectedVideos(frames, [], frameInitialUrls);
         expect(
             merged.map((video) => ({ title: video.title, inViewport: video.inViewport })),
         ).toEqual([
+            { title: "Visible Redirected Video", inViewport: true },
             { title: "Top Visible Embed", inViewport: true },
             { title: "Offscreen Nested Embed", inViewport: false },
         ]);

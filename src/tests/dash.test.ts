@@ -271,4 +271,57 @@ describe("estimateGenericDash", () => {
             }),
         ).rejects.toMatchObject({ name: "MediaEstimateError", code: "network_error" });
     });
+
+    test("resolves implicit Period starts from preceding Period ends before estimating sizes", async () => {
+        // 90s MPD with (start, duration): (0,10), (omitted,omitted), (30,15), (omitted,omitted), (50,40)
+        // Implicit starts are 10s and 45s -> durations are 10, 20, 15, 5, 40.
+        // Period 2 @ 8 Mbps (20s = 20 MB) + other 70s @ 0.8 Mbps (7 MB) = 27 MB.
+        const implicitStartMpd = `<?xml version="1.0" encoding="UTF-8"?>
+<MPD type="static" mediaPresentationDuration="PT90S">
+  <Period start="PT0S" duration="PT10S">
+    <AdaptationSet contentType="video" mimeType="video/mp4">
+      <Representation height="1080" bandwidth="800000" />
+    </AdaptationSet>
+  </Period>
+  <Period>
+    <AdaptationSet contentType="video" mimeType="video/mp4">
+      <Representation height="1080" bandwidth="8000000" />
+    </AdaptationSet>
+  </Period>
+  <Period start="PT30S" duration="PT15S">
+    <AdaptationSet contentType="video" mimeType="video/mp4">
+      <Representation height="1080" bandwidth="800000" />
+    </AdaptationSet>
+  </Period>
+  <Period>
+    <AdaptationSet contentType="video" mimeType="video/mp4">
+      <Representation height="1080" bandwidth="800000" />
+    </AdaptationSet>
+  </Period>
+  <Period start="PT50S" duration="PT40S">
+    <AdaptationSet contentType="video" mimeType="video/mp4">
+      <Representation height="1080" bandwidth="800000" />
+    </AdaptationSet>
+  </Period>
+</MPD>`;
+
+        const estimate = await estimateGenericDash("https://cdn.example.com/implicit.mpd", {
+            sleep: instantSleep,
+            fetch: async () => new Response(implicitStartMpd, { status: 200 }),
+        });
+
+        expect(estimate).toEqual({
+            platform: "generic",
+            contentType: "vod",
+            durationSeconds: 90,
+            formats: [
+                {
+                    kind: "vod",
+                    resolution: 1080,
+                    sizeBytes: 27_000_000,
+                    sizePerSecondBytes: 300_000,
+                },
+            ],
+        });
+    });
 });

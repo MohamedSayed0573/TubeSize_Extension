@@ -628,4 +628,180 @@ describe("setupTrackUsage", () => {
             [toVideoKey("youtube", "bHQqvYy5KYo")]: 250_000,
         });
     });
+
+    test("keeps completed subframe requests bound to their original document when the iframe navigates concurrently", async () => {
+        const webRequest = stubWebRequestCompleted();
+        const beforeListeners = new Set<
+            (
+                details: chrome.webRequest.OnBeforeRequestDetails,
+            ) => chrome.webRequest.BlockingResponse | undefined
+        >();
+        const addBeforeSpy = spyOn(
+            chrome.webRequest.onBeforeRequest,
+            "addListener",
+        ).mockImplementation((listener) => {
+            beforeListeners.add(listener);
+        });
+        const removeBeforeSpy = spyOn(
+            chrome.webRequest.onBeforeRequest,
+            "removeListener",
+        ).mockImplementation((listener) => {
+            beforeListeners.delete(listener);
+        });
+        cleanups.push(() => {
+            addBeforeSpy.mockRestore();
+            removeBeforeSpy.mockRestore();
+        });
+
+        await addVideoMetadata({
+            type: "youtube",
+            mediaId: "videoAAAAAA",
+            title: "Embed A",
+            channelName: "Channel A",
+            channelUrl: "https://www.youtube.com/@a",
+            thumbnailUrl: "",
+        });
+        await addVideoMetadata({
+            type: "youtube",
+            mediaId: "videoBBBBBB",
+            title: "Embed B",
+            channelName: "Channel B",
+            channelUrl: "https://www.youtube.com/@b",
+            thumbnailUrl: "",
+        });
+
+        const ingestion = createUsageIngestion({ flushIntervalMs: 60_000 });
+        const registry = createTabMediaRegistry({ storage: null });
+        const teardown = setupTrackUsage(ingestion, undefined, registry);
+        cleanups.push(teardown);
+
+        const tab = await fakeBrowser.tabs.create({
+            url: "https://host.example.com/article",
+        });
+        const tabId = tab.id!;
+
+        const emitBefore = (details: chrome.webRequest.OnBeforeRequestDetails) => {
+            for (const listener of beforeListeners) listener(details);
+        };
+
+        // 1. Frame 7 loads embed A and starts request req-a (doc-a).
+        emitBefore(
+            makeDetails({
+                tabId,
+                frameId: 7,
+                requestId: "nav-a",
+                type: "sub_frame",
+                url: "https://www.youtube.com/embed/videoAAAAAA",
+            }),
+        );
+        emitBefore(
+            makeDetails({
+                tabId,
+                frameId: 7,
+                requestId: "req-a",
+                documentId: "doc-a",
+                type: "xmlhttprequest",
+                url: "https://rr1.googlevideo.com/videoplayback?a=1",
+            }),
+        );
+
+        // 2. While req-a is still in flight, frame 7 navigates to embed B.
+        emitBefore(
+            makeDetails({
+                tabId,
+                frameId: 7,
+                requestId: "nav-b",
+                type: "sub_frame",
+                url: "https://www.youtube.com/embed/videoBBBBBB",
+            }),
+        );
+
+        // 3. req-a completes after the navigation to B: must attribute to A, not B.
+        webRequest.emit(
+            makeDetails({
+                tabId,
+                frameId: 7,
+                requestId: "req-a",
+                documentId: "doc-a",
+                type: "xmlhttprequest",
+                url: "https://rr1.googlevideo.com/videoplayback?a=1",
+                responseHeaders: [{ name: "Content-Length", value: "100000" }],
+            }),
+        );
+
+        // 4. Embed B binds doc-b, then a request with an unknown documentId completes:
+        // host siteUsage must still be recorded without crediting embed B.
+        emitBefore(
+            makeDetails({
+                tabId,
+                frameId: 7,
+                requestId: "req-b",
+                documentId: "doc-b",
+                type: "xmlhttprequest",
+                url: "https://rr2.googlevideo.com/videoplayback?b=1",
+            }),
+        );
+        webRequest.emit(
+            makeDetails({
+                tabId,
+                frameId: 7,
+                requestId: "req-unknown",
+                documentId: "doc-stale-unknown",
+                type: "xmlhttprequest",
+                url: "https://rr1.googlevideo.com/videoplayback?old=1",
+                responseHeaders: [{ name: "Content-Length", value: "50000" }],
+            }),
+        );
+
+        // 5. Even without prior onBeforeRequest, navigating during chrome.tabs.get
+        // must not attribute a completing request to the newer navigation.
+        let releaseTabsGet!: () => void;
+        const originalTabsGet = chrome.tabs.get.bind(chrome.tabs);
+        const tabsGetSpy = spyOn(chrome.tabs, "get").mockImplementationOnce(async (id: number) => {
+            await new Promise<void>((resolve) => {
+                releaseTabsGet = resolve;
+            });
+            return originalTabsGet(id);
+        });
+        cleanups.push(() => tabsGetSpy.mockRestore());
+
+        const pendingTrack = trackRequest(
+            ingestion,
+            makeDetails({
+                tabId,
+                frameId: 7,
+                requestId: "req-b-direct",
+                documentId: "doc-b",
+                type: "xmlhttprequest",
+                url: "https://rr2.googlevideo.com/videoplayback?b=2",
+                responseHeaders: [{ name: "Content-Length", value: "25000" }],
+            }),
+            undefined,
+            registry,
+        );
+
+        // Navigate frame 7 to a non-embed page while chrome.tabs.get is pending.
+        emitBefore(
+            makeDetails({
+                tabId,
+                frameId: 7,
+                requestId: "nav-plain",
+                type: "sub_frame",
+                url: "https://host.example.com/plain",
+            }),
+        );
+        releaseTabsGet();
+        await pendingTrack;
+
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        await ingestion.flush();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://host.example.com")]: 175_000,
+        });
+        expect((await getAllWatchHistory())[0]?.videos).toEqual({
+            [toVideoKey("youtube", "videoAAAAAA")]: 100_000,
+            [toVideoKey("youtube", "videoBBBBBB")]: 25_000,
+        });
+    });
 });

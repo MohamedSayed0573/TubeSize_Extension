@@ -16,6 +16,12 @@ export type ObservedMedia = {
 type ObservedRequestDetails = Pick<
     chrome.webRequest.OnCompletedDetails,
     "tabId" | "frameId" | "type" | "url" | "statusCode" | "responseHeaders"
+> &
+    Partial<Pick<chrome.webRequest.OnCompletedDetails, "requestId" | "documentId">>;
+
+type ObservedSubFrameRequestDetails = Pick<
+    chrome.webRequest.OnBeforeRequestDetails,
+    "tabId" | "frameId" | "requestId" | "documentId"
 >;
 
 export type TabMediaStorage = {
@@ -25,15 +31,21 @@ export type TabMediaStorage = {
 
 export type TabMediaRegistry = {
     observeRequest(details: ObservedRequestDetails): void;
-    observeSubFrame(tabId: number, frameId: number, url: string): void;
+    observeSubFrame(tabId: number, frameId: number, url: string, requestId?: string): void;
+    observeSubFrameRequest(details: ObservedSubFrameRequestDetails): void;
+    resolveRequestFrameUrl(details: ObservedSubFrameRequestDetails): Promise<string | undefined>;
+    forgetRequest(requestId: string): void;
     getTabMedia(tabId: number): Promise<ObservedMedia[]>;
     getFrameUrl(tabId: number, frameId: number): Promise<string | undefined>;
+    getFrameInitialUrls(tabId: number): Promise<Map<number, string>>;
     clearTab(tabId: number): void;
 };
 
 type RegistryOptions = {
     maxEntriesPerTab?: number;
     maxFramesPerTab?: number;
+    maxDocumentsPerTab?: number;
+    maxInFlightRequests?: number;
     maxTabs?: number;
     now?: () => number;
     storage?: TabMediaStorage | null;
@@ -159,21 +171,52 @@ function parseFrameEntries(raw: unknown): Array<[number, Array<[number, string]>
     return parsed;
 }
 
+function parseDocumentEntries(raw: unknown): Array<[number, Array<[string, string | undefined]>]> {
+    if (!Array.isArray(raw)) return [];
+    const parsed: Array<[number, Array<[string, string | undefined]>]> = [];
+    for (const item of raw) {
+        if (!Array.isArray(item) || item.length !== 2) continue;
+        const [tabId, rawDocs] = item;
+        if (typeof tabId !== "number" || !Number.isFinite(tabId) || !Array.isArray(rawDocs)) {
+            continue;
+        }
+        const docs: Array<[string, string | undefined]> = [];
+        for (const rawDoc of rawDocs) {
+            if (!Array.isArray(rawDoc) || rawDoc.length !== 2) continue;
+            const [documentId, url] = rawDoc;
+            if (typeof documentId !== "string" || !documentId) continue;
+            if (typeof url === "string") {
+                docs.push([documentId, url]);
+            } else if (url === null) {
+                docs.push([documentId, undefined]);
+            }
+        }
+        if (docs.length > 0) parsed.push([tabId, docs]);
+    }
+    return parsed;
+}
+
 function parsePersistedSnapshot(raw: unknown): {
     media: Array<[number, ObservedMedia[]]>;
     frames: Array<[number, Array<[number, string]>]>;
+    redirects: Array<[number, Array<[number, string]>]>;
+    documents: Array<[number, Array<[string, string | undefined]>]>;
 } {
     if (Array.isArray(raw)) {
-        return { media: parseMediaEntries(raw), frames: [] };
+        return { media: parseMediaEntries(raw), frames: [], redirects: [], documents: [] };
     }
     if (typeof raw !== "object" || raw === null) {
-        return { media: [], frames: [] };
+        return { media: [], frames: [], redirects: [], documents: [] };
     }
     const rawMedia = "media" in raw ? raw.media : undefined;
     const rawFrames = "frames" in raw ? raw.frames : undefined;
+    const rawRedirects = "redirects" in raw ? raw.redirects : undefined;
+    const rawDocuments = "documents" in raw ? raw.documents : undefined;
     return {
         media: parseMediaEntries(rawMedia),
         frames: parseFrameEntries(rawFrames),
+        redirects: parseFrameEntries(rawRedirects),
+        documents: parseDocumentEntries(rawDocuments),
     };
 }
 
@@ -201,18 +244,50 @@ function upsertEntry(entries: ObservedMedia[], entry: ObservedMedia, maxEntriesP
     }
 }
 
+type FrameDocumentState = {
+    url: string | undefined;
+    documentId?: string;
+    navSeq: number;
+    requestId?: string;
+    initialUrl?: string;
+};
+
+type InFlightSubFrameRequest = {
+    tabId: number;
+    frameId: number;
+    navSeq: number;
+    url: string | undefined;
+    documentId?: string;
+    authoritative: boolean;
+};
+
+function enforceMapLimit<K, V>(map: Map<K, V>, limit: number) {
+    while (map.size > limit) {
+        const oldest = map.keys().next().value;
+        if (oldest === undefined) break;
+        map.delete(oldest);
+    }
+}
+
 export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaRegistry {
     const maxEntriesPerTab = options.maxEntriesPerTab ?? 20;
     const maxFramesPerTab = options.maxFramesPerTab ?? 32;
+    const maxDocumentsPerTab = options.maxDocumentsPerTab ?? 64;
+    const maxInFlightRequests = options.maxInFlightRequests ?? 500;
     const maxTabs = options.maxTabs ?? 100;
     const now = options.now ?? Date.now;
     const storage =
         options.storage === null ? undefined : (options.storage ?? defaultSessionStorage);
     const tabs = new Map<number, ObservedMedia[]>();
     const embedFrames = new Map<number, Map<number, string>>();
+    const redirectedFrameInitialUrls = new Map<number, Map<number, string>>();
+    const frameDocuments = new Map<number, Map<number, FrameDocumentState>>();
+    const documentFrames = new Map<number, Map<string, string | undefined>>();
+    const inFlightRequests = new Map<string, InFlightSubFrameRequest>();
     const clearedBeforeHydration = new Set<number>();
-    const deletedFramesBeforeHydration = new Map<number, Set<number>>();
+    const clearedFramesBeforeHydration = new Map<number, Set<number>>();
 
+    let nextNavSeq = 0;
     let hydrated = !storage;
     let hydratePromise: Promise<void> | null = null;
     let dirtyDuringHydration = false;
@@ -220,20 +295,111 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
     let persistInFlight = false;
     let persistAgain = false;
 
-    function enforceTabLimit<V>(map: Map<number, V>) {
-        while (map.size > maxTabs) {
-            const oldest = map.keys().next().value;
-            if (oldest === undefined) break;
-            map.delete(oldest);
+    function getFrameNavSeq(tabId: number, frameId: number): number {
+        return frameDocuments.get(tabId)?.get(frameId)?.navSeq ?? 0;
+    }
+
+    function isFrameKnownLive(tabId: number, frameId: number): boolean {
+        return (
+            hydrated ||
+            clearedBeforeHydration.has(tabId) ||
+            clearedFramesBeforeHydration.get(tabId)?.has(frameId) === true
+        );
+    }
+
+    function bindDocumentUrl(tabId: number, documentId: string, url: string | undefined) {
+        const docs = documentFrames.get(tabId) ?? new Map<string, string | undefined>();
+        const existed = docs.has(documentId);
+        const previous = docs.get(documentId);
+        documentFrames.delete(tabId);
+        docs.delete(documentId);
+        docs.set(documentId, url);
+        enforceMapLimit(docs, maxDocumentsPerTab);
+        documentFrames.set(tabId, docs);
+        enforceMapLimit(documentFrames, maxTabs);
+        // Only persist document bindings that involve an embedded platform URL
+        // so unrelated ad/analytics iframes never trigger storage writes.
+        if ((url !== undefined || previous !== undefined) && (!existed || previous !== url)) {
+            schedulePersist();
         }
     }
 
-    function enforceFrameLimit(frames: Map<number, string>) {
-        while (frames.size > maxFramesPerTab) {
-            const oldest = frames.keys().next().value;
-            if (oldest === undefined) break;
-            frames.delete(oldest);
+    function getOrInitFrameState(tabId: number, frameId: number): FrameDocumentState {
+        let frames = frameDocuments.get(tabId);
+        const existing = frames?.get(frameId);
+        if (existing) return existing;
+
+        const created: FrameDocumentState = {
+            url: embedFrames.get(tabId)?.get(frameId),
+            navSeq: 0,
+        };
+        if (!frames) {
+            frames = new Map<number, FrameDocumentState>();
+            frameDocuments.set(tabId, frames);
         }
+        frames.set(frameId, created);
+        enforceMapLimit(frames, maxFramesPerTab);
+        enforceMapLimit(frameDocuments, maxTabs);
+        return created;
+    }
+
+    function resolveKnownFrameUrl(
+        tabId: number,
+        frameId: number,
+        documentId: string | undefined,
+        allowBind: boolean,
+    ): string | undefined {
+        if (documentId) {
+            const docs = documentFrames.get(tabId);
+            if (docs?.has(documentId)) {
+                return docs.get(documentId);
+            }
+
+            const frameState = getOrInitFrameState(tabId, frameId);
+            if (frameState.documentId === undefined) {
+                if (allowBind) {
+                    frameState.documentId = documentId;
+                    bindDocumentUrl(tabId, documentId, frameState.url);
+                }
+                return frameState.url;
+            }
+            if (frameState.documentId === documentId) {
+                return frameState.url;
+            }
+            return undefined;
+        }
+
+        const frameState = frameDocuments.get(tabId)?.get(frameId);
+        if (frameState) return frameState.url;
+        return embedFrames.get(tabId)?.get(frameId);
+    }
+
+    function isStaleSubFrameRequest(details: ObservedRequestDetails): boolean {
+        if (details.frameId <= MAIN_FRAME_ID) return false;
+        if (details.requestId) {
+            const tracked = inFlightRequests.get(details.requestId);
+            if (tracked && tracked.navSeq !== getFrameNavSeq(details.tabId, details.frameId)) {
+                return true;
+            }
+        }
+        if (details.documentId) {
+            const frameState = frameDocuments.get(details.tabId)?.get(details.frameId);
+            if (frameState) {
+                if (
+                    frameState.documentId !== undefined &&
+                    frameState.documentId !== details.documentId
+                ) {
+                    return true;
+                }
+                if (
+                    frameState.documentId === undefined &&
+                    documentFrames.get(details.tabId)?.has(details.documentId)
+                ) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     function flushPersist() {
@@ -253,6 +419,18 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                 tabId,
                 [...frames.entries()],
             ]),
+            redirects: [...redirectedFrameInitialUrls.entries()].map(([tabId, redirects]) => [
+                tabId,
+                [...redirects.entries()],
+            ]),
+            documents: [...documentFrames.entries()]
+                .map(([tabId, docs]): [number, Array<[string, string]>] => [
+                    tabId,
+                    [...docs.entries()].filter(
+                        (entry): entry is [string, string] => entry[1] !== undefined,
+                    ),
+                ])
+                .filter((entry) => entry[1].length > 0),
         };
         void storage
             .set(snapshot)
@@ -293,8 +471,10 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
 
                     for (const [tabId, persistedEntries] of persisted.media) {
                         if (clearedBeforeHydration.has(tabId)) continue;
+                        const clearedFrames = clearedFramesBeforeHydration.get(tabId);
                         const combined: ObservedMedia[] = [];
                         for (const entry of persistedEntries.slice(-maxEntriesPerTab)) {
+                            if (clearedFrames?.has(entry.frameId)) continue;
                             upsertEntry(combined, entry, maxEntriesPerTab);
                         }
                         const liveEntries = tabs.get(tabId);
@@ -319,7 +499,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                         }
                     }
 
-                    enforceTabLimit(merged);
+                    enforceMapLimit(merged, maxTabs);
                     tabs.clear();
                     for (const [tabId, entries] of merged) {
                         tabs.set(tabId, entries);
@@ -328,10 +508,10 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                     const mergedFrames = new Map<number, Map<number, string>>();
                     for (const [tabId, persistedFrames] of persisted.frames) {
                         if (clearedBeforeHydration.has(tabId)) continue;
-                        const deleted = deletedFramesBeforeHydration.get(tabId);
+                        const clearedFrames = clearedFramesBeforeHydration.get(tabId);
                         const combined = new Map<number, string>();
                         for (const [frameId, url] of persistedFrames.slice(-maxFramesPerTab)) {
-                            if (!deleted?.has(frameId)) combined.set(frameId, url);
+                            if (!clearedFrames?.has(frameId)) combined.set(frameId, url);
                         }
                         const liveFrames = embedFrames.get(tabId);
                         if (liveFrames) {
@@ -340,7 +520,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                                 combined.set(frameId, url);
                             }
                         }
-                        enforceFrameLimit(combined);
+                        enforceMapLimit(combined, maxFramesPerTab);
                         if (combined.size > 0) mergedFrames.set(tabId, combined);
                     }
 
@@ -351,19 +531,94 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                             mergedFrames.set(tabId, existing);
                         } else if (liveFrames.size > 0) {
                             const copy = new Map(liveFrames);
-                            enforceFrameLimit(copy);
+                            enforceMapLimit(copy, maxFramesPerTab);
                             mergedFrames.set(tabId, copy);
                         }
                     }
 
-                    enforceTabLimit(mergedFrames);
+                    enforceMapLimit(mergedFrames, maxTabs);
                     embedFrames.clear();
                     for (const [tabId, frames] of mergedFrames) {
                         embedFrames.set(tabId, frames);
                     }
 
+                    const mergedRedirects = new Map<number, Map<number, string>>();
+                    for (const [tabId, persistedRedirects] of persisted.redirects) {
+                        if (clearedBeforeHydration.has(tabId)) continue;
+                        const clearedFrames = clearedFramesBeforeHydration.get(tabId);
+                        const combined = new Map<number, string>();
+                        for (const [frameId, initialUrl] of persistedRedirects.slice(
+                            -maxFramesPerTab,
+                        )) {
+                            if (!clearedFrames?.has(frameId)) combined.set(frameId, initialUrl);
+                        }
+                        const liveRedirects = redirectedFrameInitialUrls.get(tabId);
+                        if (liveRedirects) {
+                            for (const [frameId, initialUrl] of liveRedirects) {
+                                combined.delete(frameId);
+                                combined.set(frameId, initialUrl);
+                            }
+                        }
+                        enforceMapLimit(combined, maxFramesPerTab);
+                        if (combined.size > 0) mergedRedirects.set(tabId, combined);
+                    }
+
+                    for (const [tabId, liveRedirects] of redirectedFrameInitialUrls) {
+                        const existing = mergedRedirects.get(tabId);
+                        if (existing) {
+                            mergedRedirects.delete(tabId);
+                            mergedRedirects.set(tabId, existing);
+                        } else if (liveRedirects.size > 0) {
+                            const copy = new Map(liveRedirects);
+                            enforceMapLimit(copy, maxFramesPerTab);
+                            mergedRedirects.set(tabId, copy);
+                        }
+                    }
+
+                    enforceMapLimit(mergedRedirects, maxTabs);
+                    redirectedFrameInitialUrls.clear();
+                    for (const [tabId, redirects] of mergedRedirects) {
+                        redirectedFrameInitialUrls.set(tabId, redirects);
+                    }
+
+                    const mergedDocuments = new Map<number, Map<string, string | undefined>>();
+                    for (const [tabId, persistedDocs] of persisted.documents) {
+                        if (clearedBeforeHydration.has(tabId)) continue;
+                        const combined = new Map<string, string | undefined>();
+                        for (const [docId, url] of persistedDocs.slice(-maxDocumentsPerTab)) {
+                            combined.set(docId, url);
+                        }
+                        const liveDocs = documentFrames.get(tabId);
+                        if (liveDocs) {
+                            for (const [docId, url] of liveDocs) {
+                                combined.delete(docId);
+                                combined.set(docId, url);
+                            }
+                        }
+                        enforceMapLimit(combined, maxDocumentsPerTab);
+                        if (combined.size > 0) mergedDocuments.set(tabId, combined);
+                    }
+
+                    for (const [tabId, liveDocs] of documentFrames) {
+                        const existing = mergedDocuments.get(tabId);
+                        if (existing) {
+                            mergedDocuments.delete(tabId);
+                            mergedDocuments.set(tabId, existing);
+                        } else if (liveDocs.size > 0) {
+                            const copy = new Map(liveDocs);
+                            enforceMapLimit(copy, maxDocumentsPerTab);
+                            mergedDocuments.set(tabId, copy);
+                        }
+                    }
+
+                    enforceMapLimit(mergedDocuments, maxTabs);
+                    documentFrames.clear();
+                    for (const [tabId, docs] of mergedDocuments) {
+                        documentFrames.set(tabId, docs);
+                    }
+
                     clearedBeforeHydration.clear();
-                    deletedFramesBeforeHydration.clear();
+                    clearedFramesBeforeHydration.clear();
                     hydrated = true;
 
                     if (dirtyDuringHydration) {
@@ -372,7 +627,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                     }
                 } catch {
                     clearedBeforeHydration.clear();
-                    deletedFramesBeforeHydration.clear();
+                    clearedFramesBeforeHydration.clear();
                     hydrated = true;
                 }
             })();
@@ -385,7 +640,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
         tabs.delete(tabId);
         upsertEntry(entries, entry, maxEntriesPerTab);
         tabs.set(tabId, entries);
-        enforceTabLimit(tabs);
+        enforceMapLimit(tabs, maxTabs);
         schedulePersist();
     }
 
@@ -394,6 +649,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             if (details.tabId === NO_TAB_ID) return;
             if (!MEDIA_REQUEST_TYPES.has(details.type)) return;
             if (details.statusCode >= 400 || isExtensionUrl(details.url)) return;
+            if (isStaleSubFrameRequest(details)) return;
 
             let url: URL;
             try {
@@ -415,21 +671,85 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                 observedAt: now(),
             });
         },
-        observeSubFrame(tabId, frameId, url) {
+        observeSubFrame(tabId, frameId, url, requestId) {
             if (tabId === NO_TAB_ID || frameId <= MAIN_FRAME_ID || isExtensionUrl(url)) return;
 
+            let persistedChanged = false;
+
+            // Invalidate any previously observed media belonging to this
+            // subframe so stale manifests do not linger after navigation.
+            const existingMedia = tabs.get(tabId);
+            if (existingMedia) {
+                const remaining = existingMedia.filter((entry) => entry.frameId !== frameId);
+                if (remaining.length !== existingMedia.length) {
+                    persistedChanged = true;
+                    if (remaining.length > 0) {
+                        tabs.set(tabId, remaining);
+                    } else {
+                        tabs.delete(tabId);
+                    }
+                }
+            }
+
+            if (!hydrated) {
+                const cleared = clearedFramesBeforeHydration.get(tabId) ?? new Set<number>();
+                cleared.add(frameId);
+                clearedFramesBeforeHydration.set(tabId, cleared);
+            }
+
             const embedded = parseEmbeddedPlatformUrl(url);
+            const resolvedUrl = embedded ? url : undefined;
+            const previousState = frameDocuments.get(tabId)?.get(frameId);
+            const isRedirect =
+                requestId !== undefined &&
+                previousState?.requestId === requestId &&
+                previousState.initialUrl !== undefined;
+            const initialUrl = isRedirect ? previousState.initialUrl! : url;
+
+            const docStates = frameDocuments.get(tabId) ?? new Map<number, FrameDocumentState>();
+            frameDocuments.delete(tabId);
+            docStates.delete(frameId);
+            docStates.set(frameId, {
+                url: resolvedUrl,
+                navSeq: ++nextNavSeq,
+                ...(requestId ? { requestId } : {}),
+                initialUrl,
+            });
+            enforceMapLimit(docStates, maxFramesPerTab);
+            frameDocuments.set(tabId, docStates);
+            enforceMapLimit(frameDocuments, maxTabs);
+
+            if (isRedirect && initialUrl !== url) {
+                const redirects =
+                    redirectedFrameInitialUrls.get(tabId) ?? new Map<number, string>();
+                redirectedFrameInitialUrls.delete(tabId);
+                redirects.delete(frameId);
+                redirects.set(frameId, initialUrl);
+                enforceMapLimit(redirects, maxFramesPerTab);
+                redirectedFrameInitialUrls.set(tabId, redirects);
+                enforceMapLimit(redirectedFrameInitialUrls, maxTabs);
+                persistedChanged = true;
+            } else {
+                const existingRedirects = redirectedFrameInitialUrls.get(tabId);
+                if (existingRedirects?.delete(frameId)) {
+                    persistedChanged = true;
+                    if (existingRedirects.size === 0) {
+                        redirectedFrameInitialUrls.delete(tabId);
+                    }
+                }
+            }
+
             if (!embedded) {
                 const existing = embedFrames.get(tabId);
-                if (existing?.delete(frameId) && existing.size === 0) {
-                    embedFrames.delete(tabId);
+                if (existing?.delete(frameId)) {
+                    persistedChanged = true;
+                    if (existing.size === 0) {
+                        embedFrames.delete(tabId);
+                    }
                 }
-                if (!hydrated) {
-                    const deleted = deletedFramesBeforeHydration.get(tabId) ?? new Set<number>();
-                    deleted.add(frameId);
-                    deletedFramesBeforeHydration.set(tabId, deleted);
+                if (persistedChanged || !hydrated) {
+                    schedulePersist();
                 }
-                schedulePersist();
                 return;
             }
 
@@ -437,10 +757,108 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             embedFrames.delete(tabId);
             frames.delete(frameId);
             frames.set(frameId, url);
-            enforceFrameLimit(frames);
+            enforceMapLimit(frames, maxFramesPerTab);
             embedFrames.set(tabId, frames);
-            enforceTabLimit(embedFrames);
+            enforceMapLimit(embedFrames, maxTabs);
             schedulePersist();
+        },
+        observeSubFrameRequest(details) {
+            if (details.tabId === NO_TAB_ID || details.frameId <= MAIN_FRAME_ID) return;
+            if (!details.requestId) return;
+
+            const navSeq = getFrameNavSeq(details.tabId, details.frameId);
+            const docs = documentFrames.get(details.tabId);
+            if (details.documentId && docs?.has(details.documentId)) {
+                inFlightRequests.delete(details.requestId);
+                inFlightRequests.set(details.requestId, {
+                    tabId: details.tabId,
+                    frameId: details.frameId,
+                    navSeq,
+                    documentId: details.documentId,
+                    url: docs.get(details.documentId),
+                    authoritative: true,
+                });
+                enforceMapLimit(inFlightRequests, maxInFlightRequests);
+                return;
+            }
+
+            if (isFrameKnownLive(details.tabId, details.frameId)) {
+                const resolvedUrl = resolveKnownFrameUrl(
+                    details.tabId,
+                    details.frameId,
+                    details.documentId,
+                    true,
+                );
+                inFlightRequests.delete(details.requestId);
+                inFlightRequests.set(details.requestId, {
+                    tabId: details.tabId,
+                    frameId: details.frameId,
+                    navSeq,
+                    ...(details.documentId ? { documentId: details.documentId } : {}),
+                    url: resolvedUrl,
+                    authoritative: true,
+                });
+                enforceMapLimit(inFlightRequests, maxInFlightRequests);
+                return;
+            }
+
+            void ensureHydrated();
+            inFlightRequests.delete(details.requestId);
+            inFlightRequests.set(details.requestId, {
+                tabId: details.tabId,
+                frameId: details.frameId,
+                navSeq,
+                ...(details.documentId ? { documentId: details.documentId } : {}),
+                url: undefined,
+                authoritative: false,
+            });
+            enforceMapLimit(inFlightRequests, maxInFlightRequests);
+        },
+        resolveRequestFrameUrl(details) {
+            if (details.tabId === NO_TAB_ID || details.frameId <= MAIN_FRAME_ID) {
+                return Promise.resolve(undefined);
+            }
+
+            const tracked = details.requestId ? inFlightRequests.get(details.requestId) : undefined;
+            if (tracked && details.requestId) {
+                inFlightRequests.delete(details.requestId);
+            }
+
+            if (tracked?.authoritative) {
+                return Promise.resolve(tracked.url);
+            }
+
+            const documentId = details.documentId ?? tracked?.documentId;
+            const liveDocs = documentFrames.get(details.tabId);
+            if (documentId && liveDocs?.has(documentId)) {
+                return Promise.resolve(liveDocs.get(documentId));
+            }
+
+            if (isFrameKnownLive(details.tabId, details.frameId)) {
+                if (tracked && tracked.navSeq !== getFrameNavSeq(details.tabId, details.frameId)) {
+                    return Promise.resolve(undefined);
+                }
+                return Promise.resolve(
+                    resolveKnownFrameUrl(details.tabId, details.frameId, documentId, true),
+                );
+            }
+
+            const expectedNavSeq =
+                tracked?.navSeq ?? getFrameNavSeq(details.tabId, details.frameId);
+            return (async () => {
+                await ensureHydrated();
+                const hydratedDocs = documentFrames.get(details.tabId);
+                if (documentId && hydratedDocs?.has(documentId)) {
+                    return hydratedDocs.get(documentId);
+                }
+                if (getFrameNavSeq(details.tabId, details.frameId) !== expectedNavSeq) {
+                    return undefined;
+                }
+                return resolveKnownFrameUrl(details.tabId, details.frameId, documentId, true);
+            })();
+        },
+        forgetRequest(requestId) {
+            inFlightRequests.delete(requestId);
         },
         async getTabMedia(tabId) {
             await ensureHydrated();
@@ -451,11 +869,22 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             await ensureHydrated();
             return embedFrames.get(tabId)?.get(frameId);
         },
+        async getFrameInitialUrls(tabId) {
+            if (tabId === NO_TAB_ID) return new Map();
+            await ensureHydrated();
+            return new Map(redirectedFrameInitialUrls.get(tabId) ?? []);
+        },
         clearTab(tabId) {
             if (!hydrated) clearedBeforeHydration.add(tabId);
-            deletedFramesBeforeHydration.delete(tabId);
+            clearedFramesBeforeHydration.delete(tabId);
             tabs.delete(tabId);
             embedFrames.delete(tabId);
+            redirectedFrameInitialUrls.delete(tabId);
+            frameDocuments.delete(tabId);
+            documentFrames.delete(tabId);
+            for (const [requestId, entry] of inFlightRequests) {
+                if (entry.tabId === tabId) inFlightRequests.delete(requestId);
+            }
             schedulePersist();
         },
     };

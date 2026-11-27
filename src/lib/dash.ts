@@ -176,25 +176,57 @@ function parseAdaptationSets(
     return { videos: videoByResolution, audio: bestAudio };
 }
 
+function resolveKnownPeriodDurations(
+    periods: readonly ParsedDashPeriod[],
+    totalBoundary: number | undefined,
+    isStatic: boolean,
+): Array<number | undefined> {
+    const starts = periods.map((period) => period.start);
+    const durations = periods.map((period) => period.duration);
+
+    if (isStatic && starts.length > 0 && starts[0] === undefined) {
+        starts[0] = 0;
+    }
+
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (let index = 0; index < periods.length; index++) {
+            if (starts[index] === undefined && index > 0) {
+                const prevStart = starts[index - 1];
+                const prevDuration = durations[index - 1];
+                if (prevStart !== undefined && prevDuration !== undefined) {
+                    starts[index] = prevStart + prevDuration;
+                    changed = true;
+                }
+            }
+            if (durations[index] === undefined) {
+                const start = starts[index];
+                if (start !== undefined) {
+                    const nextStart =
+                        index + 1 < periods.length ? starts[index + 1] : totalBoundary;
+                    if (nextStart !== undefined && nextStart > start) {
+                        durations[index] = nextStart - start;
+                        changed = true;
+                    }
+                }
+            }
+        }
+    }
+
+    return durations;
+}
+
 function resolvePeriodDurations(
     periods: ParsedDashPeriod[],
     totalDuration: number,
     mpdDuration: number | undefined,
+    isStatic: boolean,
 ): number[] {
     if (periods.length === 0) return [];
 
-    const durations = periods.map((period) => period.duration);
     const totalBoundary = mpdDuration ?? (totalDuration > 0 ? totalDuration : undefined);
-
-    for (let index = 0; index < periods.length; index++) {
-        if (durations[index] !== undefined) continue;
-        const start = periods[index]?.start;
-        if (start === undefined) continue;
-        const nextStart = periods[index + 1]?.start ?? totalBoundary;
-        if (nextStart !== undefined && nextStart > start) {
-            durations[index] = nextStart - start;
-        }
-    }
+    const durations = resolveKnownPeriodDurations(periods, totalBoundary, isStatic);
 
     if (!(totalDuration > 0)) {
         return durations.map((duration) => duration ?? 0);
@@ -285,27 +317,25 @@ export async function estimateGenericDash(
         });
     }
 
+    const isStatic = mpdType !== "dynamic";
     let periodDurationSum = 0;
-    for (let index = 0; index < periods.length; index++) {
-        const period = periods[index]!;
-        if (period.duration !== undefined) {
-            periodDurationSum += period.duration;
-        } else if (period.start !== undefined) {
-            const nextStart = periods[index + 1]?.start ?? mpdDuration;
-            if (nextStart !== undefined && nextStart > period.start) {
-                periodDurationSum += nextStart - period.start;
-            }
-        }
+    for (const duration of resolveKnownPeriodDurations(periods, mpdDuration, isStatic)) {
+        if (duration !== undefined) periodDurationSum += duration;
     }
 
     const durationSeconds =
         explicitDuration ?? mpdDuration ?? (periodDurationSum > 0 ? periodDurationSum : 0);
 
-    const isVod = (mpdType !== "dynamic" && durationSeconds > 0) || explicitDuration !== undefined;
+    const isVod = (isStatic && durationSeconds > 0) || explicitDuration !== undefined;
     const titleMeta = options.title ? { title: options.title } : {};
 
     if (isVod) {
-        const periodDurations = resolvePeriodDurations(periods, durationSeconds, mpdDuration);
+        const periodDurations = resolvePeriodDurations(
+            periods,
+            durationSeconds,
+            mpdDuration,
+            isStatic,
+        );
         const allResolutions = new Set<number>();
         for (const period of periods) {
             for (const resolution of period.videos.keys()) {
