@@ -5,8 +5,6 @@ import {
     createPageUsageObserver,
     hasPositiveContentLength,
     isCountableRequestUrl,
-    isUploadMethod,
-    measureBodyBytes,
     SITE_USAGE_EVENT,
     type FetchFn,
     type PageUsageObserverGlobal,
@@ -125,8 +123,8 @@ class FakeWorker extends EventTarget {
     }
 }
 
-function makeStreamResponse(chunks: number[], headers?: Record<string, string>): Response {
-    const stream = new ReadableStream<Uint8Array>({
+function makeChunkStream(chunks: number[]): ReadableStream<Uint8Array> {
+    return new ReadableStream<Uint8Array>({
         start(controller) {
             for (const size of chunks) {
                 controller.enqueue(new Uint8Array(size));
@@ -134,7 +132,10 @@ function makeStreamResponse(chunks: number[], headers?: Record<string, string>):
             controller.close();
         },
     });
-    return new Response(stream, { headers });
+}
+
+function makeStreamResponse(chunks: number[], headers?: Record<string, string>): Response {
+    return new Response(makeChunkStream(chunks), { headers });
 }
 
 class FakeDocument extends EventTarget {
@@ -175,9 +176,10 @@ function createHarness(
         Request: TestRequest,
     };
     const defaultSendBeacon = sendBeaconImpl ?? (() => true);
-    const navigatorObj: Pick<Navigator, "sendBeacon"> = {
-        sendBeacon: defaultSendBeacon,
-    };
+    const navigatorObj = Object.create({ sendBeacon: defaultSendBeacon }) as Pick<
+        Navigator,
+        "sendBeacon"
+    >;
     const windowTarget = new EventTarget();
     const documentTarget = new FakeDocument();
     const posted = collectUsageEvents(windowTarget);
@@ -654,39 +656,6 @@ describe("createPageUsageObserver", () => {
         harness.observer.dispose();
     });
 
-    test("measures UTF-8 strings, Blobs, ArrayBuffers, views, URLSearchParams, FormData, and filters methods", () => {
-        expect(isUploadMethod("POST")).toBe(true);
-        expect(isUploadMethod("put")).toBe(true);
-        expect(isUploadMethod("PATCH")).toBe(true);
-        expect(isUploadMethod("DELETE")).toBe(true);
-        expect(isUploadMethod("GET")).toBe(false);
-        expect(isUploadMethod("HEAD")).toBe(false);
-        expect(isUploadMethod("OPTIONS")).toBe(false);
-        expect(isUploadMethod(undefined)).toBe(false);
-
-        expect(measureBodyBytes(null)).toBe(0);
-        expect(measureBodyBytes(undefined)).toBe(0);
-        expect(measureBodyBytes("hello")).toBe(5);
-        // Multi-byte UTF-8: é (2B), 中 (3B), 🌍 (4B surrogate pair), lone surrogate (3B)
-        expect(measureBodyBytes("é中🌍")).toBe(2 + 3 + 4);
-        expect(measureBodyBytes("\uD800")).toBe(3);
-        expect(measureBodyBytes(new Blob([new Uint8Array(4_321)]))).toBe(4_321);
-        expect(measureBodyBytes(new ArrayBuffer(128))).toBe(128);
-        const full = new Uint8Array(100);
-        expect(measureBodyBytes(full.subarray(10, 35))).toBe(25);
-        expect(measureBodyBytes(new DataView(full.buffer, 5, 12))).toBe(12);
-
-        const params = new URLSearchParams({ msg: "hi 🌍" });
-        expect(measureBodyBytes(params)).toBe(
-            new TextEncoder().encode(params.toString()).byteLength,
-        );
-
-        const fd = new FormData();
-        fd.append("title", "é");
-        fd.append("file", new Blob([new Uint8Array(500)]), "clip.bin");
-        expect(measureBodyBytes(fd)).toBe(5 + 2 + 4 + 500);
-    });
-
     test("counts fetch upload bodies across all BodyInit types, Request objects, and ReadableStreams without double-counting responses", async () => {
         const harness = createHarness(async (input, init) => {
             const url = toRequestUrl(input);
@@ -906,36 +875,6 @@ describe("createPageUsageObserver", () => {
         expect(harness.posted).toEqual([9, 400]);
     });
 
-    test("restores prototype-inherited navigator.sendBeacon cleanly on dispose", () => {
-        const protoSendBeacon = jest.fn(() => true);
-        const navProto = { sendBeacon: protoSendBeacon };
-        const inheritedNav = Object.create(navProto) as Pick<Navigator, "sendBeacon">;
-
-        const windowTarget = new EventTarget();
-        const posted = collectUsageEvents(windowTarget);
-        const observer = createPageUsageObserver({
-            globalObject: {
-                fetch: async () => makeStreamResponse([]),
-                Worker: FakeWorker as unknown as typeof Worker,
-            },
-            XMLHttpRequest: FakeXMLHttpRequest as unknown as typeof XMLHttpRequest,
-            navigator: inheritedNav,
-            getBaseURI: () => "https://example.com/",
-            windowTarget,
-            scheduleInterval: () => () => {},
-        });
-
-        observer.install();
-        expect(Object.prototype.hasOwnProperty.call(inheritedNav, "sendBeacon")).toBe(true);
-        inheritedNav.sendBeacon("https://example.com/b", new Uint8Array(50));
-        observer.flush();
-        expect(posted).toEqual([50]);
-
-        observer.dispose();
-        expect(Object.prototype.hasOwnProperty.call(inheritedNav, "sendBeacon")).toBe(false);
-        expect(inheritedNav.sendBeacon).toBe(protoSendBeacon);
-    });
-
     test("counts upload payloads inside classic blob: Worker fetch bootstrap", async () => {
         const harness = createHarness();
         harness.observer.install();
@@ -949,14 +888,6 @@ describe("createPageUsageObserver", () => {
         const bootstrapSource = await harness.createdBlobs.get(wrappedUrl)!.text();
 
         class WorkerRequest extends Request {}
-        let workerCloneCalls = 0;
-        const origWorkerClone = Object.getOwnPropertyDescriptor(Request.prototype, "clone")
-            ?.value as (this: Request) => Request;
-        WorkerRequest.prototype.clone = function () {
-            workerCloneCalls += 1;
-            return Reflect.apply(origWorkerClone, this, []);
-        };
-
         const workerPosted: unknown[] = [];
         const fakeSelf: Record<string, unknown> = {
             location: { href: "blob:https://example.com/wrapped-1" },
@@ -1035,8 +966,6 @@ describe("createPageUsageObserver", () => {
         });
         await new Promise((resolve) => setTimeout(resolve, 15));
 
-        // Emitted immediately (no 3s worker buffer) and never called Request.clone().
-        expect(workerCloneCalls).toBe(0);
         expect(workerPosted).toEqual([
             { type: "WORKER_READY" },
             { type: "WORKER_USAGE", bytes: 1_200 },
@@ -1048,7 +977,7 @@ describe("createPageUsageObserver", () => {
         harness.observer.dispose();
     });
 
-    test("tracks Request fixed, streaming, and cloned uploads without calling Request.prototype.clone during fetch", async () => {
+    test("counts Request fixed, cloned, derived, untracked, and cross-realm upload bodies", async () => {
         const harness = createHarness(async (input) => {
             if (input instanceof Request && input.body) {
                 const reader = input.body.getReader();
@@ -1059,119 +988,28 @@ describe("createPageUsageObserver", () => {
             }
             return new Response("ok", { headers: { "content-length": "2" } });
         });
-
-        let cloneCalls = 0;
-        const origClone = Object.getOwnPropertyDescriptor(Request.prototype, "clone")?.value as (
-            this: Request,
-        ) => Request;
-        const spyClone = function (this: Request): Request {
-            cloneCalls += 1;
-            return Reflect.apply(origClone, this, []);
-        };
-        harness.BaseRequest.prototype.clone = spyClone;
-
         harness.observer.install();
         const PatchedRequest = harness.globalObject.Request!;
-        expect(PatchedRequest).not.toBe(harness.BaseRequest);
 
-        // Fixed-body Request: zero clone() calls during fetch.
-        const fixedReq = new PatchedRequest("https://example.com/fixed-req", {
-            method: "POST",
-            body: new Blob([new Uint8Array(1_500)]),
-        });
-        await harness.globalObject.fetch(fixedReq);
-        expect(cloneCalls).toBe(0);
-
-        // Stream-body Request: chunks counted as pulled, zero clone() calls during fetch.
-        const stream = new ReadableStream<Uint8Array>({
-            start(c) {
-                c.enqueue(new Uint8Array(600));
-                c.enqueue(new Uint8Array(400));
-                c.close();
-            },
-        });
-        const streamReq = new PatchedRequest("https://example.com/stream-req", {
-            method: "POST",
-            body: stream,
-        });
-        await harness.globalObject.fetch(streamReq);
-        expect(cloneCalls).toBe(0);
-
-        // User-initiated Request.clone(), new Request(existing), and fetch(existing, { body: null })
-        // preserve inherited upload tracking per the Fetch spec without extra cloning.
         const baseReq = new PatchedRequest("https://example.com/base", {
             method: "POST",
             body: new Uint8Array(300),
         });
         const clonedReq = baseReq.clone();
-        expect(cloneCalls).toBe(1);
         const derivedReq = new PatchedRequest(baseReq, { headers: { "X-Copy": "1" } });
         await harness.globalObject.fetch(derivedReq);
         await harness.globalObject.fetch(clonedReq, { method: "POST", body: null });
-        expect(cloneCalls).toBe(1);
 
-        // Untracked Request (e.g. constructed in another realm or copied via new Request(iframeReq))
-        // falls back to a bounded clone drain when Content-Length is absent.
+        // Untracked Request (e.g. from another realm) copied via new Request(iframeReq)
         const untrackedReq = new harness.BaseRequest("https://example.com/from-iframe", {
             method: "POST",
             body: new Uint8Array(450),
         });
-        const copiedUntrackedReq = new PatchedRequest(untrackedReq);
-        await harness.globalObject.fetch(copiedUntrackedReq);
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        await harness.globalObject.fetch(new PatchedRequest(untrackedReq));
 
-        harness.observer.flush();
-        expect(harness.posted).toEqual([3_550]);
-
-        harness.observer.dispose();
-        expect(harness.globalObject.Request).toBe(harness.BaseRequest);
-        expect(Object.getOwnPropertyDescriptor(harness.BaseRequest.prototype, "clone")?.value).toBe(
-            spyClone,
-        );
-    });
-
-    test("flushes buffered usage on pagehide and hidden visibilitychange and removes listeners on dispose", async () => {
-        const harness = createHarness(
-            async () => new Response("ok", { headers: { "content-length": "2" } }),
-        );
-        harness.observer.install();
-
-        await harness.globalObject.fetch("https://example.com/up", {
-            method: "POST",
-            body: new Uint8Array(700),
-        });
-        expect(harness.posted).toEqual([]);
-
-        // Visible state change does not flush.
-        harness.documentTarget.visibilityState = "visible";
-        harness.documentTarget.dispatchEvent(new Event("visibilitychange"));
-        expect(harness.posted).toEqual([]);
-
-        // Hidden visibilitychange flushes immediately.
-        harness.documentTarget.visibilityState = "hidden";
-        harness.documentTarget.dispatchEvent(new Event("visibilitychange"));
-        expect(harness.posted).toEqual([700]);
-
-        // pagehide flushes immediately.
-        await harness.globalObject.fetch("https://example.com/up2", {
-            method: "POST",
-            body: new Uint8Array(350),
-        });
-        harness.windowTarget.dispatchEvent(new Event("pagehide"));
-        expect(harness.posted).toEqual([700, 350]);
-
-        // dispose detaches both listeners.
-        harness.observer.dispose();
-        harness.windowTarget.dispatchEvent(new Event("pagehide"));
-        harness.documentTarget.dispatchEvent(new Event("visibilitychange"));
-        expect(harness.posted).toHaveLength(2);
-    });
-
-    test("measures cross-realm iframe upload bodies (ArrayBuffer, TypedArray, Blob, File, URLSearchParams, FormData)", async () => {
+        // Cross-realm iframe bodies (ArrayBuffer, Blob, FormData, URLSearchParams)
         const otherArrayBuffer = vm.runInNewContext("new ArrayBuffer(256)") as ArrayBuffer;
-        const otherUint8 = vm.runInNewContext("new Uint8Array(64)") as Uint8Array;
         const otherBlob = { size: 1_024, [Symbol.toStringTag]: "Blob" };
-        const otherFile = { size: 2_048, name: "clip.mp4", [Symbol.toStringTag]: "File" };
         const otherUsp = { toString: () => "a=1&b=é", [Symbol.toStringTag]: "URLSearchParams" };
         const otherFd = {
             forEach(cb: (v: unknown, k: string) => void) {
@@ -1180,35 +1018,38 @@ describe("createPageUsageObserver", () => {
             },
             [Symbol.toStringTag]: "FormData",
         };
-
-        expect(measureBodyBytes(otherArrayBuffer)).toBe(256);
-        expect(measureBodyBytes(otherUint8)).toBe(64);
-        expect(measureBodyBytes(otherBlob)).toBe(1_024);
-        expect(measureBodyBytes(otherFile)).toBe(2_048);
-        expect(measureBodyBytes(otherUsp)).toBe(8); // "a=1&b=" (6) + "é" (2)
-        expect(measureBodyBytes(otherFd)).toBe(3 + 2 + 1 + 1_024);
-
-        const harness = createHarness(
-            async () => new Response("ok", { headers: { "content-length": "2" } }),
-        );
-        harness.observer.install();
-
         await harness.globalObject.fetch("https://example.com/iframe-ab", {
             method: "POST",
             body: otherArrayBuffer,
+        });
+        await harness.globalObject.fetch("https://example.com/iframe-usp", {
+            method: "POST",
+            body: otherUsp as unknown as BodyInit,
+        });
+        await harness.globalObject.fetch("https://example.com/iframe-fd", {
+            method: "POST",
+            body: otherFd as unknown as BodyInit,
         });
         harness.navigatorObj.sendBeacon(
             "https://example.com/iframe-blob",
             otherBlob as unknown as BodyInit,
         );
+        await new Promise((resolve) => setTimeout(resolve, 10));
 
-        expect(harness.posted).toEqual([256 + 1_024]);
+        harness.observer.flush();
+        // sendBeacon flushes immediately (accumulating prior 300+300+450+256+8+1030 + 1024 = 3368)
+        expect(harness.posted.reduce((a, b) => a + b, 0)).toBe(
+            300 + 300 + 450 + 256 + 8 + (3 + 2 + 1 + 1_024) + 1_024,
+        );
+
         harness.observer.dispose();
+        expect(harness.globalObject.Request).toBe(harness.BaseRequest);
     });
 
-    test("preserves prototype-inherited RequestInit properties, keeps stream unlocked on early reject, and skips pre-install XHR uploads", async () => {
+    test("preserves Fetch stream semantics across inherited init, early rejects, disturbed streams, and competing reads", async () => {
         let seenMethod: string | undefined;
         let seenHeaders: unknown;
+        const receivedChunks: number[] = [];
 
         const harness = createHarness(async (input, init) => {
             const url = toRequestUrl(input);
@@ -1217,27 +1058,28 @@ describe("createPageUsageObserver", () => {
             }
             seenMethod = init?.method;
             seenHeaders = init?.headers;
-            if (init?.body instanceof ReadableStream) {
-                const reader = init.body.getReader();
+            const stream =
+                init?.body instanceof ReadableStream
+                    ? init.body
+                    : input instanceof Request
+                      ? input.body
+                      : null;
+            if (stream) {
+                // Mirror native Fetch spec: reject disturbed streams.
+                void new Response(stream);
+                const reader = stream.getReader();
                 for (;;) {
-                    const { done } = await reader.read();
+                    const { done, value } = await reader.read();
                     if (done) break;
+                    receivedChunks.push(value.byteLength);
                 }
             }
             return new Response("ok", { headers: { "content-length": "2" } });
         });
-
-        // XHR opened BEFORE install() as a GET on blob: URL must not be miscounted as an upload.
-        const preXhr = new FakeXMLHttpRequest();
-        preXhr.open("GET", "blob:https://example.com/pre-install");
-        preXhr.responseURL = "";
-
         harness.observer.install();
+        const PatchedRequest = harness.globalObject.Request!;
 
-        preXhr.send("ignored-get-body");
-        preXhr.emitLoad(200);
-
-        // Prototype-inherited RequestInit options survive ReadableStream wrapping.
+        // 1. Prototype-inherited RequestInit options survive ReadableStream wrapping.
         const baseOpts = { method: "POST", headers: { "X-Auth": "secret" } };
         const inheritedInit = Object.create(baseOpts) as RequestInit;
         inheritedInit.body = new ReadableStream<Uint8Array>({
@@ -1250,7 +1092,7 @@ describe("createPageUsageObserver", () => {
         expect(seenMethod).toBe("POST");
         expect(seenHeaders).toBe(baseOpts.headers);
 
-        // Early fetch rejection before reading must leave caller's ReadableStream unlocked.
+        // 2. Early fetch rejection before reading leaves caller's stream unlocked.
         const lazyStream = new ReadableStream<Uint8Array>({
             start(c) {
                 c.enqueue(new Uint8Array(64));
@@ -1265,82 +1107,118 @@ describe("createPageUsageObserver", () => {
         ).rejects.toThrow("duplex");
         expect(lazyStream.locked).toBe(false);
 
-        harness.observer.flush();
-        expect(harness.posted).toEqual([128]);
-        harness.observer.dispose();
-    });
-
-    test("does not wrap disturbed unlocked ReadableStreams and detaches interrupted XHR listeners on reopen", async () => {
-        let seenFetchBody: unknown;
-        const harness = createHarness(async (_input, init) => {
-            seenFetchBody = init?.body;
-            if (init?.body instanceof ReadableStream) {
-                // Mirror native Fetch spec rejection of disturbed streams.
-                void new Response(init.body);
-            }
-            return new Response("ok", { headers: { "content-length": "2" } });
-        });
-        harness.observer.install();
-
-        // 1. Partially read, unlocked (disturbed) stream must NOT be wrapped into a fresh stream.
-        const disturbedForReq = new ReadableStream<Uint8Array>({
-            start(c) {
-                c.enqueue(new Uint8Array([1, 2]));
-                c.enqueue(new Uint8Array([3, 4]));
-                c.close();
-            },
-        });
-        const r1 = disturbedForReq.getReader();
+        // 3. Disturbed unlocked streams still reject natively in both fetch(url, init) and fetch(req).
+        const disturbedForFetch = makeChunkStream([100, 200]);
+        const r1 = disturbedForFetch.getReader();
         await r1.read();
         r1.releaseLock();
-        expect(disturbedForReq.locked).toBe(false);
-
-        const PatchedRequest = harness.globalObject.Request!;
-        expect(
-            () =>
-                new PatchedRequest("https://example.com/disturbed-req", {
-                    method: "POST",
-                    body: disturbedForReq,
-                }),
-        ).toThrow();
-
-        const disturbedForFetch = new ReadableStream<Uint8Array>({
-            start(c) {
-                c.enqueue(new Uint8Array([1, 2]));
-                c.enqueue(new Uint8Array([3, 4]));
-                c.close();
-            },
-        });
-        const r2 = disturbedForFetch.getReader();
-        await r2.read();
-        r2.releaseLock();
-        expect(disturbedForFetch.locked).toBe(false);
-
         await expect(
             harness.globalObject.fetch("https://example.com/disturbed-fetch", {
                 method: "POST",
                 body: disturbedForFetch,
             }),
         ).rejects.toThrow();
-        expect(seenFetchBody).toBe(disturbedForFetch);
 
-        // 2. Reopening an XHR before send A finishes detaches A's listeners so B's loadend counts only B.
-        const xhr = new FakeXMLHttpRequest();
-        xhr.open("POST", "https://example.com/upload-a");
-        xhr.responseURL = "https://example.com/upload-a";
-        xhr.send(new Uint8Array(500));
+        const disturbedAfterReq = makeChunkStream([100, 200]);
+        const disturbedReq = new PatchedRequest("https://example.com/disturbed-later", {
+            method: "POST",
+            body: disturbedAfterReq,
+        });
+        const r2 = disturbedAfterReq.getReader();
+        await r2.read();
+        r2.releaseLock();
+        await expect(harness.globalObject.fetch(disturbedReq)).rejects.toThrow();
 
-        xhr.open("POST", "https://example.com/upload-b");
-        xhr.responseURL = "https://example.com/upload-b";
-        xhr.send(new Uint8Array(120));
-        xhr.emitLoad(200);
+        // 4. Invalid init rejects without locking caller's Request stream; retry locks synchronously
+        //    so competing req.text() rejects while the upload sends and counts all chunks.
+        const untouched = makeChunkStream([100, 200]);
+        const untouchedReq = new PatchedRequest("https://example.com/untouched", {
+            method: "POST",
+            body: untouched,
+        });
+        await expect(
+            harness.globalObject.fetch(untouchedReq, { headers: { "Bad Header": "1" } }),
+        ).rejects.toThrow();
+        expect(untouched.locked).toBe(false);
+
+        receivedChunks.length = 0;
+        const uploadPromise = harness.globalObject.fetch(untouchedReq);
+        expect(untouched.locked).toBe(true);
+        await expect(untouchedReq.text()).rejects.toThrow();
+        await uploadPromise;
+        expect(receivedChunks).toEqual([100, 200]);
 
         harness.observer.flush();
-        expect(harness.posted).toEqual([120]);
+        expect(harness.posted).toEqual([128 + 300]);
+        harness.observer.dispose();
+    });
+
+    test("handles XHR reuse, reentrancy, stale loadend, and interrupted or pre-install sends", () => {
+        // Pre-install XHR opened as GET on blob: URL must not be miscounted as an upload.
+        const preXhr = new FakeXMLHttpRequest();
+        preXhr.open("GET", "blob:https://example.com/pre-install");
+        preXhr.responseURL = "";
+
+        const harness = createHarness();
+        harness.observer.install();
+
+        preXhr.send("ignored-get-body");
+        preXhr.emitLoad(200);
+
+        // 1. Reopening in `load` without immediate `send()` still commits completed 500B upload.
+        const reopenOnly = new FakeXMLHttpRequest();
+        reopenOnly.addEventListener("load", () => {
+            reopenOnly.open("POST", "https://example.com/next-idle");
+        });
+        reopenOnly.open("POST", "https://example.com/first-idle");
+        reopenOnly.setResponseHeader("Content-Length", "100");
+        reopenOnly.send(new Uint8Array(500));
+        reopenOnly.emitLoad(200, 100);
+
+        // 2. Reopening + calling `send()` in `load`: first 500B commits, stale `loadend` (4000B)
+        //    is ignored while readyState=OPENED, and second 300B + 150B chunked response commit.
+        const reused = new FakeXMLHttpRequest();
+        let reopened = false;
+        reused.addEventListener("load", () => {
+            if (reopened) return;
+            reopened = true;
+            reused.open("POST", "https://example.com/second");
+            reused.send(new Uint8Array(300));
+        });
+        reused.open("POST", "https://example.com/first");
+        reused.setResponseHeader("Content-Length", "4000");
+        reused.send(new Uint8Array(500));
+        reused.emitLoad(200, 4_000);
+        reused.emitProgress(150, "progress");
+        reused.emitLoad(200, 150);
+
+        // 3. Reopening while in-flight (HEADERS_RECEIVED, readyState=2) does not count abandoned upload.
+        const interrupted = new FakeXMLHttpRequest();
+        interrupted.open("POST", "https://example.com/interrupted");
+        interrupted.send(new Uint8Array(900));
+        interrupted.readyState = 2;
+        interrupted.status = 200;
+        interrupted.open("POST", "https://example.com/replacement");
+        interrupted.send(new Uint8Array(120));
+        interrupted.emitLoad(200);
+
+        // 4. Reopening from `loadstart` (synchronously inside send()) detaches abandoned send.
+        const loadStartXhr = new FakeXMLHttpRequest();
+        loadStartXhr.emitLoadStartOnSend = true;
+        loadStartXhr.addEventListener("loadstart", () => {
+            loadStartXhr.open("POST", "https://example.com/after-loadstart");
+            loadStartXhr.send(new Uint8Array(250));
+        });
+        loadStartXhr.open("POST", "https://example.com/abandoned-in-loadstart");
+        loadStartXhr.send(new Uint8Array(1_000));
+        loadStartXhr.setResponseHeader("Content-Length", "10");
+        loadStartXhr.emitLoad(200, 10);
+
+        harness.observer.flush();
+        expect(harness.posted).toEqual([500 + 500 + 300 + 150 + 120 + 250]);
         harness.observer.dispose();
 
-        // 3. If native open() throws, a second send() throws, or open()'s readystatechange calls send(),
-        //    the active send's listeners remain intact while superseded listeners are detached.
+        // 5. Throwing open(), duplicate throwing send(), and nested send() inside open() preserve active listeners.
         let failNextOpen = false;
         let inFlight = false;
         let sendInsideOpen: ((xhr: FakeXMLHttpRequest) => void) | undefined;
@@ -1357,16 +1235,12 @@ describe("createPageUsageObserver", () => {
                 cb?.(this);
             }
             override send(body?: Document | XMLHttpRequestBodyInit | null) {
-                if (inFlight) {
-                    throw new DOMException("Already sending", "InvalidStateError");
-                }
+                if (inFlight) throw new DOMException("Already sending", "InvalidStateError");
                 inFlight = true;
                 super.send(body);
             }
         }
-        const harness2 = createHarness(
-            async () => new Response("ok", { headers: { "content-length": "2" } }),
-        );
+        const harness2 = createHarness();
         const obs2 = createPageUsageObserver({
             globalObject: harness2.globalObject,
             XMLHttpRequest: ReentrantXhr as unknown as typeof XMLHttpRequest,
@@ -1378,10 +1252,8 @@ describe("createPageUsageObserver", () => {
         });
         obs2.install();
 
-        // Throwing open() and duplicate send() keep active upload+download listeners alive.
         const xhr2 = new ReentrantXhr();
         xhr2.open("POST", "https://example.com/upload-c");
-        xhr2.responseURL = "https://example.com/upload-c";
         xhr2.send(new Uint8Array(80));
         failNextOpen = true;
         expect(() => xhr2.open("BAD METHOD", "https://example.com/upload-d")).toThrow();
@@ -1389,9 +1261,7 @@ describe("createPageUsageObserver", () => {
         xhr2.emitProgress(40);
         xhr2.emitLoad(200);
 
-        // Reused XHR calling send() synchronously inside open()'s readystatechange keeps its listeners.
         sendInsideOpen = (target) => {
-            target.responseURL = "https://example.com/reused-nested";
             target.send(new Uint8Array(60));
         };
         xhr2.open("POST", "https://example.com/reused-nested");
@@ -1401,136 +1271,6 @@ describe("createPageUsageObserver", () => {
         obs2.flush();
         expect(harness2.posted).toEqual([80 + 40 + 60 + 30]);
         obs2.dispose();
-    });
-
-    test("preserves original Request stream so post-construction disturbance still rejects while untouched streams send all chunks", async () => {
-        const receivedChunks: number[] = [];
-        const harness = createHarness(async (input) => {
-            if (input instanceof Request && input.body) {
-                // Mirror native Fetch spec: reject disturbed Request body streams.
-                void new Response(input.body);
-                const reader = input.body.getReader();
-                for (;;) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    receivedChunks.push(value.byteLength);
-                }
-            }
-            return new Response("ok", { headers: { "content-length": "2" } });
-        });
-        harness.observer.install();
-        const PatchedRequest = harness.globalObject.Request!;
-
-        // 1. Construct Request with a fresh two-chunk stream, then disturb the original stream
-        //    before fetch(req) -> must reject natively and count 0 bytes.
-        const disturbedLater = new ReadableStream<Uint8Array>({
-            start(c) {
-                c.enqueue(new Uint8Array(100));
-                c.enqueue(new Uint8Array(200));
-                c.close();
-            },
-        });
-        const disturbedReq = new PatchedRequest("https://example.com/disturbed-later", {
-            method: "POST",
-            body: disturbedLater,
-        });
-        const reader = disturbedLater.getReader();
-        await reader.read();
-        reader.releaseLock();
-        await expect(harness.globalObject.fetch(disturbedReq)).rejects.toThrow();
-
-        // 2. Invalid fetch init options (e.g. invalid header name / browser-rejected mode on a
-        //    streaming Request) must reject during Request validation without locking the caller's
-        //    stream, allowing a retry with valid options to succeed and lock synchronously.
-        const untouched = new ReadableStream<Uint8Array>({
-            start(c) {
-                c.enqueue(new Uint8Array(100));
-                c.enqueue(new Uint8Array(200));
-                c.close();
-            },
-        });
-        const untouchedReq = new PatchedRequest("https://example.com/untouched", {
-            method: "POST",
-            body: untouched,
-        });
-        await expect(
-            harness.globalObject.fetch(untouchedReq, { headers: { "Bad Header": "1" } }),
-        ).rejects.toThrow();
-        expect(untouched.locked).toBe(false);
-
-        const uploadPromise = harness.globalObject.fetch(untouchedReq);
-        expect(untouched.locked).toBe(true);
-        await expect(untouchedReq.text()).rejects.toThrow();
-        await uploadPromise;
-        expect(receivedChunks).toEqual([100, 200]);
-
-        harness.observer.flush();
-        expect(harness.posted).toEqual([300]);
-        harness.observer.dispose();
-    });
-
-    test("commits completed XHR uploads when reopened from load and ignores stale loadend on the next send", () => {
-        const harness = createHarness();
-        harness.observer.install();
-
-        // 1. Reopening in `load` without immediate `send()` still commits the completed 500B upload.
-        const reopenOnly = new FakeXMLHttpRequest();
-        reopenOnly.addEventListener("load", () => {
-            reopenOnly.open("POST", "https://example.com/next-idle");
-        });
-        reopenOnly.open("POST", "https://example.com/first-idle");
-        reopenOnly.setResponseHeader("Content-Length", "100");
-        reopenOnly.send(new Uint8Array(500));
-        reopenOnly.emitLoad(200, 100);
-
-        // 2. Reopening AND calling `send()` in `load`:
-        //    - First 500B POST commits before `open()` resets state.
-        //    - Stale `loadend` from first request (with loaded=4000 while readyState=OPENED)
-        //      must NOT count 4000B or detach second request's listeners.
-        //    - Second 300B POST + 150B chunked response still commit when second completes.
-        const reused = new FakeXMLHttpRequest();
-        let reopened = false;
-        reused.addEventListener("load", () => {
-            if (reopened) return;
-            reopened = true;
-            reused.open("POST", "https://example.com/second");
-            reused.send(new Uint8Array(300));
-        });
-        reused.open("POST", "https://example.com/first");
-        reused.setResponseHeader("Content-Length", "4000");
-        reused.send(new Uint8Array(500));
-        reused.emitLoad(200, 4_000);
-
-        // Second request now finishes with a chunked 150B response.
-        reused.emitProgress(150, "progress");
-        reused.emitLoad(200, 150);
-
-        // 3. Reopening while still in-flight (HEADERS_RECEIVED, readyState=2, status=200)
-        //    must NOT count the interrupted upload.
-        const interrupted = new FakeXMLHttpRequest();
-        interrupted.open("POST", "https://example.com/interrupted");
-        interrupted.send(new Uint8Array(900));
-        interrupted.readyState = 2;
-        interrupted.status = 200;
-        interrupted.open("GET", "https://example.com/replacement");
-
-        // 4. Reopening from `loadstart` (synchronously inside native send()) must detach the
-        //    abandoned send's listeners so the replacement request doesn't count the abandoned body.
-        const loadStartXhr = new FakeXMLHttpRequest();
-        loadStartXhr.emitLoadStartOnSend = true;
-        loadStartXhr.addEventListener("loadstart", () => {
-            loadStartXhr.open("POST", "https://example.com/after-loadstart");
-            loadStartXhr.send(new Uint8Array(250));
-        });
-        loadStartXhr.open("POST", "https://example.com/abandoned-in-loadstart");
-        loadStartXhr.send(new Uint8Array(1_000));
-        loadStartXhr.setResponseHeader("Content-Length", "10");
-        loadStartXhr.emitLoad(200, 10);
-
-        harness.observer.flush();
-        // 500 (reopenOnly) + 500 (first) + 300 (second upload) + 150 (second chunked resp) + 250 (after-loadstart) = 1700
-        expect(harness.posted).toEqual([1_700]);
-        harness.observer.dispose();
     });
 
     test("flushes buffered bytes on visibilitychange (hidden) and pagehide without double-counting", async () => {

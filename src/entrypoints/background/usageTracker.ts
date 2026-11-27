@@ -35,7 +35,6 @@ export interface RequestUsageTracker {
     handleBeforeSendHeaders(details: BeforeSendHeadersDetails): void;
     handleCompleted(details: CompletedRequestDetails): Promise<void>;
     handleErrorOccurred(details: Pick<RequestErrorDetails, "requestId">): void;
-    readonly pendingUploadCount: number;
 }
 
 export function createRequestUsageTracker(
@@ -99,9 +98,6 @@ export function createRequestUsageTracker(
         handleBeforeSendHeaders,
         handleCompleted,
         handleErrorOccurred,
-        get pendingUploadCount() {
-            return pendingUploads.size;
-        },
     };
 }
 
@@ -198,7 +194,7 @@ export function isCountableRequest(details: CompletedRequestDetails) {
     );
 }
 
-export function isCountableUploadRequest(details: BeforeSendHeadersDetails) {
+function isCountableUploadRequest(details: BeforeSendHeadersDetails) {
     return (
         isCountableBaseRequest(details) &&
         details.method !== "OPTIONS" &&

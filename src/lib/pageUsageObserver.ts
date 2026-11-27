@@ -53,14 +53,14 @@ export function hasPositiveContentLength(value: string | null | undefined): bool
     return Number.isFinite(bytes) && bytes > 0;
 }
 
-export function isUploadMethod(method: string | undefined): boolean {
+function isUploadMethod(method: string | undefined): boolean {
     if (!method) return false;
     const upper = method.toUpperCase();
     return upper !== "GET" && upper !== "HEAD" && upper !== "OPTIONS";
 }
 
 // Self-contained (no outer helper references) so `.toString()` works inside minified blob Workers.
-export function measureBodyBytes(body: unknown): number {
+function measureBodyBytes(body: unknown): number {
     if (body === null || body === undefined) return 0;
     let encoder: TextEncoder | undefined;
     const strBytes = (s: string) => (encoder ??= new TextEncoder()).encode(s).byteLength;

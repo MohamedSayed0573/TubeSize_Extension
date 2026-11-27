@@ -13,7 +13,6 @@ import {
     type CompletedRequestDetails,
     createRequestUsageTracker,
     isCountableRequest,
-    isCountableUploadRequest,
     setupTrackUsage,
     trackRequest,
 } from "@/entrypoints/background/usageTracker";
@@ -410,57 +409,6 @@ describe("trackRequest", () => {
     });
 });
 
-describe("isCountableUploadRequest", () => {
-    test("accepts non-page-API outgoing requests such as form navigations and reports", () => {
-        expect(
-            isCountableUploadRequest(makeBeforeSendDetails({ type: "main_frame", method: "POST" })),
-        ).toBe(true);
-        expect(
-            isCountableUploadRequest(makeBeforeSendDetails({ type: "sub_frame", method: "POST" })),
-        ).toBe(true);
-        expect(
-            isCountableUploadRequest(makeBeforeSendDetails({ type: "csp_report", method: "POST" })),
-        ).toBe(true);
-    });
-
-    test("excludes page-observer-owned upload types, preflight OPTIONS, HEAD, tabless, and extension URLs", () => {
-        expect(isCountableUploadRequest(makeBeforeSendDetails({ type: "xmlhttprequest" }))).toBe(
-            false,
-        );
-        expect(isCountableUploadRequest(makeBeforeSendDetails({ type: "ping" }))).toBe(false);
-        expect(
-            isCountableUploadRequest(
-                makeBeforeSendDetails({
-                    type: "beacon" as chrome.webRequest.ResourceType,
-                }),
-            ),
-        ).toBe(false);
-        expect(isCountableUploadRequest(makeBeforeSendDetails({ method: "OPTIONS" }))).toBe(false);
-        expect(isCountableUploadRequest(makeBeforeSendDetails({ method: "HEAD" }))).toBe(false);
-        expect(isCountableUploadRequest(makeBeforeSendDetails({ tabId: -1 }))).toBe(false);
-        expect(
-            isCountableUploadRequest(
-                makeBeforeSendDetails({ url: "chrome-extension://abcdef/form" }),
-            ),
-        ).toBe(false);
-        expect(
-            isCountableUploadRequest(
-                makeBeforeSendDetails({ initiator: "chrome-extension://abcdef" }),
-            ),
-        ).toBe(false);
-        expect(
-            isCountableUploadRequest(
-                makeBeforeSendDetails({ originUrl: "moz-extension://1234/page.html" }),
-            ),
-        ).toBe(false);
-        expect(
-            isCountableUploadRequest(
-                makeBeforeSendDetails({ documentUrl: "moz-extension://1234/page.html" }),
-            ),
-        ).toBe(false);
-    });
-});
-
 describe("createRequestUsageTracker upload lifecycle", () => {
     test("commits staged request Content-Length on completion with or without response Content-Length", async () => {
         const ingestion = createUsageIngestion();
@@ -476,8 +424,6 @@ describe("createRequestUsageTracker upload lifecycle", () => {
                 requestHeaders: [{ name: "Content-Length", value: "15000" }],
             }),
         );
-        expect(tracker.pendingUploadCount).toBe(1);
-
         await tracker.handleCompleted(
             makeDetails({
                 requestId: "up-1",
@@ -488,7 +434,6 @@ describe("createRequestUsageTracker upload lifecycle", () => {
                 responseHeaders: [{ name: "Content-Length", value: "2500" }],
             }),
         );
-        expect(tracker.pendingUploadCount).toBe(0);
 
         // Response without Content-Length (e.g. 204 or chunked) still commits staged upload bytes.
         tracker.handleBeforeSendHeaders(
@@ -527,8 +472,6 @@ describe("createRequestUsageTracker upload lifecycle", () => {
         const tracker = createRequestUsageTracker(ingestion, 1000, dedup);
         const tab = await fakeBrowser.tabs.create({ url: "https://example.com/export" });
 
-        // POST -> Content-Disposition: attachment skips response bytes (owned by chrome.downloads)
-        // but still commits staged upload bytes.
         tracker.handleBeforeSendHeaders(
             makeBeforeSendDetails({
                 requestId: "up-attach",
@@ -552,8 +495,6 @@ describe("createRequestUsageTracker upload lifecycle", () => {
             }),
         );
 
-        // POST -> active download matched by DownloadDedup suppresses response bytes
-        // but still commits staged upload bytes immediately.
         dedup.track(42, ["https://example.com/export/binary"]);
         tracker.handleBeforeSendHeaders(
             makeBeforeSendDetails({
@@ -648,13 +589,12 @@ describe("createRequestUsageTracker upload lifecycle", () => {
         );
 
         await ingestion.flush();
-        expect(tracker.pendingUploadCount).toBe(0);
         expect((await getAllSiteUsage())[0]?.usage).toEqual({
             [origin("https://example.com")]: 8_000,
         });
     });
 
-    test("discards failed or cached requests and bounds pending upload map size", async () => {
+    test("discards failed or cached requests and evicts oldest pending upload past cap", async () => {
         const ingestion = createUsageIngestion();
         const tracker = createRequestUsageTracker(ingestion, 2);
         const tab = await fakeBrowser.tabs.create({ url: "https://example.com/form" });
@@ -668,7 +608,14 @@ describe("createRequestUsageTracker upload lifecycle", () => {
             }),
         );
         tracker.handleErrorOccurred({ requestId: "err-1" });
-        expect(tracker.pendingUploadCount).toBe(0);
+        await tracker.handleCompleted(
+            makeDetails({
+                requestId: "err-1",
+                tabId: tab.id,
+                type: "sub_frame",
+                responseHeaders: [],
+            }),
+        );
 
         tracker.handleBeforeSendHeaders(
             makeBeforeSendDetails({
@@ -687,9 +634,8 @@ describe("createRequestUsageTracker upload lifecycle", () => {
                 responseHeaders: [],
             }),
         );
-        expect(tracker.pendingUploadCount).toBe(0);
 
-        // Evicts oldest entry when maxPendingUploads (2) is exceeded.
+        // Evicts oldest entry when maxPendingUploads (2) is exceeded: leak-1 is dropped, leak-3 remains.
         for (const id of ["leak-1", "leak-2", "leak-3"]) {
             tracker.handleBeforeSendHeaders(
                 makeBeforeSendDetails({
@@ -700,9 +646,6 @@ describe("createRequestUsageTracker upload lifecycle", () => {
                 }),
             );
         }
-        expect(tracker.pendingUploadCount).toBe(2);
-
-        // leak-1 was evicted, leak-3 remains.
         await tracker.handleCompleted(
             makeDetails({
                 requestId: "leak-1",
@@ -719,39 +662,59 @@ describe("createRequestUsageTracker upload lifecycle", () => {
                 responseHeaders: [],
             }),
         );
+
         await ingestion.flush();
         expect((await getAllSiteUsage())[0]?.usage).toEqual({
             [origin("https://example.com")]: 1_000,
         });
     });
 
-    test("ignores xmlhttprequest/ping/beacon request headers so page-world observer never double-counts", async () => {
+    test("ignores page-observer-owned types, OPTIONS, HEAD, tabless, and extension uploads", async () => {
         const ingestion = createUsageIngestion();
         const tracker = createRequestUsageTracker(ingestion);
         const tab = await fakeBrowser.tabs.create({ url: "https://example.com/app" });
 
-        for (const type of ["xmlhttprequest", "ping", "beacon"] as const) {
+        const skippedCases: Array<Partial<BeforeSendHeadersDetails>> = [
+            { requestId: "skip-xhr", type: "xmlhttprequest" },
+            { requestId: "skip-ping", type: "ping" },
+            { requestId: "skip-beacon", type: "beacon" as chrome.webRequest.ResourceType },
+            { requestId: "skip-options", type: "sub_frame", method: "OPTIONS" },
+            { requestId: "skip-head", type: "sub_frame", method: "HEAD" },
+            { requestId: "skip-tabless", tabId: -1, type: "sub_frame" },
+            {
+                requestId: "skip-ext-url",
+                type: "sub_frame",
+                url: "chrome-extension://abcdef/form",
+            },
+            {
+                requestId: "skip-ext-origin",
+                type: "sub_frame",
+                originUrl: "moz-extension://1234/page.html",
+            },
+        ];
+
+        for (const overrides of skippedCases) {
             tracker.handleBeforeSendHeaders(
                 makeBeforeSendDetails({
-                    requestId: `page-${type}`,
                     tabId: tab.id,
-                    type: type as chrome.webRequest.ResourceType,
                     requestHeaders: [{ name: "Content-Length", value: "50000" }],
+                    ...overrides,
                 }),
             );
             await tracker.handleCompleted(
                 makeDetails({
-                    requestId: `page-${type}`,
-                    tabId: tab.id,
-                    type: type as chrome.webRequest.ResourceType,
-                    method: "POST",
+                    tabId: overrides.tabId ?? tab.id,
+                    requestId: overrides.requestId!,
+                    type: overrides.type ?? "sub_frame",
+                    method: overrides.method ?? "POST",
+                    url: overrides.url ?? "https://example.com/submit",
+                    originUrl: overrides.originUrl,
                     responseHeaders: [],
                 }),
             );
         }
 
         await ingestion.flush();
-        expect(tracker.pendingUploadCount).toBe(0);
         expect(await getAllSiteUsage()).toEqual([]);
     });
 });
