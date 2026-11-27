@@ -7,6 +7,7 @@ import {
     getPlatformDisplayName,
     isKickVideoUuid,
     isPlatformId,
+    parseEmbeddedPlatformUrl,
     parsePlatformUrl,
     parseVideoKey,
     PLATFORM_MATCH_PATTERNS,
@@ -231,5 +232,145 @@ describe("platform identity and VideoKey helpers", () => {
         expect(buildPlatformVideoUrl("kick", "c7093a5c-demo-vod", undefined, "xqc")).toBe(
             "https://kick.com/xqc/videos/c7093a5c-demo-vod",
         );
+    });
+});
+
+describe("parseEmbeddedPlatformUrl", () => {
+    test("parses YouTube embed, nocookie, youtu.be, mobile, and standard media URLs", () => {
+        const expectedYoutube = {
+            parsed: {
+                kind: "media",
+                platform: "youtube",
+                mediaId: "yaodD79Q4iE",
+                isShorts: false,
+            },
+            canonicalUrl: "https://youtube.com/watch?v=yaodD79Q4iE",
+        } as const;
+
+        for (const url of [
+            "https://youtube.com/embed/yaodD79Q4iE",
+            "https://www.youtube.com/embed/yaodD79Q4iE?autoplay=1&rel=0",
+            "https://youtube-nocookie.com/embed/yaodD79Q4iE",
+            "https://www.youtube-nocookie.com/embed/yaodD79Q4iE",
+            "https://youtu.be/yaodD79Q4iE?t=42",
+            "https://m.youtube.com/watch?v=yaodD79Q4iE",
+            "https://www.youtube.com/watch?v=yaodD79Q4iE",
+        ]) {
+            expect(parseEmbeddedPlatformUrl(url)).toEqual(expectedYoutube);
+        }
+
+        expect(parseEmbeddedPlatformUrl("https://www.youtube.com/shorts/muzkvikbNA0")).toEqual({
+            parsed: {
+                kind: "media",
+                platform: "youtube",
+                mediaId: "muzkvikbNA0",
+                isShorts: true,
+            },
+            canonicalUrl: "https://youtube.com/watch?v=muzkvikbNA0",
+        });
+    });
+
+    test("parses Twitch player embeds and standard Twitch media URLs", () => {
+        expect(
+            parseEmbeddedPlatformUrl("https://player.twitch.tv/?channel=shroud&parent=example.com"),
+        ).toEqual({
+            parsed: {
+                kind: "media",
+                platform: "twitch",
+                contentType: "live",
+                mediaId: "shroud",
+                channelName: "shroud",
+            },
+            canonicalUrl: "https://www.twitch.tv/shroud",
+        });
+
+        expect(
+            parseEmbeddedPlatformUrl("https://player.twitch.tv/?video=v2748008198&parent=site.com"),
+        ).toEqual({
+            parsed: {
+                kind: "media",
+                platform: "twitch",
+                contentType: "vod",
+                mediaId: "2748008198",
+            },
+            canonicalUrl: "https://www.twitch.tv/videos/2748008198",
+        });
+
+        expect(
+            parseEmbeddedPlatformUrl("https://player.twitch.tv/?video=2748008198&parent=site.com"),
+        ).toEqual({
+            parsed: {
+                kind: "media",
+                platform: "twitch",
+                contentType: "vod",
+                mediaId: "2748008198",
+            },
+            canonicalUrl: "https://www.twitch.tv/videos/2748008198",
+        });
+
+        expect(parseEmbeddedPlatformUrl("https://www.twitch.tv/videos/2748008198")).toEqual({
+            parsed: {
+                kind: "media",
+                platform: "twitch",
+                contentType: "vod",
+                mediaId: "2748008198",
+            },
+            canonicalUrl: "https://www.twitch.tv/videos/2748008198",
+        });
+    });
+
+    test("parses Kick player embeds and standard Kick media URLs", () => {
+        expect(parseEmbeddedPlatformUrl("https://player.kick.com/xqc")).toEqual({
+            parsed: {
+                kind: "media",
+                platform: "kick",
+                contentType: "live",
+                mediaId: "xqc",
+                channelName: "xqc",
+            },
+            canonicalUrl: "https://kick.com/xqc",
+        });
+
+        expect(
+            parseEmbeddedPlatformUrl("https://player.kick.com/xqc/videos/c7093a5c-demo-vod"),
+        ).toEqual({
+            parsed: {
+                kind: "media",
+                platform: "kick",
+                contentType: "vod",
+                mediaId: "c7093a5c-demo-vod",
+                channelName: "xqc",
+            },
+            canonicalUrl: "https://kick.com/xqc/videos/c7093a5c-demo-vod",
+        });
+
+        const uuid = "11111111-2222-3333-4444-555555555555";
+        expect(parseEmbeddedPlatformUrl(`https://player.kick.com/video/${uuid}`)).toEqual({
+            parsed: {
+                kind: "media",
+                platform: "kick",
+                contentType: "vod",
+                mediaId: uuid,
+                channelName: "",
+            },
+            canonicalUrl: `https://kick.com/video/${uuid}`,
+        });
+    });
+
+    test("returns undefined for non-media, invalid, or unrelated URLs", () => {
+        for (const url of [
+            "",
+            "not-a-url",
+            "chrome-extension://abc/page.html",
+            "https://example.com/embed/yaodD79Q4iE",
+            "https://www.youtube.com/embed/short",
+            "https://www.youtube.com/",
+            "https://player.twitch.tv/?parent=example.com",
+            "https://player.twitch.tv/?video=not-digits",
+            "https://player.kick.com/browse",
+            "https://player.kick.com/video/not-a-uuid",
+        ]) {
+            expect(parseEmbeddedPlatformUrl(url)).toBeUndefined();
+        }
     });
 });
