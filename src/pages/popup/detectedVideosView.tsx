@@ -39,6 +39,7 @@ function VideoSwitcher({
     onSelect: (id: string) => void;
 }) {
     const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+    const lastScrolledIdRef = useRef<string | null>(null);
 
     const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
         if (videos.length < 2) return;
@@ -84,6 +85,10 @@ function VideoSwitcher({
                         key={video.id}
                         ref={(node) => {
                             tabRefs.current[index] = node;
+                            if (isSelected && node && lastScrolledIdRef.current !== video.id) {
+                                lastScrolledIdRef.current = video.id;
+                                node.scrollIntoView?.({ block: "nearest" });
+                            }
                         }}
                         id={`${idPrefix}-tab-${index}`}
                         type="button"
@@ -121,7 +126,9 @@ function VideoSwitcher({
 
 export function DetectedVideosView({ videos }: Props) {
     const switcherId = useId();
-    const [selectedId, setSelectedId] = useState<string>(() => videos[0]?.id ?? "");
+    const [selectedId, setSelectedId] = useState<string>(
+        () => videos.find((video) => video.isPlaying)?.id ?? videos[0]?.id ?? "",
+    );
     const [retryingError, setRetryingError] = useState<{
         videoId: string;
         error: unknown;

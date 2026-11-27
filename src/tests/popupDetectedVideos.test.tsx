@@ -335,4 +335,64 @@ describe("popup embedded and generic video detection", () => {
         expect(host?.textContent).toContain("قيد التشغيل");
         expect(host?.textContent).toContain("فيديو 1");
     });
+
+    test("keeps untitled videos in page order while pre-selecting the playing video", async () => {
+        stubActiveTab("https://blog.example.com/untitled");
+        const videos: DetectedVideo[] = [
+            {
+                id: "direct:https://cdn.example.com/v1.mp4",
+                source: { kind: "direct", url: "https://cdn.example.com/v1.mp4" },
+                isPlaying: false,
+                frameId: 0,
+            },
+            {
+                id: "direct:https://cdn.example.com/v2.mp4",
+                source: { kind: "direct", url: "https://cdn.example.com/v2.mp4" },
+                isPlaying: false,
+                frameId: 0,
+            },
+            {
+                id: "direct:https://cdn.example.com/v3.mp4",
+                source: { kind: "direct", url: "https://cdn.example.com/v3.mp4" },
+                isPlaying: true,
+                frameId: 0,
+            },
+        ];
+
+        cleanups.push(
+            onBackgroundMessage("detectTabVideos", () => ({ success: true, data: videos })),
+            onBackgroundMessage("estimateMedia", ({ data }) => ({
+                success: true,
+                data: {
+                    platform: "generic",
+                    contentType: "vod",
+                    durationSeconds: 60,
+                    formats: [
+                        {
+                            kind: "vod",
+                            resolution: 720,
+                            sizeBytes:
+                                data.url === "https://cdn.example.com/v3.mp4"
+                                    ? 33_000_000
+                                    : 10_000_000,
+                            sizePerSecondBytes: 250_000,
+                        },
+                    ],
+                },
+            })),
+        );
+
+        await render(<Popup />);
+        await waitForCondition(() => host?.textContent?.includes("33 MB") ?? false);
+
+        const tabs = [...(host?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])];
+        expect(tabs).toHaveLength(3);
+        expect(tabs[0]?.textContent).toContain("Video 1");
+        expect(tabs[0]?.getAttribute("aria-selected")).toBe("false");
+        expect(tabs[1]?.textContent).toContain("Video 2");
+        expect(tabs[1]?.getAttribute("aria-selected")).toBe("false");
+        expect(tabs[2]?.textContent).toContain("Video 3");
+        expect(tabs[2]?.textContent).toContain("Playing");
+        expect(tabs[2]?.getAttribute("aria-selected")).toBe("true");
+    });
 });

@@ -619,9 +619,7 @@ export function mergeDetectedVideos(
         });
     }
 
-    return [...ranked.values()]
-        .toSorted((a, b) => compareVideos(a.video, b.video) || a.order - b.order)
-        .map((entry) => entry.video);
+    return [...ranked.values()].toSorted((a, b) => a.order - b.order).map((entry) => entry.video);
 }
 
 export async function detectTabVideos(

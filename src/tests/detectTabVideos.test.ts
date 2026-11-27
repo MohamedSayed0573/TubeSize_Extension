@@ -461,12 +461,12 @@ describe("mergeDetectedVideos", () => {
         const videos = mergeDetectedVideos(frames, observed);
 
         expect(videos.map((video) => video.id)).toEqual([
-            "direct:https://cdn.example.com/hero.mp4",
             "embed:https://youtube.com/watch?v=yaodD79Q4iE",
             "embed:https://www.twitch.tv/shroud",
+            "direct:https://cdn.example.com/hero.mp4",
             "direct:https://cdn.example.com/trailer.mp4",
         ]);
-        expect(videos[0]).toMatchObject({
+        expect(videos[2]).toMatchObject({
             isPlaying: true,
             currentResolution: 1080,
             source: {
@@ -478,7 +478,7 @@ describe("mergeDetectedVideos", () => {
                 videoWidth: 1920,
             },
         });
-        expect(videos[1]).toMatchObject({
+        expect(videos[0]).toMatchObject({
             title: "Embedded Talk",
             currentResolution: 720,
             source: {
