@@ -24,7 +24,8 @@
         ".wxt",
         "coverage",
         "src/components/ui",
-        "devTest"
+        "devTest",
+        "website"
     ],
     "rules": {
         "typescript/consistent-return": "off",

@@ -12,6 +12,6 @@
         "scripts/verify/server.ts"
     ],
     "tags": ["-lintignore"],
-    "ignore": ["src/components/ui/**"],
+    "ignore": ["src/components/ui/**", "website/**"],
     "vite": true
 }
