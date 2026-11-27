@@ -12,11 +12,13 @@ import {
     waitForSettle,
 } from "./browser";
 import {
+    FIXTURE_WEBSOCKET_HANDLER,
     handleUsageFixtureRequest,
     installPlatformRoutes,
     isFixtureTarget,
     resolveFixtureTarget,
     uninstallPlatformRoutes,
+    upgradeFixtureWebSocket,
 } from "./fixtures";
 import { measureDashboardPerf, measureMemoryPerf, measurePopupPerf } from "./perf";
 import { applySeed, inspectDb, type SeedMode } from "./seed";
@@ -108,7 +110,9 @@ async function main() {
 
     const resolveTarget = async (raw: string, serverPort: number) => {
         if (isFixtureTarget(raw)) {
-            if (raw !== "fixture:usage-site") await ensurePlatformRoutes();
+            if (raw !== "fixture:usage-site" && raw !== "fixture:realtime-call") {
+                await ensurePlatformRoutes();
+            }
             return resolveFixtureTarget(raw, serverPort);
         }
         const resolved = resolveTargetUrl(extId, raw);
@@ -139,7 +143,9 @@ async function main() {
     const server = Bun.serve({
         hostname: "127.0.0.1",
         port: 0,
-        async fetch(req) {
+        websocket: FIXTURE_WEBSOCKET_HANDLER,
+        async fetch(req, srv) {
+            if (upgradeFixtureWebSocket(req, srv)) return undefined;
             const fixtureRes = handleUsageFixtureRequest(req);
             if (fixtureRes) return fixtureRes;
 
