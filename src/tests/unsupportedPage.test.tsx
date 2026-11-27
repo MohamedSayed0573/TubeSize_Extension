@@ -88,6 +88,7 @@ describe("popup UnsupportedPage empty state", () => {
 
         const stateEl = host?.querySelector("[data-popup-state='unsupported']");
         expect(stateEl).not.toBeNull();
+        expect(document.documentElement.dir).toBe("rtl");
         expect(stateEl?.textContent).toContain("تقديرات الحجم غير متاحة");
         expect(stateEl?.textContent).toContain("تتبع الاستهلاك مفعّل.");
     });
