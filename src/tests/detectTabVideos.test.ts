@@ -1073,4 +1073,115 @@ describe("mergeDetectedVideos", () => {
             await cleanupDom();
         }
     });
+
+    test("orders mixed direct, MSE, embed, and subframe videos in visual page order", () => {
+        const frames: FrameScanResult[] = [
+            {
+                frameId: 0,
+                frameUrl: "https://example.com/gallery",
+                iframes: [
+                    {
+                        url: "https://player.example.com/frame-bottom",
+                        domOrder: 3,
+                        pageTop: 900,
+                        pageLeft: 20,
+                    },
+                    {
+                        url: "https://www.youtube.com/embed/yaodD79Q4iE",
+                        title: "Second Embed",
+                        domOrder: 1,
+                        pageTop: 400,
+                        pageLeft: 20,
+                    },
+                    {
+                        url: "https://player.example.com/frame-top",
+                        domOrder: 0,
+                        pageTop: 100,
+                        pageLeft: 20,
+                    },
+                ],
+                videos: [
+                    {
+                        currentSrc: "blob:https://example.com/mse-mid",
+                        sources: [],
+                        isPlaying: true,
+                        title: "Third MSE",
+                        domOrder: 2,
+                        pageTop: 650,
+                        pageLeft: 20,
+                    },
+                    {
+                        currentSrc: "https://cdn.example.com/direct-row-right.mp4",
+                        sources: [],
+                        isPlaying: false,
+                        title: "Row Right",
+                        domOrder: 4,
+                        pageTop: 1200,
+                        pageLeft: 500,
+                    },
+                    {
+                        currentSrc: "https://cdn.example.com/direct-row-left.mp4",
+                        sources: [],
+                        isPlaying: false,
+                        title: "Row Left",
+                        domOrder: 5,
+                        pageTop: 1201,
+                        pageLeft: 20,
+                    },
+                ],
+            },
+            // Subframes returned in reverse order from executeScript
+            {
+                frameId: 9,
+                frameUrl: "https://player.example.com/frame-bottom",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "https://cdn.example.com/sub-bottom.mp4",
+                        sources: [],
+                        isPlaying: false,
+                        title: "Fourth Subframe",
+                        domOrder: 0,
+                        pageTop: 0,
+                        pageLeft: 0,
+                    },
+                ],
+            },
+            {
+                frameId: 4,
+                frameUrl: "https://player.example.com/frame-top",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "https://cdn.example.com/sub-top.mp4",
+                        sources: [],
+                        isPlaying: false,
+                        title: "First Subframe",
+                        domOrder: 0,
+                        pageTop: 0,
+                        pageLeft: 0,
+                    },
+                ],
+            },
+        ];
+
+        const observed: ObservedMedia[] = [
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/mse-mid/master.m3u8",
+                frameId: 0,
+                observedAt: 10,
+            },
+        ];
+
+        const videos = mergeDetectedVideos(frames, observed);
+        expect(videos.map((video) => video.title)).toEqual([
+            "First Subframe",
+            "Second Embed",
+            "Third MSE",
+            "Fourth Subframe",
+            "Row Left",
+            "Row Right",
+        ]);
+    });
 });

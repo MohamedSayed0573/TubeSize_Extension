@@ -3,12 +3,18 @@ import { parseEmbeddedPlatformUrl } from "@lib/platformUrl";
 
 import type { ObservedMedia, TabMediaRegistry } from "./tabMediaRegistry";
 
-type ScannedIframe = {
+type ElementPosition = {
+    domOrder?: number;
+    pageTop?: number;
+    pageLeft?: number;
+};
+
+type ScannedIframe = ElementPosition & {
     url: string;
     title?: string;
 };
 
-type ScannedVideo = {
+type ScannedVideo = ElementPosition & {
     currentSrc?: string;
     sources: Array<{ url: string; type?: string }>;
     durationSeconds?: number;
@@ -63,40 +69,72 @@ export function scanFrameDom(): FrameDomScan {
         return cleanTitle(container?.querySelector("figcaption, h1, h2, h3")?.textContent);
     };
 
+    let nextDomOrder = 0;
+    const scrollY = window.scrollY || 0;
+    const scrollX = window.scrollX || 0;
+
+    const getPagePosition = (element: Element): { pageTop?: number; pageLeft?: number } => {
+        const rect = element.getBoundingClientRect();
+        if (rect.width <= 0 && rect.height <= 0) return {};
+        const top = rect.top + scrollY;
+        const left = rect.left + scrollX;
+        if (!Number.isFinite(top) || !Number.isFinite(left)) return {};
+        return { pageTop: top, pageLeft: left };
+    };
+
     const collect = (root: Document | ShadowRoot, depth: number) => {
-        for (const element of root.querySelectorAll("iframe")) {
-            const url = toAbsoluteUrl(
-                element.getAttribute("src") || element.getAttribute("data-src"),
-            );
-            if (!url || url.startsWith("blob:")) continue;
-            iframes.push({ url, title: cleanTitle(element.title) });
+        const iframeByElement = new Map<Element, HTMLIFrameElement>();
+        for (const iframe of root.querySelectorAll("iframe")) {
+            iframeByElement.set(iframe, iframe);
+        }
+        const videoByElement = new Map<Element, HTMLVideoElement>();
+        for (const video of root.querySelectorAll("video")) {
+            videoByElement.set(video, video);
         }
 
-        for (const element of root.querySelectorAll("video")) {
-            const sources: Array<{ url: string; type?: string }> = [];
-            const src = toAbsoluteUrl(element.getAttribute("src"));
-            if (src) sources.push({ url: src });
-            for (const source of element.querySelectorAll("source")) {
-                const url = toAbsoluteUrl(source.getAttribute("src"));
-                if (url) sources.push({ url, type: source.type || undefined });
-            }
-            const duration = element.duration;
-            videos.push({
-                currentSrc: toAbsoluteUrl(element.currentSrc),
-                sources,
-                durationSeconds: Number.isFinite(duration) && duration > 0 ? duration : undefined,
-                videoWidth: element.videoWidth || undefined,
-                videoHeight: element.videoHeight || undefined,
-                isPlaying: !element.paused && !element.ended && element.readyState > 2,
-                title:
-                    cleanTitle(element.title) ||
-                    cleanTitle(element.getAttribute("aria-label")) ||
-                    nearbyHeading(element),
-            });
-        }
-
-        if (depth >= MAX_SHADOW_DEPTH) return;
         for (const element of root.querySelectorAll("*")) {
+            const iframe = iframeByElement.get(element);
+            if (iframe) {
+                const url = toAbsoluteUrl(
+                    iframe.getAttribute("src") || iframe.getAttribute("data-src"),
+                );
+                if (url && !url.startsWith("blob:")) {
+                    iframes.push({
+                        url,
+                        title: cleanTitle(iframe.title),
+                        domOrder: nextDomOrder++,
+                        ...getPagePosition(iframe),
+                    });
+                }
+            }
+            const video = videoByElement.get(element);
+            if (video) {
+                const sources: Array<{ url: string; type?: string }> = [];
+                const src = toAbsoluteUrl(video.getAttribute("src"));
+                if (src) sources.push({ url: src });
+                for (const source of video.querySelectorAll("source")) {
+                    const url = toAbsoluteUrl(source.getAttribute("src"));
+                    if (url) sources.push({ url, type: source.type || undefined });
+                }
+                const duration = video.duration;
+                videos.push({
+                    currentSrc: toAbsoluteUrl(video.currentSrc),
+                    sources,
+                    durationSeconds:
+                        Number.isFinite(duration) && duration > 0 ? duration : undefined,
+                    videoWidth: video.videoWidth || undefined,
+                    videoHeight: video.videoHeight || undefined,
+                    isPlaying: !video.paused && !video.ended && video.readyState > 2,
+                    title:
+                        cleanTitle(video.title) ||
+                        cleanTitle(video.getAttribute("aria-label")) ||
+                        nearbyHeading(video),
+                    domOrder: nextDomOrder++,
+                    ...getPagePosition(video),
+                });
+            }
+
+            if (depth >= MAX_SHADOW_DEPTH) continue;
             let shadowRoot: ShadowRoot | null = element.shadowRoot;
             if (!shadowRoot && element instanceof HTMLElement) {
                 try {
@@ -138,10 +176,18 @@ type ManifestGroup = {
     latestObservedAt: number;
 };
 
+type SortPosition = {
+    pageTop?: number;
+    pageLeft?: number;
+    outerOrder: number;
+    innerOrder: number;
+};
+
 type PendingMseVideo = {
     frame: FrameScanResult;
     video: ScannedVideo;
     domOrder: number;
+    position: SortPosition;
 };
 
 const EXPLICIT_MASTER_NAME_REGEX = /^(master|manifest)$/i;
@@ -395,22 +441,106 @@ function sourceId(source: DetectedVideoSource): string {
         : `${source.kind}:${source.url}`;
 }
 
+function compareSortKey(
+    a: { position?: SortPosition; discovery: number },
+    b: { position?: SortPosition; discovery: number },
+): number {
+    const aHasPos = a.position?.pageTop !== undefined;
+    const bHasPos = b.position?.pageTop !== undefined;
+    if (aHasPos !== bHasPos) return aHasPos ? -1 : 1;
+    if (aHasPos && bHasPos) {
+        const topDiff = Math.round(a.position!.pageTop! / 4) - Math.round(b.position!.pageTop! / 4);
+        if (topDiff !== 0) return topDiff;
+        const leftDiff = (a.position!.pageLeft ?? 0) - (b.position!.pageLeft ?? 0);
+        if (leftDiff !== 0) return leftDiff;
+    }
+    const aOuter = a.position?.outerOrder ?? Number.MAX_SAFE_INTEGER;
+    const bOuter = b.position?.outerOrder ?? Number.MAX_SAFE_INTEGER;
+    if (aOuter !== bOuter) return aOuter - bOuter;
+    const aInner = a.position?.innerOrder ?? Number.MAX_SAFE_INTEGER;
+    const bInner = b.position?.innerOrder ?? Number.MAX_SAFE_INTEGER;
+    if (aInner !== bInner) return aInner - bInner;
+    return a.discovery - b.discovery;
+}
+
 export function mergeDetectedVideos(
     frames: readonly FrameScanResult[],
     observedMedia: readonly ObservedMedia[],
 ): DetectedVideo[] {
-    const ranked = new Map<string, { video: DetectedVideo; order: number }>();
+    const ranked = new Map<
+        string,
+        { video: DetectedVideo; position?: SortPosition; discovery: number }
+    >();
     let discovery = 0;
 
-    const add = (video: Omit<DetectedVideo, "id">) => {
+    const add = (video: Omit<DetectedVideo, "id">, position?: SortPosition) => {
         const id = sourceId(video.source);
         const candidate: DetectedVideo = { id, ...video };
         const existing = ranked.get(id);
         if (!existing) {
-            ranked.set(id, { video: candidate, order: discovery++ });
-        } else if (compareVideos(candidate, existing.video) < 0) {
-            existing.video = { ...candidate, title: candidate.title ?? existing.video.title };
+            ranked.set(id, { video: candidate, position, discovery: discovery++ });
+        } else {
+            if (compareVideos(candidate, existing.video) < 0) {
+                existing.video = { ...candidate, title: candidate.title ?? existing.video.title };
+            }
+            if (
+                position &&
+                (!existing.position ||
+                    compareSortKey(
+                        { position, discovery: existing.discovery },
+                        { position: existing.position, discovery: existing.discovery },
+                    ) < 0)
+            ) {
+                existing.position = position;
+            }
         }
+    };
+
+    const iframePositionByUrl = new Map<string, ElementPosition>();
+    for (const frame of frames) {
+        for (const [index, iframe] of frame.iframes.entries()) {
+            if (!iframePositionByUrl.has(iframe.url)) {
+                iframePositionByUrl.set(iframe.url, {
+                    domOrder: iframe.domOrder ?? index,
+                    pageTop: iframe.pageTop,
+                    pageLeft: iframe.pageLeft,
+                });
+            }
+        }
+    }
+
+    const resolvePosition = (
+        frame: FrameScanResult,
+        item: ElementPosition,
+        fallbackIndex: number,
+    ): SortPosition => {
+        if (frame.frameId === 0) {
+            return {
+                pageTop: item.pageTop,
+                pageLeft: item.pageLeft,
+                outerOrder: item.domOrder ?? fallbackIndex,
+                innerOrder: 0,
+            };
+        }
+        const host = iframePositionByUrl.get(frame.frameUrl);
+        if (host) {
+            return {
+                pageTop:
+                    host.pageTop !== undefined ? host.pageTop + (item.pageTop ?? 0) : item.pageTop,
+                pageLeft:
+                    host.pageLeft !== undefined
+                        ? host.pageLeft + (item.pageLeft ?? 0)
+                        : item.pageLeft,
+                outerOrder: host.domOrder ?? Number.MAX_SAFE_INTEGER,
+                innerOrder: item.domOrder ?? fallbackIndex,
+            };
+        }
+        return {
+            pageTop: item.pageTop,
+            pageLeft: item.pageLeft,
+            outerOrder: Number.MAX_SAFE_INTEGER,
+            innerOrder: item.domOrder ?? fallbackIndex,
+        };
     };
 
     // Frames hosting a platform player (e.g. a YouTube embed's own document)
@@ -449,27 +579,31 @@ export function mergeDetectedVideos(
     let domOrder = 0;
 
     for (const frame of frames) {
-        for (const iframe of frame.iframes) {
+        for (const [iframeIndex, iframe] of frame.iframes.entries()) {
             const embedded = parseEmbeddedPlatformUrl(iframe.url);
             if (!embedded) continue;
             const playerState = embedFrameStates.get(embedded.canonicalUrl);
-            add({
-                source: {
-                    kind: "platform-embed",
-                    platform: embedded.parsed.platform,
-                    url: embedded.canonicalUrl,
-                    embedUrl: iframe.url,
+            add(
+                {
+                    source: {
+                        kind: "platform-embed",
+                        platform: embedded.parsed.platform,
+                        url: embedded.canonicalUrl,
+                        embedUrl: iframe.url,
+                    },
+                    title: iframe.title,
+                    isPlaying: playerState?.isPlaying ?? false,
+                    currentResolution: playerState?.videoHeight,
+                    frameId: frame.frameId,
                 },
-                title: iframe.title,
-                isPlaying: playerState?.isPlaying ?? false,
-                currentResolution: playerState?.videoHeight,
-                frameId: frame.frameId,
-            });
+                resolvePosition(frame, iframe, iframeIndex),
+            );
         }
 
         if (embedFrameIds.has(frame.frameId)) continue;
 
-        for (const video of frame.videos) {
+        for (const [videoIndex, video] of frame.videos.entries()) {
+            const position = resolvePosition(frame, video, frame.iframes.length + videoIndex);
             const title = video.title ?? (frame.videos.length === 1 ? frame.pageTitle : undefined);
             const sourceTypeByUrl = new Map<string, string>();
             for (const source of video.sources) {
@@ -519,6 +653,7 @@ export function mergeDetectedVideos(
                             title,
                         },
                         domOrder: domOrder++,
+                        position,
                     });
                     pendingMseByFrame.set(frame.frameId, list);
                 }
@@ -531,13 +666,16 @@ export function mergeDetectedVideos(
                 }
             }
 
-            add({
-                source: toGenericSource(playable.kind, playable.url, video, playable.mimeType),
-                title,
-                isPlaying: video.isPlaying,
-                currentResolution: video.videoHeight,
-                frameId: frame.frameId,
-            });
+            add(
+                {
+                    source: toGenericSource(playable.kind, playable.url, video, playable.mimeType),
+                    title,
+                    isPlaying: video.isPlaying,
+                    currentResolution: video.videoHeight,
+                    frameId: frame.frameId,
+                },
+                position,
+            );
         }
     }
 
@@ -552,13 +690,16 @@ export function mergeDetectedVideos(
         for (const { player, group } of pairs) {
             matchedOrders.add(player.domOrder);
             claimedGroupIds.add(group.id);
-            add({
-                source: toGenericSource(group.kind, group.primary.url, player.video),
-                title: player.video.title,
-                isPlaying: player.video.isPlaying,
-                currentResolution: player.video.videoHeight,
-                frameId: player.frame.frameId,
-            });
+            add(
+                {
+                    source: toGenericSource(group.kind, group.primary.url, player.video),
+                    title: player.video.title,
+                    isPlaying: player.video.isPlaying,
+                    currentResolution: player.video.videoHeight,
+                    frameId: player.frame.frameId,
+                },
+                player.position,
+            );
         }
 
         // Older manifest groups in the same frame beyond the active player count
@@ -580,13 +721,16 @@ export function mergeDetectedVideos(
         );
         for (const { player, group } of pairPlayersWithGroups(unmatchedPlayers, fallbackGroups)) {
             claimedGroupIds.add(group.id);
-            add({
-                source: toGenericSource(group.kind, group.primary.url, player.video),
-                title: player.video.title,
-                isPlaying: player.video.isPlaying,
-                currentResolution: player.video.videoHeight,
-                frameId: player.frame.frameId,
-            });
+            add(
+                {
+                    source: toGenericSource(group.kind, group.primary.url, player.video),
+                    title: player.video.title,
+                    isPlaying: player.video.isPlaying,
+                    currentResolution: player.video.videoHeight,
+                    frameId: player.frame.frameId,
+                },
+                player.position,
+            );
         }
     }
 
@@ -619,7 +763,7 @@ export function mergeDetectedVideos(
         });
     }
 
-    return [...ranked.values()].toSorted((a, b) => a.order - b.order).map((entry) => entry.video);
+    return [...ranked.values()].toSorted(compareSortKey).map((entry) => entry.video);
 }
 
 export async function detectTabVideos(
