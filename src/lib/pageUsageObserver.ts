@@ -25,7 +25,6 @@ interface PageUsageObserverDocument extends Pick<
 interface TrackedRequestUpload {
     bytes: number;
     isStream: boolean;
-    onChunk?: (bytes: number) => void;
 }
 
 export interface PageUsageObserverPorts {
@@ -253,25 +252,13 @@ function patchFetchAndRequest(
             construct(target, args: [RequestInfo | URL, RequestInit?], newTarget) {
                 const [input, init] = args;
                 let tracked: TrackedRequestUpload | undefined;
-                let callArgs = args;
                 if (init?.body !== undefined && init.body !== null) {
                     const body = init.body;
-                    if (isFreshStream(body)) {
-                        const streamTracked: TrackedRequestUpload = {
-                            bytes: 0,
-                            isStream: true,
-                        };
-                        tracked = streamTracked;
-                        // Preserve prototype-inherited RequestInit options (method, headers, duplex, signal).
-                        const nextInit: RequestInit = {
-                            body: wrapStream(body, (b) => {
-                                if (!isActive() || b <= 0) return;
-                                streamTracked.bytes += b;
-                                streamTracked.onChunk?.(b);
-                            }),
-                        };
-                        Object.setPrototypeOf(nextInit, init);
-                        callArgs = [input, nextInit];
+                    if (
+                        typeof body === "object" &&
+                        Object.prototype.toString.call(body) === "[object ReadableStream]"
+                    ) {
+                        tracked = { bytes: 0, isStream: true };
                     } else {
                         const bytes = measureBody(body);
                         if (bytes > 0) tracked = { bytes, isStream: false };
@@ -279,11 +266,13 @@ function patchFetchAndRequest(
                 } else if (typeof input === "object" && input !== null) {
                     tracked = requestUploads.get(input);
                 }
-                const req: unknown = Reflect.construct(target, callArgs, newTarget);
+                // Keep original args intact so a ReadableStream body stays on the native Request
+                // and later reads/disturbance before fetch() still trigger native Fetch rejection.
+                const req: unknown = Reflect.construct(target, args, newTarget);
                 if (tracked && typeof req === "object" && req !== null) {
                     requestUploads.set(req, tracked);
                 }
-                return req instanceof baseRequest ? req : new target(...callArgs);
+                return req instanceof baseRequest ? req : new target(...args);
             },
         });
     }
@@ -307,7 +296,6 @@ function patchFetchAndRequest(
         let fixedUploadBytes = 0;
         let streamUploadBytes = 0;
         let fetchResolved = false;
-        let trackedRequest: TrackedRequestUpload | undefined;
         let fallbackReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
         let fallbackPromise: Promise<number> | undefined;
 
@@ -330,8 +318,22 @@ function patchFetchAndRequest(
             } else if (inputIsRequest && input.body !== null && !input.bodyUsed) {
                 const tracked = requestUploads.get(input);
                 if (tracked) {
-                    if (tracked.isStream) trackedRequest = tracked;
-                    else fixedUploadBytes = tracked.bytes;
+                    if (tracked.isStream) {
+                        if (typeof baseRequest === "function" && isFreshStream(input.body)) {
+                            const wrappedInit: RequestInit & { duplex: "half" } = {
+                                body: wrapStream(input.body, (bytes) => {
+                                    if (!isActive() || bytes <= 0) return;
+                                    if (fetchResolved) onBytes(bytes);
+                                    else streamUploadBytes += bytes;
+                                }),
+                                duplex: "half",
+                            };
+                            const wrappedReq = Reflect.construct(baseRequest, [input, wrappedInit]);
+                            callArgs = init !== undefined ? [wrappedReq, init] : [wrappedReq];
+                        }
+                    } else {
+                        fixedUploadBytes = tracked.bytes;
+                    }
                 } else {
                     const cl = input.headers?.get?.("content-length");
                     if (hasCL(cl)) {
@@ -381,14 +383,8 @@ function patchFetchAndRequest(
         }
 
         fetchResolved = true;
-        let totalUpload = fixedUploadBytes + streamUploadBytes;
+        const totalUpload = fixedUploadBytes + streamUploadBytes;
         streamUploadBytes = 0;
-        if (trackedRequest) {
-            totalUpload += trackedRequest.bytes;
-            trackedRequest.onChunk = (bytes) => {
-                if (isActive() && bytes > 0) onBytes(bytes);
-            };
-        }
         if (totalUpload > 0) onBytes(totalUpload);
         if (fallbackPromise) {
             void fallbackPromise.then((bytes) => {
@@ -589,7 +585,13 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
     const cleanups: Array<() => void> = [];
     const xhrMeta = new WeakMap<
         XMLHttpRequest,
-        { method: string; url: string; async: boolean; cleanup?: () => void }
+        {
+            method: string;
+            url: string;
+            async: boolean;
+            cleanup?: () => void;
+            commitIfDone?: () => void;
+        }
     >();
     const activeReaders = new Set<ReadableStreamDefaultReader<Uint8Array>>();
     const workerRefs = new Set<WeakRef<Worker>>();
@@ -699,6 +701,9 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                     ...rest: unknown[]
                 ) {
                     const prev = xhrMeta.get(this);
+                    // Commit a completed send's upload bytes before `baseOpen` resets state, in case
+                    // the page reopens this XHR inside its `load` / `readystatechange` handler before `loadend`.
+                    prev?.commitIfDone?.();
                     const prevCleanup = prev?.cleanup;
                     xhrMeta.set(this, {
                         method,
@@ -770,9 +775,23 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                 const cleanup = () => {
                     this.removeEventListener("progress", countProgress);
                     this.removeEventListener("loadend", onLoadEnd);
-                    if (meta && meta.cleanup === cleanup) meta.cleanup = undefined;
+                    if (meta && meta.cleanup === cleanup) {
+                        meta.cleanup = undefined;
+                        meta.commitIfDone = undefined;
+                    }
+                };
+                const commitIfDone = () => {
+                    if (
+                        (this.readyState === 4 || this.readyState === undefined) &&
+                        this.status > 0
+                    ) {
+                        commitUpload();
+                    }
                 };
                 const onLoadEnd = (event: ProgressEvent) => {
+                    // Ignore a stale `loadend` from a prior request firing after a `load` handler
+                    // reopened and resent this XHR (while `readyState` is no longer DONE).
+                    if (typeof this.readyState === "number" && this.readyState !== 4) return;
                     if (this.status > 0) commitUpload();
                     countProgress(event);
                     cleanup();
@@ -788,6 +807,7 @@ export function createPageUsageObserver(ports: PageUsageObserverPorts = {}): Pag
                         cleanup();
                     } else if (meta) {
                         meta.cleanup = cleanup;
+                        meta.commitIfDone = commitIfDone;
                     }
                 } catch (err) {
                     cleanup();

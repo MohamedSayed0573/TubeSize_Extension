@@ -22,6 +22,7 @@ class FakeXMLHttpRequest extends EventTarget {
         { status: number; responseText: string; throwOnSend?: boolean }
     >();
 
+    readyState = 0;
     responseURL = "";
     status = 0;
     responseText = "";
@@ -37,6 +38,9 @@ class FakeXMLHttpRequest extends EventTarget {
     private isAsync = true;
 
     open(_method: string, url: string | URL, async = true) {
+        this.readyState = 1;
+        this.status = 0;
+        this.headers.clear();
         this.requestedUrl = String(url);
         this.responseURL = this.requestedUrl;
         this.isAsync = async;
@@ -54,6 +58,7 @@ class FakeXMLHttpRequest extends EventTarget {
         const entry = FakeXMLHttpRequest.sources.get(this.requestedUrl);
         if (!entry) return;
         if (entry.throwOnSend) throw new Error("XHR send failed");
+        this.readyState = 4;
         this.status = entry.status;
         this.responseText = entry.responseText;
         if (!this.isAsync) {
@@ -63,15 +68,21 @@ class FakeXMLHttpRequest extends EventTarget {
     }
 
     emitProgress(loaded: number, type: "progress" | "loadend" = "progress") {
+        if (type === "loadend") this.readyState = 4;
         const event = new Event(type);
         Object.defineProperty(event, "loaded", { value: loaded });
         this.dispatchEvent(event);
     }
 
-    emitLoad(status = 200) {
+    emitLoad(status = 200, loaded = 0) {
+        this.readyState = 4;
         this.status = status;
         this.dispatchEvent(new Event("load"));
-        this.emitProgress(0, "loadend");
+        // Mirror browser XHR end-of-body: `loadend` still fires on the XHR even if a `load`
+        // handler reopened/resent it (in which case `readyState` is now 1, not 4).
+        const event = new Event("loadend");
+        Object.defineProperty(event, "loaded", { value: loaded });
+        this.dispatchEvent(event);
     }
 }
 
@@ -1384,6 +1395,113 @@ describe("createPageUsageObserver", () => {
         obs2.flush();
         expect(harness2.posted).toEqual([80 + 40 + 60 + 30]);
         obs2.dispose();
+    });
+
+    test("preserves original Request stream so post-construction disturbance still rejects while untouched streams send all chunks", async () => {
+        const receivedChunks: number[] = [];
+        const harness = createHarness(async (input) => {
+            if (input instanceof Request && input.body) {
+                // Mirror native Fetch spec: reject disturbed Request body streams.
+                void new Response(input.body);
+                const reader = input.body.getReader();
+                for (;;) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    receivedChunks.push(value.byteLength);
+                }
+            }
+            return new Response("ok", { headers: { "content-length": "2" } });
+        });
+        harness.observer.install();
+        const PatchedRequest = harness.globalObject.Request!;
+
+        // 1. Construct Request with a fresh two-chunk stream, then disturb the original stream
+        //    before fetch(req) -> must reject natively and count 0 bytes.
+        const disturbedLater = new ReadableStream<Uint8Array>({
+            start(c) {
+                c.enqueue(new Uint8Array(100));
+                c.enqueue(new Uint8Array(200));
+                c.close();
+            },
+        });
+        const disturbedReq = new PatchedRequest("https://example.com/disturbed-later", {
+            method: "POST",
+            body: disturbedLater,
+        });
+        const reader = disturbedLater.getReader();
+        await reader.read();
+        reader.releaseLock();
+        await expect(harness.globalObject.fetch(disturbedReq)).rejects.toThrow();
+
+        // 2. Untouched two-chunk stream Request must send both chunks and count all 300 bytes.
+        const untouched = new ReadableStream<Uint8Array>({
+            start(c) {
+                c.enqueue(new Uint8Array(100));
+                c.enqueue(new Uint8Array(200));
+                c.close();
+            },
+        });
+        const untouchedReq = new PatchedRequest("https://example.com/untouched", {
+            method: "POST",
+            body: untouched,
+        });
+        await harness.globalObject.fetch(untouchedReq);
+        expect(receivedChunks).toEqual([100, 200]);
+
+        harness.observer.flush();
+        expect(harness.posted).toEqual([300]);
+        harness.observer.dispose();
+    });
+
+    test("commits completed XHR uploads when reopened from load and ignores stale loadend on the next send", () => {
+        const harness = createHarness();
+        harness.observer.install();
+
+        // 1. Reopening in `load` without immediate `send()` still commits the completed 500B upload.
+        const reopenOnly = new FakeXMLHttpRequest();
+        reopenOnly.addEventListener("load", () => {
+            reopenOnly.open("POST", "https://example.com/next-idle");
+        });
+        reopenOnly.open("POST", "https://example.com/first-idle");
+        reopenOnly.setResponseHeader("Content-Length", "100");
+        reopenOnly.send(new Uint8Array(500));
+        reopenOnly.emitLoad(200, 100);
+
+        // 2. Reopening AND calling `send()` in `load`:
+        //    - First 500B POST commits before `open()` resets state.
+        //    - Stale `loadend` from first request (with loaded=4000 while readyState=OPENED)
+        //      must NOT count 4000B or detach second request's listeners.
+        //    - Second 300B POST + 150B chunked response still commit when second completes.
+        const reused = new FakeXMLHttpRequest();
+        let reopened = false;
+        reused.addEventListener("load", () => {
+            if (reopened) return;
+            reopened = true;
+            reused.open("POST", "https://example.com/second");
+            reused.send(new Uint8Array(300));
+        });
+        reused.open("POST", "https://example.com/first");
+        reused.setResponseHeader("Content-Length", "4000");
+        reused.send(new Uint8Array(500));
+        reused.emitLoad(200, 4_000);
+
+        // Second request now finishes with a chunked 150B response.
+        reused.emitProgress(150, "progress");
+        reused.emitLoad(200, 150);
+
+        // 3. Reopening while still in-flight (HEADERS_RECEIVED, readyState=2, status=200)
+        //    must NOT count the interrupted upload.
+        const interrupted = new FakeXMLHttpRequest();
+        interrupted.open("POST", "https://example.com/interrupted");
+        interrupted.send(new Uint8Array(900));
+        interrupted.readyState = 2;
+        interrupted.status = 200;
+        interrupted.open("GET", "https://example.com/replacement");
+
+        harness.observer.flush();
+        // 500 (reopenOnly) + 500 (first) + 300 (second upload) + 150 (second chunked resp) = 1450
+        expect(harness.posted).toEqual([1_450]);
+        harness.observer.dispose();
     });
 
     test("flushes buffered bytes on visibilitychange (hidden) and pagehide without double-counting", async () => {
