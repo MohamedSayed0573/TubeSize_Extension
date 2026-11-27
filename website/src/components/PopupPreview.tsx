@@ -35,10 +35,10 @@ export function PopupPreview({ copy }: { copy: Copy }) {
                     </span>
                 </div>
                 <div className="flex gap-2">
-                    <div className="flex flex-1 items-center justify-center rounded-lg border border-[#dde4ee] bg-slate-100 px-2 py-1.5 text-[11.5px] font-semibold text-slate-800">
+                    <div className="flex flex-1 cursor-pointer items-center justify-center rounded-lg border border-[#dde4ee] bg-slate-100 px-2 py-1.5 text-[11.5px] font-semibold text-slate-800 transition-colors hover:border-teal-600 hover:bg-slate-200/70">
                         {copy.popupSettings}
                     </div>
-                    <div className="flex flex-2 items-center justify-center rounded-lg border border-[#dde4ee] bg-slate-100 px-2 py-1.5 text-[11.5px] font-semibold text-slate-800">
+                    <div className="flex flex-2 cursor-pointer items-center justify-center rounded-lg border border-[#dde4ee] bg-slate-100 px-2 py-1.5 text-[11.5px] font-semibold text-slate-800 transition-colors hover:border-teal-600 hover:bg-slate-200/70">
                         {copy.popupDashboard}
                     </div>
                 </div>
