@@ -339,11 +339,13 @@ function patchFetchAndRequest(
                                 ),
                                 duplex: "half",
                             };
+                            if (init !== undefined) Object.setPrototypeOf(wrappedInit, init);
+                            // Validate `init` via `new Request(input, wrappedInit)` BEFORE locking
+                            // the caller's stream, so invalid options (e.g. `mode: "no-cors"`) reject
+                            // without locking `input.body`.
                             const wrappedReq = Reflect.construct(baseRequest, [input, wrappedInit]);
-                            // Lock the caller's original stream synchronously after constructing the
-                            // replacement Request so competing reads (e.g. `req.text()`) reject just like native fetch.
                             lockSource?.();
-                            callArgs = init !== undefined ? [wrappedReq, init] : [wrappedReq];
+                            callArgs = [wrappedReq];
                         }
                     } else {
                         fixedUploadBytes = tracked.bytes;
