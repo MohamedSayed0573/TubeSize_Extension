@@ -805,20 +805,51 @@ describe("mergeDetectedVideos", () => {
             shadow.append(video);
             document.body.append(shadowHost);
 
-            const scan = scanFrameDom();
-            expect(scan.pageTitle).toBe("Shadow Page");
-            expect(scan.iframes).toHaveLength(1);
-            expect(scan.iframes[0]).toMatchObject({
-                url: "https://www.youtube.com/embed/yaodD79Q4iE",
-                title: "Lazy YouTube",
+            const closedHost = document.createElement("div");
+            const closedShadow = closedHost.attachShadow({ mode: "closed" });
+            const closedVideo = document.createElement("video");
+            closedVideo.setAttribute("aria-label", "Closed Shadow Clip");
+            closedVideo.setAttribute("src", "clips/closed.mp4");
+            closedShadow.append(closedVideo);
+            document.body.append(closedHost);
+
+            const originalDom = chrome.dom;
+            Object.defineProperty(chrome, "dom", {
+                configurable: true,
+                value: {
+                    openOrClosedShadowRoot: (element: HTMLElement) =>
+                        element === closedHost ? closedShadow : element.shadowRoot,
+                },
             });
-            expect(scan.videos).toHaveLength(1);
-            expect(scan.videos[0]).toMatchObject({
-                title: "Shadow Clip",
-                sources: [
-                    { url: "https://assets.example.com/media/clips/shadow.mp4", type: "video/mp4" },
-                ],
-            });
+
+            try {
+                const scan = scanFrameDom();
+                expect(scan.pageTitle).toBe("Shadow Page");
+                expect(scan.iframes).toHaveLength(1);
+                expect(scan.iframes[0]).toMatchObject({
+                    url: "https://www.youtube.com/embed/yaodD79Q4iE",
+                    title: "Lazy YouTube",
+                });
+                expect(scan.videos).toHaveLength(2);
+                expect(scan.videos[0]).toMatchObject({
+                    title: "Shadow Clip",
+                    sources: [
+                        {
+                            url: "https://assets.example.com/media/clips/shadow.mp4",
+                            type: "video/mp4",
+                        },
+                    ],
+                });
+                expect(scan.videos[1]).toMatchObject({
+                    title: "Closed Shadow Clip",
+                    sources: [{ url: "https://assets.example.com/media/clips/closed.mp4" }],
+                });
+            } finally {
+                Object.defineProperty(chrome, "dom", {
+                    configurable: true,
+                    value: originalDom,
+                });
+            }
         } finally {
             await cleanupDom();
         }

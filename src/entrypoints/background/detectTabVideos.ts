@@ -113,7 +113,24 @@ export function scanFrameDom(): FrameDomScan {
 
         if (depth >= MAX_SHADOW_DEPTH) return;
         for (const element of root.querySelectorAll("*")) {
-            if (element.shadowRoot) collect(element.shadowRoot, depth + 1);
+            let shadowRoot: ShadowRoot | null = element.shadowRoot;
+            if (!shadowRoot && element instanceof HTMLElement) {
+                try {
+                    if (
+                        typeof chrome !== "undefined" &&
+                        typeof chrome.dom?.openOrClosedShadowRoot === "function"
+                    ) {
+                        shadowRoot = chrome.dom.openOrClosedShadowRoot(element);
+                    }
+                } catch {
+                    // Ignore environments without chrome.dom.
+                }
+            }
+            if (!shadowRoot && "openOrClosedShadowRoot" in element) {
+                const candidate = element.openOrClosedShadowRoot;
+                if (candidate instanceof ShadowRoot) shadowRoot = candidate;
+            }
+            if (shadowRoot) collect(shadowRoot, depth + 1);
         }
     };
 
