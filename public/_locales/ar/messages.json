@@ -201,8 +201,12 @@
             }
         }
     },
+    "popup_noRunningVideo_title": {
+        "message": "لا يوجد فيديو قيد التشغيل",
+        "description": "Popup heading shown on supported platforms when no video or stream is playing"
+    },
     "popup_noRunningVideo": {
-        "message": "لا يوجد فيديو قيد التشغيل. افتح فيديو أو بثًا لرؤية تقدير استهلاك البيانات.",
+        "message": "افتح فيديو أو بثًا لرؤية تقدير استهلاك البيانات.",
         "description": "Info shown when the page has no video or stream to load"
     },
     "popup_error_streamOffline_title": {
