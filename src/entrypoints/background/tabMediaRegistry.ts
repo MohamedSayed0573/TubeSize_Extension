@@ -263,7 +263,6 @@ type InFlightSubFrameRequest = {
     tabId: number;
     frameId: number;
     navSeq: number;
-    committedSeq: number;
     url: string | undefined;
     documentId?: string;
     authoritative: boolean;
@@ -271,6 +270,7 @@ type InFlightSubFrameRequest = {
 
 type PendingSubFrameNavigation = {
     startedAt: number;
+    navSeq: number;
     requestId?: string;
 };
 
@@ -296,15 +296,15 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
     const redirectedFrameInitialUrls = new Map<number, Map<number, string>>();
     const frameDocuments = new Map<number, Map<number, FrameDocumentState>>();
     const documentFrames = new Map<number, Map<string, string | undefined>>();
+    const documentNavSeqs = new Map<number, Map<string, number>>();
     const pendingSubFrames = new Map<number, Map<number, PendingSubFrameNavigation>>();
-    const committedFrameSeqs = new Map<number, Map<number, number>>();
+    const committedFrameNavSeqs = new Map<number, Map<number, number>>();
     const inFlightRequests = new Map<string, InFlightSubFrameRequest>();
     const clearedBeforeHydration = new Set<number>();
     const clearedFramesBeforeHydration = new Map<number, Set<number>>();
     const clearedMediaFramesBeforeHydration = new Map<number, Set<number>>();
 
     let nextNavSeq = 0;
-    let nextCommittedSeq = 0;
     let hydrated = !storage;
     let hydratePromise: Promise<void> | null = null;
     let dirtyDuringHydration = false;
@@ -316,8 +316,8 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
         return frameDocuments.get(tabId)?.get(frameId)?.navSeq ?? 0;
     }
 
-    function getCommittedFrameSeq(tabId: number, frameId: number): number {
-        return committedFrameSeqs.get(tabId)?.get(frameId) ?? 0;
+    function getCommittedFrameNavSeq(tabId: number, frameId: number): number {
+        return committedFrameNavSeqs.get(tabId)?.get(frameId) ?? 0;
     }
 
     function isFrameKnownLive(tabId: number, frameId: number): boolean {
@@ -328,7 +328,12 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
         );
     }
 
-    function bindDocumentUrl(tabId: number, documentId: string, url: string | undefined) {
+    function bindDocumentUrl(
+        tabId: number,
+        documentId: string,
+        url: string | undefined,
+        navSeq: number,
+    ) {
         const docs = documentFrames.get(tabId) ?? new Map<string, string | undefined>();
         const existed = docs.has(documentId);
         const previous = docs.get(documentId);
@@ -338,6 +343,16 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
         enforceMapLimit(docs, maxDocumentsPerTab);
         documentFrames.set(tabId, docs);
         enforceMapLimit(documentFrames, maxTabs);
+
+        const navSeqs = documentNavSeqs.get(tabId) ?? new Map<string, number>();
+        documentNavSeqs.delete(tabId);
+        if (!navSeqs.has(documentId)) {
+            navSeqs.set(documentId, navSeq);
+            enforceMapLimit(navSeqs, maxDocumentsPerTab);
+        }
+        documentNavSeqs.set(tabId, navSeqs);
+        enforceMapLimit(documentNavSeqs, maxTabs);
+
         // Only persist document bindings that involve an embedded platform URL
         // so unrelated ad/analytics iframes never trigger storage writes.
         if ((url !== undefined || previous !== undefined) && (!existed || previous !== url)) {
@@ -380,7 +395,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             if (frameState.documentId === undefined) {
                 if (allowBind) {
                     frameState.documentId = documentId;
-                    bindDocumentUrl(tabId, documentId, frameState.url);
+                    bindDocumentUrl(tabId, documentId, frameState.url, frameState.navSeq);
                 }
                 return frameState.url;
             }
@@ -397,12 +412,18 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
 
     function isStaleSubFrameRequest(details: ObservedRequestDetails): boolean {
         if (details.frameId <= MAIN_FRAME_ID) return false;
+        const committedNavSeq = getCommittedFrameNavSeq(details.tabId, details.frameId);
+        if (committedNavSeq === 0) return false;
+
         if (details.requestId) {
             const tracked = inFlightRequests.get(details.requestId);
-            if (
-                tracked &&
-                tracked.committedSeq !== getCommittedFrameSeq(details.tabId, details.frameId)
-            ) {
+            if (tracked && tracked.navSeq < committedNavSeq) {
+                return true;
+            }
+        }
+        if (details.documentId) {
+            const docNavSeq = documentNavSeqs.get(details.tabId)?.get(details.documentId);
+            if (docNavSeq !== undefined && docNavSeq < committedNavSeq) {
                 return true;
             }
         }
@@ -685,12 +706,14 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
 
             let persistedChanged = false;
 
+            const navSeq = ++nextNavSeq;
             const pending =
                 pendingSubFrames.get(tabId) ?? new Map<number, PendingSubFrameNavigation>();
             pendingSubFrames.delete(tabId);
             pending.delete(frameId);
             pending.set(frameId, {
                 startedAt: now(),
+                navSeq,
                 ...(requestId ? { requestId } : {}),
             });
             enforceMapLimit(pending, maxFramesPerTab);
@@ -717,7 +740,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             docStates.delete(frameId);
             docStates.set(frameId, {
                 url: resolvedUrl,
-                navSeq: ++nextNavSeq,
+                navSeq,
                 ...(requestId ? { requestId } : {}),
                 initialUrl,
             });
@@ -776,11 +799,13 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             ) {
                 return;
             }
+            // 204/205 responses do not replace the frame's document; 4xx/5xx error
+            // pages DO replace the document and must clear the previous video's media.
             if (
                 details.statusCode < 200 ||
-                details.statusCode >= 400 ||
                 details.statusCode === 204 ||
-                details.statusCode === 205
+                details.statusCode === 205 ||
+                (details.statusCode >= 300 && details.statusCode < 400)
             ) {
                 return;
             }
@@ -797,13 +822,16 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                 if (pendingMap?.size === 0) pendingSubFrames.delete(details.tabId);
             }
 
-            const seqs = committedFrameSeqs.get(details.tabId) ?? new Map<number, number>();
-            committedFrameSeqs.delete(details.tabId);
+            const committedNavSeq =
+                pendingNav?.navSeq ??
+                (getFrameNavSeq(details.tabId, details.frameId) || ++nextNavSeq);
+            const seqs = committedFrameNavSeqs.get(details.tabId) ?? new Map<number, number>();
+            committedFrameNavSeqs.delete(details.tabId);
             seqs.delete(details.frameId);
-            seqs.set(details.frameId, ++nextCommittedSeq);
+            seqs.set(details.frameId, committedNavSeq);
             enforceMapLimit(seqs, maxFramesPerTab);
-            committedFrameSeqs.set(details.tabId, seqs);
-            enforceMapLimit(committedFrameSeqs, maxTabs);
+            committedFrameNavSeqs.set(details.tabId, seqs);
+            enforceMapLimit(committedFrameNavSeqs, maxTabs);
 
             let persistedChanged = false;
             const existingMedia = tabs.get(details.tabId);
@@ -839,16 +867,16 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             if (details.tabId === NO_TAB_ID || details.frameId <= MAIN_FRAME_ID) return;
             if (!details.requestId) return;
 
-            const navSeq = getFrameNavSeq(details.tabId, details.frameId);
-            const committedSeq = getCommittedFrameSeq(details.tabId, details.frameId);
+            const frameNavSeq = getFrameNavSeq(details.tabId, details.frameId);
             const docs = documentFrames.get(details.tabId);
             if (details.documentId && docs?.has(details.documentId)) {
+                const docNavSeq =
+                    documentNavSeqs.get(details.tabId)?.get(details.documentId) ?? frameNavSeq;
                 inFlightRequests.delete(details.requestId);
                 inFlightRequests.set(details.requestId, {
                     tabId: details.tabId,
                     frameId: details.frameId,
-                    navSeq,
-                    committedSeq,
+                    navSeq: docNavSeq,
                     documentId: details.documentId,
                     url: docs.get(details.documentId),
                     authoritative: true,
@@ -868,8 +896,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                 inFlightRequests.set(details.requestId, {
                     tabId: details.tabId,
                     frameId: details.frameId,
-                    navSeq,
-                    committedSeq,
+                    navSeq: frameNavSeq,
                     ...(details.documentId ? { documentId: details.documentId } : {}),
                     url: resolvedUrl,
                     authoritative: true,
@@ -883,8 +910,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             inFlightRequests.set(details.requestId, {
                 tabId: details.tabId,
                 frameId: details.frameId,
-                navSeq,
-                committedSeq,
+                navSeq: frameNavSeq,
                 ...(details.documentId ? { documentId: details.documentId } : {}),
                 url: undefined,
                 authoritative: false,
@@ -960,8 +986,9 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             redirectedFrameInitialUrls.delete(tabId);
             frameDocuments.delete(tabId);
             documentFrames.delete(tabId);
+            documentNavSeqs.delete(tabId);
             pendingSubFrames.delete(tabId);
-            committedFrameSeqs.delete(tabId);
+            committedFrameNavSeqs.delete(tabId);
             for (const [requestId, entry] of inFlightRequests) {
                 if (entry.tabId === tabId) inFlightRequests.delete(requestId);
             }

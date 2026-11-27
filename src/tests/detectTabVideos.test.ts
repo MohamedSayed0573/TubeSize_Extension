@@ -290,12 +290,19 @@ describe("createTabMediaRegistry", () => {
         ]);
 
         // Once a replacement document commits (HTTP 200), frame 7's old manifest is invalidated
-        // while frame 0's manifest is preserved, and late completions from the superseded doc are ignored.
-        firstWorker.observeSubFrame(15, 7, "https://example.com/plain", "nav-2");
+        // while frame 0's manifest is preserved, late completions from the superseded doc are ignored,
+        // and manifests started by the NEW document while its HTML was still streaming are kept.
+        firstWorker.observeSubFrame(15, 7, "https://example.com/player-v2", "nav-2");
+        firstWorker.observeSubFrameRequest({
+            tabId: 15,
+            frameId: 7,
+            requestId: "req-new-hls",
+            documentId: "doc-new-7",
+        });
         firstWorker.commitSubFrame({
             tabId: 15,
             frameId: 7,
-            url: "https://example.com/plain",
+            url: "https://example.com/player-v2",
             statusCode: 200,
             requestId: "nav-2",
         });
@@ -307,6 +314,29 @@ describe("createTabMediaRegistry", () => {
             }),
             requestId: "req-old-hls",
             documentId: "doc-old-7",
+        });
+        firstWorker.observeRequest({
+            ...makeRequest({
+                tabId: 15,
+                frameId: 7,
+                url: "https://cdn.example.com/sub/new.m3u8",
+            }),
+            requestId: "req-new-hls",
+            documentId: "doc-new-7",
+        });
+        expect((await firstWorker.getTabMedia(15)).map((entry) => entry.url)).toEqual([
+            "https://cdn.example.com/main/master.m3u8",
+            "https://cdn.example.com/sub/new.m3u8",
+        ]);
+
+        // An HTTP 404/500 error page replacing the iframe document also clears the previous video's media.
+        firstWorker.observeSubFrame(15, 7, "https://example.com/missing", "nav-404");
+        firstWorker.commitSubFrame({
+            tabId: 15,
+            frameId: 7,
+            url: "https://example.com/missing",
+            statusCode: 404,
+            requestId: "nav-404",
         });
         expect((await firstWorker.getTabMedia(15)).map((entry) => entry.url)).toEqual([
             "https://cdn.example.com/main/master.m3u8",
