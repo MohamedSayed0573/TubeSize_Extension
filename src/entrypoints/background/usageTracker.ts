@@ -16,24 +16,52 @@ export type CompletedRequestDetails = chrome.webRequest.OnCompletedDetails & {
     documentUrl?: string;
 };
 
+function normalizeNavigationUrl(rawUrl: string | undefined): string | undefined {
+    if (!rawUrl) return undefined;
+    try {
+        const parsed = new URL(rawUrl);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return undefined;
+        parsed.hash = "";
+        return parsed.href;
+    } catch {
+        return undefined;
+    }
+}
+
 export function setupTrackUsage(
     ingestion: UsageIngestion = createUsageIngestion(),
     dedup?: DownloadDedup,
     tabMediaRegistry?: TabMediaRegistry,
 ): () => void {
+    const tabNavigationUrls = new Map<number, string>();
+
     const onBeforeMainFrameRequest = (
         details: chrome.webRequest.OnBeforeRequestDetails,
     ): chrome.webRequest.BlockingResponse | undefined => {
         if (details.tabId !== NO_TAB_ID) {
+            const normalized = normalizeNavigationUrl(details.url);
+            if (normalized) tabNavigationUrls.set(details.tabId, normalized);
+            else tabNavigationUrls.delete(details.tabId);
             tabMediaRegistry?.clearTab(details.tabId);
         }
         return undefined;
+    };
+    const onTabUpdated = (tabId: number, changeInfo: chrome.tabs.OnUpdatedInfo) => {
+        if (!changeInfo.url) return;
+        const nextUrl = normalizeNavigationUrl(changeInfo.url);
+        const previousUrl = tabNavigationUrls.get(tabId);
+        if (nextUrl) tabNavigationUrls.set(tabId, nextUrl);
+        else tabNavigationUrls.delete(tabId);
+        if (previousUrl !== undefined && nextUrl !== previousUrl) {
+            tabMediaRegistry?.clearTab(tabId);
+        }
     };
     const onRequestCompleted = (details: CompletedRequestDetails) => {
         tabMediaRegistry?.observeRequest(details);
         void trackRequest(ingestion, details, dedup);
     };
     const onTabRemoved = (tabId: number) => {
+        tabNavigationUrls.delete(tabId);
         tabMediaRegistry?.clearTab(tabId);
         if (!ingestion.hasPendingUsage) return;
         void ingestion.flush().catch((err: unknown) => {
@@ -46,6 +74,7 @@ export function setupTrackUsage(
             urls: ["<all_urls>"],
             types: ["main_frame"],
         });
+        chrome.tabs.onUpdated.addListener(onTabUpdated);
     }
     // `extraHeaders` is Chromium-only; Firefox rejects it.
     chrome.webRequest.onCompleted.addListener(
@@ -60,6 +89,7 @@ export function setupTrackUsage(
     return () => {
         if (tabMediaRegistry) {
             chrome.webRequest.onBeforeRequest.removeListener(onBeforeMainFrameRequest);
+            chrome.tabs.onUpdated.removeListener(onTabUpdated);
         }
         chrome.webRequest.onCompleted.removeListener(onRequestCompleted);
         chrome.tabs.onRemoved.removeListener(onTabRemoved);

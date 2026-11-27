@@ -4,7 +4,7 @@ import { requestGenericMediaEstimate, requestMediaEstimate } from "@lib/mediaEst
 import { getPlatformDisplayName, parsePlatformUrl } from "@lib/platformUrl";
 import { cn } from "@lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { type KeyboardEvent, type ReactNode, useId, useRef, useState } from "react";
 
 import { t } from "@/i18n/t";
 
@@ -28,15 +28,50 @@ function getVideoLabel(video: DetectedVideo, index: number): string {
 function VideoSwitcher({
     videos,
     activeId,
+    idPrefix,
+    panelId,
     onSelect,
 }: {
     videos: readonly DetectedVideo[];
     activeId: string;
+    idPrefix: string;
+    panelId: string;
     onSelect: (id: string) => void;
 }) {
+    const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+    const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+        if (videos.length < 2) return;
+
+        let nextIndex: number | undefined;
+        switch (event.key) {
+            case "ArrowDown":
+                nextIndex = (index + 1) % videos.length;
+                break;
+            case "ArrowUp":
+                nextIndex = (index - 1 + videos.length) % videos.length;
+                break;
+            case "Home":
+                nextIndex = 0;
+                break;
+            case "End":
+                nextIndex = videos.length - 1;
+                break;
+            default:
+                return;
+        }
+
+        const nextVideo = videos[nextIndex];
+        if (!nextVideo) return;
+        event.preventDefault();
+        onSelect(nextVideo.id);
+        tabRefs.current[nextIndex]?.focus();
+    };
+
     return (
         <div
             role="tablist"
+            aria-orientation="vertical"
             aria-label={t("popup_detectedVideos_label")}
             className="flex max-h-28 flex-col gap-1 overflow-y-auto rounded-lg border border-white/8 bg-white/[0.03] p-1"
         >
@@ -47,10 +82,17 @@ function VideoSwitcher({
                 return (
                     <button
                         key={video.id}
+                        ref={(node) => {
+                            tabRefs.current[index] = node;
+                        }}
+                        id={`${idPrefix}-tab-${index}`}
                         type="button"
                         role="tab"
                         aria-selected={isSelected}
+                        aria-controls={panelId}
+                        tabIndex={isSelected ? 0 : -1}
                         onClick={() => onSelect(video.id)}
+                        onKeyDown={(event) => handleKeyDown(event, index)}
                         className={cn(
                             "flex w-full cursor-pointer items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-start text-[11px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white/40",
                             isSelected
@@ -82,13 +124,18 @@ function VideoSwitcher({
 }
 
 export function DetectedVideosView({ videos }: Props) {
+    const switcherId = useId();
     const [selectedId, setSelectedId] = useState<string>(() => videos[0]?.id ?? "");
     const [retryingError, setRetryingError] = useState<{
         videoId: string;
         error: unknown;
     } | null>(null);
 
-    const activeVideo = videos.find((video) => video.id === selectedId) ?? videos[0];
+    const activeIndex = Math.max(
+        0,
+        videos.findIndex((video) => video.id === selectedId),
+    );
+    const activeVideo = videos[activeIndex];
 
     const query = useQuery({
         queryKey: ["detectedVideoEstimate", activeVideo?.id],
@@ -114,17 +161,37 @@ export function DetectedVideosView({ videos }: Props) {
           ? retryingError.error
           : null;
 
-    const switcher =
-        videos.length > 1 ? (
-            <VideoSwitcher
-                videos={videos}
-                activeId={activeVideo.id}
-                onSelect={(id) => {
-                    setSelectedId(id);
-                    setRetryingError(null);
-                }}
-            />
-        ) : null;
+    const hasSwitcher = videos.length > 1;
+    const panelId = `${switcherId}-panel`;
+    const activeTabId = `${switcherId}-tab-${activeIndex}`;
+
+    const switcher = hasSwitcher ? (
+        <VideoSwitcher
+            videos={videos}
+            activeId={activeVideo.id}
+            idPrefix={switcherId}
+            panelId={panelId}
+            onSelect={(id) => {
+                setSelectedId(id);
+                setRetryingError(null);
+            }}
+        />
+    ) : null;
+
+    const renderPanel = (content: ReactNode) =>
+        hasSwitcher ? (
+            <div
+                role="tabpanel"
+                id={panelId}
+                aria-labelledby={activeTabId}
+                tabIndex={0}
+                className="focus-visible:outline-none"
+            >
+                {content}
+            </div>
+        ) : (
+            content
+        );
 
     if (activeError !== null) {
         return (
@@ -132,19 +199,21 @@ export function DetectedVideosView({ videos }: Props) {
                 <Header />
                 <PopupViewContainer>
                     {switcher}
-                    <MediaEstimateErrorCard
-                        error={activeError}
-                        isRetrying={isFetching}
-                        onRetry={() => {
-                            const videoId = activeVideo.id;
-                            setRetryingError({ videoId, error: activeError });
-                            void refetch().finally(() => {
-                                setRetryingError((current) =>
-                                    current?.videoId === videoId ? null : current,
-                                );
-                            });
-                        }}
-                    />
+                    {renderPanel(
+                        <MediaEstimateErrorCard
+                            error={activeError}
+                            isRetrying={isFetching}
+                            onRetry={() => {
+                                const videoId = activeVideo.id;
+                                setRetryingError({ videoId, error: activeError });
+                                void refetch().finally(() => {
+                                    setRetryingError((current) =>
+                                        current?.videoId === videoId ? null : current,
+                                    );
+                                });
+                            }}
+                        />,
+                    )}
                 </PopupViewContainer>
             </>
         );
@@ -156,7 +225,7 @@ export function DetectedVideosView({ videos }: Props) {
                 <Header />
                 <PopupViewContainer>
                     {switcher}
-                    <Spinner />
+                    {renderPanel(<Spinner />)}
                 </PopupViewContainer>
             </>
         ) : (
@@ -172,10 +241,12 @@ export function DetectedVideosView({ videos }: Props) {
             <Header estimate={estimate} />
             <PopupViewContainer>
                 {switcher}
-                <FormatView
-                    estimate={estimate}
-                    currentQualityOverride={activeVideo.currentResolution}
-                />
+                {renderPanel(
+                    <FormatView
+                        estimate={estimate}
+                        currentQualityOverride={activeVideo.currentResolution}
+                    />,
+                )}
             </PopupViewContainer>
         </>
     );

@@ -11,10 +11,10 @@ const fetchWithSize24Mb = async () =>
     });
 
 describe("probeContentLength", () => {
-    test("uses HEAD Content-Length when available without issuing a Range GET", async () => {
-        const methods: string[] = [];
+    test("uses HEAD Content-Length with credentials: include without issuing a Range GET", async () => {
+        const calls: Array<{ method: string; credentials: RequestCredentials | undefined }> = [];
         const size = await probeContentLength(VIDEO_URL, async (_input, init) => {
-            methods.push(init?.method ?? "GET");
+            calls.push({ method: init?.method ?? "GET", credentials: init?.credentials });
             return new Response(null, {
                 status: 200,
                 headers: { "content-length": "52428800" },
@@ -22,17 +22,21 @@ describe("probeContentLength", () => {
         });
 
         expect(size).toBe(52_428_800);
-        expect(methods).toEqual(["HEAD"]);
+        expect(calls).toEqual([{ method: "HEAD", credentials: "include" }]);
     });
 
-    test("falls back to Range bytes=0-0 GET when HEAD fails or lacks Content-Length and cancels the body", async () => {
-        const calls: Array<{ method: string; range: string | null }> = [];
+    test("falls back to Range bytes=0-0 GET with credentials: include when HEAD fails and cancels the body", async () => {
+        const calls: Array<{
+            method: string;
+            range: string | null;
+            credentials: RequestCredentials | undefined;
+        }> = [];
         let cancelled = false;
 
         const size = await probeContentLength(VIDEO_URL, async (_input, init) => {
             const method = init?.method ?? "GET";
             const range = new Headers(init?.headers).get("range");
-            calls.push({ method, range });
+            calls.push({ method, range, credentials: init?.credentials });
 
             if (method === "HEAD") {
                 return new Response(null, { status: 405 });
@@ -51,8 +55,8 @@ describe("probeContentLength", () => {
 
         expect(size).toBe(18_000_000);
         expect(calls).toEqual([
-            { method: "HEAD", range: null },
-            { method: "GET", range: "bytes=0-0" },
+            { method: "HEAD", range: null, credentials: "include" },
+            { method: "GET", range: "bytes=0-0", credentials: "include" },
         ]);
         expect(cancelled).toBe(true);
     });

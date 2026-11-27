@@ -2,6 +2,7 @@ import type { LiveMediaFormat, MediaEstimate, VodMediaFormat } from "@app-types/
 import CONFIG from "@lib/constants";
 import {
     classifyFetchFailure,
+    fetchBoundedText,
     MediaEstimateError,
     readResponseText,
     type MediaEstimateErrorCode,
@@ -79,6 +80,7 @@ function hasAdInterruption(manifest: Manifest): boolean {
 async function probeSegments(
     segments: Array<{ duration: number; url: string }>,
     fetchFn: FetchLike,
+    credentials?: RequestCredentials,
 ) {
     return Promise.allSettled(
         segments.map(async (segment) => {
@@ -87,6 +89,7 @@ async function probeSegments(
             let res: Response | undefined;
             try {
                 res = await fetchFn(segment.url, {
+                    ...(credentials ? { credentials } : {}),
                     headers: { Range: "bytes=0-0" },
                     signal: abortController.signal,
                 });
@@ -248,6 +251,8 @@ export type GenericHlsOptions = {
     title?: string;
     fetch?: FetchLike;
     sleep?: (ms: number) => Promise<void>;
+    timeoutMs?: number;
+    maxManifestBytes?: number;
 };
 
 function resolveRelativeUrl(uri: string, baseUrl: string): string {
@@ -323,37 +328,58 @@ function toPositiveDuration(value: number | undefined): number | undefined {
     return value !== undefined && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
+function getByteRangeLength(segment: Manifest["segments"][number]): number | undefined {
+    const length = segment.byterange?.length;
+    return length !== undefined && Number.isFinite(length) && length > 0 ? length : undefined;
+}
+
 async function sampleGenericMediaPlaylistRate(
     manifest: Manifest,
     baseUrl: string,
     fetchFn: FetchLike,
 ): Promise<number> {
-    const segments = manifest.segments
-        .filter(
-            (segment) => Number.isFinite(segment.duration) && segment.duration > 0 && segment.uri,
-        )
-        .slice(0, MAX_GENERIC_SEGMENT_PROBES)
-        .map((segment) => ({
-            duration: segment.duration,
-            url: resolveRelativeUrl(segment.uri, baseUrl),
-        }));
+    const validSegments = manifest.segments.filter(
+        (segment) => Number.isFinite(segment.duration) && segment.duration > 0 && segment.uri,
+    );
+    if (validSegments.length === 0) return 0;
 
-    if (segments.length === 0) return 0;
+    const allHaveByteRanges = validSegments.every(
+        (segment) => getByteRangeLength(segment) !== undefined,
+    );
+    const samplePool = allHaveByteRanges
+        ? validSegments
+        : validSegments.slice(0, MAX_GENERIC_SEGMENT_PROBES);
 
-    const probed = await probeSegments(segments, fetchFn);
     let totalBytes = 0;
     let totalDuration = 0;
+    const segmentsToProbe: Array<{ duration: number; url: string }> = [];
 
-    for (const segment of probed) {
-        if (segment.status === "rejected") continue;
-        const { duration, fullSize } = segment.value;
-        if (!fullSize || fullSize === "*" || fullSize === "0") continue;
+    for (const segment of samplePool) {
+        const rangeLength = getByteRangeLength(segment);
+        if (rangeLength !== undefined) {
+            totalBytes += rangeLength;
+            totalDuration += segment.duration;
+        } else {
+            segmentsToProbe.push({
+                duration: segment.duration,
+                url: resolveRelativeUrl(segment.uri, baseUrl),
+            });
+        }
+    }
 
-        const size = Number(fullSize);
-        if (!Number.isFinite(size) || size <= 0 || !(duration > 0)) continue;
+    if (segmentsToProbe.length > 0) {
+        const probed = await probeSegments(segmentsToProbe, fetchFn, "include");
+        for (const segment of probed) {
+            if (segment.status === "rejected") continue;
+            const { duration, fullSize } = segment.value;
+            if (!fullSize || fullSize === "*" || fullSize === "0") continue;
 
-        totalBytes += size;
-        totalDuration += duration;
+            const size = Number(fullSize);
+            if (!Number.isFinite(size) || size <= 0 || !(duration > 0)) continue;
+
+            totalBytes += size;
+            totalDuration += duration;
+        }
     }
 
     return totalDuration > 0 ? totalBytes / totalDuration : 0;
@@ -364,12 +390,17 @@ export async function estimateGenericHls(
     options: GenericHlsOptions = {},
 ): Promise<MediaEstimate> {
     const fetchFn = options.fetch ?? defaultFetch;
-    const res = await fetchAndRetry(url, { cache: "no-store" }, undefined, options.sleep, fetchFn);
-    if (!res.success) {
-        throw classifyFetchFailure(res, `Error fetching HLS playlist: ${res.error.message}`);
-    }
+    const playlistText = await fetchBoundedText(url, {
+        fetch: fetchFn,
+        sleep: options.sleep,
+        init: { cache: "no-store", credentials: "include" },
+        timeoutMs: options.timeoutMs,
+        maxBytes: options.maxManifestBytes,
+        fetchErrorPrefix: "Error fetching HLS playlist",
+        readErrorPrefix: "Error reading HLS playlist",
+    });
 
-    const manifest = parseM3u8(await readResponseText(res.response, "Error reading HLS playlist"));
+    const manifest = parseM3u8(playlistText);
     const titleMeta = options.title ? { title: options.title } : {};
     const explicitDuration = toPositiveDuration(options.durationSeconds);
 
@@ -399,7 +430,16 @@ export async function estimateGenericHls(
         if (firstVariantUri) {
             try {
                 const variantUrl = resolveRelativeUrl(firstVariantUri, url);
-                const mediaManifest = await fetchMediaPlaylist(variantUrl, fetchFn, options.sleep);
+                const variantText = await fetchBoundedText(variantUrl, {
+                    fetch: fetchFn,
+                    sleep: options.sleep,
+                    init: { cache: "no-store", credentials: "include" },
+                    timeoutMs: options.timeoutMs,
+                    maxBytes: options.maxManifestBytes,
+                    fetchErrorPrefix: "Error fetching media playlist M3U8",
+                    readErrorPrefix: "Error reading media playlist M3U8",
+                });
+                const mediaManifest = parseM3u8(variantText);
                 const summedDuration = sumSegmentDurations(mediaManifest);
                 if (isVodPlaylist(mediaManifest) && summedDuration > 0) {
                     return {

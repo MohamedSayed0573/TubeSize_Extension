@@ -9,6 +9,7 @@ import {
 import {
     createTabMediaRegistry,
     type ObservedMedia,
+    type TabMediaStorage,
 } from "@/entrypoints/background/tabMediaRegistry";
 
 import { installDomEnv } from "./domEnv";
@@ -32,10 +33,22 @@ function makeRequest(
     };
 }
 
+function createMemoryStorage(): TabMediaStorage {
+    let saved: unknown = null;
+    return {
+        async get() {
+            return structuredClone(saved);
+        },
+        async set(value) {
+            saved = structuredClone(value);
+        },
+    };
+}
+
 describe("createTabMediaRegistry", () => {
-    test("detects HLS, DASH, and direct media while ignoring segments, errors, and non-tab/extension URLs", () => {
+    test("detects HLS, DASH, and direct media while ignoring segments, errors, and non-tab/extension URLs", async () => {
         let tick = 1000;
-        const registry = createTabMediaRegistry({ now: () => ++tick });
+        const registry = createTabMediaRegistry({ now: () => ++tick, storage: null });
 
         registry.observeRequest(makeRequest({ url: "https://cdn.example.com/live/master.m3u8" }));
         registry.observeRequest(
@@ -86,7 +99,7 @@ describe("createTabMediaRegistry", () => {
             }),
         );
 
-        expect(registry.getTabMedia(1)).toEqual([
+        expect(await registry.getTabMedia(1)).toEqual([
             {
                 kind: "hls",
                 url: "https://cdn.example.com/live/master.m3u8",
@@ -116,41 +129,102 @@ describe("createTabMediaRegistry", () => {
         ]);
     });
 
-    test("deduplicates URLs, clears on clearTab, and enforces tab/entry bounds", () => {
+    test("deduplicates URLs, refreshes frame ownership, clears on clearTab, and enforces tab/entry bounds", async () => {
         let tick = 100;
         const registry = createTabMediaRegistry({
             maxEntriesPerTab: 2,
             maxTabs: 2,
             now: () => ++tick,
+            storage: null,
         });
 
-        registry.observeRequest(makeRequest({ tabId: 1, url: "https://cdn.example.com/a.m3u8" }));
-        registry.observeRequest(makeRequest({ tabId: 1, url: "https://cdn.example.com/a.m3u8" }));
-        registry.observeRequest(makeRequest({ tabId: 1, url: "https://cdn.example.com/b.m3u8" }));
+        registry.observeRequest(
+            makeRequest({ tabId: 1, frameId: 1, url: "https://cdn.example.com/a.m3u8" }),
+        );
+        registry.observeRequest(
+            makeRequest({ tabId: 1, frameId: 1, url: "https://cdn.example.com/b.m3u8" }),
+        );
+        // Re-observing A in frame 2 updates its frameId instead of leaving it pinned to frame 1.
+        registry.observeRequest(
+            makeRequest({
+                tabId: 1,
+                frameId: 2,
+                url: "https://cdn.example.com/a.m3u8",
+                responseHeaders: [{ name: "Content-Type", value: "application/vnd.apple.mpegurl" }],
+            }),
+        );
+        expect(await registry.getTabMedia(1)).toEqual([
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/b.m3u8",
+                frameId: 1,
+                observedAt: 102,
+            },
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/a.m3u8",
+                frameId: 2,
+                mimeType: "application/vnd.apple.mpegurl",
+                observedAt: 103,
+            },
+        ]);
+
         registry.observeRequest(makeRequest({ tabId: 1, url: "https://cdn.example.com/c.m3u8" }));
 
-        expect(registry.getTabMedia(1).map((entry) => entry.url)).toEqual([
-            "https://cdn.example.com/b.m3u8",
+        expect((await registry.getTabMedia(1)).map((entry) => entry.url)).toEqual([
+            "https://cdn.example.com/a.m3u8",
             "https://cdn.example.com/c.m3u8",
         ]);
 
         registry.observeRequest(makeRequest({ tabId: 2, url: "https://cdn.example.com/t2.m3u8" }));
         registry.observeRequest(makeRequest({ tabId: 3, url: "https://cdn.example.com/t3.m3u8" }));
-        expect(registry.getTabMedia(1)).toEqual([]);
-        expect(registry.getTabMedia(2)).toHaveLength(1);
-        expect(registry.getTabMedia(3)).toHaveLength(1);
+        expect(await registry.getTabMedia(1)).toEqual([]);
+        expect(await registry.getTabMedia(2)).toHaveLength(1);
+        expect(await registry.getTabMedia(3)).toHaveLength(1);
 
         // Late main_frame onCompleted events must not wipe manifests fetched during parse.
         registry.observeRequest(
             makeRequest({ tabId: 2, type: "main_frame", url: "https://example.com/next" }),
         );
-        expect(registry.getTabMedia(2)).toHaveLength(1);
+        expect(await registry.getTabMedia(2)).toHaveLength(1);
 
         registry.clearTab(2);
-        expect(registry.getTabMedia(2)).toEqual([]);
+        expect(await registry.getTabMedia(2)).toEqual([]);
 
         registry.clearTab(3);
-        expect(registry.getTabMedia(3)).toEqual([]);
+        expect(await registry.getTabMedia(3)).toEqual([]);
+    });
+
+    test("persists and restores bounded observations across worker restarts and honors pre-hydration clearTab", async () => {
+        const storage = createMemoryStorage();
+        let tick = 500;
+
+        const firstWorker = createTabMediaRegistry({ now: () => ++tick, storage });
+        firstWorker.observeRequest(
+            makeRequest({ tabId: 7, url: "https://cdn.example.com/a/master.m3u8" }),
+        );
+        firstWorker.observeRequest(
+            makeRequest({ tabId: 8, url: "https://cdn.example.com/b/master.m3u8" }),
+        );
+        await firstWorker.getTabMedia(7);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // Simulate service worker restart: fresh registry reading the same session storage.
+        const secondWorker = createTabMediaRegistry({ now: () => ++tick, storage });
+        expect(await secondWorker.getTabMedia(7)).toEqual([
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/a/master.m3u8",
+                frameId: 0,
+                observedAt: 501,
+            },
+        ]);
+
+        // Clearing a tab before hydration completes must prevent stale persisted entries from returning.
+        const thirdWorker = createTabMediaRegistry({ now: () => ++tick, storage });
+        thirdWorker.clearTab(7);
+        expect(await thirdWorker.getTabMedia(7)).toEqual([]);
+        expect(await thirdWorker.getTabMedia(8)).toHaveLength(1);
     });
 });
 
@@ -366,11 +440,202 @@ describe("mergeDetectedVideos", () => {
             title: "Fallback Title",
         });
 
-        const registry = createTabMediaRegistry();
+        const registry = createTabMediaRegistry({ storage: null });
         const restricted = await detectTabVideos(99, registry, async () => {
             throw new Error("Cannot access a chrome:// URL");
         });
         expect(restricted).toEqual([]);
+    });
+
+    test("classifies extensionless currentSrc manifests using source MIME types and observed media without duplicating", () => {
+        const frames: FrameScanResult[] = [
+            {
+                frameId: 0,
+                frameUrl: "https://example.com/watch",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "https://cdn.example.com/stream/playlist",
+                        sources: [
+                            {
+                                url: "https://cdn.example.com/stream/playlist",
+                                type: "application/vnd.apple.mpegurl",
+                            },
+                        ],
+                        durationSeconds: 180,
+                        isPlaying: true,
+                        inViewport: true,
+                        viewportArea: 200_000,
+                        title: "Typed Source HLS",
+                    },
+                    {
+                        currentSrc: "https://cdn.example.com/live/manifest",
+                        sources: [],
+                        durationSeconds: 90,
+                        isPlaying: false,
+                        inViewport: true,
+                        viewportArea: 100_000,
+                        title: "Observed Type DASH",
+                    },
+                ],
+            },
+        ];
+
+        const observed: ObservedMedia[] = [
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/stream/playlist",
+                frameId: 0,
+                mimeType: "application/vnd.apple.mpegurl",
+                observedAt: 1,
+            },
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/stream/720p",
+                frameId: 0,
+                mimeType: "application/vnd.apple.mpegurl",
+                observedAt: 2,
+            },
+            {
+                kind: "dash",
+                url: "https://cdn.example.com/live/manifest",
+                frameId: 0,
+                mimeType: "application/dash+xml",
+                observedAt: 3,
+            },
+        ];
+
+        const videos = mergeDetectedVideos(frames, observed);
+        expect(videos.map((video) => video.id)).toEqual([
+            "hls:https://cdn.example.com/stream/playlist",
+            "dash:https://cdn.example.com/live/manifest",
+        ]);
+        expect(videos[0]?.source).toEqual({
+            kind: "hls",
+            url: "https://cdn.example.com/stream/playlist",
+            durationSeconds: 180,
+        });
+        expect(videos[1]?.source).toEqual({
+            kind: "dash",
+            url: "https://cdn.example.com/live/manifest",
+            durationSeconds: 90,
+        });
+    });
+
+    test("groups master and variant HLS playlists so multiple blob players and in-page video switches match accurately", () => {
+        const twoPlayerFrames: FrameScanResult[] = [
+            {
+                frameId: 0,
+                frameUrl: "https://example.com/dual",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "blob:https://example.com/player-a",
+                        sources: [],
+                        durationSeconds: 120,
+                        isPlaying: false,
+                        inViewport: true,
+                        viewportArea: 300_000,
+                        title: "Player A",
+                    },
+                    {
+                        currentSrc: "blob:https://example.com/player-b",
+                        sources: [],
+                        durationSeconds: 240,
+                        isPlaying: false,
+                        inViewport: true,
+                        viewportArea: 200_000,
+                        title: "Player B",
+                    },
+                ],
+            },
+        ];
+
+        const twoPlayerObserved: ObservedMedia[] = [
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/a/master.m3u8",
+                frameId: 0,
+                observedAt: 1,
+            },
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/a/720.m3u8",
+                frameId: 0,
+                observedAt: 2,
+            },
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/b/master.m3u8",
+                frameId: 0,
+                observedAt: 3,
+            },
+        ];
+
+        const dual = mergeDetectedVideos(twoPlayerFrames, twoPlayerObserved);
+        expect(dual.map((video) => ({ id: video.id, title: video.title }))).toEqual([
+            { id: "hls:https://cdn.example.com/a/master.m3u8", title: "Player A" },
+            { id: "hls:https://cdn.example.com/b/master.m3u8", title: "Player B" },
+        ]);
+
+        // In-page video switch (1 blob player, old stream group + newer stream group):
+        const switchedFrames: FrameScanResult[] = [
+            {
+                frameId: 0,
+                frameUrl: "https://example.com/course",
+                iframes: [],
+                videos: [
+                    {
+                        currentSrc: "blob:https://example.com/current-lesson",
+                        sources: [],
+                        durationSeconds: 600,
+                        isPlaying: true,
+                        inViewport: true,
+                        viewportArea: 400_000,
+                        title: "Lesson 2",
+                    },
+                ],
+            },
+        ];
+
+        const switchedObserved: ObservedMedia[] = [
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/lesson-1/master.m3u8",
+                frameId: 0,
+                observedAt: 10,
+            },
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/lesson-1/1080p.m3u8",
+                frameId: 0,
+                observedAt: 11,
+            },
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/lesson-2/master.m3u8",
+                frameId: 0,
+                observedAt: 50,
+            },
+            {
+                kind: "hls",
+                url: "https://cdn.example.com/lesson-2/720p.m3u8",
+                frameId: 0,
+                observedAt: 51,
+            },
+        ];
+
+        const switched = mergeDetectedVideos(switchedFrames, switchedObserved);
+        expect(switched).toHaveLength(1);
+        expect(switched[0]).toMatchObject({
+            id: "hls:https://cdn.example.com/lesson-2/master.m3u8",
+            title: "Lesson 2",
+            source: {
+                kind: "hls",
+                url: "https://cdn.example.com/lesson-2/master.m3u8",
+                durationSeconds: 600,
+            },
+        });
     });
 
     test("scanFrameDom collects document and open shadowRoot iframes and video sources", async () => {

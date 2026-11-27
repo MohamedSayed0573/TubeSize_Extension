@@ -247,9 +247,17 @@ describe("popup embedded and generic video detection", () => {
 
         const tablist = host?.querySelector('[role="tablist"]');
         expect(tablist).not.toBeNull();
+        expect(tablist?.getAttribute("aria-orientation")).toBe("vertical");
         const tabs = [...(tablist?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])];
         expect(tabs).toHaveLength(3);
         expect(tabs[0]?.getAttribute("aria-selected")).toBe("true");
+        expect(tabs[0]?.tabIndex).toBe(0);
+        expect(tabs[1]?.tabIndex).toBe(-1);
+        expect(tabs[2]?.tabIndex).toBe(-1);
+        const panel = host?.querySelector('[role="tabpanel"]');
+        expect(panel).not.toBeNull();
+        expect(panel?.id).toBe(tabs[0]?.getAttribute("aria-controls") ?? "");
+        expect(panel?.getAttribute("aria-labelledby")).toBe(tabs[0]?.id ?? null);
         expect(tabs[0]?.textContent).toContain("Keynote Stream");
         expect(tabs[0]?.textContent).toContain("Playing");
         expect(tabs[1]?.textContent).toContain("Embedded YouTube Demo");
@@ -257,22 +265,36 @@ describe("popup embedded and generic video detection", () => {
         expect(tabs[2]?.textContent).toContain("Video 3");
         expect(host?.textContent).toContain("Current");
 
-        // Switch to broken video -> shows error card while keeping switcher visible.
+        // Keyboard navigation: End jumps to last tab (broken video) and moves focus.
         await act(async () => {
-            tabs[2]?.click();
+            tabs[0]?.focus();
+            tabs[0]?.dispatchEvent(
+                new window.KeyboardEvent("keydown", { key: "End", bubbles: true }),
+            );
         });
         await waitForCondition(
             () => host?.querySelector('[data-error-code="no_formats"]') !== null,
         );
         expect(host?.querySelector('[role="tablist"]')).not.toBeNull();
+        expect(document.activeElement).toBe(tabs[2] ?? null);
+        expect(tabs[2]?.tabIndex).toBe(0);
+        expect(host?.querySelector('[role="tabpanel"]')?.getAttribute("aria-labelledby")).toBe(
+            tabs[2]?.id ?? null,
+        );
 
-        // Switch to embedded YouTube video -> renders YouTube estimate.
-        const updatedTabs = [...(host?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])];
+        // Keyboard navigation: ArrowUp moves to embedded YouTube video and renders estimate.
         await act(async () => {
-            updatedTabs[1]?.click();
+            tabs[2]?.dispatchEvent(
+                new window.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
+            );
         });
         await waitForCondition(() => host?.textContent?.includes("90 MB") ?? false);
+        const updatedTabs = [...(host?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])];
         expect(updatedTabs[1]?.getAttribute("aria-selected")).toBe("true");
+        expect(document.activeElement).toBe(updatedTabs[1] ?? null);
+        expect(host?.querySelector('[role="tabpanel"]')?.getAttribute("aria-labelledby")).toBe(
+            updatedTabs[1]?.id ?? null,
+        );
         expect(host?.textContent).toContain("Embedded YouTube Demo");
     });
 

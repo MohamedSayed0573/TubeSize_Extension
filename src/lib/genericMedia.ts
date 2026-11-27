@@ -25,6 +25,7 @@ export async function probeContentLength(
     try {
         headRes = await fetchFn(url, {
             method: "HEAD",
+            credentials: "include",
             signal: headController.signal,
         });
         if (headRes.ok) {
@@ -44,6 +45,7 @@ export async function probeContentLength(
     try {
         getRes = await fetchFn(url, {
             method: "GET",
+            credentials: "include",
             headers: { Range: "bytes=0-0" },
             signal: getController.signal,
         });

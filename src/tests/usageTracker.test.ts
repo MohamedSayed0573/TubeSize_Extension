@@ -5,6 +5,7 @@ import { toVideoKey } from "@lib/platformUrl";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
 import { addVideoMetadata, clearDatabaseData, getAllSiteUsage, getAllWatchHistory } from "@/db";
+import { createTabMediaRegistry } from "@/entrypoints/background/tabMediaRegistry";
 import { createUsageIngestion } from "@/entrypoints/background/usageIngestion";
 import {
     type CompletedRequestDetails,
@@ -490,5 +491,71 @@ describe("setupTrackUsage", () => {
         });
         await new Promise((resolve) => setTimeout(resolve, 10));
         expect(writeSiteUsage).toHaveBeenCalledTimes(1);
+    });
+
+    test("clears tabMediaRegistry on SPA URL changes while preserving entries across hash-only changes", async () => {
+        const webRequest = stubWebRequestCompleted();
+        const beforeListeners = new Set<
+            (
+                details: chrome.webRequest.OnBeforeRequestDetails,
+            ) => chrome.webRequest.BlockingResponse | undefined
+        >();
+        const addBeforeSpy = spyOn(
+            chrome.webRequest.onBeforeRequest,
+            "addListener",
+        ).mockImplementation((listener) => {
+            beforeListeners.add(listener);
+        });
+        const removeBeforeSpy = spyOn(
+            chrome.webRequest.onBeforeRequest,
+            "removeListener",
+        ).mockImplementation((listener) => {
+            beforeListeners.delete(listener);
+        });
+        cleanups.push(() => {
+            addBeforeSpy.mockRestore();
+            removeBeforeSpy.mockRestore();
+        });
+
+        const ingestion = createUsageIngestion({ flushIntervalMs: 60_000 });
+        const registry = createTabMediaRegistry({ storage: null });
+        const teardown = setupTrackUsage(ingestion, undefined, registry);
+        cleanups.push(teardown);
+
+        const tab = await fakeBrowser.tabs.create({ url: "https://course.example.com/lesson/1" });
+        const tabId = tab.id!;
+        for (const listener of beforeListeners) {
+            listener({
+                ...makeDetails({
+                    tabId,
+                    type: "main_frame",
+                    url: "https://course.example.com/lesson/1",
+                }),
+            });
+        }
+        webRequest.emit(
+            makeDetails({
+                tabId,
+                type: "xmlhttprequest",
+                url: "https://cdn.example.com/lesson-1/master.m3u8",
+            }),
+        );
+        expect(await registry.getTabMedia(tabId)).toHaveLength(1);
+
+        // Hash-only change keeps observed manifests.
+        await fakeBrowser.tabs.onUpdated.trigger(
+            tabId,
+            { url: "https://course.example.com/lesson/1#comments" },
+            tab,
+        );
+        expect(await registry.getTabMedia(tabId)).toHaveLength(1);
+
+        // SPA path change clears stale manifests from the previous route.
+        await fakeBrowser.tabs.onUpdated.trigger(
+            tabId,
+            { url: "https://course.example.com/lesson/2" },
+            tab,
+        );
+        expect(await registry.getTabMedia(tabId)).toEqual([]);
     });
 });

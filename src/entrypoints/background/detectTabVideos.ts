@@ -124,8 +124,32 @@ const executeFrameScan: FrameScanExecutor = (tabId) =>
     chrome.scripting.executeScript({ target: { tabId, allFrames: true }, func: scanFrameDom });
 
 type GenericKind = GenericVideoSource["kind"];
+type ManifestEntry = ObservedMedia & { kind: "hls" | "dash" };
 
-const HLS_MIME_TYPES = new Set(["application/x-mpegurl", "application/vnd.apple.mpegurl"]);
+type ManifestGroup = {
+    id: number;
+    frameId: number;
+    kind: "hls" | "dash";
+    primary: ManifestEntry;
+    urls: Set<string>;
+    firstObservedAt: number;
+    latestObservedAt: number;
+};
+
+type PendingMseVideo = {
+    frame: FrameScanResult;
+    video: ScannedVideo;
+    domOrder: number;
+};
+
+const MASTER_NAME_REGEX = /^(master|manifest|index|playlist|main)$/i;
+const VARIANT_NAME_REGEX =
+    /(chunklist|variant|rendition|media|audio|subtitle|caption|prog_index|level[_-]?\d|stream[_-]?\d|\b\d{3,4}p\b|\d{3,4}x\d{3,4}|\b\d+k(?:bps)?\b)/i;
+
+function normalizeMimeType(mimeType: string | undefined): string | undefined {
+    const base = mimeType?.split(";", 1)[0]?.trim().toLowerCase();
+    return base || undefined;
+}
 
 function classifySourceUrl(url: string, mimeType?: string): GenericKind | undefined {
     let parsed: URL;
@@ -137,16 +161,190 @@ function classifySourceUrl(url: string, mimeType?: string): GenericKind | undefi
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return undefined;
 
     const pathname = parsed.pathname.toLowerCase();
-    const type = mimeType?.toLowerCase();
-    if (pathname.endsWith(".m3u8") || (type && HLS_MIME_TYPES.has(type))) return "hls";
+    const type = normalizeMimeType(mimeType);
+    if (pathname.endsWith(".m3u8") || type?.includes("mpegurl")) return "hls";
     if (pathname.endsWith(".mpd") || type === "application/dash+xml") return "dash";
     return "direct";
 }
 
-function isStreamingManifest(
-    entry: ObservedMedia,
-): entry is ObservedMedia & { kind: "hls" | "dash" } {
+function isStreamingManifest(entry: ObservedMedia): entry is ManifestEntry {
     return entry.kind === "hls" || entry.kind === "dash";
+}
+
+function parseUrlParts(rawUrl: string): { origin: string; dir: string; stem: string } | undefined {
+    try {
+        const parsed = new URL(rawUrl);
+        const { pathname } = parsed;
+        const lastSlash = pathname.lastIndexOf("/");
+        const dir = pathname.slice(0, lastSlash + 1).toLowerCase();
+        const file = pathname.slice(lastSlash + 1);
+        const dot = file.lastIndexOf(".");
+        const stem = (dot > 0 ? file.slice(0, dot) : file).toLowerCase();
+        return { origin: parsed.origin.toLowerCase(), dir, stem };
+    } catch {
+        return undefined;
+    }
+}
+
+function isLikelyMasterName(stem: string): boolean {
+    return MASTER_NAME_REGEX.test(stem);
+}
+
+function isLikelyVariantName(stem: string): boolean {
+    return VARIANT_NAME_REGEX.test(stem);
+}
+
+function isRelatedHlsManifest(primaryUrl: string, candidateUrl: string): boolean {
+    const primary = parseUrlParts(primaryUrl);
+    const candidate = parseUrlParts(candidateUrl);
+    if (!primary || !candidate || primary.origin !== candidate.origin) return false;
+
+    if (
+        candidate.dir.length > primary.dir.length &&
+        candidate.dir.startsWith(primary.dir) &&
+        (primary.dir !== "/" || !isLikelyMasterName(candidate.stem))
+    ) {
+        return true;
+    }
+
+    if (candidate.dir === primary.dir) {
+        if (isLikelyMasterName(primary.stem) && !isLikelyMasterName(candidate.stem)) {
+            return true;
+        }
+        if (isLikelyVariantName(candidate.stem) && !isLikelyVariantName(primary.stem)) {
+            return true;
+        }
+        if (isLikelyVariantName(primary.stem) && isLikelyVariantName(candidate.stem)) {
+            return true;
+        }
+        if (isLikelyVariantName(primary.stem) && isLikelyMasterName(candidate.stem)) {
+            return true;
+        }
+        if (
+            primary.stem.length >= 2 &&
+            (candidate.stem.startsWith(`${primary.stem}_`) ||
+                candidate.stem.startsWith(`${primary.stem}-`) ||
+                candidate.stem.startsWith(`${primary.stem}.`))
+        ) {
+            return true;
+        }
+    }
+
+    if (
+        primary.dir.length > candidate.dir.length &&
+        primary.dir.startsWith(candidate.dir) &&
+        (candidate.dir !== "/" || !isLikelyMasterName(primary.stem)) &&
+        isLikelyMasterName(candidate.stem)
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+function shouldPromotePrimary(currentUrl: string, candidateUrl: string): boolean {
+    const current = parseUrlParts(currentUrl);
+    const candidate = parseUrlParts(candidateUrl);
+    if (!current || !candidate) return false;
+
+    if (candidate.dir.length < current.dir.length && current.dir.startsWith(candidate.dir)) {
+        return true;
+    }
+    if (
+        candidate.dir === current.dir &&
+        isLikelyMasterName(candidate.stem) &&
+        !isLikelyMasterName(current.stem)
+    ) {
+        return true;
+    }
+    return false;
+}
+
+function groupObservedManifests(manifests: readonly ManifestEntry[]): ManifestGroup[] {
+    const ordered = manifests.toSorted((a, b) => a.observedAt - b.observedAt);
+    const groups: ManifestGroup[] = [];
+    let nextId = 0;
+
+    for (const entry of ordered) {
+        let matchedGroup: ManifestGroup | undefined;
+        if (entry.kind === "hls") {
+            for (let index = groups.length - 1; index >= 0; index--) {
+                const candidate = groups[index]!;
+                if (candidate.frameId !== entry.frameId || candidate.kind !== "hls") continue;
+                if (
+                    candidate.urls.has(entry.url) ||
+                    isRelatedHlsManifest(candidate.primary.url, entry.url)
+                ) {
+                    matchedGroup = candidate;
+                    break;
+                }
+            }
+        } else {
+            matchedGroup = groups.find(
+                (candidate) =>
+                    candidate.frameId === entry.frameId &&
+                    candidate.kind === entry.kind &&
+                    candidate.urls.has(entry.url),
+            );
+        }
+
+        if (matchedGroup) {
+            matchedGroup.urls.add(entry.url);
+            matchedGroup.latestObservedAt = Math.max(
+                matchedGroup.latestObservedAt,
+                entry.observedAt,
+            );
+            if (shouldPromotePrimary(matchedGroup.primary.url, entry.url)) {
+                matchedGroup.primary = entry;
+            }
+        } else {
+            groups.push({
+                id: nextId++,
+                frameId: entry.frameId,
+                kind: entry.kind,
+                primary: entry,
+                urls: new Set([entry.url]),
+                firstObservedAt: entry.observedAt,
+                latestObservedAt: entry.observedAt,
+            });
+        }
+    }
+
+    return groups;
+}
+
+function pairPlayersWithGroups(
+    players: readonly PendingMseVideo[],
+    groups: readonly ManifestGroup[],
+): Array<{ player: PendingMseVideo; group: ManifestGroup }> {
+    const selected = groups
+        .toSorted(
+            (a, b) =>
+                b.latestObservedAt - a.latestObservedAt || b.firstObservedAt - a.firstObservedAt,
+        )
+        .slice(0, players.length);
+
+    if (selected.length === 0) return [];
+
+    const playingPlayers = players.filter((entry) => entry.video.isPlaying);
+    const otherPlayers = players.filter((entry) => !entry.video.isPlaying);
+    const pairs: Array<{ player: PendingMseVideo; group: ManifestGroup }> = [];
+    const remaining = [...selected];
+
+    for (const player of playingPlayers) {
+        const group = remaining.shift();
+        if (!group) break;
+        pairs.push({ player, group });
+    }
+
+    const chronological = remaining.toSorted(
+        (a, b) => a.firstObservedAt - b.firstObservedAt || a.id - b.id,
+    );
+    for (let index = 0; index < otherPlayers.length && index < chronological.length; index++) {
+        pairs.push({ player: otherPlayers[index]!, group: chronological[index]! });
+    }
+
+    return pairs;
 }
 
 function toGenericSource(
@@ -214,17 +412,27 @@ export function mergeDetectedVideos(
     }
 
     const manifests = observedMedia.filter(
-        (entry): entry is ObservedMedia & { kind: "hls" | "dash" } =>
+        (entry): entry is ManifestEntry =>
             isStreamingManifest(entry) && !embedFrameIds.has(entry.frameId),
     );
-    const claimedManifests = new Set<string>();
-    const directMimeTypes = new Map(
-        observedMedia
-            .filter((entry) => entry.kind === "direct" && entry.mimeType)
-            .map((entry) => [entry.url, entry.mimeType]),
-    );
+    const manifestGroups = groupObservedManifests(manifests);
+    const claimedGroupIds = new Set<number>();
+
+    const observedByUrl = new Map<string, ObservedMedia>();
+    for (const entry of observedMedia) {
+        const existing = observedByUrl.get(entry.url);
+        if (
+            !existing ||
+            (existing.kind === "direct" && entry.kind !== "direct") ||
+            (existing.kind === entry.kind && entry.observedAt >= existing.observedAt)
+        ) {
+            observedByUrl.set(entry.url, entry);
+        }
+    }
+
     const framesWithMseVideos = new Set<number>();
-    const pendingMseVideos: Array<{ frame: FrameScanResult; video: ScannedVideo }> = [];
+    const pendingMseByFrame = new Map<number, PendingMseVideo[]>();
+    let domOrder = 0;
 
     for (const frame of frames) {
         for (const iframe of frame.iframes) {
@@ -251,31 +459,61 @@ export function mergeDetectedVideos(
 
         for (const video of frame.videos) {
             const title = video.title ?? (frame.videos.length === 1 ? frame.pageTitle : undefined);
-            const candidates = [
+            const sourceTypeByUrl = new Map<string, string>();
+            for (const source of video.sources) {
+                if (source.type && !sourceTypeByUrl.has(source.url)) {
+                    sourceTypeByUrl.set(source.url, source.type);
+                }
+            }
+
+            const seenCandidateUrls = new Set<string>();
+            const candidates: Array<{ url: string; type?: string }> = [];
+            for (const rawCandidate of [
                 ...(video.currentSrc ? [{ url: video.currentSrc }] : []),
                 ...video.sources,
-            ];
+            ]) {
+                if (seenCandidateUrls.has(rawCandidate.url)) continue;
+                seenCandidateUrls.add(rawCandidate.url);
+                candidates.push({
+                    url: rawCandidate.url,
+                    type: rawCandidate.type ?? sourceTypeByUrl.get(rawCandidate.url),
+                });
+            }
+
             const playable = candidates
-                .map((candidate) => ({
-                    ...candidate,
-                    kind: classifySourceUrl(candidate.url, candidate.type),
-                }))
+                .map((candidate) => {
+                    const observed = observedByUrl.get(candidate.url);
+                    const mergedMimeType = candidate.type ?? observed?.mimeType;
+                    const kind =
+                        observed && (observed.kind === "hls" || observed.kind === "dash")
+                            ? observed.kind
+                            : classifySourceUrl(candidate.url, mergedMimeType);
+                    return {
+                        url: candidate.url,
+                        mimeType: mergedMimeType,
+                        kind,
+                    };
+                })
                 .find((candidate) => candidate.kind !== undefined);
 
             if (!playable?.kind) {
                 if (candidates.some((candidate) => candidate.url.startsWith("blob:"))) {
                     framesWithMseVideos.add(frame.frameId);
-                    pendingMseVideos.push({ frame, video: { ...video, title } });
+                    const list = pendingMseByFrame.get(frame.frameId) ?? [];
+                    list.push({ frame, video: { ...video, title }, domOrder: domOrder++ });
+                    pendingMseByFrame.set(frame.frameId, list);
                 }
                 continue;
             }
 
-            const mimeType = playable.type ?? directMimeTypes.get(playable.url);
             if (playable.kind === "hls" || playable.kind === "dash") {
-                claimedManifests.add(playable.url);
+                for (const group of manifestGroups) {
+                    if (group.urls.has(playable.url)) claimedGroupIds.add(group.id);
+                }
             }
+
             add({
-                source: toGenericSource(playable.kind, playable.url, video, mimeType),
+                source: toGenericSource(playable.kind, playable.url, video, playable.mimeType),
                 title,
                 isPlaying: video.isPlaying,
                 inViewport: video.inViewport,
@@ -286,47 +524,68 @@ export function mergeDetectedVideos(
         }
     }
 
-    const claimedFrameKinds = new Set<string>();
+    const unmatchedPlayers: PendingMseVideo[] = [];
+    for (const [frameId, framePlayers] of pendingMseByFrame) {
+        const frameGroups = manifestGroups.filter(
+            (group) => group.frameId === frameId && !claimedGroupIds.has(group.id),
+        );
+        const pairs = pairPlayersWithGroups(framePlayers, frameGroups);
+        const matchedOrders = new Set<number>();
 
-    // MSE players (`blob:` src) load an HLS/DASH manifest first; the i-th
-    // MSE video in a frame takes that frame's i-th observed manifest, and
-    // otherwise any manifest from a frame without its own MSE videos.
-    for (const { frame, video } of pendingMseVideos) {
-        const manifest =
-            manifests.find(
-                (entry) => entry.frameId === frame.frameId && !claimedManifests.has(entry.url),
-            ) ??
-            manifests.find(
-                (entry) =>
-                    !framesWithMseVideos.has(entry.frameId) && !claimedManifests.has(entry.url),
-            );
-        if (!manifest) continue;
-        claimedManifests.add(manifest.url);
-        claimedFrameKinds.add(`${manifest.frameId}:${manifest.kind}`);
-        add({
-            source: toGenericSource(manifest.kind, manifest.url, video),
-            title: video.title,
-            isPlaying: video.isPlaying,
-            inViewport: video.inViewport,
-            viewportArea: video.viewportArea,
-            currentResolution: video.videoHeight,
-            frameId: frame.frameId,
-        });
+        for (const { player, group } of pairs) {
+            matchedOrders.add(player.domOrder);
+            claimedGroupIds.add(group.id);
+            add({
+                source: toGenericSource(group.kind, group.primary.url, player.video),
+                title: player.video.title,
+                isPlaying: player.video.isPlaying,
+                inViewport: player.video.inViewport,
+                viewportArea: player.video.viewportArea,
+                currentResolution: player.video.videoHeight,
+                frameId: player.frame.frameId,
+            });
+        }
+
+        // Older manifest groups in the same frame beyond the active player count
+        // are typically stale streams from in-page video switches.
+        for (const group of frameGroups) {
+            claimedGroupIds.add(group.id);
+        }
+
+        for (const player of framePlayers) {
+            if (!matchedOrders.has(player.domOrder)) {
+                unmatchedPlayers.push(player);
+            }
+        }
     }
 
-    // Remaining manifests: frames that already consumed a manifest of a given
-    // kind typically load variant playlists afterward; emit the first unmatched
-    // manifest per (frameId, kind).
-    for (const manifest of manifests) {
-        const frameKind = `${manifest.frameId}:${manifest.kind}`;
-        if (claimedManifests.has(manifest.url) || claimedFrameKinds.has(frameKind)) continue;
-        claimedFrameKinds.add(frameKind);
+    if (unmatchedPlayers.length > 0) {
+        const fallbackGroups = manifestGroups.filter(
+            (group) => !framesWithMseVideos.has(group.frameId) && !claimedGroupIds.has(group.id),
+        );
+        for (const { player, group } of pairPlayersWithGroups(unmatchedPlayers, fallbackGroups)) {
+            claimedGroupIds.add(group.id);
+            add({
+                source: toGenericSource(group.kind, group.primary.url, player.video),
+                title: player.video.title,
+                isPlaying: player.video.isPlaying,
+                inViewport: player.video.inViewport,
+                viewportArea: player.video.viewportArea,
+                currentResolution: player.video.videoHeight,
+                frameId: player.frame.frameId,
+            });
+        }
+    }
+
+    // Remaining distinct stream groups from frames without scanned MSE videos.
+    for (const group of manifestGroups) {
+        if (claimedGroupIds.has(group.id)) continue;
         add({
-            source: toGenericSource(manifest.kind, manifest.url, undefined),
+            source: toGenericSource(group.kind, group.primary.url, undefined),
             isPlaying: false,
             inViewport: false,
             viewportArea: 0,
-            frameId: manifest.frameId,
+            frameId: group.frameId,
         });
     }
 
@@ -350,5 +609,5 @@ export async function detectTabVideos(
     const frames = results.flatMap((entry) =>
         entry.result ? [{ ...entry.result, frameId: entry.frameId }] : [],
     );
-    return mergeDetectedVideos(frames, registry.getTabMedia(tabId));
+    return mergeDetectedVideos(frames, await registry.getTabMedia(tabId));
 }

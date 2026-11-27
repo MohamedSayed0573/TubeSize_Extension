@@ -589,4 +589,155 @@ describe("estimateGenericHls", () => {
             code: "no_formats",
         });
     });
+
+    test("uses declared EXT-X-BYTERANGE lengths without probing the full backing media file", async () => {
+        const byteRangePlaylist = [
+            "#EXTM3U",
+            "#EXT-X-VERSION:4",
+            "#EXT-X-TARGETDURATION:4",
+            "#EXTINF:4.0,",
+            "#EXT-X-BYTERANGE:800000@0",
+            "video.mp4",
+            "#EXTINF:4.0,",
+            "#EXT-X-BYTERANGE:800000",
+            "video.mp4",
+            "#EXTINF:4.0,",
+            "#EXT-X-BYTERANGE:400000",
+            "video.mp4",
+            "#EXT-X-ENDLIST",
+        ].join("\n");
+
+        const requestedUrls: string[] = [];
+        const estimate = await estimateGenericHls("https://cdn.example.com/range/index.m3u8", {
+            sleep: instantSleep,
+            fetch: async (input, init) => {
+                const url = input.toString();
+                requestedUrls.push(url);
+                expect(init?.credentials).toBe("include");
+                return new Response(byteRangePlaylist, { status: 200 });
+            },
+        });
+
+        expect(requestedUrls).toEqual(["https://cdn.example.com/range/index.m3u8"]);
+        expect(estimate).toEqual({
+            platform: "generic",
+            contentType: "vod",
+            durationSeconds: 12,
+            formats: [
+                {
+                    kind: "vod",
+                    resolution: 0,
+                    sizeBytes: 2_000_000,
+                    sizePerSecondBytes: 2_000_000 / 12,
+                },
+            ],
+        });
+    });
+
+    test("sends credentials: include on manifests, child playlists, and generic segment probes", async () => {
+        const master = [
+            "#EXTM3U",
+            "#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1280x720",
+            "720p.m3u8",
+        ].join("\n");
+        const variant = [
+            "#EXTM3U",
+            "#EXT-X-TARGETDURATION:5",
+            "#EXTINF:5.0,",
+            "seg0.ts",
+            "#EXT-X-ENDLIST",
+        ].join("\n");
+
+        const seenCredentials: Array<{ url: string; credentials: RequestCredentials | undefined }> =
+            [];
+        await estimateGenericHls("https://protected.example.com/hls/master.m3u8", {
+            sleep: instantSleep,
+            fetch: async (input, init) => {
+                const url = input.toString();
+                seenCredentials.push({ url, credentials: init?.credentials });
+                return new Response(url.endsWith("master.m3u8") ? master : variant, {
+                    status: 200,
+                });
+            },
+        });
+
+        await estimateGenericHls("https://protected.example.com/hls/720p.m3u8", {
+            sleep: instantSleep,
+            fetch: async (input, init) => {
+                const url = input.toString();
+                seenCredentials.push({ url, credentials: init?.credentials });
+                if (url.endsWith("720p.m3u8")) return new Response(variant, { status: 200 });
+                return new Response("x", {
+                    status: 206,
+                    headers: { "content-range": "bytes 0-0/500000" },
+                });
+            },
+        });
+
+        expect(seenCredentials).toEqual([
+            { url: "https://protected.example.com/hls/master.m3u8", credentials: "include" },
+            { url: "https://protected.example.com/hls/720p.m3u8", credentials: "include" },
+            { url: "https://protected.example.com/hls/720p.m3u8", credentials: "include" },
+            { url: "https://protected.example.com/hls/seg0.ts", credentials: "include" },
+        ]);
+    });
+
+    test("enforces response size and timeout bounds on generic HLS manifests and child playlists", async () => {
+        const huge = "#EXTM3U\n" + "a".repeat(2048);
+        await expect(
+            estimateGenericHls("https://cdn.example.com/huge.m3u8", {
+                sleep: instantSleep,
+                maxManifestBytes: 512,
+                fetch: async () => new Response(huge, { status: 200 }),
+            }),
+        ).rejects.toMatchObject({ name: "MediaEstimateError", code: "no_formats" });
+
+        await expect(
+            estimateGenericHls("https://cdn.example.com/stalled-body.m3u8", {
+                sleep: instantSleep,
+                timeoutMs: 30,
+                fetch: async () =>
+                    new Response(
+                        new ReadableStream({
+                            start() {
+                                // Never closes or enqueues.
+                            },
+                        }),
+                        { status: 200 },
+                    ),
+            }),
+        ).rejects.toMatchObject({ name: "MediaEstimateError", code: "network_error" });
+
+        // Oversized child playlist falls back to live master bandwidths without hanging or reading full body.
+        const master = [
+            "#EXTM3U",
+            "#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1280x720",
+            "huge-variant.m3u8",
+        ].join("\n");
+        let childCancelled = false;
+        const fallback = await estimateGenericHls("https://cdn.example.com/master.m3u8", {
+            sleep: instantSleep,
+            maxManifestBytes: 256,
+            fetch: async (input) => {
+                if (input.toString().endsWith("master.m3u8")) {
+                    return new Response(master, { status: 200 });
+                }
+                const stream = new ReadableStream({
+                    start(controller) {
+                        controller.enqueue(new Uint8Array(512));
+                    },
+                    cancel() {
+                        childCancelled = true;
+                    },
+                });
+                return new Response(stream, { status: 200 });
+            },
+        });
+        expect(childCancelled).toBe(true);
+        expect(fallback).toEqual({
+            platform: "generic",
+            contentType: "live",
+            formats: [{ kind: "live", resolution: 720, sizePerSecondBytes: 500_000 }],
+        });
+    });
 });
