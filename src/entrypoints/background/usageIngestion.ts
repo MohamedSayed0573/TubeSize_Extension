@@ -1,5 +1,4 @@
-import type { DateKey, Origin, VideoKey } from "@app-types/types";
-import { getDateKey } from "@lib/dateUtils";
+import type { Origin, VideoKey } from "@app-types/types";
 import { toOrigin } from "@lib/domain";
 import { type ParsedPlatformMedia, parsePlatformUrl, toVideoKey } from "@lib/platformUrl";
 import { typedEntries } from "@lib/utils";
@@ -15,12 +14,8 @@ interface UsageSnapshot {
     videos: Record<VideoKey, number>;
 }
 
-export interface UsageFlushHandle {
-    readonly day?: DateKey;
-}
-
 export interface UsageIngestionDeps {
-    writeSiteUsage?: (siteUsage: Record<Origin, number>, day?: DateKey) => Promise<void>;
+    writeSiteUsage?: (siteUsage: Record<Origin, number>) => Promise<void>;
     writeWatchHistory?: (watchHistory: Record<VideoKey, number>) => Promise<void>;
     refreshBadge?: () => Promise<void>;
     recordMetadata?: (media: ParsedPlatformMedia, url: string) => Promise<void>;
@@ -30,8 +25,6 @@ export interface UsageIngestionDeps {
 export interface UsageIngestion {
     readonly hasPendingUsage: boolean;
     bufferTabUsage(tabUrl: string, bytes: number, frameUrl?: string): boolean;
-    getBufferFlushHandle(): UsageFlushHandle;
-    reattributeBufferedOrigin(fromOrigin: Origin, targetOrigin: Origin, bytes: number): boolean;
     recordTabUsage(tabUrl: string, bytes: number, frameUrl?: string): Promise<boolean>;
     flush(): Promise<void>;
     startAutoFlush(): () => void;
@@ -65,10 +58,6 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
     let origins: Record<Origin, number> = {};
     let videos: Record<VideoKey, number> = {};
     let timerId: ReturnType<typeof setInterval> | undefined;
-    let flushQueue: Promise<void> = Promise.resolve();
-    let inFlightFlushes = 0;
-    let currentFlushRecord: { day?: DateKey } = {};
-    let restoredFlushRecords: Array<{ day?: DateKey }> = [];
 
     function drain(): UsageSnapshot {
         const snapshot = { origins, videos };
@@ -87,29 +76,19 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
         }
     }
 
-    async function runFlush(): Promise<void> {
+    async function flush(): Promise<void> {
         const hasOrigins = Object.keys(origins).length > 0;
         const hasVideos = Object.keys(videos).length > 0;
         if (!hasOrigins && !hasVideos) return;
 
         const snapshot = drain();
-        const batchRecords = hasOrigins ? [...restoredFlushRecords, currentFlushRecord] : [];
-        if (hasOrigins) {
-            restoredFlushRecords = [];
-            currentFlushRecord = {};
-        }
 
         if (hasOrigins) {
-            const committedDay = getDateKey();
             try {
-                await writeSiteUsage(snapshot.origins, committedDay);
+                await writeSiteUsage(snapshot.origins);
             } catch (err) {
                 restore(snapshot);
-                restoredFlushRecords.push(...batchRecords);
                 throw err;
-            }
-            for (const record of batchRecords) {
-                record.day = committedDay;
             }
         }
 
@@ -134,25 +113,6 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
         }
     }
 
-    function flush(): Promise<void> {
-        inFlightFlushes += 1;
-        const previous = flushQueue;
-        const next = (async () => {
-            try {
-                await previous;
-            } catch {
-                // Prior flush already restored its snapshot; proceed with the current buffer.
-            }
-            try {
-                await runFlush();
-            } finally {
-                inFlightFlushes -= 1;
-            }
-        })();
-        flushQueue = next;
-        return next;
-    }
-
     function bufferTabUsage(tabUrl: string, bytes: number, frameUrl?: string): boolean {
         if (!Number.isFinite(bytes) || bytes <= 0 || bytes > MAX_SAFE_BYTES) return false;
         if (isExtensionUrl(tabUrl) || isExtensionUrl(frameUrl)) return false;
@@ -173,24 +133,6 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
             console.error("Failed to attribute usage to a video:", err);
         }
 
-        return true;
-    }
-
-    function getBufferFlushHandle(): UsageFlushHandle {
-        return currentFlushRecord;
-    }
-
-    function reattributeBufferedOrigin(
-        fromOrigin: Origin,
-        targetOrigin: Origin,
-        bytes: number,
-    ): boolean {
-        if (fromOrigin === targetOrigin || !Number.isFinite(bytes) || bytes <= 0) return false;
-        const buffered = origins[fromOrigin] ?? 0;
-        if (buffered < bytes) return false;
-        if (buffered === bytes) delete origins[fromOrigin];
-        else origins[fromOrigin] = buffered - bytes;
-        origins[targetOrigin] = addSafeBytes(origins[targetOrigin] ?? 0, bytes);
         return true;
     }
 
@@ -224,15 +166,9 @@ export function createUsageIngestion(deps: UsageIngestionDeps = {}): UsageIngest
 
     return {
         get hasPendingUsage() {
-            return (
-                Object.keys(origins).length > 0 ||
-                Object.keys(videos).length > 0 ||
-                inFlightFlushes > 0
-            );
+            return Object.keys(origins).length > 0 || Object.keys(videos).length > 0;
         },
         bufferTabUsage,
-        getBufferFlushHandle,
-        reattributeBufferedOrigin,
         recordTabUsage,
         flush,
         startAutoFlush,

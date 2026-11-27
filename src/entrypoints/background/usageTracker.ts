@@ -2,12 +2,7 @@ import { isFirefox } from "@lib/browser";
 
 import { MAX_SAFE_BYTES } from "@/db";
 
-import {
-    type DownloadDeduplicator,
-    isAttachmentNavigation,
-    isDownloadableWebRequest,
-    isPdfMainFrameNavigation,
-} from "./downloadDedup";
+import { type DownloadDedup, isAttachmentNavigation } from "./downloadDedup";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 const CONTENT_LENGTH_HEADER = "content-length";
@@ -22,12 +17,13 @@ export type CompletedRequestDetails = chrome.webRequest.OnCompletedDetails & {
 
 export function setupTrackUsage(
     ingestion: UsageIngestion = createUsageIngestion(),
-    deduplicator?: DownloadDeduplicator,
+    dedup?: DownloadDedup,
 ): () => void {
     const onRequestCompleted = (details: CompletedRequestDetails) => {
-        void trackRequest(ingestion, details, deduplicator);
+        void trackRequest(ingestion, details, dedup);
     };
-    const onTabRemoved = () => {
+    const onTabRemoved = (tabId: number) => {
+        dedup?.flushHeld(tabId);
         if (!ingestion.hasPendingUsage) return;
         void ingestion.flush().catch((err: unknown) => {
             console.error("Failed to flush usage on tab close:", err);
@@ -71,70 +67,35 @@ async function resolveRequestTabUrl(details: CompletedRequestDetails): Promise<s
 export async function trackRequest(
     ingestion: UsageIngestion,
     details: CompletedRequestDetails,
-    deduplicator?: DownloadDeduplicator,
+    dedup?: DownloadDedup,
 ) {
     try {
-        if (isIgnoredRequestBase(details)) return;
-        if (isAttachmentNavigation(details)) {
-            deduplicator?.recordAttachmentNavigation(details);
-            return;
-        }
-        if (details.tabId === NO_TAB_ID) return;
+        if (!isCountableRequest(details)) return;
 
         const bytes = getContentLength(details);
         if (bytes === undefined) return;
 
-        let committedMainFrameUrl: string | undefined;
-        if (deduplicator && isPdfMainFrameNavigation(details)) {
-            try {
-                committedMainFrameUrl = (await chrome.tabs.get(details.tabId))?.url;
-            } catch {
-                committedMainFrameUrl = undefined;
-            }
-        }
-
-        const downloadable =
-            deduplicator !== undefined && isDownloadableWebRequest(details, committedMainFrameUrl);
-        if (downloadable) {
-            await deduplicator.whenReady();
-        }
-
         const tabUrl = await resolveRequestTabUrl(details);
         if (!tabUrl) return;
-        if (deduplicator?.shouldSkipWebRequest(details, bytes, tabUrl, committedMainFrameUrl)) {
-            return;
-        }
 
-        if (ingestion.bufferTabUsage(tabUrl, bytes)) {
-            deduplicator?.recordCountedWebRequest(
-                details,
-                bytes,
-                tabUrl,
-                committedMainFrameUrl,
-                ingestion.getBufferFlushHandle(),
-            );
-        }
+        if (dedup?.interceptWebRequest(details, tabUrl, bytes)) return;
+
+        ingestion.bufferTabUsage(tabUrl, bytes);
     } catch (err) {
         console.error("Failed to track request usage:", err);
     }
 }
 
-function isIgnoredRequestBase(details: CompletedRequestDetails) {
-    return (
+export function isCountableRequest(details: CompletedRequestDetails) {
+    return !(
+        details.tabId === NO_TAB_ID ||
         isExtensionUrl(details.url) ||
         isExtensionUrl(details.initiator) ||
         isExtensionUrl(details.originUrl) ||
         isExtensionUrl(details.documentUrl) ||
         details.fromCache ||
-        details.method === "HEAD"
-    );
-}
-
-export function isCountableRequest(details: CompletedRequestDetails) {
-    return (
-        details.tabId !== NO_TAB_ID &&
-        !isIgnoredRequestBase(details) &&
-        !isAttachmentNavigation(details)
+        details.method === "HEAD" ||
+        isAttachmentNavigation(details)
     );
 }
 
