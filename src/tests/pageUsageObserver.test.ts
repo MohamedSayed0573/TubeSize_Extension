@@ -99,6 +99,7 @@ class FakeWebSocket extends EventTarget {
 
     readonly url: string;
     readonly sent: unknown[] = [];
+    readyState: number = FakeWebSocket.OPEN;
     throwOnSend?: Error;
 
     constructor(url: string | URL) {
@@ -108,6 +109,10 @@ class FakeWebSocket extends EventTarget {
 
     send(data: unknown) {
         if (this.throwOnSend) throw this.throwOnSend;
+        if (this.readyState === FakeWebSocket.CONNECTING) {
+            throw new Error("InvalidStateError");
+        }
+        if (this.readyState !== FakeWebSocket.OPEN) return;
         this.sent.push(data);
     }
 
@@ -123,6 +128,7 @@ class FakeWebSocket extends EventTarget {
     }
 
     emitClose() {
+        this.readyState = FakeWebSocket.CLOSED;
         this.dispatchEvent(new Event("close"));
     }
 }
@@ -544,7 +550,7 @@ describe("createPageUsageObserver", () => {
         harness.observer.dispose();
     });
 
-    test("re-hosts module blob: workers with static imports, revokes all 3 URLs on ready/error/throw, and runs worker fetch/XHR/WebSocket patches", async () => {
+    test("re-hosts module blob: workers in a single blob without blob imports, revokes on ready/error/throw, and runs worker fetch/XHR/WebSocket patches", async () => {
         const harness = createHarness();
         harness.observer.install();
 
@@ -564,21 +570,15 @@ describe("createPageUsageObserver", () => {
         const entry = FakeWorker.constructed[0]!;
         const wrapperUrl = entry.url as string;
         expect(entry.options).toEqual({ type: "module", name: "stream-mod" });
-        expect(harness.createdBlobs.size).toBe(3);
+        expect(harness.createdBlobs.size).toBe(1);
 
-        const createdUrls = [...harness.createdBlobs.keys()];
-        const [bootstrapUrl, payloadUrl, entryUrl] = createdUrls;
-        expect(wrapperUrl).toBe(entryUrl!);
-        expect(await harness.createdBlobs.get(wrapperUrl)!.text()).toBe(
-            `import ${JSON.stringify(bootstrapUrl)};\nimport ${JSON.stringify(payloadUrl)};\n`,
-        );
-        expect(await harness.createdBlobs.get(payloadUrl!)!.text()).toBe(
-            "export const loaded = true;",
-        );
+        const wrappedText = await harness.createdBlobs.get(wrapperUrl)!.text();
+        expect(wrappedText.includes('import "blob:')).toBe(false);
+        expect(wrappedText.endsWith(";\nexport const loaded = true;")).toBe(true);
 
         const readyResult = worker.emitMessage({ type: "WORKER_READY" });
         expect(readyResult.propagationStopped).toBe(true);
-        expect(harness.revokedUrls).toEqual([wrapperUrl, bootstrapUrl!, payloadUrl!]);
+        expect(harness.revokedUrls).toEqual([wrapperUrl]);
 
         const errorBlobUrl = "blob:https://example.com/mod-worker-err";
         FakeXMLHttpRequest.sources.set(errorBlobUrl, {
@@ -588,14 +588,9 @@ describe("createPageUsageObserver", () => {
         const errWorker = new harness.globalObject.Worker(errorBlobUrl, {
             type: "module",
         }) as unknown as FakeWorker;
-        const errCreated = [...harness.createdBlobs.keys()].slice(3);
-        expect(errCreated).toHaveLength(3);
+        const errUrl = [...harness.createdBlobs.keys()][1]!;
         errWorker.emitError();
-        expect(harness.revokedUrls.slice(3)).toEqual([
-            errCreated[2]!,
-            errCreated[0]!,
-            errCreated[1]!,
-        ]);
+        expect(harness.revokedUrls.slice(1)).toEqual([errUrl]);
 
         const blockedModUrl = "blob:https://example.com/mod-csp-blocked";
         FakeXMLHttpRequest.sources.set(blockedModUrl, {
@@ -611,15 +606,10 @@ describe("createPageUsageObserver", () => {
             url: blockedModUrl,
             options: { type: "module" },
         });
-        const blockedCreated = [...harness.createdBlobs.keys()].slice(6);
-        expect(blockedCreated).toHaveLength(3);
-        expect(harness.revokedUrls.slice(6)).toEqual([
-            blockedCreated[2]!,
-            blockedCreated[0]!,
-            blockedCreated[1]!,
-        ]);
+        const blockedUrl = [...harness.createdBlobs.keys()][2]!;
+        expect(harness.revokedUrls.slice(2)).toEqual([blockedUrl]);
 
-        const bootstrapSource = await harness.createdBlobs.get(bootstrapUrl!)!.text();
+        const bootstrapSource = wrappedText.slice(0, -";\nexport const loaded = true;".length);
         const workerPosted: unknown[] = [];
 
         class WorkerFakeXhr extends EventTarget {
@@ -644,6 +634,7 @@ describe("createPageUsageObserver", () => {
 
         class WorkerFakeSocket extends EventTarget {
             readonly url: string;
+            readyState = 1;
             throwOnSend?: Error;
             constructor(url: string | URL) {
                 super();
@@ -660,7 +651,7 @@ describe("createPageUsageObserver", () => {
         }
 
         const fakeSelf: Record<string, unknown> = {
-            location: { href: bootstrapUrl },
+            location: { href: wrapperUrl },
             postMessage: (msg: unknown) => workerPosted.push(msg),
             fetch: async (input: string) => {
                 if (input.endsWith("/fixed")) {
@@ -1042,6 +1033,66 @@ describe("createPageUsageObserver", () => {
         harness.observer.dispose();
     });
 
+    test("coerces stateful WebSocket send payloads once, skips CLOSING/CLOSED/CONNECTING sends, and counts cross-realm binary payloads", () => {
+        const harness = createHarness();
+        harness.observer.install();
+
+        const PatchedWebSocket = harness.globalObject.WebSocket!;
+        const ws = new PatchedWebSocket(
+            "wss://stream.example.com/edge",
+        ) as unknown as FakeWebSocket;
+
+        let conversions = 0;
+        const statefulPayload = {
+            toString() {
+                conversions += 1;
+                if (conversions > 1) throw new Error("Converted more than once");
+                return `seq-${conversions}`;
+            },
+        };
+        ws.send(statefulPayload);
+        expect(conversions).toBe(1);
+        expect(ws.sent.at(-1)).toBe("seq-1");
+
+        const foreignBuffer = vm.runInNewContext("new ArrayBuffer(64)") as ArrayBuffer;
+        const foreignShared = vm.runInNewContext("new SharedArrayBuffer(32)") as SharedArrayBuffer;
+        const foreignView = vm.runInNewContext(
+            "new Uint8Array(new ArrayBuffer(20), 4, 9)",
+        ) as Uint8Array;
+        const foreignBlob = { [Symbol.toStringTag]: "Blob", size: 128 };
+        const foreignFile = { [Symbol.toStringTag]: "File", size: 256 };
+
+        expect(foreignBuffer instanceof ArrayBuffer).toBe(false);
+        expect(foreignShared instanceof SharedArrayBuffer).toBe(false);
+
+        ws.send(foreignBuffer);
+        ws.send(foreignShared);
+        ws.send(foreignView);
+        ws.send(foreignBlob);
+        ws.send(foreignFile);
+        ws.emitMessage(foreignBuffer);
+        ws.emitMessage(foreignBlob);
+        expect(ws.sent.slice(-5)).toEqual([
+            foreignBuffer,
+            foreignShared,
+            foreignView,
+            foreignBlob,
+            foreignFile,
+        ]);
+
+        ws.readyState = FakeWebSocket.CLOSING;
+        ws.send("dropped-while-closing");
+        ws.readyState = FakeWebSocket.CLOSED;
+        ws.send("dropped-while-closed");
+        ws.readyState = FakeWebSocket.CONNECTING;
+        expect(() => ws.send("connecting-throws")).toThrow("InvalidStateError");
+
+        harness.observer.flush();
+        expect(harness.posted).toEqual([5 + 64 + 32 + 9 + 128 + 256 + 64 + 128]);
+
+        harness.observer.dispose();
+    });
+
     test("restores WebSocket on dispose and ignores late socket events after dispose and reinstall", () => {
         const readWsSend = () =>
             Object.getOwnPropertyDescriptor(FakeWebSocket.prototype, "send")?.value as unknown;
@@ -1281,6 +1332,11 @@ describe("measurePayloadBytes", () => {
         expect(measurePayloadBytes(backing)).toBe(20);
         expect(measurePayloadBytes(new SharedArrayBuffer(12))).toBe(12);
         expect(measurePayloadBytes(new Blob(["hi", "🚀"]))).toBe(6);
+        expect(measurePayloadBytes(new File(["abcde"], "a.txt"))).toBe(5);
+        expect(measurePayloadBytes(vm.runInNewContext("new ArrayBuffer(18)"))).toBe(18);
+        expect(measurePayloadBytes(vm.runInNewContext("new SharedArrayBuffer(14)"))).toBe(14);
+        expect(measurePayloadBytes({ [Symbol.toStringTag]: "Blob", size: 42 })).toBe(42);
+        expect(measurePayloadBytes({ [Symbol.toStringTag]: "File", size: 19 })).toBe(19);
 
         expect(measurePayloadBytes(12_345)).toBe(0);
         expect(measurePayloadBytes(null)).toBe(0);

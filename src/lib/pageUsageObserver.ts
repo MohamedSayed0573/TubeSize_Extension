@@ -129,22 +129,31 @@ export function isCountableWebSocketUrl(
     return matchUrlProtocol(socketUrl, inputUrl, baseUrl, /^(?:wss?|https?):$/);
 }
 
-export function measurePayloadBytes(data: unknown, coerceNonString?: boolean): number {
+let sharedTextEncoder: TextEncoder | undefined;
+
+function readBinaryBytes(data: unknown): number | undefined {
     if (ArrayBuffer.isView(data)) return data.byteLength;
-    if (
-        data instanceof ArrayBuffer ||
-        (typeof SharedArrayBuffer === "function" && data instanceof SharedArrayBuffer)
-    ) {
-        return data.byteLength;
-    }
-    if (typeof Blob === "function" && data instanceof Blob) return data.size;
+    if (typeof data !== "object" || data === null) return undefined;
+    const tag = Object.prototype.toString.call(data);
+    const prop =
+        tag === "[object ArrayBuffer]" || tag === "[object SharedArrayBuffer]"
+            ? "byteLength"
+            : tag === "[object Blob]" || tag === "[object File]"
+              ? "size"
+              : "";
+    const n: unknown = prop ? Reflect.get(data, prop) : undefined;
+    return typeof n === "number" ? n : undefined;
+}
+
+export function measurePayloadBytes(data: unknown, coerceNonString?: boolean): number {
+    const bin = readBinaryBytes(data);
+    if (bin !== undefined) return bin;
     // WebSocket.send() converts any other argument (null included) to a USVString.
     const text = typeof data === "string" ? data : coerceNonString ? String(data) : "";
     if (!text) return 0;
-    measurePayloadBytes.encoder ??= new TextEncoder();
-    return measurePayloadBytes.encoder.encode(text).byteLength;
+    sharedTextEncoder ??= new TextEncoder();
+    return sharedTextEncoder.encode(text).byteLength;
 }
-measurePayloadBytes.encoder = undefined as TextEncoder | undefined;
 
 export function computeRtcStatsDelta(
     report: RTCStatsReport | Iterable<unknown>,
@@ -211,7 +220,7 @@ function patchNetworkApis(
     m: UsageMeter,
     matchUrl: typeof matchUrlProtocol,
     hasLength: typeof hasPositiveContentLength,
-    measure: typeof measurePayloadBytes,
+    readBin: typeof readBinaryBytes,
 ): () => void {
     const cleanups: Array<() => void> = [];
     const own = Object.getOwnPropertyDescriptor;
@@ -297,19 +306,40 @@ function patchNetworkApis(
 
     const BaseWs = scope.WebSocket;
     if (typeof BaseWs === "function") {
+        let enc: TextEncoder | undefined;
+        const utf8Bytes = (text: string) =>
+            text ? (enc ??= new TextEncoder()).encode(text).byteLength : 0;
         const proto = BaseWs.prototype;
         const sendDesc = own(proto, "send");
         const baseSend: WebSocket["send"] = sendDesc?.value;
         if (sendDesc && typeof baseSend === "function") {
             proto.send = function (...args: Parameters<WebSocket["send"]>) {
-                const bytes = measure(args[0], true);
-                Reflect.apply(baseSend, this, args);
-                if (matchUrl(this.url, undefined, m.base(), wsRe)) m.add(bytes);
+                if (
+                    this.readyState !== 1 ||
+                    !args.length ||
+                    !matchUrl(this.url, undefined, m.base(), wsRe)
+                ) {
+                    Reflect.apply(baseSend, this, args);
+                    return;
+                }
+                const raw: unknown = args[0];
+                const bin = readBin(raw);
+                if (bin !== undefined) {
+                    Reflect.apply(baseSend, this, args);
+                    m.add(bin);
+                    return;
+                }
+                const text = typeof raw === "string" ? raw : String(raw);
+                Reflect.apply(baseSend, this, [text]);
+                m.add(utf8Bytes(text));
             };
         }
         const detachers = new Set<() => void>();
         const reg = new FinalizationRegistry<() => void>((fn) => detachers.delete(fn));
-        const onMsg = (e: MessageEvent) => m.add(measure(e.data));
+        const onMsg = (e: MessageEvent) => {
+            const d: unknown = e.data;
+            m.add(readBin(d) ?? (typeof d === "string" ? utf8Bytes(d) : 0));
+        };
         scope.WebSocket = new Proxy(BaseWs, {
             construct(target, args, newTarget) {
                 const ws: WebSocket = Reflect.construct(target, args, newTarget);
@@ -347,7 +377,7 @@ function workerBootstrap(
     patchNet: typeof patchNetworkApis,
     matchUrl: typeof matchUrlProtocol,
     hasLength: typeof hasPositiveContentLength,
-    measure: typeof measurePayloadBytes,
+    readBin: typeof readBinaryBytes,
 ) {
     if (scope.tsPatched) return;
     scope.tsPatched = true;
@@ -366,7 +396,7 @@ function workerBootstrap(
         },
         matchUrl,
         hasLength,
-        measure,
+        readBin,
     );
 }
 
@@ -506,11 +536,7 @@ export function createPageUsageObserver({
         total += positiveNumber(event.data.bytes);
     }
 
-    function wrapBlobWorkerUrls(
-        scriptURL: unknown,
-        options: WorkerOptions | undefined,
-        nativeSend: unknown,
-    ): string[] | undefined {
+    function wrapBlobWorkerUrl(scriptURL: unknown, nativeSend: unknown): string | undefined {
         try {
             if (typeof scriptURL !== "string" && !(scriptURL instanceof URL)) return undefined;
             const url = new URL(scriptURL, getBaseURI());
@@ -524,22 +550,12 @@ export function createPageUsageObserver({
             if (typeof nativeSend === "function") Reflect.apply(nativeSend, xhr, []);
             const payload = xhr.status === 200 ? xhr.responseText : "";
             if (!payload) return undefined;
-            const toUrl = (...parts: string[]) =>
-                urlApi.createObjectURL(new BlobCtor(parts, { type: "text/javascript" }));
-            const bootstrap = `(${String(workerBootstrap)})(self,${[patchNetworkApis, matchUrlProtocol, hasPositiveContentLength, measurePayloadBytes].join()})`;
-            if (options?.type !== "module") return [toUrl(bootstrap, ";\n", payload)];
-            // Module graphs are fetched before any module runs, so the bootstrap still
-            // patches globals before the payload evaluates, and the payload keeps
-            // its own top-level imports.
-            const bootstrapUrl = toUrl(bootstrap);
-            const payloadUrl = toUrl(payload);
-            return [
-                toUrl(
-                    `import ${JSON.stringify(bootstrapUrl)};\nimport ${JSON.stringify(payloadUrl)};\n`,
-                ),
-                bootstrapUrl,
-                payloadUrl,
-            ];
+            const bootstrap = `(${String(workerBootstrap)})(self,${[patchNetworkApis, matchUrlProtocol, hasPositiveContentLength, readBinaryBytes].join()})`;
+            // Inline into one blob for both classic and module workers: a wrapper
+            // `import "blob:..."` fails under CSPs that allow `worker-src blob:` without `script-src blob:`.
+            return urlApi.createObjectURL(
+                new BlobCtor([bootstrap, ";\n", payload], { type: "text/javascript" }),
+            );
         } catch {
             return undefined;
         }
@@ -567,7 +583,7 @@ export function createPageUsageObserver({
                 meter,
                 matchUrlProtocol,
                 hasPositiveContentLength,
-                measurePayloadBytes,
+                readBinaryBytes,
             ),
         );
         if (typeof globalObject.RTCPeerConnection === "function") {
@@ -587,15 +603,12 @@ export function createPageUsageObserver({
         globalObject.Worker = new Proxy(baseWorker, {
             construct(target, args: [string | URL, WorkerOptions?], newTarget) {
                 const [scriptURL, options] = args;
-                const urls = wrapBlobWorkerUrls(scriptURL, options, nativeSend);
-                if (urls) {
-                    const revokeAll = () => {
-                        for (const u of urls) urlApi.revokeObjectURL(u);
-                    };
+                const wrappedUrl = wrapBlobWorkerUrl(scriptURL, nativeSend);
+                if (wrappedUrl) {
                     try {
                         const worker: Worker = Reflect.construct(
                             target,
-                            [urls[0], options],
+                            [wrappedUrl, options],
                             newTarget,
                         );
                         if (worker instanceof baseWorker) {
@@ -606,7 +619,7 @@ export function createPageUsageObserver({
                             const onErrorOrReady = () => {
                                 worker.removeEventListener("message", onReady);
                                 worker.removeEventListener("error", onErrorOrReady);
-                                revokeAll();
+                                urlApi.revokeObjectURL(wrappedUrl);
                             };
                             const onReady = (event: MessageEvent) => {
                                 if (!isWorkerMsg(event.data, "WORKER_READY")) return;
@@ -617,9 +630,9 @@ export function createPageUsageObserver({
                             worker.addEventListener("error", onErrorOrReady);
                             return worker;
                         }
-                        revokeAll();
+                        urlApi.revokeObjectURL(wrappedUrl);
                     } catch {
-                        revokeAll();
+                        urlApi.revokeObjectURL(wrappedUrl);
                     }
                 }
                 const fallback: Worker = Reflect.construct(target, args, newTarget);

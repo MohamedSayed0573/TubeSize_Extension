@@ -210,7 +210,7 @@ export const FIXTURE_WEBSOCKET_HANDLER: Bun.WebSocketHandler<undefined> = {
     },
 };
 
-function chunkedHtmlResponse(html: string): Response {
+function chunkedHtmlResponse(html: string, extraHeaders?: Record<string, string>): Response {
     const htmlBytes = new TextEncoder().encode(html);
     const htmlStream = new ReadableStream<Uint8Array>({
         start(controller) {
@@ -222,6 +222,7 @@ function chunkedHtmlResponse(html: string): Response {
         headers: {
             "content-type": "text/html; charset=utf-8",
             "cache-control": "no-store",
+            ...extraHeaders,
         },
     });
 }
@@ -328,6 +329,7 @@ function realtimeCallHtml(): string {
     async function runModuleWorker() {
       workerStatusEl.textContent = "Running module worker...";
       const source = \`
+        export const realtimeModuleWorker = true;
         const nextMessage = (ws) =>
           new Promise((resolve, reject) => {
             const onMessage = (ev) => {
@@ -576,7 +578,9 @@ export function handleUsageFixtureRequest(req: Request): Response | null {
     }
 
     if (url.pathname === "/__fixture__/realtime-call") {
-        return chunkedHtmlResponse(realtimeCallHtml());
+        return chunkedHtmlResponse(realtimeCallHtml(), {
+            "content-security-policy": "worker-src blob:; script-src 'self' 'unsafe-inline'",
+        });
     }
 
     if (url.pathname === "/__fixture__/fixed") {
