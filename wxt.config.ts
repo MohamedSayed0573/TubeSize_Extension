@@ -41,6 +41,25 @@ function perEntryVisualizer(): Plugin {
     };
 }
 
+function stripLocaleMetadata(): Plugin {
+    const localeJsonPattern = /[/\\]public[/\\]_locales[/\\][^/\\]+[/\\]messages\.json$/;
+    return {
+        name: "strip-locale-metadata",
+        enforce: "pre",
+        transform(code, id) {
+            if (!localeJsonPattern.test(id)) return null;
+            const parsed = JSON.parse(code) as Record<string, { message: string }>;
+            const slim = Object.fromEntries(
+                Object.entries(parsed).map(([key, entry]) => [key, { message: entry.message }]),
+            );
+            return {
+                code: JSON.stringify(slim),
+                map: null,
+            };
+        },
+    };
+}
+
 const shouldEmitStats = process.env.ANALYZE === "true";
 
 export default defineConfig({
@@ -80,6 +99,7 @@ export default defineConfig({
             "activeTab",
             "alarms",
             "downloads",
+            "scripting",
             "storage",
             "webRequest",
             ...(browser === "firefox" ? [] : ["favicon"]), // `favicon` is Chromium-only; unknown to Firefox so omitted there.
@@ -121,7 +141,11 @@ export default defineConfig({
         ],
     },
     vite: (env) => ({
-        plugins: [tailwindcss(), ...(shouldEmitStats ? [perEntryVisualizer()] : [])],
+        plugins: [
+            stripLocaleMetadata(),
+            tailwindcss(),
+            ...(shouldEmitStats ? [perEntryVisualizer()] : []),
+        ],
         build: {
             sourcemap: env.mode === "development",
         },

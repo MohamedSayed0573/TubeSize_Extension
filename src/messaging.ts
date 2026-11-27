@@ -1,5 +1,5 @@
 import type { MediaEstimate } from "@app-types/platforms.types";
-import type { AddUsageMessage, EstimateMediaMessage } from "@app-types/types";
+import type { AddUsageMessage, DetectedVideo, EstimateMediaMessage } from "@app-types/types";
 import type { MediaEstimateErrorCode } from "@lib/mediaEstimateError";
 import {
     defineExtensionMessaging,
@@ -19,6 +19,7 @@ export type BackgroundResponse<T> =
 interface BackgroundProtocolMap {
     estimateMedia(data: EstimateMediaMessage): BackgroundResponse<MediaEstimate>;
     addUsage(data: AddUsageMessage): BackgroundResponse<null>;
+    detectTabVideos(data: { tabId: number }): BackgroundResponse<DetectedVideo[]>;
 }
 
 interface TabProtocolMap {

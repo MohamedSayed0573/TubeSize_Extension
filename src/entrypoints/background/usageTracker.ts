@@ -3,6 +3,7 @@ import { isFirefox } from "@lib/browser";
 import { MAX_SAFE_BYTES } from "@/db";
 
 import { type DownloadDedup, isAttachmentNavigation } from "./downloadDedup";
+import type { TabMediaRegistry } from "./tabMediaRegistry";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 const CONTENT_LENGTH_HEADER = "content-length";
@@ -18,17 +19,34 @@ export type CompletedRequestDetails = chrome.webRequest.OnCompletedDetails & {
 export function setupTrackUsage(
     ingestion: UsageIngestion = createUsageIngestion(),
     dedup?: DownloadDedup,
+    tabMediaRegistry?: TabMediaRegistry,
 ): () => void {
+    const onBeforeMainFrameRequest = (
+        details: chrome.webRequest.OnBeforeRequestDetails,
+    ): chrome.webRequest.BlockingResponse | undefined => {
+        if (details.tabId !== NO_TAB_ID) {
+            tabMediaRegistry?.clearTab(details.tabId);
+        }
+        return undefined;
+    };
     const onRequestCompleted = (details: CompletedRequestDetails) => {
+        tabMediaRegistry?.observeRequest(details);
         void trackRequest(ingestion, details, dedup);
     };
-    const onTabRemoved = () => {
+    const onTabRemoved = (tabId: number) => {
+        tabMediaRegistry?.clearTab(tabId);
         if (!ingestion.hasPendingUsage) return;
         void ingestion.flush().catch((err: unknown) => {
             console.error("Failed to flush usage on tab close:", err);
         });
     };
 
+    if (tabMediaRegistry) {
+        chrome.webRequest.onBeforeRequest.addListener(onBeforeMainFrameRequest, {
+            urls: ["<all_urls>"],
+            types: ["main_frame"],
+        });
+    }
     // `extraHeaders` is Chromium-only; Firefox rejects it.
     chrome.webRequest.onCompleted.addListener(
         onRequestCompleted,
@@ -40,6 +58,9 @@ export function setupTrackUsage(
     const stopAutoFlush = ingestion.startAutoFlush();
 
     return () => {
+        if (tabMediaRegistry) {
+            chrome.webRequest.onBeforeRequest.removeListener(onBeforeMainFrameRequest);
+        }
         chrome.webRequest.onCompleted.removeListener(onRequestCompleted);
         chrome.tabs.onRemoved.removeListener(onTabRemoved);
         stopAutoFlush();
