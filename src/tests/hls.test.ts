@@ -697,22 +697,19 @@ describe("estimateGenericHls", () => {
         ).rejects.toMatchObject({ name: "MediaEstimateError", code: "no_formats" });
 
         await expect(
-            estimateGenericHls("https://cdn.example.com/stalled-body.m3u8", {
+            estimateGenericHls("https://cdn.example.com/slow.m3u8", {
                 sleep: instantSleep,
                 timeoutMs: 30,
-                fetch: async () =>
-                    new Response(
-                        new ReadableStream({
-                            start() {
-                                // Never closes or enqueues.
-                            },
-                        }),
-                        { status: 200 },
-                    ),
+                fetch: async (_input, init) =>
+                    new Promise<Response>((_resolve, reject) => {
+                        init?.signal?.addEventListener("abort", () => {
+                            reject(new DOMException("Aborted", "AbortError"));
+                        });
+                    }),
             }),
         ).rejects.toMatchObject({ name: "MediaEstimateError", code: "network_error" });
 
-        // Oversized child playlist falls back to live master bandwidths without hanging or reading full body.
+        // Oversized child playlist falls back to live master bandwidths without reading full body.
         const master = [
             "#EXTM3U",
             "#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1280x720",
@@ -734,7 +731,10 @@ describe("estimateGenericHls", () => {
                         childCancelled = true;
                     },
                 });
-                return new Response(stream, { status: 200 });
+                return new Response(stream, {
+                    status: 200,
+                    headers: { "Content-Length": "512" },
+                });
             },
         });
         expect(childCancelled).toBe(true);

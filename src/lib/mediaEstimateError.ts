@@ -114,7 +114,6 @@ export interface FetchBoundedTextOptions {
 
 async function readBoundedResponseText(
     response: Response,
-    signal: AbortSignal,
     maxBytes: number,
     messagePrefix: string,
 ): Promise<string> {
@@ -130,92 +129,14 @@ async function readBoundedResponseText(
         }
     }
 
-    if (signal.aborted) {
-        await response.body?.cancel();
-        throw new MediaEstimateError("network_error", `${messagePrefix}: Request timed out`);
+    const text = await readResponseText(response, messagePrefix);
+    if (new TextEncoder().encode(text).byteLength > maxBytes) {
+        throw new MediaEstimateError(
+            "no_formats",
+            `${messagePrefix}: response exceeds ${maxBytes} bytes`,
+        );
     }
-
-    if (!response.body) {
-        let onAbort: (() => void) | undefined;
-        try {
-            const text = await new Promise<string>((resolve, reject) => {
-                onAbort = () => reject(new Error("Request timed out"));
-                signal.addEventListener("abort", onAbort, { once: true });
-                response.text().then(resolve, reject);
-            });
-            if (new TextEncoder().encode(text).byteLength > maxBytes) {
-                throw new MediaEstimateError(
-                    "no_formats",
-                    `${messagePrefix}: response exceeds ${maxBytes} bytes`,
-                );
-            }
-            return text;
-        } catch (err) {
-            if (isMediaEstimateError(err)) throw err;
-            const detail = err instanceof Error ? err.message : String(err);
-            throw new MediaEstimateError("network_error", `${messagePrefix}: ${detail}`, {
-                cause: err,
-            });
-        } finally {
-            if (onAbort) signal.removeEventListener("abort", onAbort);
-        }
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let totalBytes = 0;
-    let text = "";
-    let aborted = false;
-    let onAbort: (() => void) | undefined;
-
-    const abortPromise = new Promise<never>((_, reject) => {
-        onAbort = () => {
-            aborted = true;
-            void reader.cancel().catch(() => {});
-            reject(new MediaEstimateError("network_error", `${messagePrefix}: Request timed out`));
-        };
-        signal.addEventListener("abort", onAbort, { once: true });
-    });
-    abortPromise.catch(() => {});
-
-    try {
-        while (true) {
-            const { done, value } = await Promise.race([reader.read(), abortPromise]);
-            if (aborted || signal.aborted) {
-                throw new MediaEstimateError(
-                    "network_error",
-                    `${messagePrefix}: Request timed out`,
-                );
-            }
-            if (done) break;
-            if (!value) continue;
-
-            totalBytes += value.byteLength;
-            if (totalBytes > maxBytes) {
-                await reader.cancel();
-                throw new MediaEstimateError(
-                    "no_formats",
-                    `${messagePrefix}: response exceeds ${maxBytes} bytes`,
-                );
-            }
-            text += decoder.decode(value, { stream: true });
-        }
-        text += decoder.decode();
-        return text;
-    } catch (err) {
-        if (isMediaEstimateError(err)) throw err;
-        const detail = aborted
-            ? "Request timed out"
-            : err instanceof Error
-              ? err.message
-              : String(err);
-        throw new MediaEstimateError("network_error", `${messagePrefix}: ${detail}`, {
-            cause: err,
-        });
-    } finally {
-        if (onAbort) signal.removeEventListener("abort", onAbort);
-        reader.releaseLock();
-    }
+    return text;
 }
 
 export async function fetchBoundedText(
@@ -243,12 +164,7 @@ export async function fetchBoundedText(
                 forbiddenCode: options.forbiddenCode,
             });
         }
-        const text = await readBoundedResponseText(
-            res.response,
-            controller.signal,
-            maxBytes,
-            options.readErrorPrefix,
-        );
+        const text = await readBoundedResponseText(res.response, maxBytes, options.readErrorPrefix);
         return { text, url: res.response.url || url.toString() };
     } finally {
         clearTimeout(timeout);
