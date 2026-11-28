@@ -170,9 +170,14 @@ describe("estimateGenericDash", () => {
         ).rejects.toMatchObject({ name: "MediaEstimateError", code: "unavailable" });
     });
 
-    test("sums per-period video and audio sizes separately across multi-period VOD manifests", async () => {
+    test("uses the first Period with video formats and enforces credentials, size, and timeout bounds", async () => {
         const multiPeriodMpd = `<?xml version="1.0" encoding="UTF-8"?>
 <MPD type="static" mediaPresentationDuration="PT120S">
+  <Period duration="PT10S">
+    <AdaptationSet contentType="audio" mimeType="audio/mp4">
+      <Representation id="a0" bandwidth="128000" codecs="mp4a.40.2" />
+    </AdaptationSet>
+  </Period>
   <Period duration="PT60S">
     <AdaptationSet contentType="video" mimeType="video/mp4">
       <Representation id="v1" width="1920" height="1080" bandwidth="8000000" codecs="avc1.640028" />
@@ -208,62 +213,18 @@ describe("estimateGenericDash", () => {
             audio: {
                 formatId: 0,
                 codec: "aac",
-                bitrate: 112_000,
-                bytesPerSecond: 14_000,
-                sizeBytes: 1_680_000,
+                bitrate: 160_000,
+                bytesPerSecond: 20_000,
+                sizeBytes: 2_400_000,
                 itags: [],
             },
             formats: [
                 {
                     kind: "vod",
                     resolution: 1080,
-                    sizePerSecondBytes: 562_500,
-                    sizeBytes: 67_500_000,
+                    sizePerSecondBytes: 1_000_000,
+                    sizeBytes: 120_000_000,
                     codec: "avc",
-                },
-            ],
-        });
-    });
-
-    test("resolves multi-period start offsets and enforces manifest size and timeout bounds", async () => {
-        const startOffsetMpd = `<?xml version="1.0"?>
-<MPD type="static" mediaPresentationDuration="PT90S">
-  <Period start="PT0S">
-    <AdaptationSet contentType="video" mimeType="video/mp4">
-      <Representation height="1080" bandwidth="4000000" />
-      <Representation height="720" bandwidth="2000000" />
-    </AdaptationSet>
-  </Period>
-  <Period start="PT30S">
-    <AdaptationSet contentType="video" mimeType="video/mp4">
-      <Representation height="720" bandwidth="1000000" />
-    </AdaptationSet>
-  </Period>
-</MPD>`;
-
-        const estimate = await estimateGenericDash("https://cdn.example.com/offsets.mpd", {
-            sleep: instantSleep,
-            fetch: async () => new Response(startOffsetMpd, { status: 200 }),
-        });
-
-        expect(estimate).toEqual({
-            platform: "generic",
-            contentType: "vod",
-            durationSeconds: 90,
-            formats: [
-                {
-                    kind: "vod",
-                    resolution: 1080,
-                    // 30s @ 500 KB/s (15 MB) + 60s @ 125 KB/s (7.5 MB fallback to 720p) = 22.5 MB
-                    sizeBytes: 22_500_000,
-                    sizePerSecondBytes: 250_000,
-                },
-                {
-                    kind: "vod",
-                    resolution: 720,
-                    // 30s @ 250 KB/s (7.5 MB) + 60s @ 125 KB/s (7.5 MB) = 15 MB
-                    sizeBytes: 15_000_000,
-                    sizePerSecondBytes: 15_000_000 / 90,
                 },
             ],
         });
@@ -272,7 +233,7 @@ describe("estimateGenericDash", () => {
             estimateGenericDash("https://cdn.example.com/huge.mpd", {
                 sleep: instantSleep,
                 maxManifestBytes: 64,
-                fetch: async () => new Response(startOffsetMpd, { status: 200 }),
+                fetch: async () => new Response(multiPeriodMpd, { status: 200 }),
             }),
         ).rejects.toMatchObject({ name: "MediaEstimateError", code: "no_formats" });
 
@@ -288,58 +249,5 @@ describe("estimateGenericDash", () => {
                     }),
             }),
         ).rejects.toMatchObject({ name: "MediaEstimateError", code: "network_error" });
-    });
-
-    test("resolves implicit Period starts from preceding Period ends before estimating sizes", async () => {
-        // 90s MPD with (start, duration): (0,10), (omitted,omitted), (30,15), (omitted,omitted), (50,40)
-        // Implicit starts are 10s and 45s -> durations are 10, 20, 15, 5, 40.
-        // Period 2 @ 8 Mbps (20s = 20 MB) + other 70s @ 0.8 Mbps (7 MB) = 27 MB.
-        const implicitStartMpd = `<?xml version="1.0" encoding="UTF-8"?>
-<MPD type="static" mediaPresentationDuration="PT90S">
-  <Period start="PT0S" duration="PT10S">
-    <AdaptationSet contentType="video" mimeType="video/mp4">
-      <Representation height="1080" bandwidth="800000" />
-    </AdaptationSet>
-  </Period>
-  <Period>
-    <AdaptationSet contentType="video" mimeType="video/mp4">
-      <Representation height="1080" bandwidth="8000000" />
-    </AdaptationSet>
-  </Period>
-  <Period start="PT30S" duration="PT15S">
-    <AdaptationSet contentType="video" mimeType="video/mp4">
-      <Representation height="1080" bandwidth="800000" />
-    </AdaptationSet>
-  </Period>
-  <Period>
-    <AdaptationSet contentType="video" mimeType="video/mp4">
-      <Representation height="1080" bandwidth="800000" />
-    </AdaptationSet>
-  </Period>
-  <Period start="PT50S" duration="PT40S">
-    <AdaptationSet contentType="video" mimeType="video/mp4">
-      <Representation height="1080" bandwidth="800000" />
-    </AdaptationSet>
-  </Period>
-</MPD>`;
-
-        const estimate = await estimateGenericDash("https://cdn.example.com/implicit.mpd", {
-            sleep: instantSleep,
-            fetch: async () => new Response(implicitStartMpd, { status: 200 }),
-        });
-
-        expect(estimate).toEqual({
-            platform: "generic",
-            contentType: "vod",
-            durationSeconds: 90,
-            formats: [
-                {
-                    kind: "vod",
-                    resolution: 1080,
-                    sizeBytes: 27_000_000,
-                    sizePerSecondBytes: 300_000,
-                },
-            ],
-        });
     });
 });

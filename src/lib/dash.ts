@@ -24,7 +24,7 @@ export type GenericDashOptions = {
     maxManifestBytes?: number;
 };
 
-function parseIsoSeconds(iso: string, allowZero: boolean): number | undefined {
+function parseIsoDuration(iso: string): number | undefined {
     const trimmed = iso.trim();
     const match = ISO_DURATION_REGEX.exec(trimmed);
     if (!match) return undefined;
@@ -38,12 +38,7 @@ function parseIsoSeconds(iso: string, allowZero: boolean): number | undefined {
     const seconds = secondsStr ? Number(secondsStr) : 0;
     const total = days * 86_400 + hours * 3_600 + minutes * 60 + seconds;
 
-    if (!Number.isFinite(total)) return undefined;
-    return allowZero ? (total >= 0 ? total : undefined) : total > 0 ? total : undefined;
-}
-
-function parseIsoDuration(iso: string): number | undefined {
-    return parseIsoSeconds(iso, false);
+    return Number.isFinite(total) && total > 0 ? total : undefined;
 }
 
 function parseFrameRate(raw: string | undefined): number | undefined {
@@ -105,7 +100,6 @@ type DashAudioCandidate = {
 };
 
 type ParsedDashPeriod = {
-    start?: number;
     duration?: number;
     videos: Map<number, DashVideoCandidate>;
     audio?: DashAudioCandidate;
@@ -176,96 +170,6 @@ function parseAdaptationSets(
     return { videos: videoByResolution, audio: bestAudio };
 }
 
-function resolveKnownPeriodDurations(
-    periods: readonly ParsedDashPeriod[],
-    totalBoundary: number | undefined,
-    isStatic: boolean,
-): Array<number | undefined> {
-    const starts = periods.map((period) => period.start);
-    const durations = periods.map((period) => period.duration);
-
-    if (isStatic && starts.length > 0 && starts[0] === undefined) {
-        starts[0] = 0;
-    }
-
-    let changed = true;
-    while (changed) {
-        changed = false;
-        for (let index = 0; index < periods.length; index++) {
-            if (starts[index] === undefined && index > 0) {
-                const prevStart = starts[index - 1];
-                const prevDuration = durations[index - 1];
-                if (prevStart !== undefined && prevDuration !== undefined) {
-                    starts[index] = prevStart + prevDuration;
-                    changed = true;
-                }
-            }
-            if (durations[index] === undefined) {
-                const start = starts[index];
-                if (start !== undefined) {
-                    const nextStart =
-                        index + 1 < periods.length ? starts[index + 1] : totalBoundary;
-                    if (nextStart !== undefined && nextStart > start) {
-                        durations[index] = nextStart - start;
-                        changed = true;
-                    }
-                }
-            }
-        }
-    }
-
-    return durations;
-}
-
-function resolvePeriodDurations(
-    periods: ParsedDashPeriod[],
-    totalDuration: number,
-    mpdDuration: number | undefined,
-    isStatic: boolean,
-): number[] {
-    if (periods.length === 0) return [];
-
-    const totalBoundary = mpdDuration ?? (totalDuration > 0 ? totalDuration : undefined);
-    const durations = resolveKnownPeriodDurations(periods, totalBoundary, isStatic);
-
-    if (!(totalDuration > 0)) {
-        return durations.map((duration) => duration ?? 0);
-    }
-
-    let knownSum = 0;
-    let unknownCount = 0;
-    for (const duration of durations) {
-        if (duration !== undefined) knownSum += duration;
-        else unknownCount++;
-    }
-
-    if (unknownCount === 0 && knownSum > 0) {
-        const scale = totalDuration / knownSum;
-        return durations.map((duration) => (duration ?? 0) * scale);
-    }
-
-    if (unknownCount > 0 && knownSum < totalDuration) {
-        const share = (totalDuration - knownSum) / unknownCount;
-        return durations.map((duration) => duration ?? share);
-    }
-
-    const equalShare = totalDuration / periods.length;
-    return periods.map(() => equalShare);
-}
-
-function selectPeriodVideoForResolution(
-    periodVideos: Map<number, DashVideoCandidate>,
-    targetResolution: number,
-): DashVideoCandidate | undefined {
-    const exact = periodVideos.get(targetResolution);
-    if (exact) return exact;
-    if (periodVideos.size === 0) return undefined;
-
-    const sorted = [...periodVideos.values()].toSorted((a, b) => b.resolution - a.resolution);
-    const lowerOrEqual = sorted.find((candidate) => candidate.resolution <= targetResolution);
-    return lowerOrEqual ?? sorted.at(-1);
-}
-
 export async function estimateGenericDash(
     url: string,
     options: GenericDashOptions = {},
@@ -297,123 +201,72 @@ export async function estimateGenericDash(
     const mpdDuration = parseIsoDuration(mpd.attr("mediaPresentationDuration") ?? "");
 
     const periodNodes = mpd.find("Period");
-    const periods: ParsedDashPeriod[] = [];
+    let selectedPeriod: ParsedDashPeriod | undefined;
+    let fallbackAudio: DashAudioCandidate | undefined;
+
     if (periodNodes.length > 0) {
         periodNodes.each((_, periodNode) => {
             const period = $(periodNode);
             const parsed = parseAdaptationSets($, period);
-            periods.push({
-                start: parseIsoSeconds(period.attr("start") ?? "", true),
-                duration: parseIsoDuration(period.attr("duration") ?? ""),
-                videos: parsed.videos,
-                audio: parsed.audio,
-            });
+            if (!fallbackAudio && parsed.audio) {
+                fallbackAudio = parsed.audio;
+            }
+            if (!selectedPeriod && parsed.videos.size > 0) {
+                selectedPeriod = {
+                    duration: parseIsoDuration(period.attr("duration") ?? ""),
+                    videos: parsed.videos,
+                    audio: parsed.audio,
+                };
+            }
         });
     } else {
         const parsed = parseAdaptationSets($, mpd);
-        periods.push({
-            videos: parsed.videos,
-            audio: parsed.audio,
-        });
+        if (parsed.videos.size > 0) {
+            selectedPeriod = {
+                videos: parsed.videos,
+                audio: parsed.audio,
+            };
+        }
+    }
+
+    if (!selectedPeriod) {
+        throw new MediaEstimateError("no_formats", "No video formats found in DASH manifest");
     }
 
     const isStatic = mpdType !== "dynamic";
-    let periodDurationSum = 0;
-    for (const duration of resolveKnownPeriodDurations(periods, mpdDuration, isStatic)) {
-        if (duration !== undefined) periodDurationSum += duration;
-    }
-
-    const durationSeconds =
-        explicitDuration ?? mpdDuration ?? (periodDurationSum > 0 ? periodDurationSum : 0);
-
+    const durationSeconds = explicitDuration ?? mpdDuration ?? selectedPeriod.duration ?? 0;
     const isVod = (isStatic && durationSeconds > 0) || explicitDuration !== undefined;
     const titleMeta = options.title ? { title: options.title } : {};
+    const videos = [...selectedPeriod.videos.values()].toSorted(
+        (a, b) => b.resolution - a.resolution,
+    );
+    const selectedAudio = selectedPeriod.audio ?? fallbackAudio;
+
+    let audio: AudioStreamInfo | undefined;
+    if (selectedAudio) {
+        const bytesPerSecond = selectedAudio.bandwidth / 8;
+        audio = {
+            formatId: 0,
+            ...(selectedAudio.codec ? { codec: selectedAudio.codec } : {}),
+            bitrate: selectedAudio.bandwidth,
+            bytesPerSecond,
+            sizeBytes: Math.round(bytesPerSecond * (isVod ? durationSeconds : 3600)),
+            itags: [],
+        };
+    }
 
     if (isVod) {
-        const periodDurations = resolvePeriodDurations(
-            periods,
-            durationSeconds,
-            mpdDuration,
-            isStatic,
-        );
-        const allResolutions = new Set<number>();
-        for (const period of periods) {
-            for (const resolution of period.videos.keys()) {
-                allResolutions.add(resolution);
-            }
-        }
-
-        const hasResolvedHeight = [...allResolutions].some((resolution) => resolution > 0);
-        const resolutions = [...allResolutions]
-            .filter((resolution) => !hasResolvedHeight || resolution > 0)
-            .toSorted((a, b) => b - a);
-
-        if (resolutions.length === 0) {
-            throw new MediaEstimateError("no_formats", "No video formats found in DASH manifest");
-        }
-
-        const formats: VodMediaFormat[] = resolutions.map((resolution) => {
-            let totalBytes = 0;
-            let dominant: DashVideoCandidate | undefined;
-            let dominantBytes = -1;
-
-            for (let index = 0; index < periods.length; index++) {
-                const period = periods[index]!;
-                const periodDuration = periodDurations[index] ?? 0;
-                if (!(periodDuration > 0)) continue;
-
-                const candidate = selectPeriodVideoForResolution(period.videos, resolution);
-                if (!candidate) continue;
-
-                const periodBytes = (candidate.bandwidth / 8) * periodDuration;
-                totalBytes += periodBytes;
-                if (periodBytes > dominantBytes) {
-                    dominantBytes = periodBytes;
-                    dominant = candidate;
-                }
-            }
-
+        const formats: VodMediaFormat[] = videos.map((video) => {
+            const sizePerSecondBytes = video.bandwidth / 8;
             return {
                 kind: "vod",
-                resolution,
-                sizePerSecondBytes: durationSeconds > 0 ? totalBytes / durationSeconds : 0,
-                sizeBytes: Math.round(totalBytes),
-                ...(dominant?.fps !== undefined ? { fps: dominant.fps } : {}),
-                ...(dominant?.codec ? { codec: dominant.codec } : {}),
+                resolution: video.resolution,
+                sizePerSecondBytes,
+                sizeBytes: Math.round(sizePerSecondBytes * durationSeconds),
+                ...(video.fps !== undefined ? { fps: video.fps } : {}),
+                ...(video.codec ? { codec: video.codec } : {}),
             };
         });
-
-        let totalAudioBytes = 0;
-        let hasAudio = false;
-        let dominantAudioCodec: AudioCodec | undefined;
-        let dominantAudioBytes = -1;
-
-        for (let index = 0; index < periods.length; index++) {
-            const period = periods[index]!;
-            const periodDuration = periodDurations[index] ?? 0;
-            if (!period.audio || !(periodDuration > 0)) continue;
-
-            hasAudio = true;
-            const periodBytes = (period.audio.bandwidth / 8) * periodDuration;
-            totalAudioBytes += periodBytes;
-            if (periodBytes > dominantAudioBytes) {
-                dominantAudioBytes = periodBytes;
-                dominantAudioCodec = period.audio.codec;
-            }
-        }
-
-        let audio: AudioStreamInfo | undefined;
-        if (hasAudio && totalAudioBytes > 0) {
-            const bytesPerSecond = durationSeconds > 0 ? totalAudioBytes / durationSeconds : 0;
-            audio = {
-                formatId: 0,
-                ...(dominantAudioCodec ? { codec: dominantAudioCodec } : {}),
-                bitrate: Math.round(bytesPerSecond * 8),
-                bytesPerSecond,
-                sizeBytes: Math.round(totalAudioBytes),
-                itags: [],
-            };
-        }
 
         return {
             platform: "generic",
@@ -422,30 +275,6 @@ export async function estimateGenericDash(
             ...(audio ? { audio } : {}),
             durationSeconds,
             formats,
-        };
-    }
-
-    const reversedPeriods = periods.toReversed();
-    const activePeriod = reversedPeriods.find((period) => period.videos.size > 0);
-    if (!activePeriod) {
-        throw new MediaEstimateError("no_formats", "No video formats found in DASH manifest");
-    }
-
-    const videos = [...activePeriod.videos.values()].toSorted(
-        (a, b) => b.resolution - a.resolution,
-    );
-    const liveAudio = activePeriod.audio ?? reversedPeriods.find((period) => period.audio)?.audio;
-
-    let audio: AudioStreamInfo | undefined;
-    if (liveAudio) {
-        const bytesPerSecond = liveAudio.bandwidth / 8;
-        audio = {
-            formatId: 0,
-            ...(liveAudio.codec ? { codec: liveAudio.codec } : {}),
-            bitrate: liveAudio.bandwidth,
-            bytesPerSecond,
-            sizeBytes: Math.round(bytesPerSecond * 3600),
-            itags: [],
         };
     }
 
