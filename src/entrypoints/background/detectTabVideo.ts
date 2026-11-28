@@ -139,14 +139,12 @@ type ManifestGroup = {
     kind: "hls" | "dash";
     primary: ManifestEntry;
     urls: Set<string>;
-    firstObservedAt: number;
     latestObservedAt: number;
 };
 
 type PendingMseVideo = {
     frame: FrameScanResult;
     video: ScannedVideo;
-    domOrder: number;
 };
 
 function normalizeMimeType(mimeType: string | undefined): string | undefined {
@@ -235,7 +233,6 @@ function groupObservedManifests(manifests: readonly ManifestEntry[]): ManifestGr
                 kind: entry.kind,
                 primary: entry,
                 urls: new Set([entry.url]),
-                firstObservedAt: entry.observedAt,
                 latestObservedAt: entry.observedAt,
             });
         }
@@ -248,33 +245,15 @@ function pairPlayersWithGroups(
     players: readonly PendingMseVideo[],
     groups: readonly ManifestGroup[],
 ): Array<{ player: PendingMseVideo; group: ManifestGroup }> {
-    const selected = groups
-        .toSorted(
-            (a, b) =>
-                b.latestObservedAt - a.latestObservedAt || b.firstObservedAt - a.firstObservedAt,
-        )
-        .slice(0, players.length);
-
-    if (selected.length === 0) return [];
-
-    // When fewer manifest groups than players exist, prefer playing players so
-    // an active stream is not assigned to an idle placeholder element. Keep the
-    // chosen players in DOM order and pair them chronologically with the
-    // selected groups so multiple players do not swap manifests.
-    const chosenPlayers = [
+    const orderedPlayers = [
         ...players.filter((entry) => entry.video.isPlaying),
         ...players.filter((entry) => !entry.video.isPlaying),
-    ]
-        .slice(0, selected.length)
-        .toSorted((a, b) => a.domOrder - b.domOrder);
-
-    const chronologicalGroups = selected.toSorted(
-        (a, b) => a.firstObservedAt - b.firstObservedAt || a.id - b.id,
-    );
-
-    return chosenPlayers.map((player, index) => ({
-        player,
-        group: chronologicalGroups[index]!,
+    ];
+    const orderedGroups = groups.toSorted((a, b) => b.latestObservedAt - a.latestObservedAt);
+    const count = Math.min(orderedPlayers.length, orderedGroups.length);
+    return Array.from({ length: count }, (_, index) => ({
+        player: orderedPlayers[index]!,
+        group: orderedGroups[index]!,
     }));
 }
 
@@ -356,9 +335,7 @@ export function selectDetectedVideo(
         }
     }
 
-    const framesWithMseVideos = new Set<number>();
     const pendingMseByFrame = new Map<number, PendingMseVideo[]>();
-    let domOrder = 0;
 
     for (const frame of frames) {
         for (const iframe of frame.iframes) {
@@ -422,7 +399,6 @@ export function selectDetectedVideo(
 
             if (!playable?.kind) {
                 if (candidates.some((candidate) => candidate.url.startsWith("blob:"))) {
-                    framesWithMseVideos.add(frame.frameId);
                     const list = pendingMseByFrame.get(frame.frameId) ?? [];
                     list.push({
                         frame,
@@ -430,7 +406,6 @@ export function selectDetectedVideo(
                             ...video,
                             title,
                         },
-                        domOrder: domOrder++,
                     });
                     pendingMseByFrame.set(frame.frameId, list);
                 }
@@ -453,16 +428,11 @@ export function selectDetectedVideo(
         }
     }
 
-    const unmatchedPlayers: PendingMseVideo[] = [];
     for (const [frameId, framePlayers] of pendingMseByFrame) {
         const frameGroups = manifestGroups.filter(
             (group) => group.frameId === frameId && !claimedGroupIds.has(group.id),
         );
-        const pairs = pairPlayersWithGroups(framePlayers, frameGroups);
-        const matchedOrders = new Set<number>();
-
-        for (const { player, group } of pairs) {
-            matchedOrders.add(player.domOrder);
+        for (const { player, group } of pairPlayersWithGroups(framePlayers, frameGroups)) {
             claimedGroupIds.add(group.id);
             add({
                 source: toGenericSource(group.kind, group.primary.url, player.video),
@@ -477,28 +447,6 @@ export function selectDetectedVideo(
         // are typically stale streams from in-page video switches.
         for (const group of frameGroups) {
             claimedGroupIds.add(group.id);
-        }
-
-        for (const player of framePlayers) {
-            if (!matchedOrders.has(player.domOrder)) {
-                unmatchedPlayers.push(player);
-            }
-        }
-    }
-
-    if (unmatchedPlayers.length > 0) {
-        const fallbackGroups = manifestGroups.filter(
-            (group) => !framesWithMseVideos.has(group.frameId) && !claimedGroupIds.has(group.id),
-        );
-        for (const { player, group } of pairPlayersWithGroups(unmatchedPlayers, fallbackGroups)) {
-            claimedGroupIds.add(group.id);
-            add({
-                source: toGenericSource(group.kind, group.primary.url, player.video),
-                title: player.video.title,
-                isPlaying: player.video.isPlaying,
-                currentResolution: player.video.videoHeight,
-                frameId: player.frame.frameId,
-            });
         }
     }
 
