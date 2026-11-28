@@ -125,11 +125,10 @@ describe("createTabMediaRegistry", () => {
         ]);
     });
 
-    test("deduplicates URLs, refreshes frame ownership, clears on clearTab, and enforces tab/entry bounds", async () => {
+    test("deduplicates URLs, refreshes frame ownership, clears on clearTab, and enforces per-tab entry bounds", async () => {
         let tick = 100;
         const registry = createTabMediaRegistry({
             maxEntriesPerTab: 2,
-            maxTabs: 2,
             now: () => ++tick,
             storage: null,
         });
@@ -171,10 +170,7 @@ describe("createTabMediaRegistry", () => {
         ]);
 
         registry.observeRequest(makeRequest({ tabId: 2, url: "https://cdn.example.com/t2.m3u8" }));
-        registry.observeRequest(makeRequest({ tabId: 3, url: "https://cdn.example.com/t3.m3u8" }));
-        expect(await registry.getTabMedia(1)).toEqual([]);
         expect(await registry.getTabMedia(2)).toHaveLength(1);
-        expect(await registry.getTabMedia(3)).toHaveLength(1);
 
         // Late main_frame onCompleted events must not wipe manifests fetched during parse.
         registry.observeRequest(
@@ -182,11 +178,11 @@ describe("createTabMediaRegistry", () => {
         );
         expect(await registry.getTabMedia(2)).toHaveLength(1);
 
+        registry.clearTab(1);
+        expect(await registry.getTabMedia(1)).toEqual([]);
+
         registry.clearTab(2);
         expect(await registry.getTabMedia(2)).toEqual([]);
-
-        registry.clearTab(3);
-        expect(await registry.getTabMedia(3)).toEqual([]);
     });
 
     test("persists and restores bounded observations across worker restarts and honors pre-hydration clearTab", async () => {

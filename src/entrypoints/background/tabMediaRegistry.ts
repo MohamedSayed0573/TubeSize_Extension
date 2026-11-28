@@ -41,8 +41,6 @@ export type TabMediaRegistry = {
 
 type RegistryOptions = {
     maxEntriesPerTab?: number;
-    maxFramesPerTab?: number;
-    maxTabs?: number;
     now?: () => number;
     storage?: TabMediaStorage | null;
 };
@@ -113,18 +111,8 @@ function upsertEntry(entries: ObservedMedia[], entry: ObservedMedia, maxEntriesP
     }
 }
 
-function enforceMapLimit<K, V>(map: Map<K, V>, limit: number) {
-    while (map.size > limit) {
-        const oldest = map.keys().next().value;
-        if (oldest === undefined) break;
-        map.delete(oldest);
-    }
-}
-
 export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaRegistry {
     const maxEntriesPerTab = options.maxEntriesPerTab ?? 20;
-    const maxFramesPerTab = options.maxFramesPerTab ?? 32;
-    const maxTabs = options.maxTabs ?? 100;
     const now = options.now ?? Date.now;
     const storage =
         options.storage === null ? undefined : (options.storage ?? defaultSessionStorage);
@@ -206,11 +194,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                     }
 
                     for (const [tabId, liveEntries] of tabs) {
-                        const existing = merged.get(tabId);
-                        if (existing) {
-                            merged.delete(tabId);
-                            merged.set(tabId, existing);
-                        } else if (liveEntries.length > 0) {
+                        if (!merged.has(tabId) && liveEntries.length > 0) {
                             merged.set(
                                 tabId,
                                 liveEntries.map((entry) => ({ ...entry })),
@@ -218,7 +202,6 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                         }
                     }
 
-                    enforceMapLimit(merged, maxTabs);
                     tabs.clear();
                     for (const [tabId, entries] of merged) {
                         tabs.set(tabId, entries);
@@ -244,10 +227,8 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
 
     function record(tabId: number, entry: ObservedMedia) {
         const entries = tabs.get(tabId) ?? [];
-        tabs.delete(tabId);
         upsertEntry(entries, entry, maxEntriesPerTab);
         tabs.set(tabId, entries);
-        enforceMapLimit(tabs, maxTabs);
         schedulePersist();
     }
 
@@ -289,12 +270,8 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             }
 
             const frames = embedFrames.get(tabId) ?? new Map<number, string>();
-            embedFrames.delete(tabId);
-            frames.delete(frameId);
             frames.set(frameId, url);
-            enforceMapLimit(frames, maxFramesPerTab);
             embedFrames.set(tabId, frames);
-            enforceMapLimit(embedFrames, maxTabs);
         },
         commitSubFrame(details) {
             if (
