@@ -119,117 +119,56 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
 
     const tabs = new Map<number, ObservedMedia[]>();
     const embedFrames = new Map<number, Map<number, string>>();
-    const clearedBeforeHydration = new Set<number>();
-    const clearedMediaFramesBeforeHydration = new Map<number, Set<number>>();
+    let queue: Promise<void> | undefined;
 
-    let hydrated = !storage;
-    let hydratePromise: Promise<void> | null = null;
-    let dirtyDuringHydration = false;
-    let persistScheduled = false;
-    let persistInFlight = false;
-    let persistAgain = false;
-
-    function flushPersist() {
-        if (!storage) return;
-        persistScheduled = false;
-        if (persistInFlight) {
-            persistAgain = true;
-            return;
+    async function hydrate() {
+        try {
+            const raw = await storage!.get();
+            if (!Array.isArray(raw)) return;
+            for (const [tabId, entries] of raw) {
+                if (entries.length > 0) {
+                    tabs.set(tabId, entries.slice(-maxEntriesPerTab));
+                }
+            }
+        } catch {
+            // Start empty when session storage is unavailable.
         }
-        persistInFlight = true;
+    }
+
+    function startQueue(): Promise<void> {
+        queue ??= storage ? hydrate() : Promise.resolve();
+        return queue;
+    }
+
+    async function persist() {
+        if (!storage) return;
         const snapshot: PersistedTabMedia = [...tabs.entries()].map(([tabId, entries]) => [
             tabId,
             entries.map((entry) => ({ ...entry })),
         ]);
-        void storage
-            .set(snapshot)
-            .catch(() => {})
-            .finally(() => {
-                persistInFlight = false;
-                if (persistAgain) {
-                    persistAgain = false;
-                    schedulePersist();
-                }
-            });
+        await storage.set(snapshot).catch(() => {});
     }
 
-    function schedulePersist() {
-        if (!storage) return;
-        if (!hydrated) {
-            dirtyDuringHydration = true;
-            void ensureHydrated();
+    function mutate(fn: () => boolean | void) {
+        if (!storage) {
+            fn();
             return;
         }
-        if (persistInFlight) {
-            persistAgain = true;
-            return;
-        }
-        if (persistScheduled) return;
-        persistScheduled = true;
-        queueMicrotask(flushPersist);
-    }
-
-    function ensureHydrated(): Promise<void> {
-        if (hydrated || !storage) return Promise.resolve();
-        if (!hydratePromise) {
-            const activeStorage = storage;
-            hydratePromise = (async () => {
-                try {
-                    const raw = await activeStorage.get();
-                    const persisted = Array.isArray(raw) ? raw : [];
-                    const merged = new Map<number, ObservedMedia[]>();
-
-                    for (const [tabId, persistedEntries] of persisted) {
-                        if (clearedBeforeHydration.has(tabId)) continue;
-                        const clearedMediaFrames = clearedMediaFramesBeforeHydration.get(tabId);
-                        const combined: ObservedMedia[] = [];
-                        for (const entry of persistedEntries.slice(-maxEntriesPerTab)) {
-                            if (clearedMediaFrames?.has(entry.frameId)) continue;
-                            upsertEntry(combined, entry, maxEntriesPerTab);
-                        }
-                        for (const entry of tabs.get(tabId) ?? []) {
-                            upsertEntry(combined, entry, maxEntriesPerTab);
-                        }
-                        if (combined.length > 0) merged.set(tabId, combined);
-                    }
-
-                    for (const [tabId, liveEntries] of tabs) {
-                        if (!merged.has(tabId) && liveEntries.length > 0) {
-                            merged.set(
-                                tabId,
-                                liveEntries.map((entry) => ({ ...entry })),
-                            );
-                        }
-                    }
-
-                    tabs.clear();
-                    for (const [tabId, entries] of merged) {
-                        tabs.set(tabId, entries);
-                    }
-
-                    clearedBeforeHydration.clear();
-                    clearedMediaFramesBeforeHydration.clear();
-                    hydrated = true;
-
-                    if (dirtyDuringHydration) {
-                        dirtyDuringHydration = false;
-                        schedulePersist();
-                    }
-                } catch {
-                    clearedBeforeHydration.clear();
-                    clearedMediaFramesBeforeHydration.clear();
-                    hydrated = true;
-                }
-            })();
-        }
-        return hydratePromise;
+        const previous = startQueue();
+        queue = (async () => {
+            await previous;
+            if (fn() !== false) {
+                await persist();
+            }
+        })();
     }
 
     function record(tabId: number, entry: ObservedMedia) {
-        const entries = tabs.get(tabId) ?? [];
-        upsertEntry(entries, entry, maxEntriesPerTab);
-        tabs.set(tabId, entries);
-        schedulePersist();
+        mutate(() => {
+            const entries = tabs.get(tabId) ?? [];
+            upsertEntry(entries, entry, maxEntriesPerTab);
+            tabs.set(tabId, entries);
+        });
     }
 
     return {
@@ -292,35 +231,23 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                 return;
             }
 
-            let persistedChanged = false;
-            const existingMedia = tabs.get(details.tabId);
-            if (existingMedia) {
+            mutate(() => {
+                const existingMedia = tabs.get(details.tabId);
+                if (!existingMedia) return false;
                 const remaining = existingMedia.filter(
                     (entry) => entry.frameId !== details.frameId,
                 );
-                if (remaining.length !== existingMedia.length) {
-                    persistedChanged = true;
-                    if (remaining.length > 0) {
-                        tabs.set(details.tabId, remaining);
-                    } else {
-                        tabs.delete(details.tabId);
-                    }
+                if (remaining.length === existingMedia.length) return false;
+                if (remaining.length > 0) {
+                    tabs.set(details.tabId, remaining);
+                } else {
+                    tabs.delete(details.tabId);
                 }
-            }
-
-            if (!hydrated) {
-                const clearedMedia =
-                    clearedMediaFramesBeforeHydration.get(details.tabId) ?? new Set<number>();
-                clearedMedia.add(details.frameId);
-                clearedMediaFramesBeforeHydration.set(details.tabId, clearedMedia);
-            }
-
-            if (persistedChanged || !hydrated) {
-                schedulePersist();
-            }
+                return true;
+            });
         },
         async getTabMedia(tabId) {
-            await ensureHydrated();
+            await startQueue();
             return (tabs.get(tabId) ?? []).map((entry) => ({ ...entry }));
         },
         getFrameUrl(tabId, frameId) {
@@ -328,11 +255,8 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             return embedFrames.get(tabId)?.get(frameId);
         },
         clearTab(tabId) {
-            if (!hydrated) clearedBeforeHydration.add(tabId);
-            clearedMediaFramesBeforeHydration.delete(tabId);
-            tabs.delete(tabId);
             embedFrames.delete(tabId);
-            schedulePersist();
+            mutate(() => tabs.delete(tabId));
         },
     };
 }
