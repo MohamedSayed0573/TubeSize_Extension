@@ -220,29 +220,18 @@ describe("createTabMediaRegistry", () => {
         expect(await thirdWorker.getTabMedia(8)).toHaveLength(1);
     });
 
-    test("tracks and persists embedded platform sub_frame URLs across restarts and clears on non-embed navigation", async () => {
-        const storage = createMemoryStorage();
-        const firstWorker = createTabMediaRegistry({ storage });
-        firstWorker.observeSubFrame(
-            12,
-            5,
+    test("tracks embedded platform sub_frame URLs in memory and clears on non-embed navigation", async () => {
+        const registry = createTabMediaRegistry({ storage: null });
+        registry.observeSubFrame(12, 5, "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1");
+        registry.observeSubFrame(12, 6, "https://example.com/non-embed");
+        expect(await registry.getFrameUrl(12, 5)).toBe(
             "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1",
         );
-        firstWorker.observeSubFrame(12, 6, "https://example.com/non-embed");
-        expect(await firstWorker.getFrameUrl(12, 5)).toBe(
-            "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1",
-        );
-        expect(await firstWorker.getFrameUrl(12, 6)).toBeUndefined();
-        await new Promise((resolve) => setTimeout(resolve, 0));
-
-        const secondWorker = createTabMediaRegistry({ storage });
-        expect(await secondWorker.getFrameUrl(12, 5)).toBe(
-            "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1",
-        );
+        expect(await registry.getFrameUrl(12, 6)).toBeUndefined();
 
         // Navigating that sub_frame to a non-embed URL removes the association.
-        secondWorker.observeSubFrame(12, 5, "https://example.com/other");
-        expect(await secondWorker.getFrameUrl(12, 5)).toBeUndefined();
+        registry.observeSubFrame(12, 5, "https://example.com/other");
+        expect(await registry.getFrameUrl(12, 5)).toBeUndefined();
     });
 
     test("invalidates stale subframe media only when a replacement document commits, preserving canceled navigations and other frames", async () => {
