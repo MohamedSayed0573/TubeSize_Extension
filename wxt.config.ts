@@ -101,6 +101,7 @@ export default defineConfig({
             "activeTab",
             "alarms",
             "downloads",
+            "scripting",
             "storage",
             "webRequest",
             ...(browser === "firefox" ? [] : ["favicon"]), // `favicon` is Chromium-only; unknown to Firefox so omitted there.

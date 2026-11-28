@@ -7,7 +7,8 @@ The Popup is the primary toolbar surface (`Alt+P` or extension icon), showing he
 - `popup-header` displays the title (or active video title + duration / `Live` badge) plus `Settings` and `Dashboard` action buttons.
 - `popup-today-usage-card` renders Today's cumulative usage button when `> 0 B` and opens `dashboard.html#/today` on click.
 - `popup-site-usage-card` renders today's cumulative usage button for the active HTTP/HTTPS tab's normalized `siteKey` (e.g. `Google Drive Usage`) and opens `dashboard.html#/site/<siteKey>` on click.
-- `popup-unsupported` displays `Usage tracking is enabled.` and `Open a YouTube, Twitch, or Kick video to see estimated data usage.` when the active tab is not YouTube, Twitch, or Kick.
+- `popup-unsupported` displays `Usage tracking is enabled.` and `Open a YouTube, Twitch, or Kick video to see estimated data usage.` when the active tab is not YouTube, Twitch, or Kick and has no detected embedded or generic video.
+- `popup-multiple-idle` displays `Multiple videos detected` and asks the user to play a video and reopen the popup when two or more paused videos exist on a non-platform tab (see [Embedded and generic video detection](./embedded-generic-videos.md)).
 - `popup-no-running-video` displays `No video is playing. Open a video or stream to see estimated data usage.` on supported platform home/directory pages without a running video.
 - `popup-changelog-notice` displays a one-time `New release v<version>` banner when `local:lastSeenVersion` differs from the installed extension version and hides permanently after dismissal.
 - `popup-footer-links` renders `GitHub` and `Support Me` links at the bottom of the popup.

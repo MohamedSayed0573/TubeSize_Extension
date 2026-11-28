@@ -6,7 +6,7 @@ This directory is the maintained source for verifying every user-facing behavior
 
 - Build the Chrome MV3 bundle (`bun run build`) or pass `--build` to `bun run verify start` / `bun run verify smoke`.
 - Run `bun run verify doctor` and require exit code `0`, confirming Chromium availability, a fresh `.output/chrome-mv3/manifest.json`, and clean MV3 service worker + popup boot. A stale build exits `2` (inconclusive) — rebuild and rerun `doctor` until it reports `fresh`.
-- Run `bun run verify smoke` for a fast single-session end-to-end check across usage tracking, YouTube toaster/quality menu/popup, Twitch & Kick live popups, Settings + Arabic RTL persistence, and Dashboard export/clear/import.
+- Run `bun run verify smoke` for a fast single-session end-to-end check across usage tracking, YouTube toaster/quality menu/popup, Twitch & Kick live popups, embedded/generic video detection, Settings + Arabic RTL persistence, and Dashboard export/clear/import.
 - Start an isolated session with `bun run verify start --seed full --lang en` (or `--seed empty` / `--target fixture:*` per recipe). Never drive a personal Chrome profile.
 - Always run `bun run verify stop` after verification and confirm proof artifacts remain intact under `.verify-evidence/`.
 
@@ -46,6 +46,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [Usage warning toaster](./usage-warning-toaster.md) covers bitrate threshold alerts on YouTube/Twitch/Kick VODs and live streams, resolution-change re-evaluation, `OK` vs daily suppression, Settings opt-out, and RTL layout.
 - [YouTube quality menu injection](./youtube-quality-menu.md) covers injected `.ytp-quality-menu` size badges for VOD and live streams, skipping `Auto`/Premium entries, dynamic panel opens, and SPA navigation cleanup.
 - [Platform size estimation (YouTube, Twitch & Kick)](./platform-size-estimation.md) covers active-tab toolbar popup size estimates across YouTube VOD/Shorts/Live, Advanced View codecs/itags/audio toggling, Twitch/Kick live HLS segment sampling vs ad fallback, VODs, caching, and non-video pages.
+- [Embedded and generic video detection](./embedded-generic-videos.md) covers on-demand non-platform tab detection for embedded YouTube/Twitch/Kick iframes, generic HLS and DASH (including Shadow DOM) MSE streams, direct HTML5 video probes, and the multi-video idle playback prompt in LTR and Arabic RTL.
 - [Popup shell, usage cards & changelog](./popup-video-inspector.md) covers the toolbar popup header, Today and current-site usage drill-down cards, unsupported-page and no-video states, one-time release changelog banner, and footer links.
 - [Settings & persistence](./settings-persistence.md) covers popup-to-settings navigation, Advanced View & Usage Limit Alert toggles, slider threshold control, language switching (`en`/`ar` RTL), footer links, and persistence across reload.
 - [Dashboard overview](./dashboard-overview.md) covers `StatsRow` summaries, `By Day` vs `By Site` charts, bar navigation, chart tooltips, empty vs seeded states, and RTL layout.

@@ -3,7 +3,9 @@ import { isMediaEstimateError, type MediaEstimateErrorCode } from "@lib/mediaEst
 
 import { onBackgroundMessage, type BackgroundResponse } from "@/messaging";
 
+import { detectTabVideo } from "./detectTabVideo";
 import { estimateMedia } from "./estimateMedia";
+import { createTabMediaRegistry, type TabMediaRegistry } from "./tabMediaRegistry";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 const MAX_USAGE_REPORT_BYTES = 1_000_000_000_000;
@@ -56,6 +58,7 @@ async function recordUsageFromTab(
 
 export function attachMessageHandler(
     ingestion: UsageIngestion = createUsageIngestion(),
+    tabMediaRegistry: TabMediaRegistry = createTabMediaRegistry(),
 ): () => void {
     const unsubscribers = [
         onBackgroundMessage("estimateMedia", ({ data }) =>
@@ -65,6 +68,9 @@ export function attachMessageHandler(
             toBackgroundResponse(() => recordUsageFromTab(ingestion, data, sender), {
                 logError: true,
             }),
+        ),
+        onBackgroundMessage("detectTabVideo", ({ data }) =>
+            toBackgroundResponse(() => detectTabVideo(data.tabId, tabMediaRegistry)),
         ),
     ];
 

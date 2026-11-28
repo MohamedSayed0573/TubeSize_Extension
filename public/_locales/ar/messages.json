@@ -183,6 +183,18 @@
             }
         }
     },
+    "popup_genericVideo": {
+        "message": "فيديو",
+        "description": "Fallback title for a generic detected video"
+    },
+    "popup_playVideoPrompt_title": {
+        "message": "تم اكتشاف عدة فيديوهات",
+        "description": "Popup heading shown when multiple paused videos exist on a page and none is playing"
+    },
+    "popup_playVideoPrompt_body": {
+        "message": "ابدأ تشغيل فيديو في هذه الصفحة، ثم أعد فتح TubeSize لمعرفة تقدير حجمه.",
+        "description": "Popup guidance asking the user to play one of the videos on a multi-video page"
+    },
     "popup_usageTrackingEnabled": {
         "message": "تتبع الاستهلاك مفعّل.",
         "description": "Info shown when usage tracking is enabled"

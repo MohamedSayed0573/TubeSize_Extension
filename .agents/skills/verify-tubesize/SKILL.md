@@ -52,13 +52,22 @@ Run `smoke` for a fast automated end-to-end check across TubeSize's core runtime
 bun run verify smoke [--build] [--timeout <ms>] [--json]
 ```
 
-`smoke` launches a single isolated Chromium session against the built `.output/chrome-mv3` extension and offline fixtures, auditing runtime issues after each of 5 deterministic flows:
+`smoke` launches a single isolated Chromium session against the built `.output/chrome-mv3` extension and offline fixtures, auditing runtime issues after each of 6 deterministic flows:
 
 1. `usage-tracking` — dual-path byte accounting (`webRequest` fixed `Content-Length`, chunked `fetch`/`XHR`/`blob:` `Worker`, `HEAD` exclusion) + toolbar badge (`"570K"`).
 2. `youtube-vod` — in-page usage warning toaster trigger & `OK` dismissal, `.ytp-quality-menu` size badge injection (skipping `Auto` and `1080p Premium`), and real toolbar popup estimation.
 3. `twitch-and-kick-live` — real toolbar popup estimation across Twitch and Kick live streams (`1080p`/`720p`/`480p` SI rates).
-4. `settings-and-rtl` — `advancedView` toggle + Arabic (`العربية`) RTL persistence across reload.
-5. `dashboard-lifecycle` — 14-day seed, JSON export, Clear All Usage Data (confirm + badge reset), and JSON import restore.
+4. `embedded-and-generic-video` — embedded YouTube iframe estimation and `watchHistory` attribution, generic HLS MSE master/variant grouping, generic DASH in Shadow DOM with separate audio, direct MP4 `HEAD` probe, and multi-video idle prompt switching to a playing clip.
+5. `settings-and-rtl` — `advancedView` toggle + Arabic (`العربية`) RTL persistence across reload.
+6. `dashboard-lifecycle` — 14-day seed, JSON export, Clear All Usage Data (confirm + badge reset), and JSON import restore.
+
+Run `live` to validate embedded and generic video detection against real, public, unauthenticated websites over the live internet (kept separate from offline `smoke` and CI):
+
+```bash
+bun run verify live [embed-youtube|generic-hls|generic-dash|generic-direct...] [--url <https://...>] [--build] [--timeout <ms>] [--json]
+```
+
+`live` launches a single isolated Chromium session against `.output/chrome-mv3` with no route mocks, exercises 4 curated unauthenticated sites (`developers.google.com/youtube/youtube_player_demo`, `hlsjs.video-dev.org/demo/`, `reference.dashif.org/.../dash-if-reference-player/index.html`, and `w3.org/2010/05/video/mediaevents.html`), cross-checks popup sizes and rates against independent ground truth (YouTube `adaptiveFormats`, observed `.m3u8` and `.mpd` manifests, and independent HTTP `Content-Length` probes within 3% tolerance), audits extension runtime issues (service worker, extension network, and popup), and reports `2` (inconclusive) honestly if an upstream site is unreachable or gated by an anti-bot challenge.
 
 Exit codes across all `verify` commands:
 
@@ -103,11 +112,13 @@ bun run verify screenshot .verify-evidence/<name>.png         # Capture 2x PNG p
 - **YouTube:** `fixture:youtube-vod`, `fixture:youtube-shorts`, `fixture:youtube-live`, `fixture:youtube-home`
 - **Twitch:** `fixture:twitch-live`, `fixture:twitch-live-ads`, `fixture:twitch-vod`, `fixture:twitch-directory`
 - **Kick:** `fixture:kick-live`, `fixture:kick-vod`, `fixture:kick-vod-slug`, `fixture:kick-browse`
+- **Embedded & generic videos:** `fixture:embed-youtube`, `fixture:generic-hls`, `fixture:generic-dash`, `fixture:generic-direct`, `fixture:multi-video`
 - **Subdomains:** `fixture:google-drive`
 
 ### Stable Handles in This Repo
 
 - Popup header actions: `button "Settings"`, `button "Dashboard"`
+- Popup multi-video idle prompt: `[data-popup-state="multiple-idle"]` (`Multiple videos detected` / Arabic: `تم اكتشاف عدة فيديوهات`)
 - Popup Advanced View audio switch: `switch "Include audio in sizes"`
 - Popup Changelog Notice dismiss button: `button "Dismiss"` (Arabic: `button "إغلاق"`, inside `<output>`)
 - Settings language combobox: `combobox "Language"` (`#language-select`, options `English` / `العربية`)
@@ -146,4 +157,5 @@ bun run verify stop
 - [scripts/verify/perf.ts](../../../scripts/verify/perf.ts) — Performance benchmarks for bundle size, uncached/cached popup size-estimation latency, cold Dashboard load latency, and extension memory/storage footprint.
 - [scripts/verify/seed.ts](../../../scripts/verify/seed.ts) — Deterministic 14-day (`full`) and 90-day (`heavy`) SI-unit IndexedDB seeder (compatible with Dexie `version(1)` / IndexedDB `10+`) and `inspectDb` via the MV3 service worker.
 - [scripts/verify/server.ts](../../../scripts/verify/server.ts) — Detached localhost HTTP server keeping the Playwright session warm between CLI commands and attaching to toolbar popups via `chrome.action.openPopup()`.
-- [scripts/verify/smoke.ts](../../../scripts/verify/smoke.ts) — Automated single-session end-to-end smoke suite (`bun run verify smoke`) covering usage tracking, YouTube toaster/quality menu/popup, Twitch & Kick live popups, Settings + Arabic RTL persistence, and Dashboard export/clear/import.
+- [scripts/verify/smoke.ts](../../../scripts/verify/smoke.ts) — Automated single-session end-to-end smoke suite (`bun run verify smoke`) covering usage tracking, YouTube toaster/quality menu/popup, Twitch & Kick live popups, embedded/generic video detection, Settings + Arabic RTL persistence, and Dashboard export/clear/import.
+- [scripts/verify/live.ts](../../../scripts/verify/live.ts) — Real-website validation suite (`bun run verify live`) testing embedded YouTube, generic HLS, generic DASH, and direct HTML5 video detection against curated unauthenticated public sites or a custom `--url`.

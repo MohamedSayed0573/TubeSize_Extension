@@ -5,6 +5,7 @@ import type { EstimateMediaMessage } from "@app-types/types";
 import {
     formatEstimateHeader,
     projectEstimateFormats,
+    requestGenericMediaEstimate,
     requestMediaEstimate,
 } from "@lib/mediaEstimate";
 import { MediaEstimateError, type MediaEstimateErrorCode } from "@lib/mediaEstimateError";
@@ -342,5 +343,62 @@ describe("formatEstimateHeader", () => {
         expect(
             formatEstimateHeader({ ...SAMPLE_YOUTUBE_LIVE, channelName: "", title: "" }).title,
         ).toBe("بث YouTube مباشر");
+        expect(
+            formatEstimateHeader({
+                platform: "generic",
+                contentType: "vod",
+                durationSeconds: 0,
+                formats: [{ kind: "vod", resolution: 0, sizeBytes: 1000, sizePerSecondBytes: 0 }],
+            }),
+        ).toEqual({ title: "فيديو", duration: undefined });
+    });
+
+    test("hides rate when generic VOD sizePerSecondBytes is zero and sends generic payload via requestGenericMediaEstimate", async () => {
+        const genericEstimate: VodMediaEstimate = {
+            platform: "generic",
+            contentType: "vod",
+            durationSeconds: 0,
+            formats: [{ kind: "vod", resolution: 0, sizeBytes: 5_000_000, sizePerSecondBytes: 0 }],
+        };
+        expect(projectEstimateFormats(genericEstimate)).toEqual([
+            {
+                kind: "vod",
+                key: 0,
+                resolution: 0,
+                sizeBytes: 5_000_000,
+                sizePerSecondBytes: 0,
+                hideRate: true,
+            },
+        ]);
+
+        const received: EstimateMediaMessage[] = [];
+        cleanups.push(
+            onBackgroundMessage("estimateMedia", ({ data }) => {
+                received.push(data);
+                return { success: true, data: genericEstimate };
+            }),
+        );
+
+        const estimate = await requestGenericMediaEstimate({
+            id: "direct:https://cdn.example.com/clip.mp4",
+            source: { kind: "direct", url: "https://cdn.example.com/clip.mp4", videoHeight: 720 },
+            title: "Clip",
+            isPlaying: true,
+            frameId: 0,
+        });
+
+        expect(estimate).toEqual(genericEstimate);
+        expect(received).toEqual([
+            {
+                url: "https://cdn.example.com/clip.mp4",
+                isFromPopup: true,
+                generic: {
+                    kind: "direct",
+                    url: "https://cdn.example.com/clip.mp4",
+                    videoHeight: 720,
+                    title: "Clip",
+                },
+            },
+        ]);
     });
 });

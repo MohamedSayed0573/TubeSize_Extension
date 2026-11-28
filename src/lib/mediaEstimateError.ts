@@ -1,4 +1,4 @@
-import type { FetchFailure } from "@lib/utils";
+import { fetchAndRetry, type FetchFailure, type FetchLike } from "@lib/utils";
 
 const MEDIA_ESTIMATE_ERROR_CODES = [
     "stream_offline",
@@ -94,4 +94,79 @@ export async function readResponseJson(
 ): Promise<unknown> {
     const text = await readResponseText(response, messagePrefix);
     return JSON.parse(text) as unknown;
+}
+
+const DEFAULT_MANIFEST_TIMEOUT_MS = 10_000;
+const DEFAULT_MAX_MANIFEST_BYTES = 2 * 1024 * 1024;
+
+export interface FetchBoundedTextOptions {
+    fetch?: FetchLike;
+    sleep?: (ms: number) => Promise<void>;
+    init?: RequestInit;
+    maxRetries?: number;
+    timeoutMs?: number;
+    maxBytes?: number;
+    fetchErrorPrefix: string;
+    readErrorPrefix: string;
+    notFoundCode?: MediaEstimateErrorCode;
+    forbiddenCode?: MediaEstimateErrorCode;
+}
+
+async function readBoundedResponseText(
+    response: Response,
+    maxBytes: number,
+    messagePrefix: string,
+): Promise<string> {
+    const contentLengthHeader = response.headers.get("content-length");
+    if (contentLengthHeader) {
+        const declaredBytes = Number(contentLengthHeader);
+        if (Number.isFinite(declaredBytes) && declaredBytes > maxBytes) {
+            await response.body?.cancel();
+            throw new MediaEstimateError(
+                "no_formats",
+                `${messagePrefix}: response exceeds ${maxBytes} bytes`,
+            );
+        }
+    }
+
+    const text = await readResponseText(response, messagePrefix);
+    if (new TextEncoder().encode(text).byteLength > maxBytes) {
+        throw new MediaEstimateError(
+            "no_formats",
+            `${messagePrefix}: response exceeds ${maxBytes} bytes`,
+        );
+    }
+    return text;
+}
+
+export async function fetchBoundedText(
+    url: string | URL,
+    options: FetchBoundedTextOptions,
+): Promise<{ text: string; url: string }> {
+    const timeoutMs = options.timeoutMs ?? DEFAULT_MANIFEST_TIMEOUT_MS;
+    const maxBytes = options.maxBytes ?? DEFAULT_MAX_MANIFEST_BYTES;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+        controller.abort(new DOMException("Request timed out", "TimeoutError"));
+    }, timeoutMs);
+
+    try {
+        const res = await fetchAndRetry(
+            url,
+            { ...options.init, signal: controller.signal },
+            options.maxRetries,
+            options.sleep,
+            options.fetch,
+        );
+        if (!res.success) {
+            throw classifyFetchFailure(res, `${options.fetchErrorPrefix}: ${res.error.message}`, {
+                notFoundCode: options.notFoundCode,
+                forbiddenCode: options.forbiddenCode,
+            });
+        }
+        const text = await readBoundedResponseText(res.response, maxBytes, options.readErrorPrefix);
+        return { text, url: res.response.url || url.toString() };
+    } finally {
+        clearTimeout(timeout);
+    }
 }

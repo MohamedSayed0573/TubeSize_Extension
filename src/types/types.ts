@@ -27,9 +27,52 @@ export type EstimateMediaMessage = {
     isFromPopup?: boolean;
     html?: string;
     av1Supported?: boolean;
+    generic?: GenericEstimateRequest;
 };
 
 export type PlatformId = (typeof CONFIG.PLATFORMS)[number];
+
+export type DetectedVideoSource =
+    | {
+          kind: "platform-embed";
+          platform: PlatformId;
+          url: string;
+          embedUrl: string;
+      }
+    | {
+          kind: "hls";
+          url: string;
+          durationSeconds?: number;
+      }
+    | {
+          kind: "dash";
+          url: string;
+          durationSeconds?: number;
+      }
+    | {
+          kind: "direct";
+          url: string;
+          durationSeconds?: number;
+          videoHeight?: number;
+      };
+
+export type GenericVideoSource = Exclude<DetectedVideoSource, { kind: "platform-embed" }>;
+
+type GenericEstimateRequest = GenericVideoSource & { title?: string };
+
+export type DetectedVideo = {
+    id: string;
+    source: DetectedVideoSource;
+    title?: string;
+    isPlaying: boolean;
+    currentResolution?: number;
+    frameId: number;
+};
+
+export type TabVideoDetectionResult =
+    | { status: "video"; video: DetectedVideo }
+    | { status: "multiple_idle"; count: number }
+    | { status: "none" };
 
 export type VideoContentType = "live" | "vod";
 

@@ -5,6 +5,7 @@ import { toVideoKey } from "@lib/platformUrl";
 import { fakeBrowser } from "@webext-core/fake-browser";
 
 import { addVideoMetadata, clearDatabaseData, getAllSiteUsage, getAllWatchHistory } from "@/db";
+import { createTabMediaRegistry } from "@/entrypoints/background/tabMediaRegistry";
 import { createUsageIngestion } from "@/entrypoints/background/usageIngestion";
 import {
     type CompletedRequestDetails,
@@ -490,5 +491,141 @@ describe("setupTrackUsage", () => {
         });
         await new Promise((resolve) => setTimeout(resolve, 10));
         expect(writeSiteUsage).toHaveBeenCalledTimes(1);
+    });
+
+    test("preserves tabMediaRegistry across same-page pushState URL updates and clears on main_frame navigation", async () => {
+        const webRequest = stubWebRequestCompleted();
+        const beforeListeners = new Set<
+            (
+                details: chrome.webRequest.OnBeforeRequestDetails,
+            ) => chrome.webRequest.BlockingResponse | undefined
+        >();
+        const addBeforeSpy = spyOn(
+            chrome.webRequest.onBeforeRequest,
+            "addListener",
+        ).mockImplementation((listener) => {
+            beforeListeners.add(listener);
+        });
+        const removeBeforeSpy = spyOn(
+            chrome.webRequest.onBeforeRequest,
+            "removeListener",
+        ).mockImplementation((listener) => {
+            beforeListeners.delete(listener);
+        });
+        cleanups.push(() => {
+            addBeforeSpy.mockRestore();
+            removeBeforeSpy.mockRestore();
+        });
+
+        const ingestion = createUsageIngestion({ flushIntervalMs: 60_000 });
+        const registry = createTabMediaRegistry({ storage: null });
+        const teardown = setupTrackUsage(ingestion, undefined, registry);
+        cleanups.push(teardown);
+
+        const tab = await fakeBrowser.tabs.create({ url: "https://course.example.com/lesson/1" });
+        const tabId = tab.id!;
+        webRequest.emit(
+            makeDetails({
+                tabId,
+                type: "xmlhttprequest",
+                url: "https://cdn.example.com/lesson-1/master.m3u8",
+            }),
+        );
+        expect(await registry.getTabMedia(tabId)).toHaveLength(1);
+
+        // Same-page history.pushState query/hash updates must not wipe loaded video manifests.
+        await fakeBrowser.tabs.onUpdated.trigger(
+            tabId,
+            { url: "https://course.example.com/lesson/1?t=45" },
+            tab,
+        );
+        expect(await registry.getTabMedia(tabId)).toHaveLength(1);
+
+        // Full main_frame document navigation clears stale manifests for the tab.
+        for (const listener of beforeListeners) {
+            listener({
+                ...makeDetails({
+                    tabId,
+                    type: "main_frame",
+                    url: "https://course.example.com/lesson/2",
+                }),
+            });
+        }
+        expect(await registry.getTabMedia(tabId)).toEqual([]);
+    });
+
+    test("attributes webRequest subresource bytes inside an embedded YouTube sub_frame to watchHistory", async () => {
+        const webRequest = stubWebRequestCompleted();
+        const beforeListeners = new Set<
+            (
+                details: chrome.webRequest.OnBeforeRequestDetails,
+            ) => chrome.webRequest.BlockingResponse | undefined
+        >();
+        const addBeforeSpy = spyOn(
+            chrome.webRequest.onBeforeRequest,
+            "addListener",
+        ).mockImplementation((listener) => {
+            beforeListeners.add(listener);
+        });
+        const removeBeforeSpy = spyOn(
+            chrome.webRequest.onBeforeRequest,
+            "removeListener",
+        ).mockImplementation((listener) => {
+            beforeListeners.delete(listener);
+        });
+        cleanups.push(() => {
+            addBeforeSpy.mockRestore();
+            removeBeforeSpy.mockRestore();
+        });
+
+        await addVideoMetadata({
+            type: "youtube",
+            mediaId: "bHQqvYy5KYo",
+            title: "Google I/O 2011",
+            channelName: "Google Developers",
+            channelUrl: "https://www.youtube.com/@googledevelopers",
+            thumbnailUrl: "",
+        });
+
+        const ingestion = createUsageIngestion({ flushIntervalMs: 60_000 });
+        const registry = createTabMediaRegistry({ storage: null });
+        const teardown = setupTrackUsage(ingestion, undefined, registry);
+        cleanups.push(teardown);
+
+        const tab = await fakeBrowser.tabs.create({
+            url: "https://developers.google.com/youtube/iframe_api_reference",
+        });
+        const tabId = tab.id!;
+
+        for (const listener of beforeListeners) {
+            listener({
+                ...makeDetails({
+                    tabId,
+                    frameId: 7,
+                    type: "sub_frame",
+                    url: "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1",
+                }),
+            });
+        }
+
+        webRequest.emit(
+            makeDetails({
+                tabId,
+                frameId: 7,
+                type: "xmlhttprequest",
+                url: "https://rr1---sn-example.googlevideo.com/videoplayback?id=1",
+                initiator: "https://www.youtube.com",
+                responseHeaders: [{ name: "Content-Length", value: "250000" }],
+            }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        await ingestion.flush();
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://developers.google.com")]: 250_000,
+        });
+        expect((await getAllWatchHistory())[0]?.videos).toEqual({
+            [toVideoKey("youtube", "bHQqvYy5KYo")]: 250_000,
+        });
     });
 });

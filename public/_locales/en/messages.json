@@ -183,6 +183,18 @@
             }
         }
     },
+    "popup_genericVideo": {
+        "message": "Video",
+        "description": "Fallback title for a generic detected video"
+    },
+    "popup_playVideoPrompt_title": {
+        "message": "Multiple videos detected",
+        "description": "Popup heading shown when multiple paused videos exist on a page and none is playing"
+    },
+    "popup_playVideoPrompt_body": {
+        "message": "Start playing a video on this page, then reopen TubeSize to see its size estimate.",
+        "description": "Popup guidance asking the user to play one of the videos on a multi-video page"
+    },
     "popup_usageTrackingEnabled": {
         "message": "Usage tracking is enabled.",
         "description": "Info shown when usage tracking is enabled"

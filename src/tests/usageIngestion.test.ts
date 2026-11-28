@@ -327,4 +327,53 @@ describe("createUsageIngestion", () => {
             Number.MAX_SAFE_INTEGER,
         );
     });
+
+    test("attributes embedded YouTube, Twitch, and Kick iframe traffic to watchHistory while keeping host siteUsage", async () => {
+        const recordMetadata = jest.fn(async () => {});
+        const ingestion = createUsageIngestion({ recordMetadata });
+
+        expect(
+            await ingestion.recordTabUsage(
+                "https://developers.google.com/youtube/iframe_api_reference",
+                12_000,
+                "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1",
+            ),
+        ).toBe(true);
+        expect(
+            await ingestion.recordTabUsage(
+                "https://blog.example.com/post",
+                8_000,
+                "https://www.youtube-nocookie.com/embed/yaodD79Q4iE",
+            ),
+        ).toBe(true);
+        expect(
+            await ingestion.recordTabUsage(
+                "https://blog.example.com/post",
+                5_000,
+                "https://player.twitch.tv/?channel=shroud&parent=blog.example.com",
+            ),
+        ).toBe(true);
+        expect(
+            await ingestion.recordTabUsage(
+                "https://blog.example.com/post",
+                4_000,
+                "https://player.kick.com/xqc",
+            ),
+        ).toBe(true);
+
+        expect((await getAllSiteUsage())[0]?.usage).toEqual({
+            [origin("https://developers.google.com")]: 12_000,
+            [origin("https://blog.example.com")]: 17_000,
+        });
+        expect((await getAllWatchHistory())[0]?.videos).toEqual({
+            [toVideoKey("youtube", "bHQqvYy5KYo")]: 12_000,
+            [toVideoKey("youtube", "yaodD79Q4iE")]: 8_000,
+            [toVideoKey("twitch", "shroud")]: 5_000,
+            [toVideoKey("kick", "xqc")]: 4_000,
+        });
+        expect(recordMetadata).toHaveBeenCalledWith(
+            { kind: "media", platform: "youtube", mediaId: "bHQqvYy5KYo", isShorts: false },
+            "https://youtube.com/watch?v=bHQqvYy5KYo",
+        );
+    });
 });

@@ -1,8 +1,13 @@
 import type { MediaEstimate } from "@app-types/platforms.types";
 import type { EstimateMediaMessage } from "@app-types/types";
+import { estimateGenericMedia } from "@lib/genericMedia";
 import { estimateKick } from "@lib/kick";
 import { MediaEstimateError } from "@lib/mediaEstimateError";
-import { parsePlatformUrl, type ParsedPlatformMedia } from "@lib/platformUrl";
+import {
+    parseEmbeddedPlatformUrl,
+    parsePlatformUrl,
+    type ParsedPlatformMedia,
+} from "@lib/platformUrl";
 import { estimateTwitch } from "@lib/twitch";
 import { estimateYoutube } from "@lib/youtube";
 
@@ -31,16 +36,24 @@ function dispatchEstimate(
 }
 
 export async function estimateMedia(message: EstimateMediaMessage): Promise<MediaEstimate> {
-    const parsed = parsePlatformUrl(message.url);
-    if (parsed?.kind !== "media") {
-        throw new MediaEstimateError("unsupported_url", "Unsupported or non-media URL");
-    }
+    let estimate: MediaEstimate;
 
-    const estimate = await dispatchEstimate(parsed, {
-        isFromPopup: message.isFromPopup ?? true,
-        html: message.html,
-        av1Supported: message.av1Supported,
-    });
+    if (message.generic) {
+        estimate = await estimateGenericMedia(message.generic, message.generic.title);
+    } else {
+        const topLevel = parsePlatformUrl(message.url);
+        const parsed =
+            topLevel?.kind === "media" ? topLevel : parseEmbeddedPlatformUrl(message.url)?.parsed;
+        if (!parsed) {
+            throw new MediaEstimateError("unsupported_url", "Unsupported or non-media URL");
+        }
+
+        estimate = await dispatchEstimate(parsed, {
+            isFromPopup: message.isFromPopup ?? true,
+            html: message.html,
+            av1Supported: message.av1Supported,
+        });
+    }
 
     if (estimate.formats.length === 0) {
         throw new MediaEstimateError("no_formats", "No video formats found for this video");

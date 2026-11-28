@@ -37,10 +37,14 @@ export default function AudioFormatItem({ audio, kind, hideRate }: Props) {
                         <AudioLines className="size-3.5 text-white" aria-hidden="true" />
                         <span className="text-sm font-semibold text-white">{t("popup_audio")}</span>
                     </div>
-                    <span className="mt-0.5 flex items-center gap-1 text-[11px] font-normal whitespace-nowrap text-teal-300/90">
-                        {codec && <span>{formatAudioCodec(codec)}</span>}
-                        <span className="text-teal-400/70">itag {formatId}</span>
-                    </span>
+                    {(codec || formatId > 0) && (
+                        <span className="mt-0.5 flex items-center gap-1 text-[11px] font-normal whitespace-nowrap text-teal-300/90">
+                            {codec && <span>{formatAudioCodec(codec)}</span>}
+                            {formatId > 0 && (
+                                <span className="text-teal-400/70">itag {formatId}</span>
+                            )}
+                        </span>
+                    )}
                 </div>
                 <SizeColumn primary={primary} secondary={secondary} />
             </TooltipTrigger>

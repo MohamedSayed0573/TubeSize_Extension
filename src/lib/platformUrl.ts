@@ -247,6 +247,17 @@ export function buildPlatformVideoUrl(
 }
 
 export function parsePlatformUrl(url: string): ParsedPlatformUrl | undefined {
+    const parsedUrl = toHttpUrl(url);
+    if (!parsedUrl) return undefined;
+
+    const descriptor = HOST_TO_DESCRIPTOR.get(parsedUrl.hostname);
+    if (!descriptor) return undefined;
+
+    const segments = parsedUrl.pathname.split("/").filter(Boolean);
+    return descriptor.parseUrl(parsedUrl, segments);
+}
+
+function toHttpUrl(url: string): URL | undefined {
     let parsedUrl: URL;
     try {
         parsedUrl = new URL(url);
@@ -257,12 +268,120 @@ export function parsePlatformUrl(url: string): ParsedPlatformUrl | undefined {
     if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
         return undefined;
     }
+    return parsedUrl;
+}
 
-    const descriptor = HOST_TO_DESCRIPTOR.get(parsedUrl.hostname);
-    if (!descriptor) return undefined;
+const YOUTUBE_EMBED_HOSTS = new Set([
+    "youtube.com",
+    "www.youtube.com",
+    "m.youtube.com",
+    "youtube-nocookie.com",
+    "www.youtube-nocookie.com",
+]);
 
+function parseEmbeddedYoutube(
+    url: URL,
+    segments: readonly string[],
+): ParsedPlatformMedia | undefined {
+    const [first, second] = segments;
+    let mediaId: string | undefined;
+
+    if (url.hostname === "youtu.be") {
+        mediaId = segments.length === 1 ? first : undefined;
+    } else if (YOUTUBE_EMBED_HOSTS.has(url.hostname)) {
+        if (segments.length === 2 && first === "embed") {
+            mediaId = second;
+        } else {
+            const parsed = parseYoutubeUrl(url, segments);
+            return parsed.kind === "media" ? parsed : undefined;
+        }
+    }
+
+    if (mediaId && YOUTUBE_VIDEO_ID_REGEX.test(mediaId)) {
+        return { kind: "media", platform: "youtube", mediaId, isShorts: false };
+    }
+    return undefined;
+}
+
+function parseEmbeddedTwitch(url: URL): ParsedPlatformMedia | undefined {
+    if (url.hostname !== "player.twitch.tv") return undefined;
+
+    const video = url.searchParams.get("video")?.replace(/^v/i, "");
+    if (video && TWITCH_VOD_ID_REGEX.test(video)) {
+        return { kind: "media", platform: "twitch", contentType: "vod", mediaId: video };
+    }
+
+    const channel = url.searchParams.get("channel")?.trim();
+    if (channel && !channel.includes("/") && !TWITCH_NON_STREAM_PATHS.has(channel.toLowerCase())) {
+        return {
+            kind: "media",
+            platform: "twitch",
+            contentType: "live",
+            mediaId: channel,
+            channelName: channel,
+        };
+    }
+    return undefined;
+}
+
+function parseEmbeddedKick(url: URL, segments: readonly string[]): ParsedPlatformMedia | undefined {
+    const [first, second] = segments;
+    const isPlayerHost = url.hostname === "player.kick.com";
+
+    if (segments.length === 2 && first === "video" && second && isKickVideoUuid(second)) {
+        if (!isPlayerHost && !PLATFORM_DESCRIPTORS.kick.hosts.includes(url.hostname)) {
+            return undefined;
+        }
+        return {
+            kind: "media",
+            platform: "kick",
+            contentType: "vod",
+            mediaId: second,
+            channelName: "",
+        };
+    }
+
+    if (!isPlayerHost) return undefined;
+    const parsed = parseKickUrl(segments);
+    return parsed.kind === "media" ? parsed : undefined;
+}
+
+function toCanonicalMediaUrl(media: ParsedPlatformMedia): string {
+    switch (media.platform) {
+        case "youtube":
+            return buildPlatformVideoUrl("youtube", media.mediaId);
+        case "twitch":
+            return buildPlatformVideoUrl("twitch", media.mediaId, media.contentType);
+        case "kick":
+            return buildPlatformVideoUrl(
+                "kick",
+                media.mediaId,
+                media.contentType,
+                media.channelName,
+            );
+        default: {
+            const exhaustive: never = media;
+            return exhaustive;
+        }
+    }
+}
+
+export function parseEmbeddedPlatformUrl(
+    url: string,
+): { parsed: ParsedPlatformMedia; canonicalUrl: string } | undefined {
+    const parsedUrl = toHttpUrl(url);
+    if (!parsedUrl) return undefined;
+
+    const topLevel = parsePlatformUrl(url);
     const segments = parsedUrl.pathname.split("/").filter(Boolean);
-    return descriptor.parseUrl(parsedUrl, segments);
+    const parsed =
+        topLevel?.kind === "media"
+            ? topLevel
+            : (parseEmbeddedYoutube(parsedUrl, segments) ??
+              parseEmbeddedTwitch(parsedUrl) ??
+              parseEmbeddedKick(parsedUrl, segments));
+
+    return parsed ? { parsed, canonicalUrl: toCanonicalMediaUrl(parsed) } : undefined;
 }
 
 function isVideoKey(value: string): value is VideoKey {

@@ -1,7 +1,8 @@
-import type { LiveMediaFormat, VodMediaFormat } from "@app-types/platforms.types";
+import type { LiveMediaFormat, MediaEstimate, VodMediaFormat } from "@app-types/platforms.types";
 import CONFIG from "@lib/constants";
 import {
     classifyFetchFailure,
+    fetchBoundedText,
     MediaEstimateError,
     readResponseText,
     type MediaEstimateErrorCode,
@@ -240,4 +241,166 @@ export function toVodFormats(
         sizeBytes: Math.round(stream.sizePerSecondBytes * durationSeconds),
         sizePerSecondBytes: stream.sizePerSecondBytes,
     }));
+}
+
+export type GenericHlsOptions = {
+    durationSeconds?: number;
+    title?: string;
+    fetch?: FetchLike;
+    sleep?: (ms: number) => Promise<void>;
+    timeoutMs?: number;
+    maxManifestBytes?: number;
+};
+
+function resolveRelativeUrl(uri: string, baseUrl: string): string {
+    try {
+        return new URL(uri, baseUrl).href;
+    } catch {
+        return uri;
+    }
+}
+
+function parsePositiveAttributeNumber(value: unknown): number | undefined {
+    if (typeof value === "number") {
+        return Number.isFinite(value) && value > 0 ? value : undefined;
+    }
+    if (typeof value === "string" && value.trim() !== "") {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+    }
+    return undefined;
+}
+
+function getVariantBandwidth(item: PlaylistItem): number | undefined {
+    return (
+        parsePositiveAttributeNumber(item.attributes["AVERAGE-BANDWIDTH"]) ??
+        parsePositiveAttributeNumber(item.attributes.BANDWIDTH)
+    );
+}
+
+function extractGenericVariants(
+    playlists: readonly PlaylistItem[],
+): Array<{ resolution: number; bandwidth: number; uri: string }> {
+    const byResolution = new Map<number, { resolution: number; bandwidth: number; uri: string }>();
+
+    for (const item of playlists) {
+        const bandwidth = getVariantBandwidth(item);
+        if (!bandwidth) continue;
+
+        const rawHeight = item.attributes.RESOLUTION?.height;
+        const resolution =
+            typeof rawHeight === "number" && Number.isFinite(rawHeight) && rawHeight > 0
+                ? rawHeight
+                : 0;
+        const existing = byResolution.get(resolution);
+        if (!existing || bandwidth > existing.bandwidth) {
+            byResolution.set(resolution, { resolution, bandwidth, uri: item.uri });
+        }
+    }
+
+    const variants = [...byResolution.values()];
+    const hasResolvedHeight = variants.some((variant) => variant.resolution > 0);
+    const filtered = hasResolvedHeight
+        ? variants.filter((variant) => variant.resolution > 0)
+        : variants;
+
+    return filtered.toSorted((a, b) => b.resolution - a.resolution);
+}
+
+function sumSegmentDurations(manifest: Manifest): number {
+    let total = 0;
+    for (const segment of manifest.segments) {
+        if (Number.isFinite(segment.duration) && segment.duration > 0) {
+            total += segment.duration;
+        }
+    }
+    return total;
+}
+
+function isVodPlaylist(manifest: Manifest): boolean {
+    return Boolean(manifest.endList) || manifest.playlistType === "VOD";
+}
+
+function toPositiveDuration(value: number | undefined): number | undefined {
+    return value !== undefined && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+export async function estimateGenericHls(
+    url: string,
+    options: GenericHlsOptions = {},
+): Promise<MediaEstimate> {
+    const fetchFn = options.fetch ?? defaultFetch;
+    const { text: playlistText, url: fetchedPlaylistUrl } = await fetchBoundedText(url, {
+        fetch: fetchFn,
+        sleep: options.sleep,
+        init: { cache: "no-store", credentials: "include" },
+        timeoutMs: options.timeoutMs,
+        maxBytes: options.maxManifestBytes,
+        fetchErrorPrefix: "Error fetching HLS playlist",
+        readErrorPrefix: "Error reading HLS playlist",
+    });
+
+    const manifest = parseM3u8(playlistText);
+    if (!manifest.playlists || manifest.playlists.length === 0) {
+        throw new MediaEstimateError("no_formats", "No playlists found in HLS manifest");
+    }
+
+    const variants = extractGenericVariants(manifest.playlists);
+    if (variants.length === 0) {
+        throw new MediaEstimateError("no_formats", "No usable variants found in HLS playlist");
+    }
+
+    const titleMeta = options.title ? { title: options.title } : {};
+    const explicitDuration = toPositiveDuration(options.durationSeconds);
+    const liveFormats: LiveMediaFormat[] = variants.map((variant) => ({
+        kind: "live",
+        resolution: variant.resolution,
+        sizePerSecondBytes: variant.bandwidth / 8,
+    }));
+
+    if (explicitDuration !== undefined) {
+        return {
+            platform: "generic",
+            contentType: "vod",
+            ...titleMeta,
+            durationSeconds: explicitDuration,
+            formats: toVodFormats(liveFormats, explicitDuration),
+        };
+    }
+
+    const firstVariantUri = variants.find((variant) => variant.uri)?.uri;
+    if (firstVariantUri) {
+        try {
+            const variantUrl = resolveRelativeUrl(firstVariantUri, fetchedPlaylistUrl);
+            const { text: variantText } = await fetchBoundedText(variantUrl, {
+                fetch: fetchFn,
+                sleep: options.sleep,
+                init: { cache: "no-store", credentials: "include" },
+                timeoutMs: options.timeoutMs,
+                maxBytes: options.maxManifestBytes,
+                fetchErrorPrefix: "Error fetching media playlist M3U8",
+                readErrorPrefix: "Error reading media playlist M3U8",
+            });
+            const mediaManifest = parseM3u8(variantText);
+            const summedDuration = sumSegmentDurations(mediaManifest);
+            if (isVodPlaylist(mediaManifest) && summedDuration > 0) {
+                return {
+                    platform: "generic",
+                    contentType: "vod",
+                    ...titleMeta,
+                    durationSeconds: summedDuration,
+                    formats: toVodFormats(liveFormats, summedDuration),
+                };
+            }
+        } catch {
+            // Fall back to live estimate using master playlist bandwidths.
+        }
+    }
+
+    return {
+        platform: "generic",
+        contentType: "live",
+        ...titleMeta,
+        formats: liveFormats,
+    };
 }

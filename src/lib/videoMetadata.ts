@@ -32,7 +32,10 @@ async function fetchPageHtml(url: string, timeoutMs: number): Promise<string | u
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        const res = await fetch(url, { signal: controller.signal });
+        const res = await fetch(url, {
+            credentials: "include",
+            signal: controller.signal,
+        });
         if (!res.ok) return undefined;
         return await res.text();
     } finally {

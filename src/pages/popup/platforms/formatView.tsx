@@ -14,9 +14,17 @@ import AdvancedFormatItem from "./advancedFormatItem";
 import AudioFormatItem from "./audioFormatItem";
 import FormatItem from "./formatItem";
 
-export default function FormatView({ estimate }: { estimate: MediaEstimate }) {
+type Props = {
+    estimate: MediaEstimate;
+    currentQualityOverride?: number;
+};
+
+export default function FormatView({ estimate, currentQualityOverride }: Props) {
     const { data: tabData } = useTab();
-    const { currentQuality } = useCurrentQuality(tabData?.tabId);
+    const skipTabQualityQuery =
+        currentQualityOverride !== undefined || estimate.platform === "generic";
+    const { currentQuality } = useCurrentQuality(skipTabQualityQuery ? undefined : tabData?.tabId);
+    const activeQuality = skipTabQualityQuery ? currentQualityOverride : currentQuality?.quality;
     const { query, updateSettingsMutation } = useSettings();
     const { mutate: updateSettings, isPending } = updateSettingsMutation;
 
@@ -58,14 +66,10 @@ export default function FormatView({ estimate }: { estimate: MediaEstimate }) {
                     <AdvancedFormatItem
                         key={format.key}
                         format={format}
-                        currentQuality={currentQuality?.quality}
+                        currentQuality={activeQuality}
                     />
                 ) : (
-                    <FormatItem
-                        key={format.key}
-                        format={format}
-                        currentQuality={currentQuality?.quality}
-                    />
+                    <FormatItem key={format.key} format={format} currentQuality={activeQuality} />
                 ),
             )}
             {showAudioControls && formats[0] && (

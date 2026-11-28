@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { resolveHlsStreams, toVodFormats } from "@lib/hls";
+import { estimateGenericHls, resolveHlsStreams, toVodFormats } from "@lib/hls";
 import { MediaEstimateError } from "@lib/mediaEstimateError";
 import type { FetchLike } from "@lib/utils";
 
@@ -404,5 +404,296 @@ describe("toVodFormats", () => {
                 sizePerSecondBytes: 250_000,
             },
         ]);
+    });
+});
+
+describe("estimateGenericHls", () => {
+    test("uses AVERAGE-BANDWIDTH, deduplicates by resolution, and uses explicit duration for VOD", async () => {
+        const master = [
+            "#EXTM3U",
+            "#EXT-X-VERSION:4",
+            "#EXT-X-STREAM-INF:BANDWIDTH=6000000,AVERAGE-BANDWIDTH=4000000,RESOLUTION=1920x1080",
+            "1080p-low.m3u8",
+            "#EXT-X-STREAM-INF:BANDWIDTH=8000000,AVERAGE-BANDWIDTH=4800000,RESOLUTION=1920x1080",
+            "1080p-high.m3u8",
+            "#EXT-X-STREAM-INF:BANDWIDTH=2400000,RESOLUTION=1280x720",
+            "720p.m3u8",
+            "#EXT-X-STREAM-INF:BANDWIDTH=128000",
+            "audio.m3u8",
+        ].join("\n");
+
+        const requestedUrls: string[] = [];
+        const result = await estimateGenericHls("https://cdn.example.com/videos/master.m3u8", {
+            durationSeconds: 100,
+            title: "Demo Stream",
+            sleep: instantSleep,
+            fetch: async (input) => {
+                requestedUrls.push(input.toString());
+                return new Response(master, { status: 200 });
+            },
+        });
+
+        expect(requestedUrls).toEqual(["https://cdn.example.com/videos/master.m3u8"]);
+        expect(result).toEqual({
+            platform: "generic",
+            contentType: "vod",
+            title: "Demo Stream",
+            durationSeconds: 100,
+            formats: [
+                {
+                    kind: "vod",
+                    resolution: 1080,
+                    sizeBytes: 60_000_000,
+                    sizePerSecondBytes: 600_000,
+                },
+                {
+                    kind: "vod",
+                    resolution: 720,
+                    sizeBytes: 30_000_000,
+                    sizePerSecondBytes: 300_000,
+                },
+            ],
+        });
+    });
+
+    test("resolves relative variant playlist to detect VOD duration and falls back to live when open", async () => {
+        const master = [
+            "#EXTM3U",
+            "#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1280x720",
+            "variants/720p.m3u8",
+        ].join("\n");
+        const vodVariant = [
+            "#EXTM3U",
+            "#EXT-X-PLAYLIST-TYPE:VOD",
+            "#EXT-X-TARGETDURATION:6",
+            "#EXTINF:6.0,",
+            "seg0.ts",
+            "#EXTINF:4.0,",
+            "seg1.ts",
+            "#EXT-X-ENDLIST",
+        ].join("\n");
+
+        const vodEstimate = await estimateGenericHls("https://cdn.example.com/hls/master.m3u8", {
+            sleep: instantSleep,
+            fetch: async (input) => {
+                const url = input.toString();
+                if (url === "https://cdn.example.com/hls/master.m3u8") {
+                    return new Response(master, { status: 200 });
+                }
+                if (url === "https://cdn.example.com/hls/variants/720p.m3u8") {
+                    return new Response(vodVariant, { status: 200 });
+                }
+                return new Response("Not found", { status: 404 });
+            },
+        });
+
+        expect(vodEstimate).toEqual({
+            platform: "generic",
+            contentType: "vod",
+            durationSeconds: 10,
+            formats: [
+                {
+                    kind: "vod",
+                    resolution: 720,
+                    sizeBytes: 5_000_000,
+                    sizePerSecondBytes: 500_000,
+                },
+            ],
+        });
+
+        const liveVariant = [
+            "#EXTM3U",
+            "#EXT-X-TARGETDURATION:2",
+            "#EXTINF:2.0,",
+            "seg0.ts",
+            "#EXTINF:2.0,",
+            "seg1.ts",
+        ].join("\n");
+
+        const liveEstimate = await estimateGenericHls("https://cdn.example.com/hls/master.m3u8", {
+            sleep: instantSleep,
+            fetch: async (input) => {
+                const url = input.toString();
+                if (url === "https://cdn.example.com/hls/master.m3u8") {
+                    return new Response(master, { status: 200 });
+                }
+                return new Response(liveVariant, { status: 200 });
+            },
+        });
+
+        expect(liveEstimate).toEqual({
+            platform: "generic",
+            contentType: "live",
+            formats: [{ kind: "live", resolution: 720, sizePerSecondBytes: 500_000 }],
+        });
+    });
+
+    test("throws no_formats for empty or segment-only HLS playlists without master variants", async () => {
+        const mediaPlaylist = [
+            "#EXTM3U",
+            "#EXT-X-TARGETDURATION:4",
+            "#EXTINF:4.0,",
+            "chunks/0.ts",
+            "#EXT-X-ENDLIST",
+        ].join("\n");
+
+        await expect(
+            estimateGenericHls("https://cdn.example.com/stream/index.m3u8", {
+                sleep: instantSleep,
+                fetch: async () => new Response(mediaPlaylist, { status: 200 }),
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "no_formats",
+        });
+
+        await expect(
+            estimateGenericHls("https://cdn.example.com/empty.m3u8", {
+                sleep: instantSleep,
+                fetch: async () => new Response("#EXTM3U\n", { status: 200 }),
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "no_formats",
+        });
+    });
+
+    test("sends credentials: include on master manifests and child variant playlists", async () => {
+        const master = [
+            "#EXTM3U",
+            "#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1280x720",
+            "720p.m3u8",
+        ].join("\n");
+        const variant = [
+            "#EXTM3U",
+            "#EXT-X-TARGETDURATION:5",
+            "#EXTINF:5.0,",
+            "seg0.ts",
+            "#EXT-X-ENDLIST",
+        ].join("\n");
+
+        const seenCredentials: Array<RequestCredentials | undefined> = [];
+        const masterEstimate = await estimateGenericHls(
+            "https://protected.example.com/hls/master.m3u8",
+            {
+                sleep: instantSleep,
+                fetch: async (input, init) => {
+                    const url = input.toString();
+                    seenCredentials.push(init?.credentials);
+                    return new Response(url.endsWith("master.m3u8") ? master : variant, {
+                        status: 200,
+                    });
+                },
+            },
+        );
+
+        expect(masterEstimate.contentType).toBe("vod");
+        expect(seenCredentials).toEqual(["include", "include"]);
+    });
+
+    test("enforces response size and timeout bounds on generic HLS manifests and child playlists", async () => {
+        const huge = "#EXTM3U\n" + "a".repeat(2048);
+        await expect(
+            estimateGenericHls("https://cdn.example.com/huge.m3u8", {
+                sleep: instantSleep,
+                maxManifestBytes: 512,
+                fetch: async () => new Response(huge, { status: 200 }),
+            }),
+        ).rejects.toMatchObject({ name: "MediaEstimateError", code: "no_formats" });
+
+        await expect(
+            estimateGenericHls("https://cdn.example.com/slow.m3u8", {
+                sleep: instantSleep,
+                timeoutMs: 30,
+                fetch: async (_input, init) =>
+                    new Promise<Response>((_resolve, reject) => {
+                        init?.signal?.addEventListener("abort", () => {
+                            reject(new DOMException("Aborted", "AbortError"));
+                        });
+                    }),
+            }),
+        ).rejects.toMatchObject({ name: "MediaEstimateError", code: "network_error" });
+
+        // Oversized child playlist falls back to live master bandwidths without reading full body.
+        const master = [
+            "#EXTM3U",
+            "#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1280x720",
+            "huge-variant.m3u8",
+        ].join("\n");
+        let childCancelled = false;
+        const fallback = await estimateGenericHls("https://cdn.example.com/master.m3u8", {
+            sleep: instantSleep,
+            maxManifestBytes: 256,
+            fetch: async (input) => {
+                if (input.toString().endsWith("master.m3u8")) {
+                    return new Response(master, { status: 200 });
+                }
+                const stream = new ReadableStream({
+                    start(controller) {
+                        controller.enqueue(new Uint8Array(512));
+                    },
+                    cancel() {
+                        childCancelled = true;
+                    },
+                });
+                return new Response(stream, {
+                    status: 200,
+                    headers: { "Content-Length": "512" },
+                });
+            },
+        });
+        expect(childCancelled).toBe(true);
+        expect(fallback).toEqual({
+            platform: "generic",
+            contentType: "live",
+            formats: [{ kind: "live", resolution: 720, sizePerSecondBytes: 500_000 }],
+        });
+    });
+
+    test("resolves relative variant playlists against the final redirected master URL", async () => {
+        const master = [
+            "#EXTM3U",
+            "#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=1280x720",
+            "variants/720p.m3u8",
+        ].join("\n");
+        const mediaPlaylist = [
+            "#EXTM3U",
+            "#EXT-X-TARGETDURATION:4",
+            "#EXTINF:4.0,",
+            "chunks/0.ts",
+            "#EXT-X-ENDLIST",
+        ].join("\n");
+
+        const estimate = await estimateGenericHls("https://entry.example.com/start/master.m3u8", {
+            sleep: instantSleep,
+            fetch: async (input) => {
+                const url = input.toString();
+                if (url === "https://entry.example.com/start/master.m3u8") {
+                    const response = new Response(master, { status: 200 });
+                    Object.defineProperty(response, "url", {
+                        value: "https://cdn.example.com/assets/hls/master.m3u8",
+                    });
+                    return response;
+                }
+                if (url === "https://cdn.example.com/assets/hls/variants/720p.m3u8") {
+                    return new Response(mediaPlaylist, { status: 200 });
+                }
+                return new Response("Not found", { status: 404 });
+            },
+        });
+
+        expect(estimate).toEqual({
+            platform: "generic",
+            contentType: "vod",
+            durationSeconds: 4,
+            formats: [
+                {
+                    kind: "vod",
+                    resolution: 720,
+                    sizeBytes: 400_000,
+                    sizePerSecondBytes: 100_000,
+                },
+            ],
+        });
     });
 });

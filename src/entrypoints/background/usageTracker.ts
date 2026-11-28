@@ -3,6 +3,7 @@ import { isFirefox } from "@lib/browser";
 import { MAX_SAFE_BYTES } from "@/db";
 
 import { type DownloadDedup, isAttachmentNavigation } from "./downloadDedup";
+import type { TabMediaRegistry } from "./tabMediaRegistry";
 import { createUsageIngestion, isExtensionUrl, type UsageIngestion } from "./usageIngestion";
 
 const CONTENT_LENGTH_HEADER = "content-length";
@@ -18,17 +19,38 @@ export type CompletedRequestDetails = chrome.webRequest.OnCompletedDetails & {
 export function setupTrackUsage(
     ingestion: UsageIngestion = createUsageIngestion(),
     dedup?: DownloadDedup,
+    tabMediaRegistry?: TabMediaRegistry,
 ): () => void {
-    const onRequestCompleted = (details: CompletedRequestDetails) => {
-        void trackRequest(ingestion, details, dedup);
+    const onBeforeFrameRequest = (
+        details: chrome.webRequest.OnBeforeRequestDetails,
+    ): chrome.webRequest.BlockingResponse | undefined => {
+        if (details.tabId !== NO_TAB_ID) {
+            if (details.type === "main_frame") {
+                tabMediaRegistry?.clearTab(details.tabId);
+            } else if (details.type === "sub_frame") {
+                tabMediaRegistry?.observeSubFrame(details.tabId, details.frameId, details.url);
+            }
+        }
+        return undefined;
     };
-    const onTabRemoved = () => {
+    const onRequestCompleted = (details: CompletedRequestDetails) => {
+        tabMediaRegistry?.observeRequest(details);
+        void trackRequest(ingestion, details, dedup, tabMediaRegistry);
+    };
+    const onTabRemoved = (tabId: number) => {
+        tabMediaRegistry?.clearTab(tabId);
         if (!ingestion.hasPendingUsage) return;
         void ingestion.flush().catch((err: unknown) => {
             console.error("Failed to flush usage on tab close:", err);
         });
     };
 
+    if (tabMediaRegistry) {
+        chrome.webRequest.onBeforeRequest.addListener(onBeforeFrameRequest, {
+            urls: ["<all_urls>"],
+            types: ["main_frame", "sub_frame"],
+        });
+    }
     // `extraHeaders` is Chromium-only; Firefox rejects it.
     chrome.webRequest.onCompleted.addListener(
         onRequestCompleted,
@@ -40,6 +62,9 @@ export function setupTrackUsage(
     const stopAutoFlush = ingestion.startAutoFlush();
 
     return () => {
+        if (tabMediaRegistry) {
+            chrome.webRequest.onBeforeRequest.removeListener(onBeforeFrameRequest);
+        }
         chrome.webRequest.onCompleted.removeListener(onRequestCompleted);
         chrome.tabs.onRemoved.removeListener(onTabRemoved);
         stopAutoFlush();
@@ -67,6 +92,7 @@ export async function trackRequest(
     ingestion: UsageIngestion,
     details: CompletedRequestDetails,
     dedup?: DownloadDedup,
+    tabMediaRegistry?: TabMediaRegistry,
 ) {
     try {
         if (!isCountableRequest(details)) return;
@@ -74,12 +100,18 @@ export async function trackRequest(
         const bytes = getContentLength(details);
         if (bytes === undefined) return;
 
+        const frameUrl =
+            details.frameId > 0
+                ? (details.documentUrl ??
+                  tabMediaRegistry?.getFrameUrl(details.tabId, details.frameId))
+                : undefined;
+
         const tabUrl = await resolveRequestTabUrl(details);
         if (!tabUrl) return;
 
         if (dedup?.interceptWebRequest(details, tabUrl, bytes)) return;
 
-        ingestion.bufferTabUsage(tabUrl, bytes);
+        ingestion.bufferTabUsage(tabUrl, bytes, frameUrl);
     } catch (err) {
         console.error("Failed to track request usage:", err);
     }

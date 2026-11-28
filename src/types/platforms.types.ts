@@ -49,8 +49,10 @@ export type DisplayFormat = (VodMediaFormat | LiveMediaFormat) & {
     hideRate?: boolean;
 };
 
+export type EstimateSource = PlatformId | "generic";
+
 type MediaEstimateBase = {
-    platform: PlatformId;
+    platform: EstimateSource;
     title?: string;
     channelName?: string;
     channelUrl?: string;

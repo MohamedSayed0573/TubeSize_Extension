@@ -253,7 +253,10 @@
             }
         },
         {
-            "files": ["src/entrypoints/background/migrations.ts"],
+            "files": [
+                "src/entrypoints/background/migrations.ts",
+                "src/entrypoints/background/tabMediaRegistry.ts"
+            ],
             "rules": {
                 "no-restricted-imports": [
                     "error",

@@ -234,6 +234,7 @@ export function parseLiveFormats(
 async function fetchYoutubeHtml(mediaId: string) {
     const res = await fetchAndRetry(`https://www.youtube.com/watch?v=${mediaId}`, {
         method: "GET",
+        credentials: "include",
         headers: { "Accept-Language": "en-US,en;q=0.9" },
         signal: AbortSignal.timeout(CONFIG.FETCH_HTML_TIMEOUT),
     });

@@ -14,7 +14,8 @@ interface Props {
 
 export default function AdvancedFormatItem({ format, currentQuality }: Props) {
     const { resolution, codec, formatId, fps, itags } = format;
-    const isCurrent = resolution === currentQuality;
+    const isCurrent = resolution > 0 && resolution === currentQuality;
+    const qualityLabel = resolution > 0 ? `${resolution}p` : t("common_video");
     const hasFormatDetails = codec !== undefined || formatId !== undefined || fps !== undefined;
 
     return (
@@ -30,7 +31,7 @@ export default function AdvancedFormatItem({ format, currentQuality }: Props) {
             >
                 <div className="flex flex-col">
                     <div className="flex items-center gap-1">
-                        <span className="text-sm font-semibold text-white">{resolution}p</span>
+                        <span className="text-sm font-semibold text-white">{qualityLabel}</span>
                         {isCurrent && (
                             <span className="rounded-full bg-white/15 px-1 py-0.5 text-[10px] font-bold tracking-wide text-white">
                                 {t("popup_current")}
@@ -55,7 +56,7 @@ export default function AdvancedFormatItem({ format, currentQuality }: Props) {
             {itags && itags.length > 0 && (
                 <TooltipContent>
                     <div className="mb-1 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
-                        {resolution}p itags
+                        {qualityLabel} itags
                     </div>
                     <ul className="flex flex-col gap-1">
                         {itags.map((itag) => (
