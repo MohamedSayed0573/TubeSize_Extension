@@ -74,16 +74,20 @@ async function getBadgeText(serviceWorker: Worker): Promise<string> {
 async function assertPopupSettles(opts: {
     popupPage: Page;
     requiredPatterns: readonly { label: string; pattern: RegExp }[];
+    requireResolutionLabel?: boolean;
 }): Promise<string> {
+    const requireResolutionLabel = opts.requireResolutionLabel ?? true;
     await opts.popupPage.waitForFunction(
-        () => {
+        (needRes: boolean) => {
             const root = document.getElementById("root");
             if (!root) return false;
             if (root.querySelector('[data-slot="skeleton"], .animate-spin')) return false;
             const txt = root.innerText.trim();
+            if (!txt) return false;
+            if (!needRes) return true;
             return /\b\d+p\b/.test(txt) && /\b(?:B|KB|MB|GB)\b/.test(txt);
         },
-        undefined,
+        requireResolutionLabel,
         { timeout: 10_000 },
     );
 
@@ -453,7 +457,163 @@ export async function runSmoke(opts: { extDir: string; timeoutMs: number }): Pro
             return "Twitch & Kick live popups settled with 1080p/720p/480p /hour and /min SI rates";
         });
 
-        // 4. Settings persistence + Arabic RTL reload
+        // 4. Embedded platform iframe + generic HLS/DASH/direct + multi-video idle->play detection
+        await runStep("embedded-and-generic-video", async () => {
+            // 4a. Embedded YouTube iframe on non-platform site + watchHistory attribution
+            await navigateMainPage(
+                mainPage,
+                resolveFixtureTarget("fixture:embed-youtube", serverPort),
+            );
+            await mainPage.waitForFunction(
+                () =>
+                    (document.getElementById("embed-status")?.textContent ?? "").includes(
+                        "Embed ready",
+                    ),
+                undefined,
+                { timeout: 10_000 },
+            );
+
+            await withToolbarPopup(async (popupPage) => {
+                await assertPopupSettles({
+                    popupPage,
+                    requiredPatterns: [
+                        { label: "embedded YouTube title", pattern: /How does Claude Code/ },
+                        { label: "1080p Current badge", pattern: /1080p[\s\S]*Current/ },
+                        { label: "100.92 MB estimate", pattern: /100\.92 MB/ },
+                    ],
+                });
+            });
+
+            await mainPage.getByRole("button", { name: "Trigger embed traffic 100 KB" }).click();
+            await mainPage.waitForFunction(
+                () =>
+                    (document.getElementById("embed-status")?.textContent ?? "").includes(
+                        "Embed traffic 100000 done",
+                    ),
+                undefined,
+                { timeout: 10_000 },
+            );
+            await pollUntil(
+                () => inspectDb(serviceWorker),
+                (db) =>
+                    (db.todayUsage["https://video-blog.mock.invalid"] ?? 0) >= 100_000 &&
+                    (db.todayWatchHistory["youtube:I82j7AzMU80"] ?? 0) >= 100_000,
+                {
+                    timeoutMs: 8_000,
+                    description:
+                        "embedded YouTube traffic attributed to video-blog.mock.invalid siteUsage and youtube:I82j7AzMU80 watchHistory",
+                },
+            );
+
+            // 4b. Generic HLS MSE player (master + variant grouped via TabMediaRegistry)
+            await navigateMainPage(
+                mainPage,
+                resolveFixtureTarget("fixture:generic-hls", serverPort),
+            );
+            await mainPage.waitForFunction(
+                () =>
+                    (document.getElementById("hls-status")?.textContent ?? "").includes(
+                        "HLS manifests loaded",
+                    ),
+                undefined,
+                { timeout: 10_000 },
+            );
+            await withToolbarPopup(async (popupPage) => {
+                await assertPopupSettles({
+                    popupPage,
+                    requiredPatterns: [
+                        { label: "HLS title", pattern: /Generic HLS Stream Demo/ },
+                        { label: "1080p 300 MB", pattern: /1080p[\s\S]*300 MB/ },
+                        { label: "720p 180 MB", pattern: /720p[\s\S]*180 MB/ },
+                        { label: "480p 60 MB", pattern: /480p[\s\S]*60 MB/ },
+                    ],
+                });
+            });
+
+            // 4c. Generic DASH MSE player inside Shadow DOM with separate Opus audio
+            await navigateMainPage(
+                mainPage,
+                resolveFixtureTarget("fixture:generic-dash", serverPort),
+            );
+            await mainPage.waitForFunction(
+                () =>
+                    (document.getElementById("dash-status")?.textContent ?? "").includes(
+                        "DASH manifest loaded",
+                    ),
+                undefined,
+                { timeout: 10_000 },
+            );
+            await withToolbarPopup(async (popupPage) => {
+                await assertPopupSettles({
+                    popupPage,
+                    requiredPatterns: [
+                        { label: "DASH title", pattern: /Generic DASH Shadow Player/ },
+                        { label: "1080p 312 MB (video + audio)", pattern: /1080p[\s\S]*312 MB/ },
+                        { label: "720p 162 MB (video + audio)", pattern: /720p[\s\S]*162 MB/ },
+                    ],
+                });
+            });
+
+            // 4d. Direct HTML5 <video> with HEAD Content-Length probe and fallback Video label
+            await navigateMainPage(
+                mainPage,
+                resolveFixtureTarget("fixture:generic-direct", serverPort),
+            );
+            await withToolbarPopup(async (popupPage) => {
+                await assertPopupSettles({
+                    popupPage,
+                    requireResolutionLabel: false,
+                    requiredPatterns: [
+                        { label: "direct video title", pattern: /Direct MP4 Demo/ },
+                        { label: "fallback Video label", pattern: /\bVideo\b/ },
+                        { label: "45 MB probed size", pattern: /45 MB/ },
+                    ],
+                });
+            });
+
+            // 4e. Multi-video idle prompt -> play one -> select playing video
+            await navigateMainPage(
+                mainPage,
+                resolveFixtureTarget("fixture:multi-video", serverPort),
+            );
+            await withToolbarPopup(async (popupPage) => {
+                await assertPopupSettles({
+                    popupPage,
+                    requireResolutionLabel: false,
+                    requiredPatterns: [
+                        { label: "multiple-idle heading", pattern: /Multiple videos detected/ },
+                        {
+                            label: "multiple-idle prompt body",
+                            pattern: /Start playing a video on this page/,
+                        },
+                    ],
+                });
+            });
+
+            await mainPage.getByRole("button", { name: "Play Second Clip" }).click();
+            await mainPage.waitForFunction(
+                () =>
+                    (document.getElementById("multi-status")?.textContent ?? "").includes(
+                        "Second Clip playing",
+                    ),
+                undefined,
+                { timeout: 10_000 },
+            );
+            await withToolbarPopup(async (popupPage) => {
+                await assertPopupSettles({
+                    popupPage,
+                    requiredPatterns: [
+                        { label: "playing clip title", pattern: /Second Clip/ },
+                        { label: "720p Current badge", pattern: /720p[\s\S]*Current/ },
+                        { label: "60 MB probed size", pattern: /60 MB/ },
+                    ],
+                });
+            });
+
+            return "embedded YouTube (+watchHistory), generic HLS/DASH (Shadow DOM)/direct, and multi-video idle->play verified";
+        });
+
+        // 5. Settings persistence + Arabic RTL reload
         await runStep("settings-and-rtl", async () => {
             lastTrackedSiteLeftAt = Date.now();
             try {

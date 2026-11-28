@@ -45,7 +45,7 @@ Usage: bun run verify <command> [options]
 Commands:
   doctor [--timeout <ms>]       Health check: Bun, Chromium, build freshness, MV3 boot
   smoke [--build] [--timeout <ms>] [--json]
-                                End-to-end offline runtime smoke suite across 5 core flows
+                                End-to-end offline runtime smoke suite across 6 core flows
   start [opts]                  Launch isolated Playwright session (--target, --seed, --lang, --prev-version, --build, --timeout)
   status                        Check active session URL, surface, dir, and error count
   stop                          Close active session & delete temp profile (keeps .verify-evidence/)

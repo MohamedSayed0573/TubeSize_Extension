@@ -52,13 +52,14 @@ Run `smoke` for a fast automated end-to-end check across TubeSize's core runtime
 bun run verify smoke [--build] [--timeout <ms>] [--json]
 ```
 
-`smoke` launches a single isolated Chromium session against the built `.output/chrome-mv3` extension and offline fixtures, auditing runtime issues after each of 5 deterministic flows:
+`smoke` launches a single isolated Chromium session against the built `.output/chrome-mv3` extension and offline fixtures, auditing runtime issues after each of 6 deterministic flows:
 
 1. `usage-tracking` — dual-path byte accounting (`webRequest` fixed `Content-Length`, chunked `fetch`/`XHR`/`blob:` `Worker`, `HEAD` exclusion) + toolbar badge (`"570K"`).
 2. `youtube-vod` — in-page usage warning toaster trigger & `OK` dismissal, `.ytp-quality-menu` size badge injection (skipping `Auto` and `1080p Premium`), and real toolbar popup estimation.
 3. `twitch-and-kick-live` — real toolbar popup estimation across Twitch and Kick live streams (`1080p`/`720p`/`480p` SI rates).
-4. `settings-and-rtl` — `advancedView` toggle + Arabic (`العربية`) RTL persistence across reload.
-5. `dashboard-lifecycle` — 14-day seed, JSON export, Clear All Usage Data (confirm + badge reset), and JSON import restore.
+4. `embedded-and-generic-video` — embedded YouTube iframe estimation and `watchHistory` attribution, generic HLS MSE master/variant grouping, generic DASH in Shadow DOM with separate audio, direct MP4 `HEAD` probe, and multi-video idle prompt switching to a playing clip.
+5. `settings-and-rtl` — `advancedView` toggle + Arabic (`العربية`) RTL persistence across reload.
+6. `dashboard-lifecycle` — 14-day seed, JSON export, Clear All Usage Data (confirm + badge reset), and JSON import restore.
 
 Exit codes across all `verify` commands:
 
@@ -103,11 +104,13 @@ bun run verify screenshot .verify-evidence/<name>.png         # Capture 2x PNG p
 - **YouTube:** `fixture:youtube-vod`, `fixture:youtube-shorts`, `fixture:youtube-live`, `fixture:youtube-home`
 - **Twitch:** `fixture:twitch-live`, `fixture:twitch-live-ads`, `fixture:twitch-vod`, `fixture:twitch-directory`
 - **Kick:** `fixture:kick-live`, `fixture:kick-vod`, `fixture:kick-vod-slug`, `fixture:kick-browse`
+- **Embedded & generic videos:** `fixture:embed-youtube`, `fixture:generic-hls`, `fixture:generic-dash`, `fixture:generic-direct`, `fixture:multi-video`
 - **Subdomains:** `fixture:google-drive`
 
 ### Stable Handles in This Repo
 
 - Popup header actions: `button "Settings"`, `button "Dashboard"`
+- Popup multi-video idle prompt: `[data-popup-state="multiple-idle"]` (`Multiple videos detected` / Arabic: `تم اكتشاف عدة فيديوهات`)
 - Popup Advanced View audio switch: `switch "Include audio in sizes"`
 - Popup Changelog Notice dismiss button: `button "Dismiss"` (Arabic: `button "إغلاق"`, inside `<output>`)
 - Settings language combobox: `combobox "Language"` (`#language-select`, options `English` / `العربية`)

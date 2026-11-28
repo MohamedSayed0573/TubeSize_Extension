@@ -26,6 +26,11 @@ const FIXTURE_TARGETS = [
     "fixture:kick-vod-slug",
     "fixture:kick-browse",
     "fixture:google-drive",
+    "fixture:embed-youtube",
+    "fixture:generic-hls",
+    "fixture:generic-dash",
+    "fixture:generic-direct",
+    "fixture:multi-video",
 ] as const;
 
 export type FixtureTarget = (typeof FIXTURE_TARGETS)[number];
@@ -74,6 +79,16 @@ export function resolveFixtureTarget(
             return { url: "https://kick.com/browse", viewport };
         case "fixture:google-drive":
             return { url: "https://drive.google.com/drive/my-drive", viewport };
+        case "fixture:embed-youtube":
+            return { url: "https://video-blog.mock.invalid/article-embed", viewport };
+        case "fixture:generic-hls":
+            return { url: "https://video-blog.mock.invalid/hls-player", viewport };
+        case "fixture:generic-dash":
+            return { url: "https://video-blog.mock.invalid/dash-player", viewport };
+        case "fixture:generic-direct":
+            return { url: "https://video-blog.mock.invalid/direct-video", viewport };
+        case "fixture:multi-video":
+            return { url: "https://video-blog.mock.invalid/multi-video", viewport };
     }
 }
 
@@ -468,6 +483,277 @@ function buildKickHtml(opts: { title: string; streamId?: string; isVideoPage: bo
 </html>`;
 }
 
+function buildYoutubeEmbedHtml(mediaId: string): string {
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="data:," />
+  <title>YouTube Embed ${mediaId}</title>
+</head>
+<body>
+  <video id="yt-embed-video" muted autoplay playsinline style="width:320px;height:180px;background:#111"></video>
+  <script>
+    (() => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1920;
+      canvas.height = 1080;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = "#18181b";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      const video = document.getElementById("yt-embed-video");
+      video.srcObject = canvas.captureStream(5);
+      const notifyReady = () => window.parent.postMessage("ts-embed-ready", "*");
+      video.addEventListener("playing", notifyReady, { once: true });
+      void video.play().catch(() => {});
+      window.addEventListener("message", async (ev) => {
+        if (ev.data !== "ts-trigger-embed-traffic") return;
+        await fetch("https://www.youtube.com/__ts_media_fixed").then((r) => r.arrayBuffer());
+        window.parent.postMessage("ts-embed-traffic-done", "*");
+      });
+    })();
+  </script>
+</body>
+</html>`;
+}
+
+function buildEmbedYoutubePageHtml(): string {
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="data:," />
+  <title>Embedded Video Article</title>
+</head>
+<body>
+  <h1>Embedded YouTube Article</h1>
+  <iframe
+    id="yt-embed-frame"
+    src="https://www.youtube.com/embed/I82j7AzMU80"
+    title="Embedded Claude Code Walkthrough"
+    style="width:480px;height:270px;border:0"
+  ></iframe>
+  <div style="margin:8px 0">
+    <button type="button" id="btn-embed-traffic">Trigger embed traffic 100 KB</button>
+  </div>
+  <output id="embed-status">Loading embed...</output>
+  <script>
+    const statusEl = document.getElementById("embed-status");
+    const frame = document.getElementById("yt-embed-frame");
+    window.addEventListener("message", (ev) => {
+      if (ev.data === "ts-embed-ready" && statusEl) {
+        statusEl.textContent = "Embed ready";
+      }
+      if (ev.data === "ts-embed-traffic-done" && statusEl) {
+        statusEl.textContent = "Embed traffic 100000 done";
+      }
+    });
+    document.getElementById("btn-embed-traffic").addEventListener("click", () => {
+      frame.contentWindow?.postMessage("ts-trigger-embed-traffic", "*");
+    });
+  </script>
+</body>
+</html>`;
+}
+
+function buildGenericHlsMasterM3u8(): string {
+    return `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1920x1080,CODECS="avc1.64002A,mp4a.40.2"
+https://generic-media.mock.invalid/hls/1080p.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=2400000,RESOLUTION=1280x720,CODECS="avc1.64001F,mp4a.40.2"
+https://generic-media.mock.invalid/hls/720p.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=854x480,CODECS="avc1.4D401F,mp4a.40.2"
+https://generic-media.mock.invalid/hls/480p.m3u8
+`;
+}
+
+function buildGenericHlsVodVariantM3u8(quality: string): string {
+    const lines = [
+        "#EXTM3U",
+        "#EXT-X-VERSION:3",
+        "#EXT-X-PLAYLIST-TYPE:VOD",
+        "#EXT-X-TARGETDURATION:60",
+    ];
+    for (let i = 0; i < 10; i++) {
+        lines.push("#EXTINF:60.0,");
+        lines.push(`https://generic-media.mock.invalid/hls/seg/${quality}/${i}.ts`);
+    }
+    lines.push("#EXT-X-ENDLIST");
+    return `${lines.join("\n")}\n`;
+}
+
+function buildGenericDashMpd(): string {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static" mediaPresentationDuration="PT10M">
+  <Period>
+    <AdaptationSet contentType="video" mimeType="video/mp4">
+      <Representation id="v1080" width="1920" height="1080" bandwidth="4000000" codecs="avc1.640028" frameRate="60" />
+      <Representation id="v720" width="1280" height="720" bandwidth="2000000" codecs="vp09.00.31.08" frameRate="30" />
+    </AdaptationSet>
+    <AdaptationSet contentType="audio" mimeType="audio/webm">
+      <Representation id="a1" bandwidth="160000" codecs="opus" />
+    </AdaptationSet>
+  </Period>
+</MPD>`;
+}
+
+function buildGenericHlsPageHtml(): string {
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="data:," />
+  <title>Generic HLS Stream Demo</title>
+</head>
+<body>
+  <h1>Generic HLS Stream Demo</h1>
+  <video id="hls-video" muted playsinline title="Generic HLS Stream Demo" style="width:320px;height:180px;background:#111"></video>
+  <output id="hls-status">Loading HLS...</output>
+  <script>
+    (async () => {
+      const video = document.getElementById("hls-video");
+      const ms = new MediaSource();
+      video.src = URL.createObjectURL(ms);
+      await fetch("https://generic-media.mock.invalid/hls/master.m3u8").then((r) => r.text());
+      await fetch("https://generic-media.mock.invalid/hls/1080p.m3u8").then((r) => r.text());
+      const out = document.getElementById("hls-status");
+      if (out) out.textContent = "HLS manifests loaded";
+    })();
+  </script>
+</body>
+</html>`;
+}
+
+function buildGenericDashPageHtml(): string {
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="data:," />
+  <title>Generic DASH Shadow Player</title>
+</head>
+<body>
+  <h1>Generic DASH Shadow Player</h1>
+  <div id="shadow-player-host"></div>
+  <output id="dash-status">Loading DASH...</output>
+  <script>
+    (async () => {
+      const host = document.getElementById("shadow-player-host");
+      const root = host.attachShadow({ mode: "open" });
+      const video = document.createElement("video");
+      video.id = "dash-video";
+      video.muted = true;
+      video.playsInline = true;
+      video.title = "Generic DASH Shadow Player";
+      video.style.cssText = "width:320px;height:180px;background:#111";
+      const ms = new MediaSource();
+      video.src = URL.createObjectURL(ms);
+      root.appendChild(video);
+      await fetch("https://generic-media.mock.invalid/dash/manifest.mpd").then((r) => r.text());
+      const out = document.getElementById("dash-status");
+      if (out) out.textContent = "DASH manifest loaded";
+    })();
+  </script>
+</body>
+</html>`;
+}
+
+function buildGenericDirectPageHtml(): string {
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="data:," />
+  <title>Direct MP4 Page</title>
+</head>
+<body>
+  <h1>Direct MP4 Page</h1>
+  <video
+    id="direct-video"
+    preload="none"
+    title="Direct MP4 Demo"
+    src="https://generic-media.mock.invalid/direct/clip.mp4"
+    style="width:320px;height:180px;background:#111"
+  ></video>
+  <output id="direct-status">Direct video ready</output>
+</body>
+</html>`;
+}
+
+function buildMultiVideoPageHtml(): string {
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="data:," />
+  <title>Multi Video Gallery</title>
+</head>
+<body>
+  <h1>Multi Video Gallery</h1>
+  <video
+    id="clip-1"
+    preload="none"
+    muted
+    playsinline
+    title="First Clip"
+    src="https://generic-media.mock.invalid/direct/clip-1.mp4"
+    style="width:240px;height:135px;background:#111"
+  ></video>
+  <video
+    id="clip-2"
+    preload="none"
+    muted
+    playsinline
+    title="Second Clip"
+    src="https://generic-media.mock.invalid/direct/clip-2.mp4"
+    style="width:240px;height:135px;background:#111"
+  ></video>
+  <div style="display:flex;gap:8px;margin:8px 0">
+    <button type="button" id="btn-play-second">Play Second Clip</button>
+    <button type="button" id="btn-pause-all">Pause All Clips</button>
+  </div>
+  <output id="multi-status">All clips paused</output>
+  <script>
+    const statusEl = document.getElementById("multi-status");
+    const clip1 = document.getElementById("clip-1");
+    const clip2 = document.getElementById("clip-2");
+    document.getElementById("btn-play-second").addEventListener("click", async () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1280;
+      canvas.height = 720;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = "#18181b";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      clip2.srcObject = canvas.captureStream(5);
+      await clip2.play();
+      while (clip2.readyState <= 2) {
+        await new Promise((r) => setTimeout(r, 25));
+      }
+      if (statusEl) statusEl.textContent = "Second Clip playing";
+    });
+    document.getElementById("btn-pause-all").addEventListener("click", () => {
+      clip1.pause();
+      clip2.pause();
+      clip1.srcObject = null;
+      clip2.srcObject = null;
+      if (statusEl) statusEl.textContent = "All clips paused";
+    });
+  </script>
+</body>
+</html>`;
+}
+
+const DIRECT_VIDEO_SIZES: Record<string, number> = {
+    "/direct/clip.mp4": 45_000_000,
+    "/direct/clip-1.mp4": 25_000_000,
+    "/direct/clip-2.mp4": 60_000_000,
+};
+
 const PLATFORM_ROUTE_PATTERNS = [
     "**/favicon.ico",
     "https://i.ytimg.com/**",
@@ -480,6 +766,8 @@ const PLATFORM_ROUTE_PATTERNS = [
     "https://web.kick.com/**",
     "https://kick-hls.mock.invalid/**",
     "https://drive.google.com/**",
+    "https://video-blog.mock.invalid/**",
+    "https://generic-media.mock.invalid/**",
 ] as const;
 
 export async function installPlatformRoutes(context: BrowserContext): Promise<void> {
@@ -533,7 +821,9 @@ export async function installPlatformRoutes(context: BrowserContext): Promise<vo
         const mediaId =
             url.pathname === "/watch"
                 ? url.searchParams.get("v")
-                : url.pathname.startsWith("/shorts/") || url.pathname.startsWith("/live/")
+                : url.pathname.startsWith("/shorts/") ||
+                    url.pathname.startsWith("/live/") ||
+                    url.pathname.startsWith("/embed/")
                   ? url.pathname.split("/")[2]
                   : null;
 
@@ -543,6 +833,15 @@ export async function installPlatformRoutes(context: BrowserContext): Promise<vo
                 contentType: "text/html; charset=utf-8",
                 headers: { "cache-control": "no-store" },
                 body: buildYoutubeHtml({ title: "YouTube Home", isWatchPage: false }),
+            });
+        }
+
+        if (url.pathname.startsWith("/embed/")) {
+            return await route.fulfill({
+                status: 200,
+                contentType: "text/html; charset=utf-8",
+                headers: { "cache-control": "no-store" },
+                body: buildYoutubeEmbedHtml(mediaId),
             });
         }
 
@@ -881,6 +1180,98 @@ export async function installPlatformRoutes(context: BrowserContext): Promise<vo
 </body>
 </html>`,
         });
+    });
+
+    await context.route("https://video-blog.mock.invalid/**", async (route) => {
+        const url = new URL(route.request().url());
+        let body: string;
+        switch (url.pathname) {
+            case "/article-embed":
+                body = buildEmbedYoutubePageHtml();
+                break;
+            case "/hls-player":
+                body = buildGenericHlsPageHtml();
+                break;
+            case "/dash-player":
+                body = buildGenericDashPageHtml();
+                break;
+            case "/direct-video":
+                body = buildGenericDirectPageHtml();
+                break;
+            case "/multi-video":
+                body = buildMultiVideoPageHtml();
+                break;
+            default:
+                return await route.fulfill({ status: 404, body: "Not found" });
+        }
+        await route.fulfill({
+            status: 200,
+            contentType: "text/html; charset=utf-8",
+            headers: { "cache-control": "no-store" },
+            body,
+        });
+    });
+
+    await context.route("https://generic-media.mock.invalid/**", async (route) => {
+        const url = new URL(route.request().url());
+        const corsHeaders = {
+            "access-control-allow-origin": "*",
+            "cache-control": "no-store",
+        };
+        if (url.pathname === "/hls/master.m3u8") {
+            return await route.fulfill({
+                status: 200,
+                contentType: "application/vnd.apple.mpegurl",
+                headers: corsHeaders,
+                body: buildGenericHlsMasterM3u8(),
+            });
+        }
+        if (url.pathname.startsWith("/hls/") && url.pathname.endsWith(".m3u8")) {
+            const quality = url.pathname.includes("1080p")
+                ? "1080p"
+                : url.pathname.includes("720p")
+                  ? "720p"
+                  : "480p";
+            return await route.fulfill({
+                status: 200,
+                contentType: "application/vnd.apple.mpegurl",
+                headers: corsHeaders,
+                body: buildGenericHlsVodVariantM3u8(quality),
+            });
+        }
+        if (url.pathname === "/dash/manifest.mpd") {
+            return await route.fulfill({
+                status: 200,
+                contentType: "application/dash+xml",
+                headers: corsHeaders,
+                body: buildGenericDashMpd(),
+            });
+        }
+        const directSize = DIRECT_VIDEO_SIZES[url.pathname];
+        if (directSize !== undefined) {
+            if (route.request().method() === "HEAD") {
+                return await route.fulfill({
+                    status: 200,
+                    headers: {
+                        ...corsHeaders,
+                        "content-type": "video/mp4",
+                        "content-length": String(directSize),
+                    },
+                    body: Buffer.alloc(0),
+                });
+            }
+            return await route.fulfill({
+                status: 206,
+                headers: {
+                    ...corsHeaders,
+                    "content-type": "video/mp4",
+                    "content-range": `bytes 0-0/${directSize}`,
+                    "content-length": "1",
+                },
+                body: Buffer.alloc(1),
+            });
+        }
+        await route.fulfill({ status: 404, headers: corsHeaders, body: "Not found" });
     });
 }
 
