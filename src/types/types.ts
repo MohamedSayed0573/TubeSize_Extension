@@ -32,12 +32,10 @@ export type EstimateMediaMessage = {
 
 export type PlatformId = (typeof CONFIG.PLATFORMS)[number];
 
-export type DetectedVideoSource =
+type DetectedVideoSource =
     | {
           kind: "platform-embed";
-          platform: PlatformId;
           url: string;
-          embedUrl: string;
       }
     | {
           kind: "hls";
@@ -66,12 +64,11 @@ export type DetectedVideo = {
     title?: string;
     isPlaying: boolean;
     currentResolution?: number;
-    frameId: number;
 };
 
 export type TabVideoDetectionResult =
     | { status: "video"; video: DetectedVideo }
-    | { status: "multiple_idle"; count: number }
+    | { status: "multiple_idle" }
     | { status: "none" };
 
 export type VideoContentType = "live" | "vod";

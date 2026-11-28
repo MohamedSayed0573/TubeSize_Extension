@@ -9,7 +9,6 @@ export type ObservedMedia = {
     kind: ObservedMediaKind;
     url: string;
     frameId: number;
-    mimeType?: string;
     observedAt: number;
 };
 
@@ -57,38 +56,24 @@ function getContentType(details: ObservedRequestDetails): string | undefined {
     return header?.value?.split(";", 1)[0]?.trim().toLowerCase() || undefined;
 }
 
-function classifyObservedMedia(
+export function classifyManifestUrl(
     url: URL,
     contentType: string | undefined,
 ): ObservedMediaKind | undefined {
     const pathname = url.pathname.toLowerCase();
-    if (pathname.endsWith(".m3u8") || contentType?.includes("mpegurl")) return "hls";
-    if (pathname.endsWith(".mpd") || contentType === "application/dash+xml") return "dash";
+    const mimeType = contentType?.split(";", 1)[0]?.trim().toLowerCase();
+    if (pathname.endsWith(".m3u8") || mimeType?.includes("mpegurl")) return "hls";
+    if (pathname.endsWith(".mpd") || mimeType === "application/dash+xml") return "dash";
     return undefined;
 }
 
 function upsertEntry(entries: ObservedMedia[], entry: ObservedMedia, maxEntriesPerTab: number) {
     const existingIndex = entries.findIndex((candidate) => candidate.url === entry.url);
     if (existingIndex !== -1) {
-        const existing = entries[existingIndex]!;
-        const frameChanged = existing.frameId !== entry.frameId;
-        const updated: ObservedMedia = {
-            kind: entry.kind,
-            url: entry.url,
-            frameId: entry.frameId,
-            ...(entry.mimeType ? { mimeType: entry.mimeType } : {}),
-            observedAt: entry.observedAt,
-        };
-        if (frameChanged) {
-            entries.splice(existingIndex, 1);
-            entries.push(updated);
-        } else {
-            entries[existingIndex] = updated;
-        }
-    } else {
-        entries.push({ ...entry });
-        while (entries.length > maxEntriesPerTab) entries.shift();
+        entries.splice(existingIndex, 1);
     }
+    entries.push({ ...entry });
+    while (entries.length > maxEntriesPerTab) entries.shift();
 }
 
 export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaRegistry {
@@ -165,15 +150,13 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             }
             if (url.protocol !== "http:" && url.protocol !== "https:") return;
 
-            const mimeType = getContentType(details);
-            const kind = classifyObservedMedia(url, mimeType);
+            const kind = classifyManifestUrl(url, getContentType(details));
             if (!kind) return;
 
             record(details.tabId, {
                 kind,
                 url: url.href,
                 frameId: details.frameId,
-                ...(mimeType ? { mimeType } : {}),
                 observedAt: now(),
             });
         },

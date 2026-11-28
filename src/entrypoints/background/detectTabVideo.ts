@@ -1,12 +1,7 @@
-import type {
-    DetectedVideo,
-    DetectedVideoSource,
-    GenericVideoSource,
-    TabVideoDetectionResult,
-} from "@app-types/types";
+import type { DetectedVideo, GenericVideoSource, TabVideoDetectionResult } from "@app-types/types";
 import { parseEmbeddedPlatformUrl } from "@lib/platformUrl";
 
-import type { ObservedMedia, TabMediaRegistry } from "./tabMediaRegistry";
+import { classifyManifestUrl, type ObservedMedia, type TabMediaRegistry } from "./tabMediaRegistry";
 
 type ScannedIframe = {
     url: string;
@@ -122,11 +117,19 @@ export function scanFrameDom(): FrameDomScan {
     };
 
     collect(document, 0);
-    return { frameUrl: frameHref, pageTitle: cleanTitle(document.title), iframes, videos };
+    return {
+        frameUrl: frameHref,
+        pageTitle: cleanTitle(document.title),
+        iframes,
+        videos,
+    };
 }
 
 const executeFrameScan: FrameScanExecutor = (tabId) =>
-    chrome.scripting.executeScript({ target: { tabId, allFrames: true }, func: scanFrameDom });
+    chrome.scripting.executeScript({
+        target: { tabId, allFrames: true },
+        func: scanFrameDom,
+    });
 
 type GenericKind = GenericVideoSource["kind"];
 
@@ -139,16 +142,6 @@ type ManifestGroup = {
     latestObservedAt: number;
 };
 
-type PendingMseVideo = {
-    frame: FrameScanResult;
-    video: ScannedVideo;
-};
-
-function normalizeMimeType(mimeType: string | undefined): string | undefined {
-    const base = mimeType?.split(";", 1)[0]?.trim().toLowerCase();
-    return base || undefined;
-}
-
 function classifySourceUrl(url: string, mimeType?: string): GenericKind | undefined {
     let parsed: URL;
     try {
@@ -157,12 +150,7 @@ function classifySourceUrl(url: string, mimeType?: string): GenericKind | undefi
         return undefined;
     }
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return undefined;
-
-    const pathname = parsed.pathname.toLowerCase();
-    const type = normalizeMimeType(mimeType);
-    if (pathname.endsWith(".m3u8") || type?.includes("mpegurl")) return "hls";
-    if (pathname.endsWith(".mpd") || type === "application/dash+xml") return "dash";
-    return "direct";
+    return classifyManifestUrl(parsed, mimeType) ?? "direct";
 }
 
 function parseOriginAndDir(rawUrl: string): { origin: string; dir: string } | undefined {
@@ -235,12 +223,12 @@ function groupObservedManifests(manifests: readonly ObservedMedia[]): ManifestGr
 }
 
 function pairPlayersWithGroups(
-    players: readonly PendingMseVideo[],
+    players: readonly ScannedVideo[],
     groups: readonly ManifestGroup[],
-): Array<{ player: PendingMseVideo; group: ManifestGroup }> {
+): Array<{ player: ScannedVideo; group: ManifestGroup }> {
     const orderedPlayers = [
-        ...players.filter((entry) => entry.video.isPlaying),
-        ...players.filter((entry) => !entry.video.isPlaying),
+        ...players.filter((video) => video.isPlaying),
+        ...players.filter((video) => !video.isPlaying),
     ];
     const orderedGroups = groups.toSorted((a, b) => b.latestObservedAt - a.latestObservedAt);
     const count = Math.min(orderedPlayers.length, orderedGroups.length);
@@ -267,14 +255,33 @@ function toGenericSource(
     return { kind, url, ...(durationSeconds ? { durationSeconds } : {}) };
 }
 
-function compareVideos(a: DetectedVideo, b: DetectedVideo): number {
-    return Number(b.isPlaying) - Number(a.isPlaying);
-}
-
-function sourceId(source: DetectedVideoSource): string {
-    return source.kind === "platform-embed"
-        ? `embed:${source.url}`
-        : `${source.kind}:${source.url}`;
+function findPlayableSource(
+    video: ScannedVideo,
+    observedByUrl: ReadonlyMap<string, ObservedMedia>,
+): { url: string; kind: GenericKind } | "mse" | undefined {
+    const candidates = [
+        ...(video.currentSrc
+            ? [
+                  {
+                      url: video.currentSrc,
+                      type: video.sources.find((source) => source.url === video.currentSrc)?.type,
+                  },
+              ]
+            : []),
+        ...video.sources,
+    ];
+    let hasBlob = false;
+    for (const candidate of candidates) {
+        if (candidate.url.startsWith("blob:")) {
+            hasBlob = true;
+            continue;
+        }
+        const kind =
+            observedByUrl.get(candidate.url)?.kind ??
+            classifySourceUrl(candidate.url, candidate.type);
+        if (kind) return { url: candidate.url, kind };
+    }
+    return hasBlob ? "mse" : undefined;
 }
 
 export function selectDetectedVideo(
@@ -284,13 +291,15 @@ export function selectDetectedVideo(
     const detected = new Map<string, DetectedVideo>();
 
     const add = (video: Omit<DetectedVideo, "id">) => {
-        const id = sourceId(video.source);
-        const candidate: DetectedVideo = { id, ...video };
+        const id =
+            video.source.kind === "platform-embed"
+                ? `embed:${video.source.url}`
+                : `${video.source.kind}:${video.source.url}`;
         const existing = detected.get(id);
         if (!existing) {
-            detected.set(id, candidate);
-        } else if (compareVideos(candidate, existing) < 0) {
-            detected.set(id, { ...candidate, title: candidate.title ?? existing.title });
+            detected.set(id, { id, ...video });
+        } else if (video.isPlaying && !existing.isPlaying) {
+            detected.set(id, { id, ...video, title: video.title ?? existing.title });
         }
     };
 
@@ -318,7 +327,7 @@ export function selectDetectedVideo(
         }
     }
 
-    const pendingMseByFrame = new Map<number, PendingMseVideo[]>();
+    const pendingMseByFrame = new Map<number, ScannedVideo[]>();
 
     for (const frame of frames) {
         for (const iframe of frame.iframes) {
@@ -326,16 +335,10 @@ export function selectDetectedVideo(
             if (!embedded) continue;
             const playerState = embedFrameStates.get(embedded.canonicalUrl);
             add({
-                source: {
-                    kind: "platform-embed",
-                    platform: embedded.parsed.platform,
-                    url: embedded.canonicalUrl,
-                    embedUrl: iframe.url,
-                },
+                source: { kind: "platform-embed", url: embedded.canonicalUrl },
                 title: iframe.title,
                 isPlaying: playerState?.isPlaying ?? false,
                 currentResolution: playerState?.videoHeight,
-                frameId: frame.frameId,
             });
         }
 
@@ -343,51 +346,15 @@ export function selectDetectedVideo(
 
         for (const video of frame.videos) {
             const title = video.title ?? (frame.videos.length === 1 ? frame.pageTitle : undefined);
-            const sourceTypeByUrl = new Map<string, string>();
-            for (const source of video.sources) {
-                if (source.type && !sourceTypeByUrl.has(source.url)) {
-                    sourceTypeByUrl.set(source.url, source.type);
-                }
-            }
+            const playable = findPlayableSource(video, observedByUrl);
 
-            const seenCandidateUrls = new Set<string>();
-            const candidates: Array<{ url: string; type?: string }> = [];
-            for (const rawCandidate of [
-                ...(video.currentSrc ? [{ url: video.currentSrc }] : []),
-                ...video.sources,
-            ]) {
-                if (seenCandidateUrls.has(rawCandidate.url)) continue;
-                seenCandidateUrls.add(rawCandidate.url);
-                candidates.push({
-                    url: rawCandidate.url,
-                    type: rawCandidate.type ?? sourceTypeByUrl.get(rawCandidate.url),
-                });
-            }
-
-            const playable = candidates
-                .map((candidate) => {
-                    const observed = observedByUrl.get(candidate.url);
-                    const kind = observed
-                        ? observed.kind
-                        : classifySourceUrl(candidate.url, candidate.type);
-                    return { url: candidate.url, kind };
-                })
-                .find((candidate) => candidate.kind !== undefined);
-
-            if (!playable?.kind) {
-                if (candidates.some((candidate) => candidate.url.startsWith("blob:"))) {
-                    const list = pendingMseByFrame.get(frame.frameId) ?? [];
-                    list.push({
-                        frame,
-                        video: {
-                            ...video,
-                            title,
-                        },
-                    });
-                    pendingMseByFrame.set(frame.frameId, list);
-                }
+            if (playable === "mse") {
+                const list = pendingMseByFrame.get(frame.frameId) ?? [];
+                list.push({ ...video, title });
+                pendingMseByFrame.set(frame.frameId, list);
                 continue;
             }
+            if (!playable) continue;
 
             if (playable.kind === "hls" || playable.kind === "dash") {
                 for (const group of manifestGroups) {
@@ -400,7 +367,6 @@ export function selectDetectedVideo(
                 title,
                 isPlaying: video.isPlaying,
                 currentResolution: video.videoHeight,
-                frameId: frame.frameId,
             });
         }
     }
@@ -412,11 +378,10 @@ export function selectDetectedVideo(
         for (const { player, group } of pairPlayersWithGroups(framePlayers, frameGroups)) {
             claimedGroupIds.add(group.id);
             add({
-                source: toGenericSource(group.kind, group.primary.url, player.video),
-                title: player.video.title,
-                isPlaying: player.video.isPlaying,
-                currentResolution: player.video.videoHeight,
-                frameId: player.frame.frameId,
+                source: toGenericSource(group.kind, group.primary.url, player),
+                title: player.title,
+                isPlaying: player.isPlaying,
+                currentResolution: player.videoHeight,
             });
         }
 
@@ -433,7 +398,6 @@ export function selectDetectedVideo(
         add({
             source: toGenericSource(group.kind, group.primary.url, undefined),
             isPlaying: false,
-            frameId: group.frameId,
         });
     }
 
@@ -443,7 +407,7 @@ export function selectDetectedVideo(
     const playing = candidates.find((video) => video.isPlaying);
     if (playing) return { status: "video", video: playing };
     if (candidates.length === 1) return { status: "video", video: candidates[0]! };
-    return { status: "multiple_idle", count: candidates.length };
+    return { status: "multiple_idle" };
 }
 
 export async function detectTabVideo(

@@ -170,6 +170,15 @@ function parseAdaptationSets(
     return { videos: videoByResolution, audio: bestAudio };
 }
 
+function toBaseFormat(video: DashVideoCandidate) {
+    return {
+        resolution: video.resolution,
+        sizePerSecondBytes: video.bandwidth / 8,
+        ...(video.fps !== undefined ? { fps: video.fps } : {}),
+        ...(video.codec ? { codec: video.codec } : {}),
+    };
+}
+
 export async function estimateGenericDash(
     url: string,
     options: GenericDashOptions = {},
@@ -236,7 +245,6 @@ export async function estimateGenericDash(
     const isStatic = mpdType !== "dynamic";
     const durationSeconds = explicitDuration ?? mpdDuration ?? selectedPeriod.duration ?? 0;
     const isVod = (isStatic && durationSeconds > 0) || explicitDuration !== undefined;
-    const titleMeta = options.title ? { title: options.title } : {};
     const videos = [...selectedPeriod.videos.values()].toSorted(
         (a, b) => b.resolution - a.resolution,
     );
@@ -255,42 +263,27 @@ export async function estimateGenericDash(
         };
     }
 
+    const shared = {
+        platform: "generic" as const,
+        ...(options.title ? { title: options.title } : {}),
+        ...(audio ? { audio } : {}),
+    };
+
     if (isVod) {
         const formats: VodMediaFormat[] = videos.map((video) => {
-            const sizePerSecondBytes = video.bandwidth / 8;
+            const base = toBaseFormat(video);
             return {
                 kind: "vod",
-                resolution: video.resolution,
-                sizePerSecondBytes,
-                sizeBytes: Math.round(sizePerSecondBytes * durationSeconds),
-                ...(video.fps !== undefined ? { fps: video.fps } : {}),
-                ...(video.codec ? { codec: video.codec } : {}),
+                ...base,
+                sizeBytes: Math.round(base.sizePerSecondBytes * durationSeconds),
             };
         });
-
-        return {
-            platform: "generic",
-            contentType: "vod",
-            ...titleMeta,
-            ...(audio ? { audio } : {}),
-            durationSeconds,
-            formats,
-        };
+        return { ...shared, contentType: "vod", durationSeconds, formats };
     }
 
     const formats: LiveMediaFormat[] = videos.map((video) => ({
         kind: "live",
-        resolution: video.resolution,
-        sizePerSecondBytes: video.bandwidth / 8,
-        ...(video.fps !== undefined ? { fps: video.fps } : {}),
-        ...(video.codec ? { codec: video.codec } : {}),
+        ...toBaseFormat(video),
     }));
-
-    return {
-        platform: "generic",
-        contentType: "live",
-        ...titleMeta,
-        ...(audio ? { audio } : {}),
-        formats,
-    };
+    return { ...shared, contentType: "live", formats };
 }

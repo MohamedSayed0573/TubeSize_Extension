@@ -132,7 +132,9 @@ describe("requestMediaEstimate", () => {
         await requestMediaEstimate("https://www.youtube.com/watch?v=dQw4w9WgXcQ", {
             html: "<script>var ytInitialPlayerResponse = {};</script>",
         });
-        await requestMediaEstimate("https://www.twitch.tv/shroud", { isFromPopup: false });
+        await requestMediaEstimate("https://www.twitch.tv/shroud", {
+            isFromPopup: false,
+        });
         await requestMediaEstimate("https://kick.com/xqc/videos/vod-123");
 
         expect(received).toEqual([
@@ -317,7 +319,11 @@ describe("formatEstimateHeader", () => {
             title: "Think Planes",
         });
         expect(
-            formatEstimateHeader({ ...SAMPLE_YOUTUBE_LIVE, channelName: "", title: "" }),
+            formatEstimateHeader({
+                ...SAMPLE_YOUTUBE_LIVE,
+                channelName: "",
+                title: "",
+            }),
         ).toEqual({
             title: "YouTube Live",
         });
@@ -341,14 +347,25 @@ describe("formatEstimateHeader", () => {
         await setLanguage("ar");
         expect(formatEstimateHeader(SAMPLE_TWITCH_VOD).title).toBe("فيديو Twitch");
         expect(
-            formatEstimateHeader({ ...SAMPLE_YOUTUBE_LIVE, channelName: "", title: "" }).title,
+            formatEstimateHeader({
+                ...SAMPLE_YOUTUBE_LIVE,
+                channelName: "",
+                title: "",
+            }).title,
         ).toBe("بث YouTube مباشر");
         expect(
             formatEstimateHeader({
                 platform: "generic",
                 contentType: "vod",
                 durationSeconds: 0,
-                formats: [{ kind: "vod", resolution: 0, sizeBytes: 1000, sizePerSecondBytes: 0 }],
+                formats: [
+                    {
+                        kind: "vod",
+                        resolution: 0,
+                        sizeBytes: 1000,
+                        sizePerSecondBytes: 0,
+                    },
+                ],
             }),
         ).toEqual({ title: "فيديو", duration: undefined });
     });
@@ -358,7 +375,14 @@ describe("formatEstimateHeader", () => {
             platform: "generic",
             contentType: "vod",
             durationSeconds: 0,
-            formats: [{ kind: "vod", resolution: 0, sizeBytes: 5_000_000, sizePerSecondBytes: 0 }],
+            formats: [
+                {
+                    kind: "vod",
+                    resolution: 0,
+                    sizeBytes: 5_000_000,
+                    sizePerSecondBytes: 0,
+                },
+            ],
         };
         expect(projectEstimateFormats(genericEstimate)).toEqual([
             {
@@ -381,10 +405,13 @@ describe("formatEstimateHeader", () => {
 
         const estimate = await requestGenericMediaEstimate({
             id: "direct:https://cdn.example.com/clip.mp4",
-            source: { kind: "direct", url: "https://cdn.example.com/clip.mp4", videoHeight: 720 },
+            source: {
+                kind: "direct",
+                url: "https://cdn.example.com/clip.mp4",
+                videoHeight: 720,
+            },
             title: "Clip",
             isPlaying: true,
-            frameId: 0,
         });
 
         expect(estimate).toEqual(genericEstimate);

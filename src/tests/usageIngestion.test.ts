@@ -342,13 +342,6 @@ describe("createUsageIngestion", () => {
         expect(
             await ingestion.recordTabUsage(
                 "https://blog.example.com/post",
-                8_000,
-                "https://www.youtube-nocookie.com/embed/yaodD79Q4iE",
-            ),
-        ).toBe(true);
-        expect(
-            await ingestion.recordTabUsage(
-                "https://blog.example.com/post",
                 5_000,
                 "https://player.twitch.tv/?channel=shroud&parent=blog.example.com",
             ),
@@ -363,11 +356,10 @@ describe("createUsageIngestion", () => {
 
         expect((await getAllSiteUsage())[0]?.usage).toEqual({
             [origin("https://developers.google.com")]: 12_000,
-            [origin("https://blog.example.com")]: 17_000,
+            [origin("https://blog.example.com")]: 9_000,
         });
         expect((await getAllWatchHistory())[0]?.videos).toEqual({
             [toVideoKey("youtube", "bHQqvYy5KYo")]: 12_000,
-            [toVideoKey("youtube", "yaodD79Q4iE")]: 8_000,
             [toVideoKey("twitch", "shroud")]: 5_000,
             [toVideoKey("kick", "xqc")]: 4_000,
         });

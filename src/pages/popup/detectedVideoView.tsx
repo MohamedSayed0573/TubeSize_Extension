@@ -1,16 +1,12 @@
 import type { DetectedVideo } from "@app-types/types";
-import Spinner from "@components/spinner";
-import { requestGenericMediaEstimate, requestMediaEstimate } from "@lib/mediaEstimate";
-import { parsePlatformUrl } from "@lib/platformUrl";
+import { requestGenericMediaEstimate } from "@lib/mediaEstimate";
 import { useQuery } from "@tanstack/react-query";
 import { Play } from "lucide-react";
-import { useState } from "react";
 
 import { t } from "@/i18n/t";
 
 import Header from "./header";
-import FormatView from "./platforms/formatView";
-import MediaEstimateErrorCard from "./platforms/mediaEstimateErrorCard";
+import { EstimateQueryView } from "./platforms/platformView";
 import { PopupViewContainer } from "./popupViewContainer";
 
 export function PlayVideoPrompt() {
@@ -48,66 +44,17 @@ export function PlayVideoPrompt() {
 }
 
 export function DetectedVideoView({ video }: { video: DetectedVideo }) {
-    const [retryingError, setRetryingError] = useState<{
-        videoId: string;
-        error: unknown;
-    } | null>(null);
-
     const query = useQuery({
         queryKey: ["detectedVideoEstimate", video.id, video.source],
-        queryFn: () =>
-            video.source.kind === "platform-embed" &&
-            parsePlatformUrl(video.source.url)?.kind === "media"
-                ? requestMediaEstimate(video.source.url, { isFromPopup: true })
-                : requestGenericMediaEstimate(video),
+        queryFn: () => requestGenericMediaEstimate(video),
         retry: false,
     });
 
-    const { isPending, isError, isFetching, data: estimate, error, refetch } = query;
-    const activeError = isError
-        ? error
-        : isFetching && retryingError?.videoId === video.id
-          ? retryingError.error
-          : null;
-
-    if (activeError !== null) {
-        return (
-            <>
-                <Header />
-                <PopupViewContainer>
-                    <MediaEstimateErrorCard
-                        error={activeError}
-                        isRetrying={isFetching}
-                        onRetry={() => {
-                            const videoId = video.id;
-                            setRetryingError({ videoId, error: activeError });
-                            void refetch().finally(() => {
-                                setRetryingError((current) =>
-                                    current?.videoId === videoId ? null : current,
-                                );
-                            });
-                        }}
-                    />
-                </PopupViewContainer>
-            </>
-        );
-    }
-
-    if (isPending || !estimate) {
-        return (
-            <>
-                <Header />
-                <Spinner />
-            </>
-        );
-    }
-
     return (
-        <>
-            <Header estimate={estimate} />
-            <PopupViewContainer>
-                <FormatView estimate={estimate} currentQualityOverride={video.currentResolution} />
-            </PopupViewContainer>
-        </>
+        <EstimateQueryView
+            retryKey={video.id}
+            query={query}
+            currentQualityOverride={video.currentResolution}
+        />
     );
 }

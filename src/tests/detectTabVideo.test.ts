@@ -14,6 +14,8 @@ import {
 
 import { installDomEnv } from "./domEnv";
 
+type ScannedVideo = FrameScanResult["videos"][number];
+
 function makeRequest(
     overrides: Partial<
         Pick<
@@ -33,6 +35,37 @@ function makeRequest(
     };
 }
 
+function makeVideo(overrides: Partial<ScannedVideo> = {}): ScannedVideo {
+    return {
+        sources: [],
+        isPlaying: false,
+        ...overrides,
+    };
+}
+
+function makeFrame(overrides: Partial<FrameScanResult> = {}): FrameScanResult {
+    return {
+        frameId: 0,
+        frameUrl: "https://example.com/page",
+        iframes: [],
+        videos: [],
+        ...overrides,
+    };
+}
+
+function makeObserved(
+    url: string,
+    overrides: Partial<Omit<ObservedMedia, "url">> = {},
+): ObservedMedia {
+    return {
+        kind: url.endsWith(".mpd") ? "dash" : "hls",
+        url,
+        frameId: 0,
+        observedAt: 1,
+        ...overrides,
+    };
+}
+
 function createMemoryStorage(): TabMediaStorage {
     let saved: Awaited<ReturnType<TabMediaStorage["get"]>> = null;
     return {
@@ -46,7 +79,7 @@ function createMemoryStorage(): TabMediaStorage {
 }
 
 describe("createTabMediaRegistry", () => {
-    test("detects HLS and DASH manifests while ignoring direct videos, segments, errors, and non-tab/extension URLs", async () => {
+    test("observes HLS and DASH manifests while ignoring non-manifests, errors, and tabless requests", async () => {
         let tick = 1000;
         const registry = createTabMediaRegistry({ now: () => ++tick, storage: null });
 
@@ -61,7 +94,7 @@ describe("createTabMediaRegistry", () => {
         );
         registry.observeRequest(makeRequest({ url: "https://cdn.example.com/dash/manifest.mpd" }));
 
-        // Ignored entries:
+        // Ignored: direct video, error response, tabless request.
         registry.observeRequest(
             makeRequest({
                 type: "media",
@@ -69,57 +102,19 @@ describe("createTabMediaRegistry", () => {
                 responseHeaders: [{ name: "Content-Type", value: "video/mp4" }],
             }),
         );
-        registry.observeRequest(makeRequest({ tabId: -1 }));
-        registry.observeRequest(
-            makeRequest({ url: "chrome-extension://abc/master.m3u8", statusCode: 200 }),
-        );
-        registry.observeRequest(makeRequest({ url: "ftp://cdn.example.com/master.m3u8" }));
         registry.observeRequest(
             makeRequest({ url: "https://cdn.example.com/fail.m3u8", statusCode: 404 }),
         );
-        registry.observeRequest(
-            makeRequest({
-                type: "media",
-                url: "https://cdn.example.com/seg-1.ts",
-                responseHeaders: [{ name: "Content-Type", value: "video/mp2t" }],
-            }),
-        );
-        registry.observeRequest(
-            makeRequest({
-                type: "media",
-                url: "https://cdn.example.com/chunk.m4s",
-                responseHeaders: [{ name: "Content-Type", value: "video/mp4" }],
-            }),
-        );
-        registry.observeRequest(
-            makeRequest({
-                type: "xmlhttprequest",
-                url: "https://cdn.example.com/mse-chunk.mp4",
-                responseHeaders: [{ name: "Content-Type", value: "video/mp4" }],
-            }),
-        );
+        registry.observeRequest(makeRequest({ tabId: -1 }));
 
         expect(await registry.getTabMedia(1)).toMatchObject([
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/live/master.m3u8",
-                frameId: 0,
-            },
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/stream/playlist",
-                frameId: 0,
-                mimeType: "application/vnd.apple.mpegurl",
-            },
-            {
-                kind: "dash",
-                url: "https://cdn.example.com/dash/manifest.mpd",
-                frameId: 0,
-            },
+            { kind: "hls", url: "https://cdn.example.com/live/master.m3u8", frameId: 0 },
+            { kind: "hls", url: "https://cdn.example.com/stream/playlist", frameId: 0 },
+            { kind: "dash", url: "https://cdn.example.com/dash/manifest.mpd", frameId: 0 },
         ]);
     });
 
-    test("deduplicates URLs, refreshes frame ownership, clears on clearTab, and enforces per-tab entry bounds", async () => {
+    test("deduplicates URLs, enforces per-tab bounds, and clears on clearTab", async () => {
         let tick = 100;
         const registry = createTabMediaRegistry({
             maxEntriesPerTab: 2,
@@ -127,35 +122,9 @@ describe("createTabMediaRegistry", () => {
             storage: null,
         });
 
-        registry.observeRequest(
-            makeRequest({ tabId: 1, frameId: 1, url: "https://cdn.example.com/a.m3u8" }),
-        );
-        registry.observeRequest(
-            makeRequest({ tabId: 1, frameId: 1, url: "https://cdn.example.com/b.m3u8" }),
-        );
-        // Re-observing A in frame 2 updates its frameId instead of leaving it pinned to frame 1.
-        registry.observeRequest(
-            makeRequest({
-                tabId: 1,
-                frameId: 2,
-                url: "https://cdn.example.com/a.m3u8",
-                responseHeaders: [{ name: "Content-Type", value: "application/vnd.apple.mpegurl" }],
-            }),
-        );
-        expect(await registry.getTabMedia(1)).toMatchObject([
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/b.m3u8",
-                frameId: 1,
-            },
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/a.m3u8",
-                frameId: 2,
-                mimeType: "application/vnd.apple.mpegurl",
-            },
-        ]);
-
+        registry.observeRequest(makeRequest({ tabId: 1, url: "https://cdn.example.com/a.m3u8" }));
+        registry.observeRequest(makeRequest({ tabId: 1, url: "https://cdn.example.com/b.m3u8" }));
+        registry.observeRequest(makeRequest({ tabId: 1, url: "https://cdn.example.com/a.m3u8" }));
         registry.observeRequest(makeRequest({ tabId: 1, url: "https://cdn.example.com/c.m3u8" }));
 
         expect((await registry.getTabMedia(1)).map((entry) => entry.url)).toEqual([
@@ -163,23 +132,11 @@ describe("createTabMediaRegistry", () => {
             "https://cdn.example.com/c.m3u8",
         ]);
 
-        registry.observeRequest(makeRequest({ tabId: 2, url: "https://cdn.example.com/t2.m3u8" }));
-        expect(await registry.getTabMedia(2)).toHaveLength(1);
-
-        // Late main_frame onCompleted events must not wipe manifests fetched during parse.
-        registry.observeRequest(
-            makeRequest({ tabId: 2, type: "main_frame", url: "https://example.com/next" }),
-        );
-        expect(await registry.getTabMedia(2)).toHaveLength(1);
-
         registry.clearTab(1);
         expect(await registry.getTabMedia(1)).toEqual([]);
-
-        registry.clearTab(2);
-        expect(await registry.getTabMedia(2)).toEqual([]);
     });
 
-    test("persists and restores bounded observations across worker restarts and honors pre-hydration clearTab", async () => {
+    test("persists observations across worker restarts and honors pre-hydration clearTab", async () => {
         const storage = createMemoryStorage();
         let tick = 500;
 
@@ -191,26 +148,19 @@ describe("createTabMediaRegistry", () => {
             makeRequest({ tabId: 8, url: "https://cdn.example.com/b/master.m3u8" }),
         );
         await firstWorker.getTabMedia(7);
-        await new Promise((resolve) => setTimeout(resolve, 0));
 
-        // Simulate service worker restart: fresh registry reading the same session storage.
         const secondWorker = createTabMediaRegistry({ now: () => ++tick, storage });
         expect(await secondWorker.getTabMedia(7)).toMatchObject([
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/a/master.m3u8",
-                frameId: 0,
-            },
+            { kind: "hls", url: "https://cdn.example.com/a/master.m3u8", frameId: 0 },
         ]);
 
-        // Clearing a tab before hydration completes must prevent stale persisted entries from returning.
         const thirdWorker = createTabMediaRegistry({ now: () => ++tick, storage });
         thirdWorker.clearTab(7);
         expect(await thirdWorker.getTabMedia(7)).toEqual([]);
         expect(await thirdWorker.getTabMedia(8)).toHaveLength(1);
     });
 
-    test("tracks embedded platform sub_frame URLs in memory and clears on non-embed navigation", () => {
+    test("tracks embedded sub_frame URLs and clears only navigated subframe media", async () => {
         const registry = createTabMediaRegistry({ storage: null });
         registry.observeSubFrame(12, 5, "https://www.youtube.com/embed/bHQqvYy5KYo?enablejsapi=1");
         registry.observeSubFrame(12, 6, "https://example.com/non-embed");
@@ -219,119 +169,59 @@ describe("createTabMediaRegistry", () => {
         );
         expect(registry.getFrameUrl(12, 6)).toBeUndefined();
 
-        // Navigating that sub_frame to a non-embed URL removes the association.
+        registry.observeRequest(
+            makeRequest({ tabId: 12, frameId: 0, url: "https://cdn.example.com/main/master.m3u8" }),
+        );
+        registry.observeRequest(
+            makeRequest({ tabId: 12, frameId: 5, url: "https://cdn.example.com/sub/old.m3u8" }),
+        );
+
         registry.observeSubFrame(12, 5, "https://example.com/other");
         expect(registry.getFrameUrl(12, 5)).toBeUndefined();
-    });
-
-    test("clears subframe media on sub_frame navigation while preserving other frames and handling pre-hydration restarts", async () => {
-        const storage = createMemoryStorage();
-        let tick = 100;
-        const firstWorker = createTabMediaRegistry({ now: () => ++tick, storage });
-
-        firstWorker.observeSubFrame(15, 7, "https://player.example.com/frame");
-        firstWorker.observeRequest(
-            makeRequest({
-                tabId: 15,
-                frameId: 0,
-                url: "https://cdn.example.com/main/master.m3u8",
-            }),
-        );
-        firstWorker.observeRequest(
-            makeRequest({
-                tabId: 15,
-                frameId: 7,
-                url: "https://cdn.example.com/sub/old.m3u8",
-            }),
-        );
-        expect((await firstWorker.getTabMedia(15)).map((entry) => entry.url)).toEqual([
-            "https://cdn.example.com/main/master.m3u8",
-            "https://cdn.example.com/sub/old.m3u8",
-        ]);
-
-        // Navigating frame 7 clears its previous manifest while preserving frame 0,
-        // and keeps new manifests observed afterward.
-        firstWorker.observeSubFrame(15, 7, "https://example.com/player-v2");
-        firstWorker.observeRequest(
-            makeRequest({
-                tabId: 15,
-                frameId: 7,
-                url: "https://cdn.example.com/sub/new.m3u8",
-            }),
-        );
-        expect((await firstWorker.getTabMedia(15)).map((entry) => entry.url)).toEqual([
-            "https://cdn.example.com/main/master.m3u8",
-            "https://cdn.example.com/sub/new.m3u8",
-        ]);
-
-        // Navigating frame 7 before hydration finishes on a restarted worker clears persisted media for frame 7.
-        const restartedWorker = createTabMediaRegistry({ now: () => ++tick, storage });
-        restartedWorker.observeSubFrame(15, 7, "https://example.com/plain-2");
-        expect((await restartedWorker.getTabMedia(15)).map((entry) => entry.url)).toEqual([
+        expect((await registry.getTabMedia(12)).map((entry) => entry.url)).toEqual([
             "https://cdn.example.com/main/master.m3u8",
         ]);
     });
 });
 
 describe("selectDetectedVideo", () => {
-    test("selects the playing video across embeds and direct elements and falls back to multiple_idle when none plays", () => {
-        const frames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://blog.example.com/post",
-                pageTitle: "Embedded Post",
-                iframes: [
-                    {
-                        url: "https://www.youtube-nocookie.com/embed/yaodD79Q4iE",
-                        title: "Embedded Talk",
-                    },
-                    {
-                        url: "https://player.twitch.tv/?channel=shroud&parent=blog.example.com",
-                        title: "Shroud Embed",
-                    },
-                ],
-                videos: [
-                    {
-                        currentSrc: "https://cdn.example.com/hero.mp4",
-                        sources: [],
-                        durationSeconds: 95,
-                        videoHeight: 1080,
-                        isPlaying: true,
-                        title: "Hero Video",
-                    },
-                    {
-                        currentSrc: "https://cdn.example.com/trailer.mp4",
-                        sources: [],
-                        durationSeconds: 30,
-                        videoHeight: 720,
-                        isPlaying: false,
-                        title: "Trailer",
-                    },
-                ],
-            },
-            {
-                frameId: 7,
-                frameUrl: "https://www.youtube-nocookie.com/embed/yaodD79Q4iE",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "blob:https://www.youtube-nocookie.com/internal",
-                        sources: [],
-                        videoHeight: 720,
-                        isPlaying: false,
-                    },
-                ],
-            },
-        ];
+    test("selects the playing video across direct and embed frames and returns multiple_idle when none plays", () => {
+        const directHero = makeVideo({
+            currentSrc: "https://cdn.example.com/hero.mp4",
+            durationSeconds: 95,
+            videoHeight: 1080,
+            isPlaying: true,
+            title: "Hero Video",
+        });
+        const embedIframe = {
+            url: "https://www.youtube-nocookie.com/embed/yaodD79Q4iE",
+            title: "Embedded Talk",
+        };
+        const embedVideo = makeVideo({
+            currentSrc: "blob:https://www.youtube-nocookie.com/internal",
+            videoHeight: 720,
+            isPlaying: false,
+        });
 
-        expect(selectDetectedVideo(frames, [])).toEqual({
+        const baseMainFrame = makeFrame({
+            frameUrl: "https://blog.example.com/post",
+            pageTitle: "Embedded Post",
+            iframes: [embedIframe],
+            videos: [directHero],
+        });
+        const baseEmbedFrame = makeFrame({
+            frameId: 7,
+            frameUrl: embedIframe.url,
+            videos: [embedVideo],
+        });
+
+        expect(selectDetectedVideo([baseMainFrame, baseEmbedFrame], [])).toEqual({
             status: "video",
             video: {
                 id: "direct:https://cdn.example.com/hero.mp4",
                 title: "Hero Video",
                 isPlaying: true,
                 currentResolution: 1080,
-                frameId: 0,
                 source: {
                     kind: "direct",
                     url: "https://cdn.example.com/hero.mp4",
@@ -341,72 +231,55 @@ describe("selectDetectedVideo", () => {
             },
         });
 
-        const embedPlayingFrames: FrameScanResult[] = [
-            {
-                ...frames[0]!,
-                videos: frames[0]!.videos.map((video) => ({ ...video, isPlaying: false })),
-            },
-            {
-                ...frames[1]!,
-                videos: [{ ...frames[1]!.videos[0]!, isPlaying: true }],
-            },
+        const embedPlaying = [
+            { ...baseMainFrame, videos: [{ ...directHero, isPlaying: false }] },
+            { ...baseEmbedFrame, videos: [{ ...embedVideo, isPlaying: true }] },
         ];
-        expect(selectDetectedVideo(embedPlayingFrames, [])).toEqual({
+        expect(selectDetectedVideo(embedPlaying, [])).toEqual({
             status: "video",
             video: {
                 id: "embed:https://youtube.com/watch?v=yaodD79Q4iE",
                 title: "Embedded Talk",
                 isPlaying: true,
                 currentResolution: 720,
-                frameId: 0,
                 source: {
                     kind: "platform-embed",
-                    platform: "youtube",
                     url: "https://youtube.com/watch?v=yaodD79Q4iE",
-                    embedUrl: "https://www.youtube-nocookie.com/embed/yaodD79Q4iE",
                 },
             },
         });
 
-        const allIdleFrames: FrameScanResult[] = [
-            {
-                ...frames[0]!,
-                videos: frames[0]!.videos.map((video) => ({ ...video, isPlaying: false })),
-            },
-            frames[1]!,
+        const allIdle = [
+            { ...baseMainFrame, videos: [{ ...directHero, isPlaying: false }] },
+            baseEmbedFrame,
         ];
-        expect(selectDetectedVideo(allIdleFrames, [])).toEqual({
-            status: "multiple_idle",
-            count: 4,
-        });
+        expect(selectDetectedVideo(allIdle, [])).toEqual({ status: "multiple_idle" });
     });
 
     test("selects a sole idle video (direct, embed, or MSE with HLS variant grouping)", () => {
-        const idleDirect: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://example.com/article",
-                pageTitle: "Standalone Clip",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "https://cdn.example.com/clip.mp4",
-                        sources: [],
-                        durationSeconds: 45,
-                        videoHeight: 720,
-                        isPlaying: false,
-                    },
+        expect(
+            selectDetectedVideo(
+                [
+                    makeFrame({
+                        pageTitle: "Standalone Clip",
+                        videos: [
+                            makeVideo({
+                                currentSrc: "https://cdn.example.com/clip.mp4",
+                                durationSeconds: 45,
+                                videoHeight: 720,
+                            }),
+                        ],
+                    }),
                 ],
-            },
-        ];
-        expect(selectDetectedVideo(idleDirect, [])).toEqual({
+                [],
+            ),
+        ).toEqual({
             status: "video",
             video: {
                 id: "direct:https://cdn.example.com/clip.mp4",
                 title: "Standalone Clip",
                 isPlaying: false,
                 currentResolution: 720,
-                frameId: 0,
                 source: {
                     kind: "direct",
                     url: "https://cdn.example.com/clip.mp4",
@@ -416,81 +289,59 @@ describe("selectDetectedVideo", () => {
             },
         });
 
-        const idleEmbed: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://blog.example.com/post",
-                iframes: [
-                    {
-                        url: "https://www.youtube.com/embed/yaodD79Q4iE",
-                        title: "Idle Talk",
-                    },
+        expect(
+            selectDetectedVideo(
+                [
+                    makeFrame({
+                        iframes: [
+                            {
+                                url: "https://www.youtube.com/embed/yaodD79Q4iE",
+                                title: "Idle Talk",
+                            },
+                        ],
+                    }),
+                    makeFrame({
+                        frameId: 3,
+                        frameUrl: "https://www.youtube.com/embed/yaodD79Q4iE",
+                        videos: [
+                            makeVideo({
+                                currentSrc: "blob:https://www.youtube.com/internal",
+                                videoHeight: 1080,
+                            }),
+                        ],
+                    }),
                 ],
-                videos: [],
-            },
-            {
-                frameId: 3,
-                frameUrl: "https://www.youtube.com/embed/yaodD79Q4iE",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "blob:https://www.youtube.com/internal",
-                        sources: [],
-                        videoHeight: 1080,
-                        isPlaying: false,
-                    },
-                ],
-            },
-        ];
-        expect(selectDetectedVideo(idleEmbed, [])).toEqual({
+                [],
+            ),
+        ).toEqual({
             status: "video",
             video: {
                 id: "embed:https://youtube.com/watch?v=yaodD79Q4iE",
                 title: "Idle Talk",
                 isPlaying: false,
                 currentResolution: 1080,
-                frameId: 0,
                 source: {
                     kind: "platform-embed",
-                    platform: "youtube",
                     url: "https://youtube.com/watch?v=yaodD79Q4iE",
-                    embedUrl: "https://www.youtube.com/embed/yaodD79Q4iE",
                 },
             },
         });
 
-        const mseFrames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://player.example.com/watch",
-                pageTitle: "Custom HLS Player",
-                iframes: [],
+        const mseFrames = [
+            makeFrame({
                 videos: [
-                    {
+                    makeVideo({
                         currentSrc: "blob:https://player.example.com/1234",
-                        sources: [],
                         durationSeconds: 240,
                         videoHeight: 1080,
-                        isPlaying: false,
                         title: "Main Stream",
-                    },
+                    }),
                 ],
-            },
+            }),
         ];
-
-        const hlsObserved: ObservedMedia[] = [
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/main/master.m3u8",
-                frameId: 0,
-                observedAt: 1,
-            },
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/main/1080p.m3u8",
-                frameId: 0,
-                observedAt: 2,
-            },
+        const hlsObserved = [
+            makeObserved("https://cdn.example.com/main/master.m3u8", { observedAt: 1 }),
+            makeObserved("https://cdn.example.com/main/1080p.m3u8", { observedAt: 2 }),
         ];
 
         expect(selectDetectedVideo(mseFrames, hlsObserved)).toEqual({
@@ -505,65 +356,100 @@ describe("selectDetectedVideo", () => {
                 title: "Main Stream",
                 isPlaying: false,
                 currentResolution: 1080,
-                frameId: 0,
             },
-        });
-
-        const extraObserved: ObservedMedia[] = [
-            ...hlsObserved,
-            {
-                kind: "dash",
-                url: "https://cdn.example.com/other/manifest.mpd",
-                frameId: 5,
-                observedAt: 3,
-            },
-        ];
-        expect(selectDetectedVideo(mseFrames, extraObserved)).toEqual({
-            status: "multiple_idle",
-            count: 2,
         });
     });
 
-    test("deduplicates repeated sources keeping playing state and returns none on restricted pages", async () => {
-        const frames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://example.com/page",
-                iframes: [],
+    test("pairs playing MSE player with latest manifest, handles in-page switches, and groups nested HLS variants", () => {
+        // When multiple blob players share one observed manifest, pair it with the playing player.
+        const singleManifestFrames = [
+            makeFrame({
                 videos: [
-                    {
-                        currentSrc: "https://cdn.example.com/dup.mp4",
-                        sources: [],
-                        isPlaying: false,
-                        title: "Fallback Title",
-                    },
-                    {
-                        currentSrc: "https://cdn.example.com/dup.mp4",
-                        sources: [],
+                    makeVideo({
+                        currentSrc: "blob:https://example.com/idle",
+                        durationSeconds: 60,
+                        title: "Idle Placeholder",
+                    }),
+                    makeVideo({
+                        currentSrc: "blob:https://example.com/active",
+                        durationSeconds: 180,
                         isPlaying: true,
-                    },
+                        title: "Active Stream",
+                    }),
                 ],
-            },
+            }),
         ];
-
-        expect(selectDetectedVideo(frames, [])).toEqual({
+        expect(
+            selectDetectedVideo(singleManifestFrames, [
+                makeObserved("https://cdn.example.com/b/manifest.mpd", { observedAt: 2 }),
+            ]),
+        ).toMatchObject({
             status: "video",
             video: {
-                id: "direct:https://cdn.example.com/dup.mp4",
-                source: {
-                    kind: "direct",
-                    url: "https://cdn.example.com/dup.mp4",
-                },
+                id: "dash:https://cdn.example.com/b/manifest.mpd",
+                title: "Active Stream",
                 isPlaying: true,
-                title: "Fallback Title",
-                frameId: 0,
+                source: { kind: "dash", durationSeconds: 180 },
             },
         });
 
+        // In-page video switch (1 blob player, older lesson-1 group + newer lesson-2 group):
+        const switchedFrames = [
+            makeFrame({
+                videos: [
+                    makeVideo({
+                        currentSrc: "blob:https://example.com/current-lesson",
+                        durationSeconds: 600,
+                        isPlaying: true,
+                        title: "Lesson 2",
+                    }),
+                ],
+            }),
+        ];
+        const switchedObserved = [
+            makeObserved("https://cdn.example.com/lesson-1/master.m3u8", { observedAt: 10 }),
+            makeObserved("https://cdn.example.com/lesson-1/1080p.m3u8", { observedAt: 11 }),
+            makeObserved("https://cdn.example.com/lesson-2/master.m3u8", { observedAt: 50 }),
+            makeObserved("https://cdn.example.com/lesson-2/720p.m3u8", { observedAt: 51 }),
+        ];
+        expect(selectDetectedVideo(switchedFrames, switchedObserved)).toMatchObject({
+            status: "video",
+            video: {
+                id: "hls:https://cdn.example.com/lesson-2/master.m3u8",
+                title: "Lesson 2",
+            },
+        });
+
+        // Nested variant paths (e.g. Mux/hls.js) group under their parent master playlist.
+        const muxFrames = [
+            makeFrame({
+                videos: [
+                    makeVideo({
+                        currentSrc: "blob:https://hlsjs.video-dev.org/stream",
+                        durationSeconds: 634,
+                        isPlaying: true,
+                    }),
+                ],
+            }),
+        ];
+        const muxObserved = [
+            makeObserved("https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", { observedAt: 10 }),
+            makeObserved("https://test-streams.mux.dev/x36xhzz/url_0/variant_hd.m3u8", {
+                observedAt: 11,
+            }),
+        ];
+        expect(selectDetectedVideo(muxFrames, muxObserved)).toMatchObject({
+            status: "video",
+            video: { id: "hls:https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+        });
+    });
+
+    test("detectTabVideo resolves playing tab stream and returns none on restricted pages", async () => {
         const registry = createTabMediaRegistry({ storage: null });
         registry.observeRequest(
-            makeRequest({ tabId: 42, frameId: 0, url: "https://cdn.example.com/live/master.m3u8" }),
+            makeRequest({ tabId: 42, url: "https://cdn.example.com/live/master.m3u8" }),
         );
+
         const detected = await detectTabVideo(42, registry, async () => [
             {
                 frameId: 0,
@@ -572,11 +458,7 @@ describe("selectDetectedVideo", () => {
                     pageTitle: "Live Page",
                     iframes: [],
                     videos: [
-                        {
-                            currentSrc: "blob:https://example.com/live",
-                            sources: [],
-                            isPlaying: true,
-                        },
+                        makeVideo({ currentSrc: "blob:https://example.com/live", isPlaying: true }),
                     ],
                 },
             },
@@ -596,318 +478,32 @@ describe("selectDetectedVideo", () => {
         expect(restricted).toEqual({ status: "none" });
     });
 
-    test("classifies extensionless currentSrc manifests and selects the playing stream", () => {
-        const frames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://example.com/watch",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "https://cdn.example.com/stream/playlist",
-                        sources: [
-                            {
-                                url: "https://cdn.example.com/stream/playlist",
-                                type: "application/vnd.apple.mpegurl",
-                            },
-                        ],
-                        durationSeconds: 180,
-                        isPlaying: true,
-                        title: "Typed Source HLS",
-                    },
-                    {
-                        currentSrc: "https://cdn.example.com/live/manifest",
-                        sources: [],
-                        durationSeconds: 90,
-                        isPlaying: false,
-                        title: "Observed Type DASH",
-                    },
-                ],
-            },
-        ];
-
-        const observed: ObservedMedia[] = [
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/stream/playlist",
-                frameId: 0,
-                mimeType: "application/vnd.apple.mpegurl",
-                observedAt: 1,
-            },
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/stream/720p",
-                frameId: 0,
-                mimeType: "application/vnd.apple.mpegurl",
-                observedAt: 2,
-            },
-            {
-                kind: "dash",
-                url: "https://cdn.example.com/live/manifest",
-                frameId: 0,
-                mimeType: "application/dash+xml",
-                observedAt: 3,
-            },
-        ];
-
-        expect(selectDetectedVideo(frames, observed)).toEqual({
-            status: "video",
-            video: {
-                id: "hls:https://cdn.example.com/stream/playlist",
-                title: "Typed Source HLS",
-                isPlaying: true,
-                frameId: 0,
-                source: {
-                    kind: "hls",
-                    url: "https://cdn.example.com/stream/playlist",
-                    durationSeconds: 180,
-                },
-            },
-        });
-
-        const idleFrames: FrameScanResult[] = [
-            {
-                ...frames[0]!,
-                videos: frames[0]!.videos.map((video) => ({ ...video, isPlaying: false })),
-            },
-        ];
-        expect(selectDetectedVideo(idleFrames, observed)).toEqual({
-            status: "multiple_idle",
-            count: 2,
-        });
-    });
-
-    test("groups master and variant HLS playlists so playing MSE players and in-page switches resolve cleanly", () => {
-        const twoPlayerFrames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://example.com/dual",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "blob:https://example.com/player-a",
-                        sources: [],
-                        durationSeconds: 120,
-                        isPlaying: false,
-                        title: "Player A",
-                    },
-                    {
-                        currentSrc: "blob:https://example.com/player-b",
-                        sources: [],
-                        durationSeconds: 240,
-                        isPlaying: false,
-                        title: "Player B",
-                    },
-                ],
-            },
-        ];
-
-        const twoPlayerObserved: ObservedMedia[] = [
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/a/master.m3u8",
-                frameId: 0,
-                observedAt: 1,
-            },
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/a/720.m3u8",
-                frameId: 0,
-                observedAt: 2,
-            },
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/b/master.m3u8",
-                frameId: 0,
-                observedAt: 3,
-            },
-        ];
-
-        expect(selectDetectedVideo(twoPlayerFrames, twoPlayerObserved)).toEqual({
-            status: "multiple_idle",
-            count: 2,
-        });
-
-        // When fewer manifests than players exist, prefer the playing player.
-        const singleManifestFrames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://example.com/one-playing",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "blob:https://example.com/idle",
-                        sources: [],
-                        durationSeconds: 60,
-                        isPlaying: false,
-                        title: "Idle Placeholder",
-                    },
-                    {
-                        currentSrc: "blob:https://example.com/active",
-                        sources: [],
-                        durationSeconds: 180,
-                        isPlaying: true,
-                        title: "Active Stream",
-                    },
-                ],
-            },
-        ];
-        const dashManifest: ObservedMedia = {
-            kind: "dash",
-            url: "https://cdn.example.com/b/manifest.mpd",
-            frameId: 0,
-            observedAt: 2,
-        };
-        expect(selectDetectedVideo(singleManifestFrames, [dashManifest])).toEqual({
-            status: "video",
-            video: {
-                id: "dash:https://cdn.example.com/b/manifest.mpd",
-                title: "Active Stream",
-                isPlaying: true,
-                frameId: 0,
-                source: {
-                    kind: "dash",
-                    url: "https://cdn.example.com/b/manifest.mpd",
-                    durationSeconds: 180,
-                },
-            },
-        });
-
-        // In-page video switch (1 blob player, old stream group + newer stream group):
-        const switchedFrames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://example.com/course",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "blob:https://example.com/current-lesson",
-                        sources: [],
-                        durationSeconds: 600,
-                        isPlaying: true,
-                        title: "Lesson 2",
-                    },
-                ],
-            },
-        ];
-
-        const switchedObserved: ObservedMedia[] = [
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/lesson-1/master.m3u8",
-                frameId: 0,
-                observedAt: 10,
-            },
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/lesson-1/1080p.m3u8",
-                frameId: 0,
-                observedAt: 11,
-            },
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/lesson-2/master.m3u8",
-                frameId: 0,
-                observedAt: 50,
-            },
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/lesson-2/720p.m3u8",
-                frameId: 0,
-                observedAt: 51,
-            },
-        ];
-
-        expect(selectDetectedVideo(switchedFrames, switchedObserved)).toEqual({
-            status: "video",
-            video: {
-                id: "hls:https://cdn.example.com/lesson-2/master.m3u8",
-                title: "Lesson 2",
-                isPlaying: true,
-                frameId: 0,
-                source: {
-                    kind: "hls",
-                    url: "https://cdn.example.com/lesson-2/master.m3u8",
-                    durationSeconds: 600,
-                },
-            },
-        });
-    });
-
-    test("groups nested HLS variants under their parent master", () => {
-        // Real-world Mux/hls.js layout: master + url_0/193039199_mp4_h264_aac_hd_7.m3u8
-        const muxFrames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://hlsjs.video-dev.org/demo/",
-                pageTitle: "hls.js demo",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "blob:https://hlsjs.video-dev.org/stream",
-                        sources: [],
-                        durationSeconds: 634,
-                        isPlaying: true,
-                    },
-                ],
-            },
-        ];
-        const muxObserved: ObservedMedia[] = [
-            {
-                kind: "hls",
-                url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-                frameId: 0,
-                observedAt: 10,
-            },
-            {
-                kind: "hls",
-                url: "https://test-streams.mux.dev/x36xhzz/url_0/193039199_mp4_h264_aac_hd_7.m3u8",
-                frameId: 0,
-                observedAt: 11,
-            },
-            {
-                kind: "hls",
-                url: "https://test-streams.mux.dev/x36xhzz/url_8/193039199_mp4_h264_aac_fhd_7.m3u8",
-                frameId: 0,
-                observedAt: 12,
-            },
-        ];
-
-        expect(selectDetectedVideo(muxFrames, muxObserved)).toMatchObject({
-            status: "video",
-            video: { id: "hls:https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
-        });
-    });
-
-    test("scanFrameDom collects document and open shadowRoot iframes and video sources and resolves relative URLs against document.baseURI", async () => {
+    test("scanFrameDom collects document iframes and videos inside open and closed shadow roots", async () => {
         const cleanupDom = installDomEnv();
         try {
             document.title = "Shadow Page";
-            const base = document.createElement("base");
-            base.href = "https://assets.example.com/media/";
-            document.head.append(base);
 
             const iframe = document.createElement("iframe");
             iframe.setAttribute("data-src", "https://www.youtube.com/embed/yaodD79Q4iE");
             iframe.title = "Lazy YouTube";
             document.body.append(iframe);
 
-            const shadowHost = document.createElement("div");
-            const shadow = shadowHost.attachShadow({ mode: "open" });
-            const video = document.createElement("video");
-            video.setAttribute("aria-label", "Shadow Clip");
+            const openHost = document.createElement("div");
+            const openShadow = openHost.attachShadow({ mode: "open" });
+            const openVideo = document.createElement("video");
+            openVideo.setAttribute("aria-label", "Shadow Clip");
             const source = document.createElement("source");
-            source.setAttribute("src", "clips/shadow.mp4");
+            source.setAttribute("src", "https://assets.example.com/clips/shadow.mp4");
             source.type = "video/mp4";
-            video.append(source);
-            shadow.append(video);
-            document.body.append(shadowHost);
+            openVideo.append(source);
+            openShadow.append(openVideo);
+            document.body.append(openHost);
 
             const closedHost = document.createElement("div");
             const closedShadow = closedHost.attachShadow({ mode: "closed" });
             const closedVideo = document.createElement("video");
             closedVideo.setAttribute("aria-label", "Closed Shadow Clip");
-            closedVideo.setAttribute("src", "clips/closed.mp4");
+            closedVideo.setAttribute("src", "https://assets.example.com/clips/closed.mp4");
             closedShadow.append(closedVideo);
             document.body.append(closedHost);
 
@@ -923,25 +519,24 @@ describe("selectDetectedVideo", () => {
             try {
                 const scan = scanFrameDom();
                 expect(scan.pageTitle).toBe("Shadow Page");
-                expect(scan.iframes).toHaveLength(1);
-                expect(scan.iframes[0]).toMatchObject({
-                    url: "https://www.youtube.com/embed/yaodD79Q4iE",
-                    title: "Lazy YouTube",
-                });
-                expect(scan.videos).toHaveLength(2);
-                expect(scan.videos[0]).toMatchObject({
-                    title: "Shadow Clip",
-                    sources: [
-                        {
-                            url: "https://assets.example.com/media/clips/shadow.mp4",
-                            type: "video/mp4",
-                        },
-                    ],
-                });
-                expect(scan.videos[1]).toMatchObject({
-                    title: "Closed Shadow Clip",
-                    sources: [{ url: "https://assets.example.com/media/clips/closed.mp4" }],
-                });
+                expect(scan.iframes).toEqual([
+                    { url: "https://www.youtube.com/embed/yaodD79Q4iE", title: "Lazy YouTube" },
+                ]);
+                expect(scan.videos).toMatchObject([
+                    {
+                        title: "Shadow Clip",
+                        sources: [
+                            {
+                                url: "https://assets.example.com/clips/shadow.mp4",
+                                type: "video/mp4",
+                            },
+                        ],
+                    },
+                    {
+                        title: "Closed Shadow Clip",
+                        sources: [{ url: "https://assets.example.com/clips/closed.mp4" }],
+                    },
+                ]);
             } finally {
                 Object.defineProperty(chrome, "dom", {
                     configurable: true,

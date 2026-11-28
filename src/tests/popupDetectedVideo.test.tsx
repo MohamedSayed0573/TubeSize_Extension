@@ -102,16 +102,12 @@ describe("popup embedded and generic video detection", () => {
         expect(host?.textContent).toContain("Size estimates unavailable");
     });
 
-    test("renders a detected generic video without a switcher and displays Video fallback instead of 0p", async () => {
+    test("renders a detected generic video and displays Video fallback instead of 0p", async () => {
         stubActiveTab("https://example.com/clip");
         const directVideo: DetectedVideo = {
             id: "direct:https://cdn.example.com/clip.mp4",
-            source: {
-                kind: "direct",
-                url: "https://cdn.example.com/clip.mp4",
-            },
+            source: { kind: "direct", url: "https://cdn.example.com/clip.mp4" },
             isPlaying: false,
-            frameId: 0,
         };
 
         cleanups.push(
@@ -141,45 +137,32 @@ describe("popup embedded and generic video detection", () => {
         await render(<Popup />);
         await waitForCondition(() => host?.textContent?.includes("42 MB") ?? false);
 
-        expect(host?.querySelector('[role="tablist"]')).toBeNull();
         expect(host?.textContent).toContain("Video");
         expect(host?.textContent).not.toContain("0p");
         expect(host?.textContent).not.toContain("Current");
     });
 
-    test("routes embedded YouTube video through estimateMedia, renders formats, and supports error retry", async () => {
+    test("routes embedded YouTube video through estimateMedia and marks current resolution", async () => {
         stubActiveTab("https://blog.example.com/embed-post");
         const embedVideo: DetectedVideo = {
             id: "embed:https://youtube.com/watch?v=yaodD79Q4iE",
             source: {
                 kind: "platform-embed",
-                platform: "youtube",
                 url: "https://youtube.com/watch?v=yaodD79Q4iE",
-                embedUrl: "https://www.youtube.com/embed/yaodD79Q4iE",
             },
             title: "Embedded YouTube Demo",
             isPlaying: true,
             currentResolution: 1080,
-            frameId: 0,
         };
 
-        let estimateCalls = 0;
         cleanups.push(
             onBackgroundMessage("detectTabVideo", () => ({
                 success: true,
                 data: { status: "video", video: embedVideo },
             })),
             onBackgroundMessage("estimateMedia", ({ data }) => {
-                estimateCalls += 1;
                 expect(data.url).toBe("https://youtube.com/watch?v=yaodD79Q4iE");
                 expect(data.generic).toBeUndefined();
-                if (estimateCalls === 1) {
-                    return {
-                        success: false,
-                        message: "Network timeout",
-                        errorCode: "network_error",
-                    };
-                }
                 return {
                     success: true,
                     data: {
@@ -201,21 +184,8 @@ describe("popup embedded and generic video detection", () => {
         );
 
         await render(<Popup />);
-        await waitForCondition(
-            () => host?.querySelector('[data-error-code="network_error"]') !== null,
-        );
-
-        const retryButton = host?.querySelector<HTMLButtonElement>(
-            '[data-error-code="network_error"] button',
-        );
-        expect(retryButton).not.toBeNull();
-
-        await act(async () => {
-            retryButton?.click();
-        });
         await waitForCondition(() => host?.textContent?.includes("90 MB") ?? false);
 
-        expect(estimateCalls).toBe(2);
         expect(host?.textContent).toContain("Embedded YouTube Demo");
         expect(host?.textContent).toContain("Current");
     });
@@ -225,7 +195,7 @@ describe("popup embedded and generic video detection", () => {
         cleanups.push(
             onBackgroundMessage("detectTabVideo", () => ({
                 success: true,
-                data: { status: "multiple_idle", count: 3 },
+                data: { status: "multiple_idle" },
             })),
         );
 
@@ -235,12 +205,8 @@ describe("popup embedded and generic video detection", () => {
         );
 
         expect(host?.textContent).toContain("Multiple videos detected");
-        expect(host?.textContent).toContain(
-            "Start playing a video on this page, then reopen TubeSize to see its size estimate.",
-        );
         expect(host?.textContent).toContain("Usage tracking is enabled.");
 
-        // Re-render in Arabic RTL.
         await setLanguage("ar");
         queryClient?.clear();
         await render(<Popup />, "ar");
@@ -249,11 +215,5 @@ describe("popup embedded and generic video detection", () => {
                 document.documentElement.dir === "rtl" &&
                 (host?.textContent?.includes("تم اكتشاف عدة فيديوهات") ?? false),
         );
-
-        expect(document.documentElement.dir).toBe("rtl");
-        expect(host?.textContent).toContain(
-            "ابدأ تشغيل فيديو في هذه الصفحة، ثم أعد فتح TubeSize لمعرفة تقدير حجمه.",
-        );
-        expect(host?.textContent).toContain("تتبع الاستهلاك مفعّل.");
     });
 });

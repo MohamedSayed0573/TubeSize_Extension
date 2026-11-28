@@ -15,55 +15,50 @@ function parsePositiveByteLength(raw: string | null | undefined): number | undef
     return Number.isFinite(value) && value > 0 ? Math.round(value) : undefined;
 }
 
+async function probeWithTimeout<T>(
+    url: string,
+    init: RequestInit,
+    fetchFn: FetchLike,
+    read: (res: Response) => T | undefined,
+): Promise<T | undefined> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+    let res: Response | undefined;
+    try {
+        res = await fetchFn(url, {
+            ...init,
+            credentials: "include",
+            signal: controller.signal,
+        });
+        return read(res);
+    } catch {
+        return undefined;
+    } finally {
+        clearTimeout(timeout);
+        await res?.body?.cancel();
+    }
+}
+
 async function probeContentLength(
     url: string,
     fetchFn: FetchLike = defaultFetch,
 ): Promise<number | undefined> {
-    const headController = new AbortController();
-    const headTimeout = setTimeout(() => headController.abort(), PROBE_TIMEOUT_MS);
-    let headRes: Response | undefined;
-    try {
-        headRes = await fetchFn(url, {
-            method: "HEAD",
-            credentials: "include",
-            signal: headController.signal,
-        });
-        if (headRes.ok) {
-            const length = parsePositiveByteLength(headRes.headers.get("content-length"));
-            if (length !== undefined) return length;
-        }
-    } catch {
-        // Fall through to Range GET probe.
-    } finally {
-        clearTimeout(headTimeout);
-        await headRes?.body?.cancel();
-    }
+    const headLength = await probeWithTimeout(url, { method: "HEAD" }, fetchFn, (res) =>
+        res.ok ? parsePositiveByteLength(res.headers.get("content-length")) : undefined,
+    );
+    if (headLength !== undefined) return headLength;
 
-    const getController = new AbortController();
-    const getTimeout = setTimeout(() => getController.abort(), PROBE_TIMEOUT_MS);
-    let getRes: Response | undefined;
-    try {
-        getRes = await fetchFn(url, {
-            method: "GET",
-            credentials: "include",
-            headers: { Range: "bytes=0-0" },
-            signal: getController.signal,
-        });
-        if (getRes.status === 206) {
-            const contentRange = getRes.headers.get("content-range");
-            const totalPart = contentRange?.split("/", 2)[1];
-            return parsePositiveByteLength(totalPart);
-        }
-        if (getRes.ok) {
-            return parsePositiveByteLength(getRes.headers.get("content-length"));
-        }
-        return undefined;
-    } catch {
-        return undefined;
-    } finally {
-        clearTimeout(getTimeout);
-        await getRes?.body?.cancel();
-    }
+    return probeWithTimeout(
+        url,
+        { method: "GET", headers: { Range: "bytes=0-0" } },
+        fetchFn,
+        (res) => {
+            if (res.status === 206) {
+                return parsePositiveByteLength(res.headers.get("content-range")?.split("/", 2)[1]);
+            }
+            return res.ok ? parsePositiveByteLength(res.headers.get("content-length")) : undefined;
+        },
+    );
 }
 
 export type DirectVideoOptions = {

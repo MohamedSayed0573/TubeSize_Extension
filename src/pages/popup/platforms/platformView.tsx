@@ -1,3 +1,5 @@
+import type { MediaEstimate } from "@app-types/platforms.types";
+import type { UseQueryResult } from "@tanstack/react-query";
 import { useState } from "react";
 
 import InfoCard from "@/components/infoCard";
@@ -10,32 +12,29 @@ import { PopupViewContainer } from "../popupViewContainer";
 import FormatView from "./formatView";
 import MediaEstimateErrorCard from "./mediaEstimateErrorCard";
 
-type Props = {
-    tabUrl: string;
+type EstimateQueryViewProps = {
+    retryKey: string;
+    query: Pick<
+        UseQueryResult<MediaEstimate>,
+        "isPending" | "isError" | "isFetching" | "data" | "error" | "refetch"
+    >;
+    currentQualityOverride?: number;
 };
 
-export function PlatformView({ tabUrl }: Props) {
-    const { query, isRunningVideo } = useMediaEstimate(tabUrl);
+export function EstimateQueryView({
+    retryKey,
+    query,
+    currentQualityOverride,
+}: EstimateQueryViewProps) {
     const { isPending, isError, isFetching, data: estimate, error, refetch } = query;
     const [retryingError, setRetryingError] = useState<{
-        tabUrl: string;
+        key: string;
         error: unknown;
     } | null>(null);
 
-    if (!isRunningVideo) {
-        return (
-            <>
-                <Header />
-                <PopupViewContainer>
-                    <InfoCard message={t("popup_noRunningVideo")} />
-                </PopupViewContainer>
-            </>
-        );
-    }
-
     const activeError = isError
         ? error
-        : isFetching && retryingError?.tabUrl === tabUrl
+        : isFetching && retryingError?.key === retryKey
           ? retryingError.error
           : null;
 
@@ -48,10 +47,10 @@ export function PlatformView({ tabUrl }: Props) {
                         error={activeError}
                         isRetrying={isFetching}
                         onRetry={() => {
-                            setRetryingError({ tabUrl, error: activeError });
+                            setRetryingError({ key: retryKey, error: activeError });
                             void refetch().finally(() => {
                                 setRetryingError((current) =>
-                                    current?.tabUrl === tabUrl ? null : current,
+                                    current?.key === retryKey ? null : current,
                                 );
                             });
                         }}
@@ -74,8 +73,25 @@ export function PlatformView({ tabUrl }: Props) {
         <>
             <Header estimate={estimate} />
             <PopupViewContainer>
-                <FormatView estimate={estimate} />
+                <FormatView estimate={estimate} currentQualityOverride={currentQualityOverride} />
             </PopupViewContainer>
         </>
     );
+}
+
+export function PlatformView({ tabUrl }: { tabUrl: string }) {
+    const { query, isRunningVideo } = useMediaEstimate(tabUrl);
+
+    if (!isRunningVideo) {
+        return (
+            <>
+                <Header />
+                <PopupViewContainer>
+                    <InfoCard message={t("popup_noRunningVideo")} />
+                </PopupViewContainer>
+            </>
+        );
+    }
+
+    return <EstimateQueryView retryKey={tabUrl} query={query} />;
 }
