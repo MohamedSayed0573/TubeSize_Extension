@@ -61,6 +61,14 @@ bun run verify smoke [--build] [--timeout <ms>] [--json]
 5. `settings-and-rtl` — `advancedView` toggle + Arabic (`العربية`) RTL persistence across reload.
 6. `dashboard-lifecycle` — 14-day seed, JSON export, Clear All Usage Data (confirm + badge reset), and JSON import restore.
 
+Run `live` to validate embedded and generic video detection against real, public, unauthenticated websites over the live internet (kept separate from offline `smoke` and CI):
+
+```bash
+bun run verify live [embed-youtube|generic-hls|generic-dash|generic-direct...] [--url <https://...>] [--build] [--timeout <ms>] [--json]
+```
+
+`live` launches a single isolated Chromium session against `.output/chrome-mv3` with no route mocks, exercises 4 curated unauthenticated sites (`developers.google.com/youtube/youtube_player_demo`, `hlsjs.video-dev.org/demo/`, `reference.dashif.org/.../dash-if-reference-player/index.html`, and `w3.org/2010/05/video/mediaevents.html`), cross-checks popup sizes and rates against independent ground truth (YouTube `adaptiveFormats`, observed `.m3u8` and `.mpd` manifests, and independent HTTP `Content-Length` probes within 3% tolerance), audits extension runtime issues (service worker, extension network, and popup), and reports `2` (inconclusive) honestly if an upstream site is unreachable or gated by an anti-bot challenge.
+
 Exit codes across all `verify` commands:
 
 - `0` — Verified / passed.
@@ -149,4 +157,5 @@ bun run verify stop
 - [scripts/verify/perf.ts](../../../scripts/verify/perf.ts) — Performance benchmarks for bundle size, uncached/cached popup size-estimation latency, cold Dashboard load latency, and extension memory/storage footprint.
 - [scripts/verify/seed.ts](../../../scripts/verify/seed.ts) — Deterministic 14-day (`full`) and 90-day (`heavy`) SI-unit IndexedDB seeder (compatible with Dexie `version(1)` / IndexedDB `10+`) and `inspectDb` via the MV3 service worker.
 - [scripts/verify/server.ts](../../../scripts/verify/server.ts) — Detached localhost HTTP server keeping the Playwright session warm between CLI commands and attaching to toolbar popups via `chrome.action.openPopup()`.
-- [scripts/verify/smoke.ts](../../../scripts/verify/smoke.ts) — Automated single-session end-to-end smoke suite (`bun run verify smoke`) covering usage tracking, YouTube toaster/quality menu/popup, Twitch & Kick live popups, Settings + Arabic RTL persistence, and Dashboard export/clear/import.
+- [scripts/verify/smoke.ts](../../../scripts/verify/smoke.ts) — Automated single-session end-to-end smoke suite (`bun run verify smoke`) covering usage tracking, YouTube toaster/quality menu/popup, Twitch & Kick live popups, embedded/generic video detection, Settings + Arabic RTL persistence, and Dashboard export/clear/import.
+- [scripts/verify/live.ts](../../../scripts/verify/live.ts) — Real-website validation suite (`bun run verify live`) testing embedded YouTube, generic HLS, generic DASH, and direct HTML5 video detection against curated unauthenticated public sites or a custom `--url`.

@@ -20,6 +20,14 @@ import {
     waitForSettle,
 } from "./verify/browser";
 import {
+    isLiveCheckName,
+    LIVE_CHECK_NAMES,
+    type LiveCheckName,
+    type LiveCheckResult,
+    type LiveReport,
+    runLiveValidation,
+} from "./verify/live";
+import {
     type BundleBudgetEvaluation,
     type BundlePerfReport,
     type DashboardPerfReport,
@@ -46,6 +54,9 @@ Commands:
   doctor [--timeout <ms>]       Health check: Bun, Chromium, build freshness, MV3 boot
   smoke [--build] [--timeout <ms>] [--json]
                                 End-to-end offline runtime smoke suite across 6 core flows
+  live [checks...] [opts]       Validate embedded & generic video detection on real public websites (no auth)
+                                  Checks: embed-youtube | generic-hls | generic-dash | generic-direct (default: all)
+                                  Options: --url <https://...>, --build, --timeout <ms>, --json
   start [opts]                  Launch isolated Playwright session (--target, --seed, --lang, --prev-version, --build, --timeout)
   status                        Check active session URL, surface, dir, and error count
   stop                          Close active session & delete temp profile (keeps .verify-evidence/)
@@ -414,6 +425,99 @@ async function runSmokeCommand(opts: {
     return smokeReport.passed ? 0 : 1;
 }
 
+function formatLiveCheck(check: LiveCheckResult, nameWidth: number): string {
+    const mark = check.status === "passed" ? "✓" : check.status === "inconclusive" ? "!" : "✗";
+    const label = check.name.padEnd(nameWidth);
+    const ms = `${check.durationMs} ms`.padStart(8);
+    const summary = check.status === "passed" ? check.detail : (check.error ?? "Failed");
+    return `  [${mark}] ${label}  ${ms}  ${summary}`;
+}
+
+function printLiveReport(rep: LiveReport): void {
+    out(`TubeSize Verify Live (ext ${rep.extId})`);
+    const nameWidth = Math.max(...rep.checks.map((c) => c.name.length), 14);
+    for (const check of rep.checks) {
+        out(formatLiveCheck(check, nameWidth));
+        out(`      ${check.url}`);
+        for (const issue of check.issues) {
+            out(`      [✗] ${issue.source}/${issue.level}: ${issue.message}`);
+        }
+    }
+    const passedCount = rep.checks.filter((c) => c.status === "passed").length;
+    const inconclusiveCount = rep.checks.filter((c) => c.status === "inconclusive").length;
+    const totalSeconds = (rep.totalDurationMs / 1000).toFixed(1);
+    const status =
+        rep.status === "passed" ? "PASS" : rep.status === "inconclusive" ? "INCONCLUSIVE" : "FAIL";
+    const extra = inconclusiveCount > 0 ? `, ${inconclusiveCount} inconclusive` : "";
+    out(
+        `${status}: ${passedCount}/${rep.checks.length} live site checks passed${extra} in ${totalSeconds}s (${rep.issues.length} extension issue(s)).`,
+    );
+}
+
+async function runLiveCommand(opts: {
+    build: boolean;
+    timeoutMs: number;
+    json: boolean;
+    checkNames?: readonly LiveCheckName[];
+    customUrl?: string;
+}): Promise<number> {
+    const emitInconclusive = (msg: string): number => {
+        if (opts.json) process.stderr.write(`${msg}\n`);
+        else out(msg);
+        return 2;
+    };
+
+    if (opts.customUrl && !/^https?:\/\//.test(opts.customUrl)) {
+        out(`FAIL: --url must be an http:// or https:// URL (got "${opts.customUrl}").`);
+        return 1;
+    }
+
+    if (opts.build) {
+        const b = Bun.spawnSync({
+            cmd: ["bun", "run", "build"],
+            cwd: ROOT,
+            stdout: opts.json ? "pipe" : "inherit",
+            stderr: "inherit",
+        });
+        if (b.exitCode !== 0) {
+            if (opts.json && b.stdout && b.stdout.length > 0) {
+                process.stderr.write(b.stdout);
+            }
+            return 1;
+        }
+    }
+
+    const chrome = findChromiumExecutable();
+    if (!chrome) {
+        return emitInconclusive(
+            "INCONCLUSIVE: Chromium not found (set CHROME_PATH or install Playwright Chromium).",
+        );
+    }
+
+    const manifestPath = join(EXT_DIR, "manifest.json");
+    if (!existsSync(manifestPath)) {
+        return emitInconclusive(
+            'INCONCLUSIVE: Missing .output/chrome-mv3/manifest.json — run "bun run build" or pass --build.',
+        );
+    }
+
+    if (!opts.build && getLatestMtimeMs(join(ROOT, "src")) > getLatestMtimeMs(EXT_DIR)) {
+        return emitInconclusive(
+            'INCONCLUSIVE: Build is STALE — run "bun run build" or pass --build.',
+        );
+    }
+
+    const liveReport = await runLiveValidation({
+        extDir: EXT_DIR,
+        timeoutMs: opts.timeoutMs,
+        checkNames: opts.checkNames,
+        customUrl: opts.customUrl,
+    });
+    if (opts.json) out(JSON.stringify(liveReport, null, 2));
+    else printLiveReport(liveReport);
+    return liveReport.status === "passed" ? 0 : liveReport.status === "inconclusive" ? 2 : 1;
+}
+
 async function runDoctor(timeoutMs: number): Promise<number> {
     const chrome = findChromiumExecutable();
     const manifestPath = join(EXT_DIR, "manifest.json");
@@ -539,6 +643,7 @@ async function main(): Promise<number> {
             seed: { type: "string", default: "full" },
             lang: { type: "string", default: "en" },
             target: { type: "string", default: "daily" },
+            url: { type: "string" },
             "prev-version": { type: "string" },
             runs: { type: "string" },
             cached: { type: "boolean", default: false },
@@ -586,6 +691,31 @@ async function main(): Promise<number> {
                 timeoutMs: parsePositiveInt(values.timeout, 30_000, "--timeout"),
                 json: values.json,
             });
+
+        case "live": {
+            if (values.url && positionals.length > 0) {
+                out("FAIL: Pass either --url <https://...> or named live checks, not both.");
+                return 1;
+            }
+            let checkNames: LiveCheckName[] | undefined;
+            if (positionals.length > 0) {
+                const invalid = positionals.filter((name) => !isLiveCheckName(name));
+                if (invalid.length > 0) {
+                    out(
+                        `FAIL: Unknown live check(s): ${invalid.join(", ")}. Available: ${LIVE_CHECK_NAMES.join(", ")}`,
+                    );
+                    return 1;
+                }
+                checkNames = [...new Set(positionals)] as LiveCheckName[];
+            }
+            return await runLiveCommand({
+                build: values.build,
+                timeoutMs: parsePositiveInt(values.timeout, 30_000, "--timeout"),
+                json: values.json,
+                checkNames,
+                customUrl: values.url,
+            });
+        }
 
         case "start": {
             const startTimeoutMs = parsePositiveInt(values.timeout, 40_000, "--timeout");
