@@ -16,19 +16,12 @@ export type ObservedMedia = {
 type ObservedRequestDetails = Pick<
     chrome.webRequest.OnCompletedDetails,
     "tabId" | "frameId" | "type" | "url" | "statusCode" | "responseHeaders"
-> &
-    Partial<Pick<chrome.webRequest.OnCompletedDetails, "requestId" | "documentId">>;
-
-type ObservedSubFrameRequestDetails = Pick<
-    chrome.webRequest.OnBeforeRequestDetails,
-    "tabId" | "frameId" | "requestId" | "documentId"
 >;
 
 type CommittedSubFrameDetails = Pick<
     chrome.webRequest.OnCompletedDetails,
     "tabId" | "frameId" | "url" | "statusCode"
-> &
-    Partial<Pick<chrome.webRequest.OnCompletedDetails, "requestId">>;
+>;
 
 export type TabMediaStorage = {
     get(): Promise<unknown>;
@@ -37,21 +30,16 @@ export type TabMediaStorage = {
 
 export type TabMediaRegistry = {
     observeRequest(details: ObservedRequestDetails): void;
-    observeSubFrame(tabId: number, frameId: number, url: string, requestId?: string): void;
+    observeSubFrame(tabId: number, frameId: number, url: string): void;
     commitSubFrame(details: CommittedSubFrameDetails): void;
-    observeSubFrameRequest(details: ObservedSubFrameRequestDetails): void;
-    resolveRequestFrameUrl(details: ObservedSubFrameRequestDetails): Promise<string | undefined>;
-    forgetRequest(requestId: string): void;
     getTabMedia(tabId: number): Promise<ObservedMedia[]>;
-    getFrameUrl(tabId: number, frameId: number): Promise<string | undefined>;
+    getFrameUrl(tabId: number, frameId: number): string | undefined;
     clearTab(tabId: number): void;
 };
 
 type RegistryOptions = {
     maxEntriesPerTab?: number;
     maxFramesPerTab?: number;
-    maxDocumentsPerTab?: number;
-    maxInFlightRequests?: number;
     maxTabs?: number;
     now?: () => number;
     storage?: TabMediaStorage | null;
@@ -167,26 +155,6 @@ function upsertEntry(entries: ObservedMedia[], entry: ObservedMedia, maxEntriesP
     }
 }
 
-type FrameDocumentState = {
-    url: string | undefined;
-    documentId?: string;
-    navSeq: number;
-};
-
-type InFlightSubFrameRequest = {
-    tabId: number;
-    frameId: number;
-    navSeq: number;
-    url: string | undefined;
-    documentId?: string;
-};
-
-type PendingSubFrameNavigation = {
-    startedAt: number;
-    navSeq: number;
-    requestId?: string;
-};
-
 function enforceMapLimit<K, V>(map: Map<K, V>, limit: number) {
     while (map.size > limit) {
         const oldest = map.keys().next().value;
@@ -198,8 +166,6 @@ function enforceMapLimit<K, V>(map: Map<K, V>, limit: number) {
 export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaRegistry {
     const maxEntriesPerTab = options.maxEntriesPerTab ?? 20;
     const maxFramesPerTab = options.maxFramesPerTab ?? 32;
-    const maxDocumentsPerTab = options.maxDocumentsPerTab ?? 64;
-    const maxInFlightRequests = options.maxInFlightRequests ?? 500;
     const maxTabs = options.maxTabs ?? 100;
     const now = options.now ?? Date.now;
     const storage =
@@ -207,125 +173,15 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
 
     const tabs = new Map<number, ObservedMedia[]>();
     const embedFrames = new Map<number, Map<number, string>>();
-    const frameDocuments = new Map<number, Map<number, FrameDocumentState>>();
-    const documentFrames = new Map<number, Map<string, string | undefined>>();
-    const documentNavSeqs = new Map<number, Map<string, number>>();
-    const pendingSubFrames = new Map<number, Map<number, PendingSubFrameNavigation>>();
-    const committedFrameNavSeqs = new Map<number, Map<number, number>>();
-    const inFlightRequests = new Map<string, InFlightSubFrameRequest>();
-
     const clearedBeforeHydration = new Set<number>();
     const clearedMediaFramesBeforeHydration = new Map<number, Set<number>>();
 
-    let nextNavSeq = 0;
     let hydrated = !storage;
     let hydratePromise: Promise<void> | null = null;
     let dirtyDuringHydration = false;
     let persistScheduled = false;
     let persistInFlight = false;
     let persistAgain = false;
-
-    function getFrameNavSeq(tabId: number, frameId: number): number {
-        return frameDocuments.get(tabId)?.get(frameId)?.navSeq ?? 0;
-    }
-
-    function getCommittedFrameNavSeq(tabId: number, frameId: number): number {
-        return committedFrameNavSeqs.get(tabId)?.get(frameId) ?? 0;
-    }
-
-    function bindDocumentUrl(
-        tabId: number,
-        documentId: string,
-        url: string | undefined,
-        navSeq: number,
-    ) {
-        const docs = documentFrames.get(tabId) ?? new Map<string, string | undefined>();
-        documentFrames.delete(tabId);
-        docs.delete(documentId);
-        docs.set(documentId, url);
-        enforceMapLimit(docs, maxDocumentsPerTab);
-        documentFrames.set(tabId, docs);
-        enforceMapLimit(documentFrames, maxTabs);
-
-        const navSeqs = documentNavSeqs.get(tabId) ?? new Map<string, number>();
-        documentNavSeqs.delete(tabId);
-        if (!navSeqs.has(documentId)) {
-            navSeqs.set(documentId, navSeq);
-            enforceMapLimit(navSeqs, maxDocumentsPerTab);
-        }
-        documentNavSeqs.set(tabId, navSeqs);
-        enforceMapLimit(documentNavSeqs, maxTabs);
-    }
-
-    function getOrInitFrameState(tabId: number, frameId: number): FrameDocumentState {
-        let frames = frameDocuments.get(tabId);
-        const existing = frames?.get(frameId);
-        if (existing) return existing;
-
-        const created: FrameDocumentState = {
-            url: embedFrames.get(tabId)?.get(frameId),
-            navSeq: 0,
-        };
-        if (!frames) {
-            frames = new Map<number, FrameDocumentState>();
-            frameDocuments.set(tabId, frames);
-        }
-        frames.set(frameId, created);
-        enforceMapLimit(frames, maxFramesPerTab);
-        enforceMapLimit(frameDocuments, maxTabs);
-        return created;
-    }
-
-    function resolveKnownFrameUrl(
-        tabId: number,
-        frameId: number,
-        documentId: string | undefined,
-        allowBind: boolean,
-    ): string | undefined {
-        if (documentId) {
-            const docs = documentFrames.get(tabId);
-            if (docs?.has(documentId)) {
-                return docs.get(documentId);
-            }
-
-            const frameState = getOrInitFrameState(tabId, frameId);
-            if (frameState.documentId === undefined) {
-                if (allowBind) {
-                    frameState.documentId = documentId;
-                    bindDocumentUrl(tabId, documentId, frameState.url, frameState.navSeq);
-                }
-                return frameState.url;
-            }
-            if (frameState.documentId === documentId) {
-                return frameState.url;
-            }
-            return undefined;
-        }
-
-        const frameState = frameDocuments.get(tabId)?.get(frameId);
-        if (frameState) return frameState.url;
-        return embedFrames.get(tabId)?.get(frameId);
-    }
-
-    function isStaleSubFrameRequest(details: ObservedRequestDetails): boolean {
-        if (details.frameId <= MAIN_FRAME_ID) return false;
-        const committedNavSeq = getCommittedFrameNavSeq(details.tabId, details.frameId);
-        if (committedNavSeq === 0) return false;
-
-        if (details.requestId) {
-            const tracked = inFlightRequests.get(details.requestId);
-            if (tracked && tracked.navSeq < committedNavSeq) {
-                return true;
-            }
-        }
-        if (details.documentId) {
-            const docNavSeq = documentNavSeqs.get(details.tabId)?.get(details.documentId);
-            if (docNavSeq !== undefined && docNavSeq < committedNavSeq) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     function flushPersist() {
         if (!storage) return;
@@ -441,7 +297,6 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             if (details.tabId === NO_TAB_ID) return;
             if (!MEDIA_REQUEST_TYPES.has(details.type)) return;
             if (details.statusCode >= 400 || isExtensionUrl(details.url)) return;
-            if (isStaleSubFrameRequest(details)) return;
 
             let url: URL;
             try {
@@ -463,38 +318,10 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                 observedAt: now(),
             });
         },
-        observeSubFrame(tabId, frameId, url, requestId) {
+        observeSubFrame(tabId, frameId, url) {
             if (tabId === NO_TAB_ID || frameId <= MAIN_FRAME_ID || isExtensionUrl(url)) return;
 
-            const navSeq = ++nextNavSeq;
-            const pending =
-                pendingSubFrames.get(tabId) ?? new Map<number, PendingSubFrameNavigation>();
-            pendingSubFrames.delete(tabId);
-            pending.delete(frameId);
-            pending.set(frameId, {
-                startedAt: now(),
-                navSeq,
-                ...(requestId ? { requestId } : {}),
-            });
-            enforceMapLimit(pending, maxFramesPerTab);
-            pendingSubFrames.set(tabId, pending);
-            enforceMapLimit(pendingSubFrames, maxTabs);
-
-            const embedded = parseEmbeddedPlatformUrl(url);
-            const resolvedUrl = embedded ? url : undefined;
-
-            const docStates = frameDocuments.get(tabId) ?? new Map<number, FrameDocumentState>();
-            frameDocuments.delete(tabId);
-            docStates.delete(frameId);
-            docStates.set(frameId, {
-                url: resolvedUrl,
-                navSeq,
-            });
-            enforceMapLimit(docStates, maxFramesPerTab);
-            frameDocuments.set(tabId, docStates);
-            enforceMapLimit(frameDocuments, maxTabs);
-
-            if (!embedded) {
+            if (!parseEmbeddedPlatformUrl(url)) {
                 const existing = embedFrames.get(tabId);
                 if (existing?.delete(frameId) && existing.size === 0) {
                     embedFrames.delete(tabId);
@@ -529,37 +356,11 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                 return;
             }
 
-            const pendingMap = pendingSubFrames.get(details.tabId);
-            const pendingNav = pendingMap?.get(details.frameId);
-            if (
-                pendingNav &&
-                (!details.requestId ||
-                    !pendingNav.requestId ||
-                    pendingNav.requestId === details.requestId)
-            ) {
-                pendingMap?.delete(details.frameId);
-                if (pendingMap?.size === 0) pendingSubFrames.delete(details.tabId);
-            }
-
-            const committedNavSeq =
-                pendingNav?.navSeq ??
-                (getFrameNavSeq(details.tabId, details.frameId) || ++nextNavSeq);
-            const seqs = committedFrameNavSeqs.get(details.tabId) ?? new Map<number, number>();
-            committedFrameNavSeqs.delete(details.tabId);
-            seqs.delete(details.frameId);
-            seqs.set(details.frameId, committedNavSeq);
-            enforceMapLimit(seqs, maxFramesPerTab);
-            committedFrameNavSeqs.set(details.tabId, seqs);
-            enforceMapLimit(committedFrameNavSeqs, maxTabs);
-
             let persistedChanged = false;
             const existingMedia = tabs.get(details.tabId);
             if (existingMedia) {
-                const cutoff = pendingNav?.startedAt;
                 const remaining = existingMedia.filter(
-                    (entry) =>
-                        entry.frameId !== details.frameId ||
-                        (cutoff !== undefined && entry.observedAt > cutoff),
+                    (entry) => entry.frameId !== details.frameId,
                 );
                 if (remaining.length !== existingMedia.length) {
                     persistedChanged = true;
@@ -582,88 +383,19 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
                 schedulePersist();
             }
         },
-        observeSubFrameRequest(details) {
-            if (details.tabId === NO_TAB_ID || details.frameId <= MAIN_FRAME_ID) return;
-            if (!details.requestId) return;
-
-            const frameNavSeq = getFrameNavSeq(details.tabId, details.frameId);
-            const docs = documentFrames.get(details.tabId);
-            if (details.documentId && docs?.has(details.documentId)) {
-                const docNavSeq =
-                    documentNavSeqs.get(details.tabId)?.get(details.documentId) ?? frameNavSeq;
-                inFlightRequests.delete(details.requestId);
-                inFlightRequests.set(details.requestId, {
-                    tabId: details.tabId,
-                    frameId: details.frameId,
-                    navSeq: docNavSeq,
-                    documentId: details.documentId,
-                    url: docs.get(details.documentId),
-                });
-                enforceMapLimit(inFlightRequests, maxInFlightRequests);
-                return;
-            }
-
-            const resolvedUrl = resolveKnownFrameUrl(
-                details.tabId,
-                details.frameId,
-                details.documentId,
-                true,
-            );
-            inFlightRequests.delete(details.requestId);
-            inFlightRequests.set(details.requestId, {
-                tabId: details.tabId,
-                frameId: details.frameId,
-                navSeq: frameNavSeq,
-                ...(details.documentId ? { documentId: details.documentId } : {}),
-                url: resolvedUrl,
-            });
-            enforceMapLimit(inFlightRequests, maxInFlightRequests);
-        },
-        resolveRequestFrameUrl(details) {
-            if (details.tabId === NO_TAB_ID || details.frameId <= MAIN_FRAME_ID) {
-                return Promise.resolve(undefined);
-            }
-
-            const tracked = details.requestId ? inFlightRequests.get(details.requestId) : undefined;
-            if (tracked && details.requestId) {
-                inFlightRequests.delete(details.requestId);
-                return Promise.resolve(tracked.url);
-            }
-
-            const documentId = details.documentId;
-            const liveDocs = documentFrames.get(details.tabId);
-            if (documentId && liveDocs?.has(documentId)) {
-                return Promise.resolve(liveDocs.get(documentId));
-            }
-
-            return Promise.resolve(
-                resolveKnownFrameUrl(details.tabId, details.frameId, documentId, true),
-            );
-        },
-        forgetRequest(requestId) {
-            inFlightRequests.delete(requestId);
-        },
         async getTabMedia(tabId) {
             await ensureHydrated();
             return (tabs.get(tabId) ?? []).map((entry) => ({ ...entry }));
         },
         getFrameUrl(tabId, frameId) {
-            if (tabId === NO_TAB_ID || frameId <= MAIN_FRAME_ID) return Promise.resolve(undefined);
-            return Promise.resolve(embedFrames.get(tabId)?.get(frameId));
+            if (tabId === NO_TAB_ID || frameId <= MAIN_FRAME_ID) return undefined;
+            return embedFrames.get(tabId)?.get(frameId);
         },
         clearTab(tabId) {
             if (!hydrated) clearedBeforeHydration.add(tabId);
             clearedMediaFramesBeforeHydration.delete(tabId);
             tabs.delete(tabId);
             embedFrames.delete(tabId);
-            frameDocuments.delete(tabId);
-            documentFrames.delete(tabId);
-            documentNavSeqs.delete(tabId);
-            pendingSubFrames.delete(tabId);
-            committedFrameNavSeqs.delete(tabId);
-            for (const [requestId, entry] of inFlightRequests) {
-                if (entry.tabId === tabId) inFlightRequests.delete(requestId);
-            }
             schedulePersist();
         },
     };

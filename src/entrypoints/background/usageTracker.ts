@@ -28,14 +28,7 @@ export function setupTrackUsage(
             if (details.type === "main_frame") {
                 tabMediaRegistry?.clearTab(details.tabId);
             } else if (details.type === "sub_frame") {
-                tabMediaRegistry?.observeSubFrame(
-                    details.tabId,
-                    details.frameId,
-                    details.url,
-                    details.requestId,
-                );
-            } else if (details.frameId > 0) {
-                tabMediaRegistry?.observeSubFrameRequest(details);
+                tabMediaRegistry?.observeSubFrame(details.tabId, details.frameId, details.url);
             }
         }
         return undefined;
@@ -61,6 +54,7 @@ export function setupTrackUsage(
     if (tabMediaRegistry) {
         chrome.webRequest.onBeforeRequest.addListener(onBeforeFrameRequest, {
             urls: ["<all_urls>"],
+            types: ["main_frame", "sub_frame"],
         });
     }
     // `extraHeaders` is Chromium-only; Firefox rejects it.
@@ -107,33 +101,21 @@ export async function trackRequest(
     tabMediaRegistry?: TabMediaRegistry,
 ) {
     try {
-        if (!isCountableRequest(details)) {
-            tabMediaRegistry?.forgetRequest(details.requestId);
-            return;
-        }
+        if (!isCountableRequest(details)) return;
 
         const bytes = getContentLength(details);
-        if (bytes === undefined) {
-            tabMediaRegistry?.forgetRequest(details.requestId);
-            return;
-        }
+        if (bytes === undefined) return;
 
-        // Snapshot document/request-scoped subframe ownership before awaiting
-        // chrome.tabs.get so a concurrent iframe navigation cannot attribute
-        // this completed request to a later embed in the same frame.
-        const frameUrlPromise =
+        const frameUrl =
             details.frameId > 0
-                ? details.documentUrl
-                    ? Promise.resolve(details.documentUrl)
-                    : tabMediaRegistry?.resolveRequestFrameUrl(details)
+                ? (details.documentUrl ??
+                  tabMediaRegistry?.getFrameUrl(details.tabId, details.frameId))
                 : undefined;
 
         const tabUrl = await resolveRequestTabUrl(details);
         if (!tabUrl) return;
 
         if (dedup?.interceptWebRequest(details, tabUrl, bytes)) return;
-
-        const frameUrl = await frameUrlPromise;
 
         ingestion.bufferTabUsage(tabUrl, bytes, frameUrl);
     } catch (err) {
