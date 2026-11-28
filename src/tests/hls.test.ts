@@ -528,56 +528,23 @@ describe("estimateGenericHls", () => {
         });
     });
 
-    test("estimates direct media playlists with bounded segment sampling and throws no_formats when empty", async () => {
+    test("throws no_formats for empty or segment-only HLS playlists without master variants", async () => {
         const mediaPlaylist = [
             "#EXTM3U",
             "#EXT-X-TARGETDURATION:4",
             "#EXTINF:4.0,",
             "chunks/0.ts",
-            "#EXTINF:4.0,",
-            "chunks/1.ts",
-            "#EXTINF:4.0,",
-            "chunks/2.ts",
-            "#EXTINF:4.0,",
-            "chunks/3.ts",
-            "#EXTINF:4.0,",
-            "chunks/4.ts",
-            "#EXTINF:4.0,",
-            "chunks/5.ts",
             "#EXT-X-ENDLIST",
         ].join("\n");
 
-        const probedUrls: string[] = [];
-        const estimate = await estimateGenericHls("https://cdn.example.com/stream/index.m3u8", {
-            sleep: instantSleep,
-            fetch: async (input) => {
-                const url = input.toString();
-                if (url.endsWith("index.m3u8")) {
-                    return new Response(mediaPlaylist, { status: 200 });
-                }
-                probedUrls.push(url);
-                return new Response("x", {
-                    status: 206,
-                    headers: { "content-range": "bytes 0-0/800000" },
-                });
-            },
-        });
-
-        expect(probedUrls.length).toBeGreaterThan(0);
-        expect(probedUrls.length).toBeLessThan(6);
-        expect(probedUrls[0]).toBe("https://cdn.example.com/stream/chunks/0.ts");
-        expect(estimate).toEqual({
-            platform: "generic",
-            contentType: "vod",
-            durationSeconds: 24,
-            formats: [
-                {
-                    kind: "vod",
-                    resolution: 0,
-                    sizeBytes: 4_800_000,
-                    sizePerSecondBytes: 200_000,
-                },
-            ],
+        await expect(
+            estimateGenericHls("https://cdn.example.com/stream/index.m3u8", {
+                sleep: instantSleep,
+                fetch: async () => new Response(mediaPlaylist, { status: 200 }),
+            }),
+        ).rejects.toMatchObject({
+            name: "MediaEstimateError",
+            code: "no_formats",
         });
 
         await expect(
@@ -591,51 +558,7 @@ describe("estimateGenericHls", () => {
         });
     });
 
-    test("uses declared EXT-X-BYTERANGE lengths without probing the full backing media file", async () => {
-        const byteRangePlaylist = [
-            "#EXTM3U",
-            "#EXT-X-VERSION:4",
-            "#EXT-X-TARGETDURATION:4",
-            "#EXTINF:4.0,",
-            "#EXT-X-BYTERANGE:800000@0",
-            "video.mp4",
-            "#EXTINF:4.0,",
-            "#EXT-X-BYTERANGE:800000",
-            "video.mp4",
-            "#EXTINF:4.0,",
-            "#EXT-X-BYTERANGE:400000",
-            "video.mp4",
-            "#EXT-X-ENDLIST",
-        ].join("\n");
-
-        const requestedUrls: string[] = [];
-        const estimate = await estimateGenericHls("https://cdn.example.com/range/index.m3u8", {
-            sleep: instantSleep,
-            fetch: async (input, init) => {
-                const url = input.toString();
-                requestedUrls.push(url);
-                expect(init?.credentials).toBe("include");
-                return new Response(byteRangePlaylist, { status: 200 });
-            },
-        });
-
-        expect(requestedUrls).toEqual(["https://cdn.example.com/range/index.m3u8"]);
-        expect(estimate).toEqual({
-            platform: "generic",
-            contentType: "vod",
-            durationSeconds: 12,
-            formats: [
-                {
-                    kind: "vod",
-                    resolution: 0,
-                    sizeBytes: 2_000_000,
-                    sizePerSecondBytes: 2_000_000 / 12,
-                },
-            ],
-        });
-    });
-
-    test("sends credentials: include on manifests, child playlists, and generic segment probes", async () => {
+    test("sends credentials: include on master manifests and child variant playlists", async () => {
         const master = [
             "#EXTM3U",
             "#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1280x720",
@@ -664,26 +587,8 @@ describe("estimateGenericHls", () => {
             },
         );
 
-        const mediaEstimate = await estimateGenericHls(
-            "https://protected.example.com/hls/720p.m3u8",
-            {
-                sleep: instantSleep,
-                fetch: async (input, init) => {
-                    const url = input.toString();
-                    seenCredentials.push(init?.credentials);
-                    if (url.endsWith("720p.m3u8")) return new Response(variant, { status: 200 });
-                    return new Response("x", {
-                        status: 206,
-                        headers: { "content-range": "bytes 0-0/500000" },
-                    });
-                },
-            },
-        );
-
         expect(masterEstimate.contentType).toBe("vod");
-        expect(mediaEstimate.contentType).toBe("vod");
-        expect(seenCredentials.length).toBeGreaterThanOrEqual(3);
-        expect(seenCredentials.every((credentials) => credentials === "include")).toBe(true);
+        expect(seenCredentials).toEqual(["include", "include"]);
     });
 
     test("enforces response size and timeout bounds on generic HLS manifests and child playlists", async () => {
@@ -745,7 +650,12 @@ describe("estimateGenericHls", () => {
         });
     });
 
-    test("resolves relative variant playlists and segments against the final redirected playlist URL", async () => {
+    test("resolves relative variant playlists against the final redirected master URL", async () => {
+        const master = [
+            "#EXTM3U",
+            "#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=1280x720",
+            "variants/720p.m3u8",
+        ].join("\n");
         const mediaPlaylist = [
             "#EXTM3U",
             "#EXT-X-TARGETDURATION:4",
@@ -754,22 +664,19 @@ describe("estimateGenericHls", () => {
             "#EXT-X-ENDLIST",
         ].join("\n");
 
-        const estimate = await estimateGenericHls("https://entry.example.com/start/index.m3u8", {
+        const estimate = await estimateGenericHls("https://entry.example.com/start/master.m3u8", {
             sleep: instantSleep,
             fetch: async (input) => {
                 const url = input.toString();
-                if (url === "https://entry.example.com/start/index.m3u8") {
-                    const response = new Response(mediaPlaylist, { status: 200 });
+                if (url === "https://entry.example.com/start/master.m3u8") {
+                    const response = new Response(master, { status: 200 });
                     Object.defineProperty(response, "url", {
-                        value: "https://cdn.example.com/assets/hls/index.m3u8",
+                        value: "https://cdn.example.com/assets/hls/master.m3u8",
                     });
                     return response;
                 }
-                if (url === "https://cdn.example.com/assets/hls/chunks/0.ts") {
-                    return new Response("x", {
-                        status: 206,
-                        headers: { "content-range": "bytes 0-0/400000" },
-                    });
+                if (url === "https://cdn.example.com/assets/hls/variants/720p.m3u8") {
+                    return new Response(mediaPlaylist, { status: 200 });
                 }
                 return new Response("Not found", { status: 404 });
             },
@@ -782,7 +689,7 @@ describe("estimateGenericHls", () => {
             formats: [
                 {
                     kind: "vod",
-                    resolution: 0,
+                    resolution: 720,
                     sizeBytes: 400_000,
                     sizePerSecondBytes: 100_000,
                 },

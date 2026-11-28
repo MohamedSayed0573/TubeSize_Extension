@@ -13,7 +13,6 @@ import { Parser, type Manifest, type PlaylistItem } from "m3u8-parser";
 const SEGMENT_PROBE_TIMEOUT_MS = 5000;
 const MIN_LIVE_SEGMENTS = 4;
 const MIN_SAMPLED_DURATION_SECONDS = 4;
-const MAX_GENERIC_SEGMENT_PROBES = 5;
 
 interface ResolveHlsOptions {
     sampleSegments?: boolean;
@@ -80,7 +79,6 @@ function hasAdInterruption(manifest: Manifest): boolean {
 async function probeSegments(
     segments: Array<{ duration: number; url: string }>,
     fetchFn: FetchLike,
-    credentials?: RequestCredentials,
 ) {
     return Promise.allSettled(
         segments.map(async (segment) => {
@@ -89,7 +87,6 @@ async function probeSegments(
             let res: Response | undefined;
             try {
                 res = await fetchFn(segment.url, {
-                    ...(credentials ? { credentials } : {}),
                     headers: { Range: "bytes=0-0" },
                     signal: abortController.signal,
                 });
@@ -328,63 +325,6 @@ function toPositiveDuration(value: number | undefined): number | undefined {
     return value !== undefined && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
-function getByteRangeLength(segment: Manifest["segments"][number]): number | undefined {
-    const length = segment.byterange?.length;
-    return length !== undefined && Number.isFinite(length) && length > 0 ? length : undefined;
-}
-
-async function sampleGenericMediaPlaylistRate(
-    manifest: Manifest,
-    baseUrl: string,
-    fetchFn: FetchLike,
-): Promise<number> {
-    const validSegments = manifest.segments.filter(
-        (segment) => Number.isFinite(segment.duration) && segment.duration > 0 && segment.uri,
-    );
-    if (validSegments.length === 0) return 0;
-
-    const allHaveByteRanges = validSegments.every(
-        (segment) => getByteRangeLength(segment) !== undefined,
-    );
-    const samplePool = allHaveByteRanges
-        ? validSegments
-        : validSegments.slice(0, MAX_GENERIC_SEGMENT_PROBES);
-
-    let totalBytes = 0;
-    let totalDuration = 0;
-    const segmentsToProbe: Array<{ duration: number; url: string }> = [];
-
-    for (const segment of samplePool) {
-        const rangeLength = getByteRangeLength(segment);
-        if (rangeLength !== undefined) {
-            totalBytes += rangeLength;
-            totalDuration += segment.duration;
-        } else {
-            segmentsToProbe.push({
-                duration: segment.duration,
-                url: resolveRelativeUrl(segment.uri, baseUrl),
-            });
-        }
-    }
-
-    if (segmentsToProbe.length > 0) {
-        const probed = await probeSegments(segmentsToProbe, fetchFn, "include");
-        for (const segment of probed) {
-            if (segment.status === "rejected") continue;
-            const { duration, fullSize } = segment.value;
-            if (!fullSize || fullSize === "*" || fullSize === "0") continue;
-
-            const size = Number(fullSize);
-            if (!Number.isFinite(size) || size <= 0 || !(duration > 0)) continue;
-
-            totalBytes += size;
-            totalDuration += duration;
-        }
-    }
-
-    return totalDuration > 0 ? totalBytes / totalDuration : 0;
-}
-
 export async function estimateGenericHls(
     url: string,
     options: GenericHlsOptions = {},
@@ -401,108 +341,66 @@ export async function estimateGenericHls(
     });
 
     const manifest = parseM3u8(playlistText);
+    if (!manifest.playlists || manifest.playlists.length === 0) {
+        throw new MediaEstimateError("no_formats", "No playlists found in HLS manifest");
+    }
+
+    const variants = extractGenericVariants(manifest.playlists);
+    if (variants.length === 0) {
+        throw new MediaEstimateError("no_formats", "No usable variants found in HLS playlist");
+    }
+
     const titleMeta = options.title ? { title: options.title } : {};
     const explicitDuration = toPositiveDuration(options.durationSeconds);
+    const liveFormats: LiveMediaFormat[] = variants.map((variant) => ({
+        kind: "live",
+        resolution: variant.resolution,
+        sizePerSecondBytes: variant.bandwidth / 8,
+    }));
 
-    if (manifest.playlists && manifest.playlists.length > 0) {
-        const variants = extractGenericVariants(manifest.playlists);
-        if (variants.length === 0) {
-            throw new MediaEstimateError("no_formats", "No usable variants found in HLS playlist");
-        }
+    if (explicitDuration !== undefined) {
+        return {
+            platform: "generic",
+            contentType: "vod",
+            ...titleMeta,
+            durationSeconds: explicitDuration,
+            formats: toVodFormats(liveFormats, explicitDuration),
+        };
+    }
 
-        const liveFormats: LiveMediaFormat[] = variants.map((variant) => ({
-            kind: "live",
-            resolution: variant.resolution,
-            sizePerSecondBytes: variant.bandwidth / 8,
-        }));
-
-        if (explicitDuration !== undefined) {
-            return {
-                platform: "generic",
-                contentType: "vod",
-                ...titleMeta,
-                durationSeconds: explicitDuration,
-                formats: toVodFormats(liveFormats, explicitDuration),
-            };
-        }
-
-        const firstVariantUri = variants.find((variant) => variant.uri)?.uri;
-        if (firstVariantUri) {
-            try {
-                const variantUrl = resolveRelativeUrl(firstVariantUri, fetchedPlaylistUrl);
-                const { text: variantText } = await fetchBoundedText(variantUrl, {
-                    fetch: fetchFn,
-                    sleep: options.sleep,
-                    init: { cache: "no-store", credentials: "include" },
-                    timeoutMs: options.timeoutMs,
-                    maxBytes: options.maxManifestBytes,
-                    fetchErrorPrefix: "Error fetching media playlist M3U8",
-                    readErrorPrefix: "Error reading media playlist M3U8",
-                });
-                const mediaManifest = parseM3u8(variantText);
-                const summedDuration = sumSegmentDurations(mediaManifest);
-                if (isVodPlaylist(mediaManifest) && summedDuration > 0) {
-                    return {
-                        platform: "generic",
-                        contentType: "vod",
-                        ...titleMeta,
-                        durationSeconds: summedDuration,
-                        formats: toVodFormats(liveFormats, summedDuration),
-                    };
-                }
-            } catch {
-                // Fall back to live estimate using master playlist bandwidths.
+    const firstVariantUri = variants.find((variant) => variant.uri)?.uri;
+    if (firstVariantUri) {
+        try {
+            const variantUrl = resolveRelativeUrl(firstVariantUri, fetchedPlaylistUrl);
+            const { text: variantText } = await fetchBoundedText(variantUrl, {
+                fetch: fetchFn,
+                sleep: options.sleep,
+                init: { cache: "no-store", credentials: "include" },
+                timeoutMs: options.timeoutMs,
+                maxBytes: options.maxManifestBytes,
+                fetchErrorPrefix: "Error fetching media playlist M3U8",
+                readErrorPrefix: "Error reading media playlist M3U8",
+            });
+            const mediaManifest = parseM3u8(variantText);
+            const summedDuration = sumSegmentDurations(mediaManifest);
+            if (isVodPlaylist(mediaManifest) && summedDuration > 0) {
+                return {
+                    platform: "generic",
+                    contentType: "vod",
+                    ...titleMeta,
+                    durationSeconds: summedDuration,
+                    formats: toVodFormats(liveFormats, summedDuration),
+                };
             }
+        } catch {
+            // Fall back to live estimate using master playlist bandwidths.
         }
-
-        return {
-            platform: "generic",
-            contentType: "live",
-            ...titleMeta,
-            formats: liveFormats,
-        };
     }
 
-    if (manifest.segments && manifest.segments.length > 0) {
-        const sizePerSecondBytes = await sampleGenericMediaPlaylistRate(
-            manifest,
-            fetchedPlaylistUrl,
-            fetchFn,
-        );
-        if (!(sizePerSecondBytes > 0)) {
-            throw new MediaEstimateError(
-                "no_formats",
-                "Could not determine bitrate from HLS media playlist segments",
-            );
-        }
-
-        const summedDuration = sumSegmentDurations(manifest);
-        const durationSeconds = explicitDuration ?? (summedDuration > 0 ? summedDuration : 0);
-
-        if ((isVodPlaylist(manifest) || explicitDuration !== undefined) && durationSeconds > 0) {
-            return {
-                platform: "generic",
-                contentType: "vod",
-                ...titleMeta,
-                durationSeconds,
-                formats: [
-                    {
-                        kind: "vod",
-                        resolution: 0,
-                        sizeBytes: Math.round(sizePerSecondBytes * durationSeconds),
-                        sizePerSecondBytes,
-                    },
-                ],
-            };
-        }
-
-        return {
-            platform: "generic",
-            contentType: "live",
-            ...titleMeta,
-            formats: [{ kind: "live", resolution: 0, sizePerSecondBytes }],
-        };
-    }
-
-    throw new MediaEstimateError("no_formats", "No playlists or segments found in HLS manifest");
+    return {
+        platform: "generic",
+        contentType: "live",
+        ...titleMeta,
+        formats: liveFormats,
+    };
 }
