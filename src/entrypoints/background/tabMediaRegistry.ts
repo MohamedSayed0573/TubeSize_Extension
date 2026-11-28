@@ -3,7 +3,7 @@ import { storage as wxtStorage } from "@wxt-dev/storage";
 
 import { isExtensionUrl } from "./usageIngestion";
 
-type ObservedMediaKind = "hls" | "dash" | "direct";
+type ObservedMediaKind = "hls" | "dash";
 
 export type ObservedMedia = {
     kind: ObservedMediaKind;
@@ -48,8 +48,6 @@ type RegistryOptions = {
 const NO_TAB_ID = -1;
 const MAIN_FRAME_ID = 0;
 const MEDIA_REQUEST_TYPES = new Set(["xmlhttprequest", "media", "other"]);
-const SEGMENT_EXTENSIONS = [".ts", ".m4s", ".cmfv", ".cmfa", ".m4a"];
-const SEGMENT_MIME_TYPES = new Set(["video/mp2t", "video/iso.segment"]);
 
 const tabMediaSessionItem = wxtStorage.defineItem<PersistedTabMedia>("session:tabMediaRegistry");
 
@@ -68,22 +66,10 @@ function getContentType(details: ObservedRequestDetails): string | undefined {
 function classifyObservedMedia(
     url: URL,
     contentType: string | undefined,
-    requestType: string,
 ): ObservedMediaKind | undefined {
     const pathname = url.pathname.toLowerCase();
     if (pathname.endsWith(".m3u8") || contentType?.includes("mpegurl")) return "hls";
     if (pathname.endsWith(".mpd") || contentType === "application/dash+xml") return "dash";
-
-    // MSE players fetch video chunks via XHR/fetch; only a native `<video src>`
-    // load (`media`) is a whole direct file.
-    if (
-        requestType === "media" &&
-        contentType?.startsWith("video/") &&
-        !SEGMENT_MIME_TYPES.has(contentType) &&
-        !SEGMENT_EXTENSIONS.some((extension) => pathname.endsWith(extension))
-    ) {
-        return "direct";
-    }
     return undefined;
 }
 
@@ -186,7 +172,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             if (url.protocol !== "http:" && url.protocol !== "https:") return;
 
             const mimeType = getContentType(details);
-            const kind = classifyObservedMedia(url, mimeType, details.type);
+            const kind = classifyObservedMedia(url, mimeType);
             if (!kind) return;
 
             record(details.tabId, {

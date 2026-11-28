@@ -52,10 +52,8 @@ export type DetectedVideoSource =
     | {
           kind: "direct";
           url: string;
-          mimeType?: string;
           durationSeconds?: number;
           videoHeight?: number;
-          videoWidth?: number;
       };
 
 export type GenericVideoSource = Exclude<DetectedVideoSource, { kind: "platform-embed" }>;

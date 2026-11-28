@@ -17,7 +17,6 @@ type ScannedVideo = {
     currentSrc?: string;
     sources: Array<{ url: string; type?: string }>;
     durationSeconds?: number;
-    videoWidth?: number;
     videoHeight?: number;
     isPlaying: boolean;
     title?: string;
@@ -90,7 +89,6 @@ export function scanFrameDom(): FrameDomScan {
                 currentSrc: toAbsoluteUrl(element.currentSrc),
                 sources,
                 durationSeconds: Number.isFinite(duration) && duration > 0 ? duration : undefined,
-                videoWidth: element.videoWidth || undefined,
                 videoHeight: element.videoHeight || undefined,
                 isPlaying: !element.paused && !element.ended && element.readyState > 2,
                 title:
@@ -131,13 +129,12 @@ const executeFrameScan: FrameScanExecutor = (tabId) =>
     chrome.scripting.executeScript({ target: { tabId, allFrames: true }, func: scanFrameDom });
 
 type GenericKind = GenericVideoSource["kind"];
-type ManifestEntry = ObservedMedia & { kind: "hls" | "dash" };
 
 type ManifestGroup = {
     id: number;
     frameId: number;
     kind: "hls" | "dash";
-    primary: ManifestEntry;
+    primary: ObservedMedia;
     urls: Set<string>;
     latestObservedAt: number;
 };
@@ -168,10 +165,6 @@ function classifySourceUrl(url: string, mimeType?: string): GenericKind | undefi
     return "direct";
 }
 
-function isStreamingManifest(entry: ObservedMedia): entry is ManifestEntry {
-    return entry.kind === "hls" || entry.kind === "dash";
-}
-
 function parseOriginAndDir(rawUrl: string): { origin: string; dir: string } | undefined {
     try {
         const parsed = new URL(rawUrl);
@@ -192,7 +185,7 @@ function isRelatedHlsManifest(primaryUrl: string, candidateUrl: string): boolean
     return candidate.dir.startsWith(primary.dir);
 }
 
-function groupObservedManifests(manifests: readonly ManifestEntry[]): ManifestGroup[] {
+function groupObservedManifests(manifests: readonly ObservedMedia[]): ManifestGroup[] {
     const ordered = manifests.toSorted((a, b) => a.observedAt - b.observedAt);
     const groups: ManifestGroup[] = [];
     let nextId = 0;
@@ -261,17 +254,14 @@ function toGenericSource(
     kind: GenericKind,
     url: string,
     video: ScannedVideo | undefined,
-    mimeType?: string,
 ): GenericVideoSource {
     const durationSeconds = video?.durationSeconds;
     if (kind === "direct") {
         return {
             kind,
             url,
-            ...(mimeType ? { mimeType } : {}),
             ...(durationSeconds ? { durationSeconds } : {}),
             ...(video?.videoHeight ? { videoHeight: video.videoHeight } : {}),
-            ...(video?.videoWidth ? { videoWidth: video.videoWidth } : {}),
         };
     }
     return { kind, url, ...(durationSeconds ? { durationSeconds } : {}) };
@@ -316,21 +306,14 @@ export function selectDetectedVideo(
         if (best) embedFrameStates.set(embedded.canonicalUrl, best);
     }
 
-    const manifests = observedMedia.filter(
-        (entry): entry is ManifestEntry =>
-            isStreamingManifest(entry) && !embedFrameIds.has(entry.frameId),
-    );
+    const manifests = observedMedia.filter((entry) => !embedFrameIds.has(entry.frameId));
     const manifestGroups = groupObservedManifests(manifests);
     const claimedGroupIds = new Set<number>();
 
     const observedByUrl = new Map<string, ObservedMedia>();
     for (const entry of observedMedia) {
         const existing = observedByUrl.get(entry.url);
-        if (
-            !existing ||
-            (existing.kind === "direct" && entry.kind !== "direct") ||
-            (existing.kind === entry.kind && entry.observedAt >= existing.observedAt)
-        ) {
+        if (!existing || entry.observedAt >= existing.observedAt) {
             observedByUrl.set(entry.url, entry);
         }
     }
@@ -384,16 +367,10 @@ export function selectDetectedVideo(
             const playable = candidates
                 .map((candidate) => {
                     const observed = observedByUrl.get(candidate.url);
-                    const mergedMimeType = candidate.type ?? observed?.mimeType;
-                    const kind =
-                        observed && (observed.kind === "hls" || observed.kind === "dash")
-                            ? observed.kind
-                            : classifySourceUrl(candidate.url, mergedMimeType);
-                    return {
-                        url: candidate.url,
-                        mimeType: mergedMimeType,
-                        kind,
-                    };
+                    const kind = observed
+                        ? observed.kind
+                        : classifySourceUrl(candidate.url, candidate.type);
+                    return { url: candidate.url, kind };
                 })
                 .find((candidate) => candidate.kind !== undefined);
 
@@ -419,7 +396,7 @@ export function selectDetectedVideo(
             }
 
             add({
-                source: toGenericSource(playable.kind, playable.url, video, playable.mimeType),
+                source: toGenericSource(playable.kind, playable.url, video),
                 title,
                 isPlaying: video.isPlaying,
                 currentResolution: video.videoHeight,
@@ -457,25 +434,6 @@ export function selectDetectedVideo(
             source: toGenericSource(group.kind, group.primary.url, undefined),
             isPlaying: false,
             frameId: group.frameId,
-        });
-    }
-
-    // Direct video loads observed via webRequest from frames that could not be
-    // DOM-scanned (e.g. opaque sandboxed iframes). Frames that were scanned
-    // report their live `<video>` elements directly so removed videos do not linger.
-    const scannedFrameIds = new Set(frames.map((frame) => frame.frameId));
-    for (const entry of observedMedia) {
-        if (
-            entry.kind !== "direct" ||
-            embedFrameIds.has(entry.frameId) ||
-            scannedFrameIds.has(entry.frameId)
-        ) {
-            continue;
-        }
-        add({
-            source: toGenericSource("direct", entry.url, undefined, entry.mimeType),
-            isPlaying: false,
-            frameId: entry.frameId,
         });
     }
 

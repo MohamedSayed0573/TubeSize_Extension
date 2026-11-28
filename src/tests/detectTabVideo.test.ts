@@ -46,7 +46,7 @@ function createMemoryStorage(): TabMediaStorage {
 }
 
 describe("createTabMediaRegistry", () => {
-    test("detects HLS, DASH, and direct media while ignoring segments, errors, and non-tab/extension URLs", async () => {
+    test("detects HLS and DASH manifests while ignoring direct videos, segments, errors, and non-tab/extension URLs", async () => {
         let tick = 1000;
         const registry = createTabMediaRegistry({ now: () => ++tick, storage: null });
 
@@ -60,6 +60,8 @@ describe("createTabMediaRegistry", () => {
             }),
         );
         registry.observeRequest(makeRequest({ url: "https://cdn.example.com/dash/manifest.mpd" }));
+
+        // Ignored entries:
         registry.observeRequest(
             makeRequest({
                 type: "media",
@@ -67,8 +69,6 @@ describe("createTabMediaRegistry", () => {
                 responseHeaders: [{ name: "Content-Type", value: "video/mp4" }],
             }),
         );
-
-        // Ignored entries:
         registry.observeRequest(makeRequest({ tabId: -1 }));
         registry.observeRequest(
             makeRequest({ url: "chrome-extension://abc/master.m3u8", statusCode: 200 }),
@@ -115,12 +115,6 @@ describe("createTabMediaRegistry", () => {
                 kind: "dash",
                 url: "https://cdn.example.com/dash/manifest.mpd",
                 frameId: 0,
-            },
-            {
-                kind: "direct",
-                url: "https://cdn.example.com/video/clip.mp4",
-                frameId: 0,
-                mimeType: "video/mp4",
             },
         ]);
     });
@@ -340,7 +334,6 @@ describe("selectDetectedVideo", () => {
                         currentSrc: "https://cdn.example.com/hero.mp4",
                         sources: [],
                         durationSeconds: 95,
-                        videoWidth: 1920,
                         videoHeight: 1080,
                         isPlaying: true,
                         title: "Hero Video",
@@ -370,17 +363,7 @@ describe("selectDetectedVideo", () => {
             },
         ];
 
-        const observed: ObservedMedia[] = [
-            {
-                kind: "direct",
-                url: "https://cdn.example.com/hero.mp4",
-                frameId: 0,
-                mimeType: "video/mp4",
-                observedAt: 1,
-            },
-        ];
-
-        expect(selectDetectedVideo(frames, observed)).toEqual({
+        expect(selectDetectedVideo(frames, [])).toEqual({
             status: "video",
             video: {
                 id: "direct:https://cdn.example.com/hero.mp4",
@@ -391,10 +374,8 @@ describe("selectDetectedVideo", () => {
                 source: {
                     kind: "direct",
                     url: "https://cdn.example.com/hero.mp4",
-                    mimeType: "video/mp4",
                     durationSeconds: 95,
                     videoHeight: 1080,
-                    videoWidth: 1920,
                 },
             },
         });
@@ -409,7 +390,7 @@ describe("selectDetectedVideo", () => {
                 videos: [{ ...frames[1]!.videos[0]!, isPlaying: true }],
             },
         ];
-        expect(selectDetectedVideo(embedPlayingFrames, observed)).toEqual({
+        expect(selectDetectedVideo(embedPlayingFrames, [])).toEqual({
             status: "video",
             video: {
                 id: "embed:https://youtube.com/watch?v=yaodD79Q4iE",
@@ -433,7 +414,7 @@ describe("selectDetectedVideo", () => {
             },
             frames[1]!,
         ];
-        expect(selectDetectedVideo(allIdleFrames, observed)).toEqual({
+        expect(selectDetectedVideo(allIdleFrames, [])).toEqual({
             status: "multiple_idle",
             count: 4,
         });
@@ -892,45 +873,7 @@ describe("selectDetectedVideo", () => {
         });
     });
 
-    test("groups nested HLS variants under their parent master and ignores removed observed direct videos", () => {
-        // Removed direct videos from already-scanned frames must not linger via observed direct fallback.
-        const replacedDirectFrames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://example.com/gallery",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "https://cdn.example.com/b.mp4",
-                        sources: [],
-                        durationSeconds: 30,
-                        isPlaying: false,
-                        title: "Current Clip",
-                    },
-                ],
-            },
-        ];
-        const replacedDirectObserved: ObservedMedia[] = [
-            {
-                kind: "direct",
-                url: "https://cdn.example.com/a.mp4",
-                frameId: 0,
-                mimeType: "video/mp4",
-                observedAt: 1,
-            },
-            {
-                kind: "direct",
-                url: "https://cdn.example.com/b.mp4",
-                frameId: 0,
-                mimeType: "video/mp4",
-                observedAt: 2,
-            },
-        ];
-        expect(selectDetectedVideo(replacedDirectFrames, replacedDirectObserved)).toMatchObject({
-            status: "video",
-            video: { id: "direct:https://cdn.example.com/b.mp4" },
-        });
-
+    test("groups nested HLS variants under their parent master", () => {
         // Real-world Mux/hls.js layout: master + url_0/193039199_mp4_h264_aac_hd_7.m3u8
         const muxFrames: FrameScanResult[] = [
             {
@@ -966,13 +909,6 @@ describe("selectDetectedVideo", () => {
                 url: "https://test-streams.mux.dev/x36xhzz/url_8/193039199_mp4_h264_aac_fhd_7.m3u8",
                 frameId: 0,
                 observedAt: 12,
-            },
-            {
-                kind: "direct",
-                url: "https://cdn.example.com/sandboxed/clip.webm",
-                frameId: 9,
-                mimeType: "video/webm",
-                observedAt: 13,
             },
         ];
 

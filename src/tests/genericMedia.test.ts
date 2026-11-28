@@ -22,7 +22,6 @@ describe("estimateDirectVideo and estimateGenericMedia", () => {
                 url: VIDEO_URL,
                 durationSeconds: 120,
                 videoHeight: 1080,
-                videoWidth: 1920,
             },
             { title: "Product Demo", fetch: headFetch },
         );
