@@ -149,11 +149,6 @@ type PendingMseVideo = {
     domOrder: number;
 };
 
-const EXPLICIT_MASTER_NAME_REGEX = /^(master|manifest)$/i;
-const MASTER_NAME_REGEX = /^(master|manifest|index|playlist|main)$/i;
-const VARIANT_NAME_REGEX =
-    /(chunklist|variant|rendition|media|audio|subtitle|caption|prog_index|(?:level|url|track|quality|bitrate|profile)[_-]?\d|\b\d{3,4}p\b|\d{3,4}x\d{3,4}|\b\d+k(?:bps)?\b|(?:^|[_-])(?:ld|sd|hd|fhd|uhd|hq|lq|h264|h265|hevc|avc|vp9|av1|aac)(?:$|[_-]))/i;
-
 function normalizeMimeType(mimeType: string | undefined): string | undefined {
     const base = mimeType?.split(";", 1)[0]?.trim().toLowerCase();
     return base || undefined;
@@ -179,108 +174,24 @@ function isStreamingManifest(entry: ObservedMedia): entry is ManifestEntry {
     return entry.kind === "hls" || entry.kind === "dash";
 }
 
-function parseUrlParts(rawUrl: string): { origin: string; dir: string; stem: string } | undefined {
+function parseOriginAndDir(rawUrl: string): { origin: string; dir: string } | undefined {
     try {
         const parsed = new URL(rawUrl);
-        const { pathname } = parsed;
-        const lastSlash = pathname.lastIndexOf("/");
-        const dir = pathname.slice(0, lastSlash + 1).toLowerCase();
-        const file = pathname.slice(lastSlash + 1);
-        const dot = file.lastIndexOf(".");
-        const stem = (dot > 0 ? file.slice(0, dot) : file).toLowerCase();
-        return { origin: parsed.origin.toLowerCase(), dir, stem };
+        const lastSlash = parsed.pathname.lastIndexOf("/");
+        return {
+            origin: parsed.origin.toLowerCase(),
+            dir: parsed.pathname.slice(0, lastSlash + 1).toLowerCase(),
+        };
     } catch {
         return undefined;
     }
 }
 
-function isExplicitMasterName(stem: string): boolean {
-    return EXPLICIT_MASTER_NAME_REGEX.test(stem);
-}
-
-function isLikelyMasterName(stem: string): boolean {
-    return MASTER_NAME_REGEX.test(stem);
-}
-
-function isLikelyVariantName(stem: string): boolean {
-    return VARIANT_NAME_REGEX.test(stem);
-}
-
-function isLikelyVariantPath(relativeSubdir: string): boolean {
-    return relativeSubdir
-        .split("/")
-        .some((segment) => segment.length > 0 && isLikelyVariantName(segment));
-}
-
 function isRelatedHlsManifest(primaryUrl: string, candidateUrl: string): boolean {
-    const primary = parseUrlParts(primaryUrl);
-    const candidate = parseUrlParts(candidateUrl);
+    const primary = parseOriginAndDir(primaryUrl);
+    const candidate = parseOriginAndDir(candidateUrl);
     if (!primary || !candidate || primary.origin !== candidate.origin) return false;
-
-    if (
-        candidate.dir !== primary.dir &&
-        isExplicitMasterName(primary.stem) &&
-        isExplicitMasterName(candidate.stem)
-    ) {
-        return false;
-    }
-
-    if (candidate.dir.length > primary.dir.length && candidate.dir.startsWith(primary.dir)) {
-        const relativeSubdir = candidate.dir.slice(primary.dir.length);
-        return isLikelyVariantName(candidate.stem) || isLikelyVariantPath(relativeSubdir);
-    }
-
-    if (candidate.dir === primary.dir) {
-        if (isLikelyMasterName(primary.stem) && !isLikelyMasterName(candidate.stem)) {
-            return true;
-        }
-        if (isLikelyVariantName(candidate.stem) && !isLikelyVariantName(primary.stem)) {
-            return true;
-        }
-        if (isLikelyVariantName(primary.stem) && isLikelyVariantName(candidate.stem)) {
-            return true;
-        }
-        if (isLikelyVariantName(primary.stem) && isLikelyMasterName(candidate.stem)) {
-            return true;
-        }
-        if (
-            primary.stem.length >= 2 &&
-            (candidate.stem.startsWith(`${primary.stem}_`) ||
-                candidate.stem.startsWith(`${primary.stem}-`) ||
-                candidate.stem.startsWith(`${primary.stem}.`))
-        ) {
-            return true;
-        }
-    }
-
-    if (
-        primary.dir.length > candidate.dir.length &&
-        primary.dir.startsWith(candidate.dir) &&
-        isLikelyMasterName(candidate.stem)
-    ) {
-        const relativeSubdir = primary.dir.slice(candidate.dir.length);
-        return isLikelyVariantName(primary.stem) || isLikelyVariantPath(relativeSubdir);
-    }
-
-    return false;
-}
-
-function shouldPromotePrimary(currentUrl: string, candidateUrl: string): boolean {
-    const current = parseUrlParts(currentUrl);
-    const candidate = parseUrlParts(candidateUrl);
-    if (!current || !candidate) return false;
-
-    if (candidate.dir.length < current.dir.length && current.dir.startsWith(candidate.dir)) {
-        return true;
-    }
-    if (
-        candidate.dir === current.dir &&
-        isLikelyMasterName(candidate.stem) &&
-        !isLikelyMasterName(current.stem)
-    ) {
-        return true;
-    }
-    return false;
+    return candidate.dir.startsWith(primary.dir);
 }
 
 function groupObservedManifests(manifests: readonly ManifestEntry[]): ManifestGroup[] {
@@ -317,9 +228,6 @@ function groupObservedManifests(manifests: readonly ManifestEntry[]): ManifestGr
                 matchedGroup.latestObservedAt,
                 entry.observedAt,
             );
-            if (shouldPromotePrimary(matchedGroup.primary.url, entry.url)) {
-                matchedGroup.primary = entry;
-            }
         } else {
             groups.push({
                 id: nextId++,

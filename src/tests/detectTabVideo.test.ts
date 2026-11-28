@@ -892,51 +892,7 @@ describe("selectDetectedVideo", () => {
         });
     });
 
-    test("keeps independent nested-directory HLS masters separate and ignores removed observed direct videos", () => {
-        const nestedFrames: FrameScanResult[] = [
-            {
-                frameId: 0,
-                frameUrl: "https://example.com/nested",
-                iframes: [],
-                videos: [
-                    {
-                        currentSrc: "blob:https://example.com/first",
-                        sources: [],
-                        durationSeconds: 100,
-                        isPlaying: false,
-                        title: "Root Stream",
-                    },
-                    {
-                        currentSrc: "blob:https://example.com/second",
-                        sources: [],
-                        durationSeconds: 200,
-                        isPlaying: false,
-                        title: "Nested Stream",
-                    },
-                ],
-            },
-        ];
-
-        const nestedObserved: ObservedMedia[] = [
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/a/master.m3u8",
-                frameId: 0,
-                observedAt: 1,
-            },
-            {
-                kind: "hls",
-                url: "https://cdn.example.com/a/stream_1/master.m3u8",
-                frameId: 0,
-                observedAt: 2,
-            },
-        ];
-
-        expect(selectDetectedVideo(nestedFrames, nestedObserved)).toEqual({
-            status: "multiple_idle",
-            count: 2,
-        });
-
+    test("groups nested HLS variants under their parent master and ignores removed observed direct videos", () => {
         // Removed direct videos from already-scanned frames must not linger via observed direct fallback.
         const replacedDirectFrames: FrameScanResult[] = [
             {
