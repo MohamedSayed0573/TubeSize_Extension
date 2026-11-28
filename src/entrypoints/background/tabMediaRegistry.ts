@@ -18,11 +18,6 @@ type ObservedRequestDetails = Pick<
     "tabId" | "frameId" | "type" | "url" | "statusCode" | "responseHeaders"
 >;
 
-type CommittedSubFrameDetails = Pick<
-    chrome.webRequest.OnCompletedDetails,
-    "tabId" | "frameId" | "url" | "statusCode"
->;
-
 type PersistedTabMedia = Array<[number, ObservedMedia[]]>;
 
 export type TabMediaStorage = {
@@ -33,7 +28,6 @@ export type TabMediaStorage = {
 export type TabMediaRegistry = {
     observeRequest(details: ObservedRequestDetails): void;
     observeSubFrame(tabId: number, frameId: number, url: string): void;
-    commitSubFrame(details: CommittedSubFrameDetails): void;
     getTabMedia(tabId: number): Promise<ObservedMedia[]>;
     getFrameUrl(tabId: number, frameId: number): string | undefined;
     clearTab(tabId: number): void;
@@ -186,6 +180,19 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
         observeSubFrame(tabId, frameId, url) {
             if (tabId === NO_TAB_ID || frameId <= MAIN_FRAME_ID || isExtensionUrl(url)) return;
 
+            mutate(() => {
+                const existingMedia = tabs.get(tabId);
+                if (!existingMedia) return false;
+                const remaining = existingMedia.filter((entry) => entry.frameId !== frameId);
+                if (remaining.length === existingMedia.length) return false;
+                if (remaining.length > 0) {
+                    tabs.set(tabId, remaining);
+                } else {
+                    tabs.delete(tabId);
+                }
+                return true;
+            });
+
             if (!parseEmbeddedPlatformUrl(url)) {
                 const existing = embedFrames.get(tabId);
                 if (existing?.delete(frameId) && existing.size === 0) {
@@ -197,40 +204,6 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             const frames = embedFrames.get(tabId) ?? new Map<number, string>();
             frames.set(frameId, url);
             embedFrames.set(tabId, frames);
-        },
-        commitSubFrame(details) {
-            if (
-                details.tabId === NO_TAB_ID ||
-                details.frameId <= MAIN_FRAME_ID ||
-                isExtensionUrl(details.url)
-            ) {
-                return;
-            }
-            // 204/205 responses do not replace the frame's document; 4xx/5xx error
-            // pages DO replace the document and must clear the previous video's media.
-            if (
-                details.statusCode < 200 ||
-                details.statusCode === 204 ||
-                details.statusCode === 205 ||
-                (details.statusCode >= 300 && details.statusCode < 400)
-            ) {
-                return;
-            }
-
-            mutate(() => {
-                const existingMedia = tabs.get(details.tabId);
-                if (!existingMedia) return false;
-                const remaining = existingMedia.filter(
-                    (entry) => entry.frameId !== details.frameId,
-                );
-                if (remaining.length === existingMedia.length) return false;
-                if (remaining.length > 0) {
-                    tabs.set(details.tabId, remaining);
-                } else {
-                    tabs.delete(details.tabId);
-                }
-                return true;
-            });
         },
         async getTabMedia(tabId) {
             await startQueue();

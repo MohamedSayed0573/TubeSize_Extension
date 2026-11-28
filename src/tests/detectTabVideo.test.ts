@@ -224,7 +224,7 @@ describe("createTabMediaRegistry", () => {
         expect(registry.getFrameUrl(12, 5)).toBeUndefined();
     });
 
-    test("invalidates stale subframe media when a replacement document commits, preserving canceled navigations and other frames", async () => {
+    test("clears subframe media on sub_frame navigation while preserving other frames and handling pre-hydration restarts", async () => {
         const storage = createMemoryStorage();
         let tick = 100;
         const firstWorker = createTabMediaRegistry({ now: () => ++tick, storage });
@@ -244,26 +244,14 @@ describe("createTabMediaRegistry", () => {
                 url: "https://cdn.example.com/sub/old.m3u8",
             }),
         );
-        await firstWorker.getTabMedia(15);
-        await new Promise((resolve) => setTimeout(resolve, 0));
-
-        // Starting a subframe navigation (e.g. later canceled or turned into a download)
-        // must NOT drop the currently open document's media before it commits.
-        firstWorker.observeSubFrame(15, 7, "https://example.com/download.zip");
         expect((await firstWorker.getTabMedia(15)).map((entry) => entry.url)).toEqual([
             "https://cdn.example.com/main/master.m3u8",
             "https://cdn.example.com/sub/old.m3u8",
         ]);
 
-        // Once a replacement document commits (HTTP 200), frame 7's old manifest is invalidated
-        // while frame 0's manifest is preserved, and new manifests recorded afterward are kept.
+        // Navigating frame 7 clears its previous manifest while preserving frame 0,
+        // and keeps new manifests observed afterward.
         firstWorker.observeSubFrame(15, 7, "https://example.com/player-v2");
-        firstWorker.commitSubFrame({
-            tabId: 15,
-            frameId: 7,
-            url: "https://example.com/player-v2",
-            statusCode: 200,
-        });
         firstWorker.observeRequest(
             makeRequest({
                 tabId: 15,
@@ -276,36 +264,9 @@ describe("createTabMediaRegistry", () => {
             "https://cdn.example.com/sub/new.m3u8",
         ]);
 
-        // An HTTP 404/500 error page replacing the iframe document also clears the previous video's media.
-        firstWorker.observeSubFrame(15, 7, "https://example.com/missing");
-        firstWorker.commitSubFrame({
-            tabId: 15,
-            frameId: 7,
-            url: "https://example.com/missing",
-            statusCode: 404,
-        });
-        expect((await firstWorker.getTabMedia(15)).map((entry) => entry.url)).toEqual([
-            "https://cdn.example.com/main/master.m3u8",
-        ]);
-
-        // Re-seed persisted storage with frame 7 media, then test pre-hydration committed navigation.
-        firstWorker.observeRequest(
-            makeRequest({
-                tabId: 15,
-                frameId: 7,
-                url: "https://cdn.example.com/sub/persisted.m3u8",
-            }),
-        );
-        await new Promise((resolve) => setTimeout(resolve, 0));
-
+        // Navigating frame 7 before hydration finishes on a restarted worker clears persisted media for frame 7.
         const restartedWorker = createTabMediaRegistry({ now: () => ++tick, storage });
         restartedWorker.observeSubFrame(15, 7, "https://example.com/plain-2");
-        restartedWorker.commitSubFrame({
-            tabId: 15,
-            frameId: 7,
-            url: "https://example.com/plain-2",
-            statusCode: 200,
-        });
         expect((await restartedWorker.getTabMedia(15)).map((entry) => entry.url)).toEqual([
             "https://cdn.example.com/main/master.m3u8",
         ]);

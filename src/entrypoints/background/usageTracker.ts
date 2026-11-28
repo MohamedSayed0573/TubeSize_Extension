@@ -34,13 +34,7 @@ export function setupTrackUsage(
         return undefined;
     };
     const onRequestCompleted = (details: CompletedRequestDetails) => {
-        if (details.type === "sub_frame") {
-            if (!isAttachmentNavigation(details)) {
-                tabMediaRegistry?.commitSubFrame(details);
-            }
-        } else {
-            tabMediaRegistry?.observeRequest(details);
-        }
+        tabMediaRegistry?.observeRequest(details);
         void trackRequest(ingestion, details, dedup, tabMediaRegistry);
     };
     const onTabRemoved = (tabId: number) => {
