@@ -34,7 +34,7 @@ function makeRequest(
 }
 
 function createMemoryStorage(): TabMediaStorage {
-    let saved: unknown = null;
+    let saved: Awaited<ReturnType<TabMediaStorage["get"]>> = null;
     return {
         async get() {
             return structuredClone(saved);

@@ -23,9 +23,11 @@ type CommittedSubFrameDetails = Pick<
     "tabId" | "frameId" | "url" | "statusCode"
 >;
 
+type PersistedTabMedia = Array<[number, ObservedMedia[]]>;
+
 export type TabMediaStorage = {
-    get(): Promise<unknown>;
-    set(value: unknown): Promise<void>;
+    get(): Promise<PersistedTabMedia | null | undefined>;
+    set(value: PersistedTabMedia): Promise<void>;
 };
 
 export type TabMediaRegistry = {
@@ -51,7 +53,7 @@ const MEDIA_REQUEST_TYPES = new Set(["xmlhttprequest", "media", "other"]);
 const SEGMENT_EXTENSIONS = [".ts", ".m4s", ".cmfv", ".cmfa", ".m4a"];
 const SEGMENT_MIME_TYPES = new Set(["video/mp2t", "video/iso.segment"]);
 
-const tabMediaSessionItem = wxtStorage.defineItem<unknown>("session:tabMediaRegistry");
+const tabMediaSessionItem = wxtStorage.defineItem<PersistedTabMedia>("session:tabMediaRegistry");
 
 const defaultSessionStorage: TabMediaStorage = {
     get: () => tabMediaSessionItem.getValue(),
@@ -85,50 +87,6 @@ function classifyObservedMedia(
         return "direct";
     }
     return undefined;
-}
-
-function parsePersistedMedia(raw: unknown): Array<[number, ObservedMedia[]]> {
-    const rawList = Array.isArray(raw)
-        ? raw
-        : typeof raw === "object" && raw !== null && "media" in raw && Array.isArray(raw.media)
-          ? raw.media
-          : [];
-    const parsed: Array<[number, ObservedMedia[]]> = [];
-    for (const item of rawList) {
-        if (!Array.isArray(item) || item.length !== 2) continue;
-        const [tabId, rawEntries] = item;
-        if (typeof tabId !== "number" || !Number.isFinite(tabId) || !Array.isArray(rawEntries)) {
-            continue;
-        }
-        const entries: ObservedMedia[] = [];
-        for (const candidate of rawEntries) {
-            if (typeof candidate !== "object" || candidate === null) continue;
-            const kind = "kind" in candidate ? candidate.kind : undefined;
-            const url = "url" in candidate ? candidate.url : undefined;
-            const frameId = "frameId" in candidate ? candidate.frameId : undefined;
-            const observedAt = "observedAt" in candidate ? candidate.observedAt : undefined;
-            const mimeType = "mimeType" in candidate ? candidate.mimeType : undefined;
-            if (
-                (kind !== "hls" && kind !== "dash" && kind !== "direct") ||
-                typeof url !== "string" ||
-                typeof frameId !== "number" ||
-                !Number.isFinite(frameId) ||
-                typeof observedAt !== "number" ||
-                !Number.isFinite(observedAt)
-            ) {
-                continue;
-            }
-            entries.push({
-                kind,
-                url,
-                frameId,
-                ...(typeof mimeType === "string" && mimeType ? { mimeType } : {}),
-                observedAt,
-            });
-        }
-        if (entries.length > 0) parsed.push([tabId, entries]);
-    }
-    return parsed;
 }
 
 function upsertEntry(entries: ObservedMedia[], entry: ObservedMedia, maxEntriesPerTab: number) {
@@ -191,7 +149,7 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             return;
         }
         persistInFlight = true;
-        const snapshot = [...tabs.entries()].map(([tabId, entries]) => [
+        const snapshot: PersistedTabMedia = [...tabs.entries()].map(([tabId, entries]) => [
             tabId,
             entries.map((entry) => ({ ...entry })),
         ]);
@@ -229,7 +187,8 @@ export function createTabMediaRegistry(options: RegistryOptions = {}): TabMediaR
             const activeStorage = storage;
             hydratePromise = (async () => {
                 try {
-                    const persisted = parsePersistedMedia(await activeStorage.get());
+                    const raw = await activeStorage.get();
+                    const persisted = Array.isArray(raw) ? raw : [];
                     const merged = new Map<number, ObservedMedia[]>();
 
                     for (const [tabId, persistedEntries] of persisted) {
